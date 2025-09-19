@@ -5,14 +5,10 @@
  * and incorporate existing tests while following cognitive architecture principles.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { CognitiveTestFramework, TestSuite, TestCase } from './TestFramework.js';
-import { CognitiveMCPServer } from '../../server/CognitiveMCPServer.js';
+import { TestSuite, TestCase } from './TestFramework.js';
 import { ProcessingMode, ReasoningType } from '../../types/core.js';
 import {
   createDefaultContext,
-  createDefaultThoughtResult,
-  createDefaultCognitiveInput,
   createTestDataSet
 } from '../../utils/factories.js';
 import {

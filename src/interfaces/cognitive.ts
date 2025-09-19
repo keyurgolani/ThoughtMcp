@@ -11,7 +11,8 @@ import {
   EmotionalState, 
   ReasoningStep,
   ProcessingMode,
-  Context
+  Context,
+  Token
 } from '../types/core.js';
 
 // Base interface for all cognitive components
@@ -32,10 +33,10 @@ export interface ComponentStatus {
 
 // Sensory processing interface
 export interface ISensoryProcessor extends CognitiveComponent {
-  tokenize(input: string): string[];
-  filterAttention(tokens: string[], threshold: number): string[];
-  detectPatterns(tokens: string[]): Pattern[];
-  computeSalience(tokens: string[]): SalienceMap;
+  tokenize(input: string): Token[];
+  filterAttention(tokens: Token[], threshold: number): Token[];
+  detectPatterns(tokens: Token[]): Pattern[];
+  computeSalience(tokens: Token[]): SalienceMap;
 }
 
 export interface Pattern {

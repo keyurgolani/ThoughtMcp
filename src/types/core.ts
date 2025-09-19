@@ -2,6 +2,15 @@
  * Core data types and interfaces for the cognitive architecture
  */
 
+// Token interface for sensory processing
+export interface Token {
+  text: string;
+  position: number;
+  semantic_weight: number;
+  attention_score: number;
+  context_tags: string[];
+}
+
 // Processing modes for different thinking styles
 export enum ProcessingMode {
   INTUITIVE = 'intuitive',
@@ -61,6 +70,7 @@ export interface ThoughtMetadata {
   memory_retrievals: number;
   system_mode: ProcessingMode;
   temperature: number;
+  dual_process_info?: any;
 }
 
 // Main result structure for thinking operations

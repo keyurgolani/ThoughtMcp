@@ -15,9 +15,7 @@ import {
 } from './TestFramework.js';
 import { 
   allTestSuites, 
-  testSuiteRegistry, 
-  getTestSuitesByTags,
-  getTestsByTags 
+  getTestSuitesByTags
 } from './TestSuites.js';
 import { CognitiveMCPServer } from '../../server/CognitiveMCPServer.js';
 import { ProcessingMode } from '../../types/core.js';
@@ -68,7 +66,7 @@ export class ThoughtMCPTestRunner {
     
     try {
       // Run cognitive architecture tests
-      const cognitiveResults = await this.cognitiveFramework.runAllSuites();
+      await this.cognitiveFramework.runAllSuites();
       
       // Run performance benchmarks
       await this.runPerformanceBenchmarks();
@@ -87,7 +85,7 @@ export class ThoughtMCPTestRunner {
       
       return report;
     } catch (error) {
-      this.logger.error('TestRunner', `Test run failed: ${error.message}`);
+      this.logger.error('TestRunner', `Test run failed: ${(error as Error).message}`);
       throw error;
     }
   }
@@ -461,4 +459,4 @@ describe('ThoughtMCP Comprehensive Test Suite', () => {
   });
 });
 
-export { ThoughtMCPTestRunner };
+// ThoughtMCPTestRunner already exported above

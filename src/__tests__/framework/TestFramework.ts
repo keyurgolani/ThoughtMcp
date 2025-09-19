@@ -10,8 +10,7 @@
  * - Cognitive architecture compliance testing
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { MockedFunction } from 'vitest';
+import { expect, vi } from 'vitest';
 
 // Core testing interfaces
 export interface TestCase<T = any> {
@@ -37,7 +36,7 @@ export interface CognitiveTestResult {
   metrics: PerformanceMetrics;
   cognitiveCompliance: CognitiveComplianceReport;
   biasDetection: BiasDetectionReport;
-  errors?: Error[];
+  errors: Error[];
 }
 
 export interface CognitiveComplianceReport {
@@ -74,7 +73,6 @@ export interface TestSuite {
  */
 export class CognitiveTestFramework {
   private testSuites: Map<string, TestSuite> = new Map();
-  private mockRegistry: Map<string, MockedFunction<any>> = new Map();
   private performanceBaselines: Map<string, PerformanceMetrics> = new Map();
   private testResults: Map<string, CognitiveTestResult[]> = new Map();
 
@@ -168,8 +166,9 @@ export class CognitiveTestFramework {
       passed = true;
     } catch (error) {
       if (testCase.shouldThrow) {
-        if (testCase.errorMessage && !error.message.includes(testCase.errorMessage)) {
-          errors.push(new Error(`Expected error message to contain "${testCase.errorMessage}" but got "${error.message}"`));
+        const errorMessage = (error as Error).message;
+        if (testCase.errorMessage && !errorMessage.includes(testCase.errorMessage)) {
+          errors.push(new Error(`Expected error message to contain "${testCase.errorMessage}" but got "${errorMessage}"`));
         } else {
           passed = true;
         }
@@ -195,7 +194,7 @@ export class CognitiveTestFramework {
       metrics,
       cognitiveCompliance,
       biasDetection,
-      errors: errors.length > 0 ? errors : undefined
+      errors: errors.length > 0 ? errors : []
     };
   }
 
@@ -225,7 +224,7 @@ export class CognitiveTestFramework {
   /**
    * Override this method in specific test implementations
    */
-  protected runTestLogic(testCase: TestCase): any {
+  protected runTestLogic(_testCase: TestCase): any {
     throw new Error('runTestLogic must be implemented by subclasses');
   }
 
@@ -349,7 +348,7 @@ export class CognitiveTestFramework {
 
   private measureConfirmationBias(result: any): number {
     // Measure tendency to seek confirming evidence
-    const alternatives = result?.reasoning_path?.flatMap(step => step.alternatives || []) || [];
+    const alternatives = result?.reasoning_path?.flatMap((step: any) => step.alternatives || []) || [];
     const mainPath = result?.reasoning_path || [];
     return mainPath.length > 0 ? 1 - (alternatives.length / mainPath.length) : 0;
   }
@@ -360,7 +359,7 @@ export class CognitiveTestFramework {
     if (reasoningPath.length === 0) return 0;
     
     const firstStepConfidence = reasoningPath[0]?.confidence || 0.5;
-    const avgConfidence = reasoningPath.reduce((sum, step) => sum + (step.confidence || 0.5), 0) / reasoningPath.length;
+    const avgConfidence = reasoningPath.reduce((sum: number, step: any) => sum + (step.confidence || 0.5), 0) / reasoningPath.length;
     
     return Math.abs(firstStepConfidence - avgConfidence);
   }
@@ -376,7 +375,7 @@ export class CognitiveTestFramework {
     return biases.reduce((sum, bias) => sum + bias, 0) / biases.length;
   }
 
-  private estimateAccuracy(result: any): number {
+  private estimateAccuracy(_result: any): number {
     // Placeholder for accuracy estimation logic
     // In practice, this would compare against known correct answers
     return 0.7; // Default assumption
@@ -410,7 +409,7 @@ export class CognitiveTestFramework {
     });
   }
 
-  private getMemoryUsage(): number {
+  protected getMemoryUsage(): number {
     if (typeof process !== 'undefined' && process.memoryUsage) {
       return process.memoryUsage().heapUsed;
     }
@@ -540,12 +539,7 @@ export class PerformanceTestFramework extends CognitiveTestFramework {
     return this.benchmarks;
   }
 
-  private getMemoryUsage(): number {
-    if (typeof process !== 'undefined' && process.memoryUsage) {
-      return process.memoryUsage().heapUsed;
-    }
-    return 0;
-  }
+  // getMemoryUsage method inherited from parent class
 }
 
 /**

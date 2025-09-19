@@ -115,7 +115,7 @@ export function validateReasoningStep(step: ReasoningStep): void {
     try {
       validateAlternative(alt);
     } catch (error) {
-      throw new ValidationError(`Invalid alternative at index ${index}: ${error.message}`, `reasoningStep.alternatives[${index}]`);
+      throw new ValidationError(`Invalid alternative at index ${index}: ${(error as Error).message}`, `reasoningStep.alternatives[${index}]`);
     }
   });
 }
@@ -208,20 +208,20 @@ export function validateThoughtResult(result: ThoughtResult): void {
     try {
       validateReasoningStep(step);
     } catch (error) {
-      throw new ValidationError(`Invalid reasoning step at index ${index}: ${error.message}`, `thoughtResult.reasoning_path[${index}]`);
+      throw new ValidationError(`Invalid reasoning step at index ${index}: ${(error as Error).message}`, `thoughtResult.reasoning_path[${index}]`);
     }
   });
 
   try {
     validateEmotionalState(result.emotional_context);
   } catch (error) {
-    throw new ValidationError(`Invalid emotional context: ${error.message}`, 'thoughtResult.emotional_context');
+    throw new ValidationError(`Invalid emotional context: ${(error as Error).message}`, 'thoughtResult.emotional_context');
   }
 
   try {
     validateThoughtMetadata(result.metadata);
   } catch (error) {
-    throw new ValidationError(`Invalid metadata: ${error.message}`, 'thoughtResult.metadata');
+    throw new ValidationError(`Invalid metadata: ${(error as Error).message}`, 'thoughtResult.metadata');
   }
 }
 
@@ -277,7 +277,7 @@ export function validateCognitiveInput(input: CognitiveInput): void {
   try {
     validateContext(input.context);
   } catch (error) {
-    throw new ValidationError(`Invalid context: ${error.message}`, 'cognitiveInput.context');
+    throw new ValidationError(`Invalid context: ${(error as Error).message}`, 'cognitiveInput.context');
   }
 
   if (!Object.values(ProcessingMode).includes(input.mode)) {
@@ -287,7 +287,7 @@ export function validateCognitiveInput(input: CognitiveInput): void {
   try {
     validateCognitiveConfig(input.configuration);
   } catch (error) {
-    throw new ValidationError(`Invalid configuration: ${error.message}`, 'cognitiveInput.configuration');
+    throw new ValidationError(`Invalid configuration: ${(error as Error).message}`, 'cognitiveInput.configuration');
   }
 }
 
@@ -383,7 +383,7 @@ export function validateEpisode(episode: Episode): void {
   try {
     validateContext(episode.context);
   } catch (error) {
-    throw new ValidationError(`Invalid context: ${error.message}`, 'episode.context');
+    throw new ValidationError(`Invalid context: ${(error as Error).message}`, 'episode.context');
   }
 
   if (!isPositiveNumber(episode.timestamp)) {

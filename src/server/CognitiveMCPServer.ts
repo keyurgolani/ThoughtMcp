@@ -409,4 +409,15 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       initialized: this.initialized
     };
   }
+
+  // Placeholder method for memory system access - will be implemented with actual memory system
+  getMemorySystem(): any {
+    // This is a placeholder that returns a mock memory system for testing
+    return {
+      store: async (_memory: any) => ({ success: true, id: 'test_id' }),
+      recall: async (_cue: string) => ({ memories: [], total: 0 }),
+      consolidate: async () => true,
+      simulateTimePassage: async (_ms: number) => { /* no-op for testing */ }
+    };
+  }
 }
