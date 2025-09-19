@@ -12,7 +12,10 @@ import {
 
 import { CognitiveOrchestrator } from "../cognitive/CognitiveOrchestrator.js";
 import { MemorySystem } from "../cognitive/MemorySystem.js";
-import { MetacognitionModule } from "../cognitive/MetacognitionModule.js";
+import {
+  MetacognitionModule,
+  MetacognitiveAssessment,
+} from "../cognitive/MetacognitionModule.js";
 import { IMCPServer, IToolHandler } from "../interfaces/mcp.js";
 import type {
   CognitiveConfig,
@@ -34,6 +37,11 @@ import {
   ThinkArgs,
   TOOL_SCHEMAS,
 } from "../types/mcp.js";
+import { ErrorHandler } from "../utils/ErrorHandler.js";
+import {
+  FormattedResponse,
+  ResponseFormatter,
+} from "../utils/ResponseFormatter.js";
 
 export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   private server: Server;
@@ -107,61 +115,135 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       // Register call_tool handler with enhanced error handling and validation
       this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
+        const startTime = Date.now();
+        const requestId = this.generateRequestId();
 
         // Validate tool name
         if (!Object.keys(TOOL_SCHEMAS).includes(name)) {
-          throw new Error(
+          const errorResponse = ResponseFormatter.formatErrorResponse(
             `Unknown tool: ${name}. Available tools: ${Object.keys(
               TOOL_SCHEMAS
-            ).join(", ")}`
+            ).join(", ")}`,
+            name,
+            Date.now() - startTime,
+            requestId
           );
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(errorResponse, null, 2),
+              },
+            ],
+          };
         }
 
         // Validate arguments exist
         if (!args) {
-          throw new Error(`Missing arguments for tool: ${name}`);
+          const errorResponse = ResponseFormatter.formatErrorResponse(
+            `Missing arguments for tool: ${name}`,
+            name,
+            Date.now() - startTime,
+            requestId
+          );
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(errorResponse, null, 2),
+              },
+            ],
+          };
         }
 
         try {
           let result;
+          let formattedResponse: FormattedResponse<unknown>;
+          const processingTime = Date.now() - startTime;
+
           switch (name) {
             case "think":
               result = await this.handleThink(this.validateThinkArgs(args));
+              formattedResponse = ResponseFormatter.formatThinkResponse(
+                result,
+                processingTime,
+                requestId
+              );
               break;
             case "remember":
               result = await this.handleRemember(
                 this.validateRememberArgs(args)
               );
+              formattedResponse = ResponseFormatter.formatRememberResponse(
+                result,
+                processingTime,
+                requestId
+              );
               break;
             case "recall":
               result = await this.handleRecall(this.validateRecallArgs(args));
+              formattedResponse = ResponseFormatter.formatRecallResponse(
+                result,
+                requestId
+              );
               break;
             case "analyze_reasoning":
               result = await this.handleAnalyzeReasoning(
                 this.validateAnalyzeReasoningArgs(args)
+              );
+              formattedResponse = ResponseFormatter.formatAnalyzeResponse(
+                result,
+                processingTime,
+                requestId
               );
               break;
             default:
               throw new Error(`Unhandled tool: ${name}`);
           }
 
+          // Validate response structure
+          if (!ResponseFormatter.validateResponse(formattedResponse)) {
+            console.error(`Invalid response structure for tool ${name}`);
+            formattedResponse = ResponseFormatter.createFallbackResponse(
+              name,
+              "Invalid response structure",
+              requestId
+            );
+          }
+
           return {
             content: [
               {
                 type: "text",
-                text: JSON.stringify(result, null, 2),
+                text: JSON.stringify(formattedResponse, null, 2),
               },
             ],
           };
         } catch (error) {
+          const processingTime = Date.now() - startTime;
           const errorMessage =
             error instanceof Error ? error.message : "Unknown error occurred";
           console.error(`Error handling tool ${name}:`, errorMessage);
 
-          // Return structured error response
-          throw new Error(
-            `Tool execution failed for '${name}': ${errorMessage}`
+          // Create formatted error response
+          const errorResponse = ResponseFormatter.formatErrorResponse(
+            error instanceof Error ? error : errorMessage,
+            name,
+            processingTime,
+            requestId,
+            { tool_args: args }
           );
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(errorResponse, null, 2),
+              },
+            ],
+          };
         }
       });
 
@@ -386,11 +468,15 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
 
   // Tool handler implementations
   async handleThink(args: ThinkArgs): Promise<ThoughtResult> {
-    // Validate arguments first
-    const validatedArgs = this.validateThinkArgs(
-      args as unknown as Record<string, unknown>
-    );
+    const startTime = Date.now();
+    const requestId = this.generateRequestId();
+
     try {
+      // Validate arguments first
+      const validatedArgs = this.validateThinkArgs(
+        args as unknown as Record<string, unknown>
+      );
+
       console.error(
         `Processing think request: ${validatedArgs.input.substring(0, 100)}${
           validatedArgs.input.length > 100 ? "..." : ""
@@ -405,15 +491,49 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         configuration: this.createCognitiveConfig(validatedArgs),
       };
 
-      // Process through cognitive orchestrator
-      const result = await this.cognitiveOrchestrator.think(cognitiveInput);
-
-      console.error(
-        `Think request completed in ${result.metadata.processing_time_ms}ms`
+      // Process through cognitive orchestrator with error handling
+      const operationResult = await ErrorHandler.withErrorHandling(
+        () => this.cognitiveOrchestrator.think(cognitiveInput),
+        "CognitiveOrchestrator",
+        {
+          enableFallbacks: true,
+          maxRetries: 2,
+          retryDelayMs: 1000,
+          timeoutMs: 30000,
+          criticalComponents: ["CognitiveOrchestrator"],
+        }
       );
+
+      if (!operationResult.success) {
+        // Handle graceful degradation
+        if (operationResult.data) {
+          console.error("Think request completed with degraded functionality");
+          return operationResult.data as ThoughtResult;
+        }
+        throw operationResult.error || new Error("Think processing failed");
+      }
+
+      const result = operationResult.data!;
+      const processingTime = Date.now() - startTime;
+
+      console.error(`Think request completed in ${processingTime}ms`);
       return result;
     } catch (error) {
-      console.error("Error in handleThink:", error);
+      const processingTime = Date.now() - startTime;
+      console.error(`Error in handleThink after ${processingTime}ms:`, error);
+
+      // Handle error with graceful degradation
+      const errorResult = await ErrorHandler.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        "handleThink",
+        { input: args.input, requestId },
+        { enableFallbacks: true }
+      );
+
+      if (errorResult.canContinue && errorResult.fallbackData) {
+        return errorResult.fallbackData as ThoughtResult;
+      }
+
       throw new Error(
         `Think processing failed: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -423,13 +543,15 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   }
 
   async handleRemember(args: RememberArgs): Promise<MemoryResult> {
-    // Validate arguments first
-    const validatedArgs = this.validateRememberArgs(
-      args as unknown as Record<string, unknown>
-    );
     const startTime = Date.now();
+    const requestId = this.generateRequestId();
 
     try {
+      // Validate arguments first
+      const validatedArgs = this.validateRememberArgs(
+        args as unknown as Record<string, unknown>
+      );
+
       console.error(
         `Storing ${
           validatedArgs.type
@@ -439,50 +561,87 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       );
 
       if (validatedArgs.type === "episodic") {
-        // Store as episodic memory
-        const episode: Episode = {
-          content: validatedArgs.content,
-          context: this.createContext(validatedArgs.context),
-          timestamp: Date.now(),
-          emotional_tags: validatedArgs.emotional_tags || [],
-          importance: validatedArgs.importance || 0.5,
-          decay_factor: 1.0,
-        };
+        // Store as episodic memory with error handling
+        const operationResult = await ErrorHandler.withErrorHandling(
+          async () => {
+            const episode: Episode = {
+              content: validatedArgs.content,
+              context: this.createContext(validatedArgs.context),
+              timestamp: Date.now(),
+              emotional_tags: validatedArgs.emotional_tags || [],
+              importance: validatedArgs.importance || 0.5,
+              decay_factor: 1.0,
+            };
 
-        const memoryId = this.memorySystem.storeEpisode(episode);
-
-        const result: MemoryResult = {
-          success: true,
-          memory_id: memoryId,
-          message: `Successfully stored episodic memory with ID ${memoryId}`,
-        };
-
-        console.error(`Episodic memory stored in ${Date.now() - startTime}ms`);
-        return result;
-      } else {
-        // Store as semantic memory through experience storage
-        const experience = {
-          content: validatedArgs.content,
-          context: this.createContext(validatedArgs.context),
-          importance: validatedArgs.importance || 0.5,
-          emotional_tags: validatedArgs.emotional_tags || [],
-        };
-
-        const storageResult = await this.memorySystem.storeExperience(
-          experience
+            const memoryId = this.memorySystem.storeEpisode(episode);
+            return {
+              success: true,
+              memory_id: memoryId,
+              message: `Successfully stored episodic memory with ID ${memoryId}`,
+            };
+          },
+          "MemorySystem",
+          { enableFallbacks: true, maxRetries: 2 }
         );
 
-        const result: MemoryResult = {
-          success: storageResult.success,
-          memory_id: storageResult.semantic_id || storageResult.episodic_id,
-          message: `Successfully stored semantic memory`,
-        };
+        if (!operationResult.success) {
+          throw (
+            operationResult.error || new Error("Episodic memory storage failed")
+          );
+        }
 
-        console.error(`Semantic memory stored in ${Date.now() - startTime}ms`);
-        return result;
+        const processingTime = Date.now() - startTime;
+        console.error(`Episodic memory stored in ${processingTime}ms`);
+        return operationResult.data!;
+      } else {
+        // Store as semantic memory through experience storage with error handling
+        const operationResult = await ErrorHandler.withErrorHandling(
+          async () => {
+            const experience = {
+              content: validatedArgs.content,
+              context: this.createContext(validatedArgs.context),
+              importance: validatedArgs.importance || 0.5,
+              emotional_tags: validatedArgs.emotional_tags || [],
+            };
+
+            const storageResult = await this.memorySystem.storeExperience(
+              experience
+            );
+            return {
+              success: storageResult.success,
+              memory_id: storageResult.semantic_id || storageResult.episodic_id,
+              message: `Successfully stored semantic memory`,
+            };
+          },
+          "MemorySystem",
+          { enableFallbacks: true, maxRetries: 2 }
+        );
+
+        if (!operationResult.success) {
+          throw (
+            operationResult.error || new Error("Semantic memory storage failed")
+          );
+        }
+
+        const processingTime = Date.now() - startTime;
+        console.error(`Semantic memory stored in ${processingTime}ms`);
+        return operationResult.data!;
       }
     } catch (error) {
-      console.error("Error in handleRemember:", error);
+      const processingTime = Date.now() - startTime;
+      console.error(
+        `Error in handleRemember after ${processingTime}ms:`,
+        error
+      );
+
+      // Handle error with graceful degradation
+      await ErrorHandler.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        "handleRemember",
+        { content: args.content, type: args.type, requestId },
+        { enableFallbacks: false } // Memory operations shouldn't have fallbacks
+      );
+
       throw new Error(
         `Memory storage failed: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -492,11 +651,13 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   }
 
   async handleRecall(args: RecallArgs): Promise<RecallResult> {
-    // Validate arguments first
+    const startTime = Date.now();
+    const requestId = this.generateRequestId();
+
+    // Validate arguments first (outside try-catch to let validation errors throw)
     const validatedArgs = this.validateRecallArgs(
       args as unknown as Record<string, unknown>
     );
-    const startTime = Date.now();
 
     try {
       console.error(`Recalling memories for cue: ${validatedArgs.cue}`);
@@ -504,11 +665,25 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       const threshold = validatedArgs.threshold || 0.3;
       const maxResults = validatedArgs.max_results || 10;
 
-      // Retrieve memories from the memory system
-      const retrievalResult = await this.memorySystem.retrieveMemories(
-        validatedArgs.cue,
-        threshold
+      // Retrieve memories from the memory system with error handling
+      const operationResult = await ErrorHandler.withErrorHandling(
+        () => this.memorySystem.retrieveMemories(validatedArgs.cue, threshold),
+        "MemorySystem",
+        { enableFallbacks: true, maxRetries: 2 }
       );
+
+      if (!operationResult.success) {
+        // Provide fallback empty result
+        const searchTime = Date.now() - startTime;
+        console.error("Memory recall failed, returning empty result");
+        return {
+          memories: [],
+          total_found: 0,
+          search_time_ms: searchTime,
+        };
+      }
+
+      const retrievalResult = operationResult.data!;
 
       // Format memories for response
       const memories: MemoryChunk[] = [];
@@ -561,7 +736,26 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       );
       return result;
     } catch (error) {
+      const searchTime = Date.now() - startTime;
       console.error("Error in handleRecall:", error);
+
+      // Handle error with graceful degradation
+      const errorResult = await ErrorHandler.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        "handleRecall",
+        { cue: args.cue, requestId },
+        { enableFallbacks: true }
+      );
+
+      if (errorResult.canContinue) {
+        // Return empty result as fallback
+        return {
+          memories: [],
+          total_found: 0,
+          search_time_ms: searchTime,
+        };
+      }
+
       throw new Error(
         `Memory recall failed: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -573,22 +767,51 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   async handleAnalyzeReasoning(
     args: AnalyzeReasoningArgs
   ): Promise<AnalysisResult> {
-    // Validate arguments first
+    const startTime = Date.now();
+    const requestId = this.generateRequestId();
+
+    // Validate arguments first (outside try-catch to let validation errors throw)
     const validatedArgs = this.validateAnalyzeReasoningArgs(
       args as unknown as Record<string, unknown>
     );
-    const startTime = Date.now();
 
     try {
       console.error(
         `Analyzing ${validatedArgs.reasoning_steps.length} reasoning steps`
       );
 
-      // Use metacognition module to analyze reasoning
-      const assessment = this.metacognitionModule.assessReasoning(
-        validatedArgs.reasoning_steps
+      // Use metacognition module to analyze reasoning with error handling
+      const operationResult = await ErrorHandler.withErrorHandling(
+        async () =>
+          this.metacognitionModule.assessReasoning(
+            validatedArgs.reasoning_steps
+          ),
+        "MetacognitionModule",
+        { enableFallbacks: true, maxRetries: 2 }
       );
 
+      if (!operationResult.success) {
+        // Provide fallback analysis
+        const processingTime = Date.now() - startTime;
+        console.error(
+          `Reasoning analysis failed after ${processingTime}ms, providing fallback assessment`
+        );
+
+        return {
+          coherence_score: 0.5,
+          confidence_assessment:
+            "Confidence: 0.50 - Fallback assessment due to analysis failure",
+          detected_biases: ["Analysis unavailable due to system error"],
+          suggested_improvements: ["Retry analysis when system is stable"],
+          reasoning_quality: {
+            logical_consistency: 0.5,
+            evidence_support: 0.5,
+            completeness: 0.5,
+          },
+        };
+      }
+
+      const assessment = operationResult.data as MetacognitiveAssessment;
       const result: AnalysisResult = {
         coherence_score: assessment.coherence,
         confidence_assessment: `Confidence: ${assessment.confidence.toFixed(
@@ -603,12 +826,40 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         },
       };
 
-      console.error(
-        `Reasoning analysis completed in ${Date.now() - startTime}ms`
-      );
+      const processingTime = Date.now() - startTime;
+      console.log(`Reasoning analysis completed in ${processingTime}ms`);
       return result;
     } catch (error) {
-      console.error("Error in handleAnalyzeReasoning:", error);
+      const processingTime = Date.now() - startTime;
+      console.error(
+        `Error in handleAnalyzeReasoning after ${processingTime}ms:`,
+        error
+      );
+
+      // Handle error with graceful degradation
+      const errorResult = await ErrorHandler.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        "handleAnalyzeReasoning",
+        { steps_count: args.reasoning_steps.length, requestId },
+        { enableFallbacks: true }
+      );
+
+      if (errorResult.canContinue) {
+        // Return fallback analysis
+        return {
+          coherence_score: 0.5,
+          confidence_assessment:
+            "Confidence: 0.50 - Fallback assessment due to analysis failure",
+          detected_biases: ["Analysis unavailable due to system error"],
+          suggested_improvements: ["Retry analysis when system is stable"],
+          reasoning_quality: {
+            logical_consistency: 0.5,
+            evidence_support: 0.5,
+            completeness: 0.5,
+          },
+        };
+      }
+
       throw new Error(
         `Reasoning analysis failed: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -700,5 +951,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   // Access to metacognition module for testing
   getMetacognitionModule(): MetacognitionModule {
     return this.metacognitionModule;
+  }
+
+  // Generate unique request ID for tracking
+  private generateRequestId(): string {
+    return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 }
