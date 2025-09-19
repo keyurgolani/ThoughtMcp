@@ -13,21 +13,21 @@ export interface Token {
 
 // Processing modes for different thinking styles
 export enum ProcessingMode {
-  INTUITIVE = 'intuitive',
-  DELIBERATIVE = 'deliberative',
-  BALANCED = 'balanced',
-  CREATIVE = 'creative',
-  ANALYTICAL = 'analytical'
+  INTUITIVE = "intuitive",
+  DELIBERATIVE = "deliberative",
+  BALANCED = "balanced",
+  CREATIVE = "creative",
+  ANALYTICAL = "analytical",
 }
 
 // Types of reasoning steps
 export enum ReasoningType {
-  PATTERN_MATCH = 'pattern_match',
-  LOGICAL_INFERENCE = 'logical_inference',
-  ANALOGICAL = 'analogical',
-  CAUSAL = 'causal',
-  PROBABILISTIC = 'probabilistic',
-  METACOGNITIVE = 'metacognitive'
+  PATTERN_MATCH = "pattern_match",
+  LOGICAL_INFERENCE = "logical_inference",
+  ANALOGICAL = "analogical",
+  CAUSAL = "causal",
+  PROBABILISTIC = "probabilistic",
+  METACOGNITIVE = "metacognitive",
 }
 
 // Context information for cognitive processing
@@ -52,7 +52,7 @@ export interface ReasoningStep {
   content: string;
   confidence: number;
   alternatives: Alternative[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // Emotional state representation
@@ -63,6 +63,42 @@ export interface EmotionalState {
   specific_emotions: Map<string, number>;
 }
 
+// Response from intuitive processing (System 1)
+export interface IntuitiveResponse {
+  content: string;
+  confidence: number;
+  processing_time: number;
+  heuristics_used: string[];
+  patterns_detected: string[];
+}
+
+// Response from deliberative processing (System 2)
+export interface DeliberativeResponse {
+  content: string;
+  confidence: number;
+  processing_time: number;
+  reasoning_steps: ReasoningStep[];
+  alternatives_considered: Alternative[];
+}
+
+// Dual process information
+export interface DualProcessInfo {
+  system1_response?: IntuitiveResponse;
+  system2_response?: DeliberativeResponse;
+  conflict_detected: boolean;
+  resolution_strategy: string;
+  processing_time_system1: number;
+  processing_time_system2: number;
+  dual_process_decision?: {
+    selected_system: string;
+    reasoning: string;
+  };
+  system1_confidence?: number;
+  system2_confidence?: number | null;
+  conflict_resolution?: unknown;
+  total_processing_time?: number;
+}
+
 // Metadata for thought results
 export interface ThoughtMetadata {
   processing_time_ms: number;
@@ -70,7 +106,7 @@ export interface ThoughtMetadata {
   memory_retrievals: number;
   system_mode: ProcessingMode;
   temperature: number;
-  dual_process_info?: any;
+  dual_process_info?: DualProcessInfo;
 }
 
 // Main result structure for thinking operations
@@ -92,7 +128,7 @@ export interface CognitiveInput {
 
 // Memory chunk representation
 export interface MemoryChunk {
-  content: any;
+  content: unknown;
   activation: number;
   timestamp: number;
   associations: Set<string>;
@@ -103,7 +139,7 @@ export interface MemoryChunk {
 
 // Episode in episodic memory
 export interface Episode {
-  content: any;
+  content: unknown;
   context: Context;
   timestamp: number;
   emotional_tags: string[];
@@ -114,7 +150,7 @@ export interface Episode {
 // Concept in semantic memory
 export interface Concept {
   id: string;
-  content: any;
+  content: unknown;
   embedding?: number[];
   relations: string[];
   activation: number;
@@ -136,23 +172,23 @@ export interface CognitiveConfig {
   enable_emotion: boolean;
   enable_metacognition: boolean;
   enable_prediction: boolean;
-  
+
   // Memory settings
   working_memory_capacity: number;
   episodic_memory_size: number;
   semantic_memory_size: number;
   consolidation_interval: number;
-  
+
   // Neural processing
   noise_level: number;
   temperature: number;
   attention_threshold: number;
-  
+
   // Performance settings
   max_reasoning_depth: number;
   timeout_ms: number;
   max_concurrent_sessions: number;
-  
+
   // Thresholds
   confidence_threshold: number;
   system2_activation_threshold: number;

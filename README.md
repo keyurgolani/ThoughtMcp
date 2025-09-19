@@ -43,6 +43,7 @@ npm run lint
 The server implements four main cognitive tools:
 
 ### 1. Think
+
 Process input through human-like cognitive architecture:
 
 ```json
@@ -58,6 +59,7 @@ Process input through human-like cognitive architecture:
 ```
 
 ### 2. Remember
+
 Store information in episodic or semantic memory:
 
 ```json
@@ -72,6 +74,7 @@ Store information in episodic or semantic memory:
 ```
 
 ### 3. Recall
+
 Retrieve memories based on cues:
 
 ```json
@@ -86,6 +89,7 @@ Retrieve memories based on cues:
 ```
 
 ### 4. Analyze Reasoning
+
 Analyze reasoning steps for quality and biases:
 
 ```json
@@ -123,6 +127,16 @@ The system is organized into three main layers:
 1. **Interface Layer**: MCP server implementation with tool registration and request handling
 2. **Cognitive Layer**: Core cognitive processing components that implement human-like thinking
 3. **Storage Layer**: Memory systems and persistence mechanisms
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
+
+- Development setup and workflow
+- Code quality standards
+- Testing requirements
+- Submission process
+- Architecture guidelines
 
 ## License
 

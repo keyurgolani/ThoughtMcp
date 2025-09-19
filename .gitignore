@@ -23,14 +23,6 @@ build/
 *.swo
 *~
 
-# Visual Studio Code
-.vscode/settings.json
-.vscode/tasks.json
-.vscode/launch.json
-.vscode/extensions.json
-.vscode/c_cpp_properties.json
-.vscode/workspace.code-workspace
-
 # IntelliJ IDEA / WebStorm / PhpStorm / PyCharm
 .idea/
 *.iml
@@ -348,7 +340,7 @@ test-results/
 test-reports/
 junit.xml
 
-# Temporary files
+# Temporary files and development artifacts
 tmp/
 temp/
 *.tmp

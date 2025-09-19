@@ -58,7 +58,7 @@ export class ConsolidationEngine implements IConsolidationEngine {
     this.lastActivity = Date.now();
   }
 
-  async process(input: any): Promise<any> {
+  async process(input: Episode[]): Promise<Concept[]> {
     // Generic process method for CognitiveComponent interface
     if (Array.isArray(input)) {
       return this.consolidate(input);

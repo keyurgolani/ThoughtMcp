@@ -6,7 +6,7 @@ export enum LogLevel {
   DEBUG = 0,
   INFO = 1,
   WARN = 2,
-  ERROR = 3
+  ERROR = 3,
 }
 
 export interface LogEntry {
@@ -14,7 +14,7 @@ export interface LogEntry {
   level: LogLevel;
   component: string;
   message: string;
-  context?: any;
+  context?: Record<string, unknown>;
 }
 
 export class Logger {
@@ -38,7 +38,12 @@ export class Logger {
     return Logger.instance;
   }
 
-  private log(level: LogLevel, component: string, message: string, context?: any): void {
+  private log(
+    level: LogLevel,
+    component: string,
+    message: string,
+    context?: Record<string, unknown>
+  ): void {
     if (level < this.logLevel) {
       return;
     }
@@ -48,7 +53,7 @@ export class Logger {
       level,
       component,
       message,
-      context
+      context: context || {},
     };
 
     // Add to internal log storage
@@ -60,29 +65,47 @@ export class Logger {
     // Output to console (stderr for MCP compatibility)
     const levelName = LogLevel[level];
     const timestamp = new Date(entry.timestamp).toISOString();
-    const contextStr = context ? ` ${JSON.stringify(context)}` : '';
-    
-    console.error(`[${timestamp}] ${levelName} [${component}] ${message}${contextStr}`);
+    const contextStr = context ? ` ${JSON.stringify(context)}` : "";
+
+    console.error(
+      `[${timestamp}] ${levelName} [${component}] ${message}${contextStr}`
+    );
   }
 
-  debug(component: string, message: string, context?: any): void {
+  debug(
+    component: string,
+    message: string,
+    context?: Record<string, unknown>
+  ): void {
     this.log(LogLevel.DEBUG, component, message, context);
   }
 
-  info(component: string, message: string, context?: any): void {
+  info(
+    component: string,
+    message: string,
+    context?: Record<string, unknown>
+  ): void {
     this.log(LogLevel.INFO, component, message, context);
   }
 
-  warn(component: string, message: string, context?: any): void {
+  warn(
+    component: string,
+    message: string,
+    context?: Record<string, unknown>
+  ): void {
     this.log(LogLevel.WARN, component, message, context);
   }
 
-  error(component: string, message: string, context?: any): void {
+  error(
+    component: string,
+    message: string,
+    context?: Record<string, unknown>
+  ): void {
     this.log(LogLevel.ERROR, component, message, context);
   }
 
   getLogs(level?: LogLevel, component?: string): LogEntry[] {
-    return this.logs.filter(entry => {
+    return this.logs.filter((entry) => {
       if (level !== undefined && entry.level < level) {
         return false;
       }

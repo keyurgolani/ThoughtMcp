@@ -2,23 +2,23 @@
  * Core interfaces for cognitive components
  */
 
-import { 
-  CognitiveInput, 
-  ThoughtResult, 
-  MemoryChunk, 
-  Episode, 
-  Concept, 
-  EmotionalState, 
-  ReasoningStep,
-  ProcessingMode,
+import {
+  CognitiveInput,
+  Concept,
   Context,
-  Token
-} from '../types/core.js';
+  EmotionalState,
+  Episode,
+  MemoryChunk,
+  ProcessingMode,
+  ReasoningStep,
+  ThoughtResult,
+  Token,
+} from "../types/core.js";
 
 // Base interface for all cognitive components
 export interface CognitiveComponent {
-  initialize(config: any): Promise<void>;
-  process(input: any): Promise<any>;
+  initialize(config: Record<string, unknown>): Promise<void>;
+  process(input: unknown): Promise<unknown>;
   reset(): void;
   getStatus(): ComponentStatus;
 }
@@ -63,17 +63,35 @@ export interface IWorkingMemory extends CognitiveComponent {
 }
 
 // Dual-process thinking interfaces
+export interface HeuristicResult {
+  name: string;
+  type: string;
+  confidence: number;
+  result: unknown;
+  processing_time: number;
+}
+
 export interface ISystem1Processor extends CognitiveComponent {
   processIntuitive(input: CognitiveInput): Promise<ThoughtResult>;
   matchPatterns(input: string): Pattern[];
-  applyHeuristics(input: string, patterns: Pattern[]): any;
-  getConfidence(result: any): number;
+  applyHeuristics(
+    input: string,
+    patterns: Pattern[]
+  ): Record<string, HeuristicResult>;
+  getConfidence(result: unknown): number;
+}
+
+export interface EvaluationResult {
+  option: unknown;
+  score: number;
+  reasoning: string;
+  confidence: number;
 }
 
 export interface ISystem2Processor extends CognitiveComponent {
   processDeliberative(input: CognitiveInput): Promise<ThoughtResult>;
   buildReasoningTree(input: string, maxDepth: number): ReasoningTree;
-  evaluateOptions(options: any[]): any;
+  evaluateOptions(options: unknown[]): EvaluationResult[];
   checkConsistency(reasoning: ReasoningStep[]): boolean;
 }
 
@@ -114,11 +132,21 @@ export interface IConsolidationEngine extends CognitiveComponent {
   pruneWeakMemories(threshold: number): void;
 }
 
+export interface SomaticMarker {
+  option: unknown;
+  emotional_value: number;
+  confidence: number;
+  source: string;
+}
+
 // Emotional processing interface
 export interface IEmotionalProcessor extends CognitiveComponent {
   assessEmotion(input: string): EmotionalState;
-  applySomaticMarkers(options: any[]): any[];
-  modulateReasoning(reasoning: ReasoningStep[], emotion: EmotionalState): ReasoningStep[];
+  applySomaticMarkers(options: unknown[]): SomaticMarker[];
+  modulateReasoning(
+    reasoning: ReasoningStep[],
+    emotion: EmotionalState
+  ): ReasoningStep[];
   updateEmotionalState(newState: Partial<EmotionalState>): void;
 }
 
@@ -130,19 +158,23 @@ export interface IMetacognitionModule extends CognitiveComponent {
   suggestImprovements(reasoning: ReasoningStep[]): string[];
 }
 
-// Predictive processing interface
-export interface IPredictiveProcessor extends CognitiveComponent {
-  generatePredictions(context: Context): Prediction[];
-  computePredictionError(prediction: Prediction, actual: any): number;
-  updateModel(error: number, prediction: Prediction): void;
-  getBayesianUpdate(prior: number, likelihood: number, evidence: number): number;
-}
-
 export interface Prediction {
-  content: any;
+  content: unknown;
   confidence: number;
   timestamp: number;
   context: Context;
+}
+
+// Predictive processing interface
+export interface IPredictiveProcessor extends CognitiveComponent {
+  generatePredictions(context: Context): Prediction[];
+  computePredictionError(prediction: Prediction, actual: unknown): number;
+  updateModel(error: number, prediction: Prediction): void;
+  getBayesianUpdate(
+    prior: number,
+    likelihood: number,
+    evidence: number
+  ): number;
 }
 
 // Stochastic neural processing interface

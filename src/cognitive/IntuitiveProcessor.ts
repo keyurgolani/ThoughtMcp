@@ -3,34 +3,45 @@
  * Implements Kahneman's System 1 thinking with pattern matching and heuristics
  */
 
-import { 
-  ISystem1Processor, 
-  ComponentStatus, 
-  Pattern 
-} from '../interfaces/cognitive.js';
-import { 
-  CognitiveInput, 
-  ThoughtResult, 
-  ReasoningStep, 
-  ReasoningType, 
+import {
+  ComponentStatus,
+  HeuristicResult,
+  ISystem1Processor,
+  Pattern,
+} from "../interfaces/cognitive.js";
+import {
+  CognitiveInput,
+  EmotionalState,
   ProcessingMode,
-  EmotionalState
-} from '../types/core.js';
+  ReasoningStep,
+  ReasoningType,
+  ThoughtResult,
+} from "../types/core.js";
+
+interface IntuitiveConfig {
+  pattern_threshold?: number;
+  confidence_decay?: number;
+  max_patterns?: number;
+  heuristic_weight?: number;
+}
 
 export class IntuitiveProcessor implements ISystem1Processor {
   private initialized: boolean = false;
   private patternCache: Map<string, Pattern[]> = new Map();
-  private heuristicRules: Map<string, (input: string, patterns: Pattern[]) => any> = new Map();
+  private heuristicRules: Map<
+    string,
+    (input: string, patterns: Pattern[]) => HeuristicResult
+  > = new Map();
   private lastActivity: number = 0;
-  private config: any = {};
+  private config: IntuitiveConfig = {};
 
-  async initialize(config: any): Promise<void> {
+  async initialize(config: IntuitiveConfig): Promise<void> {
     this.config = {
       pattern_threshold: 0.3,
       confidence_decay: 0.1,
       max_patterns: 50,
       heuristic_weight: 0.8,
-      ...config
+      ...config,
     };
 
     this.initializeHeuristics();
@@ -39,43 +50,66 @@ export class IntuitiveProcessor implements ISystem1Processor {
 
   private initializeHeuristics(): void {
     // Availability heuristic - judge by ease of recall
-    this.heuristicRules.set('availability', (_input: string, patterns: Pattern[]) => {
-      const recentPatterns = patterns.filter(p => p.salience > 0.7);
-      return {
-        type: 'availability',
-        confidence: recentPatterns.length > 0 ? 0.8 : 0.3,
-        reasoning: `Based on ${recentPatterns.length} easily recalled patterns`
-      };
-    });
+    this.heuristicRules.set(
+      "availability",
+      (_input: string, patterns: Pattern[]) => {
+        const recentPatterns = patterns.filter((p) => p.salience > 0.7);
+        return {
+          name: "availability",
+          type: "availability",
+          confidence: recentPatterns.length > 0 ? 0.8 : 0.3,
+          result: `Based on ${recentPatterns.length} easily recalled patterns`,
+          processing_time: 1,
+        };
+      }
+    );
 
     // Representativeness heuristic - judge by similarity to prototypes
-    this.heuristicRules.set('representativeness', (_input: string, patterns: Pattern[]) => {
-      const prototypeMatches = patterns.filter(p => p.type === 'prototype' && p.confidence > 0.6);
-      return {
-        type: 'representativeness',
-        confidence: prototypeMatches.length > 0 ? 0.7 : 0.4,
-        reasoning: `Matches ${prototypeMatches.length} known prototypes`
-      };
-    });
+    this.heuristicRules.set(
+      "representativeness",
+      (_input: string, patterns: Pattern[]) => {
+        const prototypeMatches = patterns.filter(
+          (p) => p.type === "prototype" && p.confidence > 0.6
+        );
+        return {
+          name: "representativeness",
+          type: "representativeness",
+          confidence: prototypeMatches.length > 0 ? 0.7 : 0.4,
+          result: `Matches ${prototypeMatches.length} known prototypes`,
+          processing_time: 2,
+        };
+      }
+    );
 
     // Anchoring heuristic - influenced by initial information
-    this.heuristicRules.set('anchoring', (_input: string, patterns: Pattern[]) => {
-      const firstPattern = patterns[0];
-      return {
-        type: 'anchoring',
-        confidence: firstPattern ? firstPattern.confidence * 0.9 : 0.2,
-        reasoning: `Anchored on first impression: ${firstPattern?.content.join(' ') || 'none'}`
-      };
-    });
+    this.heuristicRules.set(
+      "anchoring",
+      (_input: string, patterns: Pattern[]) => {
+        const firstPattern = patterns[0];
+        return {
+          name: "anchoring",
+          type: "anchoring",
+          confidence: firstPattern ? firstPattern.confidence * 0.9 : 0.2,
+          result: `Anchored on first impression: ${
+            firstPattern?.content.join(" ") || "none"
+          }`,
+          processing_time: 1,
+        };
+      }
+    );
 
     // Affect heuristic - "how do I feel about it?"
-    this.heuristicRules.set('affect', (_input: string, patterns: Pattern[]) => {
-      const emotionalPatterns = patterns.filter(p => p.type === 'emotional');
-      const avgSalience = emotionalPatterns.reduce((sum, p) => sum + p.salience, 0) / emotionalPatterns.length || 0;
+    this.heuristicRules.set("affect", (_input: string, patterns: Pattern[]) => {
+      const emotionalPatterns = patterns.filter((p) => p.type === "emotional");
+      const avgSalience =
+        emotionalPatterns.reduce((sum, p) => sum + p.salience, 0) /
+          emotionalPatterns.length || 0;
       return {
-        type: 'affect',
+        name: "affect",
+        type: "affect",
         confidence: avgSalience > 0.5 ? 0.8 : 0.3,
-        reasoning: `Emotional response strength: ${avgSalience.toFixed(2)}`
+        result: `Emotional response strength: ${avgSalience.toFixed(2)}`,
+        processing_time: 1,
       };
     });
   }
@@ -92,13 +126,21 @@ export class IntuitiveProcessor implements ISystem1Processor {
       const heuristicResults = this.applyHeuristics(input.input, patterns);
 
       // Step 3: Generate intuitive response
-      const response = this.generateIntuitiveResponse(input.input, patterns, heuristicResults);
+      const response = this.generateIntuitiveResponse(
+        input.input,
+        patterns,
+        heuristicResults
+      );
 
       // Step 4: Assess confidence
       const confidence = this.getConfidence(response);
 
       // Step 5: Create reasoning path
-      const reasoningPath = this.createReasoningPath(patterns, heuristicResults, response);
+      const reasoningPath = this.createReasoningPath(
+        patterns,
+        heuristicResults,
+        response
+      );
 
       const processingTime = Date.now() - startTime;
 
@@ -109,15 +151,16 @@ export class IntuitiveProcessor implements ISystem1Processor {
         emotional_context: this.assessEmotionalContext(input.input, patterns),
         metadata: {
           processing_time_ms: processingTime,
-          components_used: ['IntuitiveProcessor'],
+          components_used: ["IntuitiveProcessor"],
           memory_retrievals: patterns.length,
           system_mode: ProcessingMode.INTUITIVE,
-          temperature: input.configuration.temperature
-        }
+          temperature: input.configuration.temperature,
+        },
       };
-
     } catch (error) {
-      throw new Error(`Intuitive processing failed: ${(error as Error).message}`);
+      throw new Error(
+        `Intuitive processing failed: ${(error as Error).message}`
+      );
     }
   }
 
@@ -140,9 +183,9 @@ export class IntuitiveProcessor implements ISystem1Processor {
     // Cache results
     if (patterns.length > 0) {
       this.patternCache.set(input, patterns);
-      
+
       // Limit cache size
-      if (this.patternCache.size > this.config.max_patterns) {
+      if (this.patternCache.size > (this.config.max_patterns ?? 50)) {
         const firstKey = this.patternCache.keys().next().value;
         if (firstKey) {
           this.patternCache.delete(firstKey);
@@ -154,16 +197,27 @@ export class IntuitiveProcessor implements ISystem1Processor {
   }
 
   private detectQuestionPatterns(tokens: string[]): Pattern[] {
-    const questionWords = ['what', 'how', 'why', 'when', 'where', 'who', 'which'];
+    const questionWords = [
+      "what",
+      "how",
+      "why",
+      "when",
+      "where",
+      "who",
+      "which",
+    ];
     const patterns: Pattern[] = [];
 
     for (const qWord of questionWords) {
       if (tokens.includes(qWord)) {
         patterns.push({
-          type: 'question',
-          content: [qWord, ...tokens.slice(tokens.indexOf(qWord), tokens.indexOf(qWord) + 3)],
+          type: "question",
+          content: [
+            qWord,
+            ...tokens.slice(tokens.indexOf(qWord), tokens.indexOf(qWord) + 3),
+          ],
           confidence: 0.9,
-          salience: 0.8
+          salience: 0.8,
         });
       }
     }
@@ -173,9 +227,25 @@ export class IntuitiveProcessor implements ISystem1Processor {
 
   private detectEmotionalPatterns(tokens: string[]): Pattern[] {
     const emotionalWords = {
-      positive: ['good', 'great', 'excellent', 'happy', 'love', 'amazing', 'wonderful'],
-      negative: ['bad', 'terrible', 'hate', 'awful', 'horrible', 'sad', 'angry'],
-      neutral: ['okay', 'fine', 'normal', 'average']
+      positive: [
+        "good",
+        "great",
+        "excellent",
+        "happy",
+        "love",
+        "amazing",
+        "wonderful",
+      ],
+      negative: [
+        "bad",
+        "terrible",
+        "hate",
+        "awful",
+        "horrible",
+        "sad",
+        "angry",
+      ],
+      neutral: ["okay", "fine", "normal", "average"],
     };
 
     const patterns: Pattern[] = [];
@@ -184,10 +254,10 @@ export class IntuitiveProcessor implements ISystem1Processor {
       for (const word of words) {
         if (tokens.includes(word)) {
           patterns.push({
-            type: 'emotional',
+            type: "emotional",
             content: [word],
             confidence: 0.7,
-            salience: valence === 'neutral' ? 0.4 : 0.8
+            salience: valence === "neutral" ? 0.4 : 0.8,
           });
         }
       }
@@ -197,17 +267,24 @@ export class IntuitiveProcessor implements ISystem1Processor {
   }
 
   private detectCausalPatterns(tokens: string[]): Pattern[] {
-    const causalIndicators = ['because', 'since', 'due to', 'caused by', 'results in', 'leads to'];
+    const causalIndicators = [
+      "because",
+      "since",
+      "due to",
+      "caused by",
+      "results in",
+      "leads to",
+    ];
     const patterns: Pattern[] = [];
 
     for (const indicator of causalIndicators) {
-      const indicatorTokens = indicator.split(' ');
+      const indicatorTokens = indicator.split(" ");
       if (this.containsSequence(tokens, indicatorTokens)) {
         patterns.push({
-          type: 'causal',
+          type: "causal",
           content: indicatorTokens,
           confidence: 0.8,
-          salience: 0.7
+          salience: 0.7,
         });
       }
     }
@@ -216,16 +293,24 @@ export class IntuitiveProcessor implements ISystem1Processor {
   }
 
   private detectComparisonPatterns(tokens: string[]): Pattern[] {
-    const comparisonWords = ['better', 'worse', 'more', 'less', 'than', 'compared to', 'versus'];
+    const comparisonWords = [
+      "better",
+      "worse",
+      "more",
+      "less",
+      "than",
+      "compared to",
+      "versus",
+    ];
     const patterns: Pattern[] = [];
 
     for (const word of comparisonWords) {
       if (tokens.includes(word)) {
         patterns.push({
-          type: 'comparison',
+          type: "comparison",
           content: [word],
           confidence: 0.6,
-          salience: 0.6
+          salience: 0.6,
         });
       }
     }
@@ -234,16 +319,16 @@ export class IntuitiveProcessor implements ISystem1Processor {
   }
 
   private detectNegationPatterns(tokens: string[]): Pattern[] {
-    const negationWords = ['not', 'no', 'never', 'nothing', 'none', 'neither'];
+    const negationWords = ["not", "no", "never", "nothing", "none", "neither"];
     const patterns: Pattern[] = [];
 
     for (const word of negationWords) {
       if (tokens.includes(word)) {
         patterns.push({
-          type: 'negation',
+          type: "negation",
           content: [word],
           confidence: 0.8,
-          salience: 0.7
+          salience: 0.7,
         });
       }
     }
@@ -260,17 +345,27 @@ export class IntuitiveProcessor implements ISystem1Processor {
     return false;
   }
 
-  applyHeuristics(input: string, patterns: Pattern[]): any {
-    const results: any = {};
+  applyHeuristics(
+    input: string,
+    patterns: Pattern[]
+  ): Record<string, HeuristicResult> {
+    const results: Record<string, HeuristicResult> = {};
 
     for (const [name, heuristic] of this.heuristicRules) {
       try {
-        results[name] = heuristic(input, patterns);
+        const result = heuristic(input, patterns);
+        // Ensure the result has the correct type property
+        results[name] = {
+          ...result,
+          type: name, // Add the type property that tests expect
+        };
       } catch (error) {
         results[name] = {
-          type: name,
+          name: name,
+          type: name, // Add the type property
           confidence: 0.1,
-          reasoning: `Heuristic failed: ${(error as Error).message}`
+          result: `Heuristic failed: ${(error as Error).message}`,
+          processing_time: 0,
         };
       }
     }
@@ -278,58 +373,80 @@ export class IntuitiveProcessor implements ISystem1Processor {
     return results;
   }
 
-  private generateIntuitiveResponse(input: string, patterns: Pattern[], heuristicResults: any): any {
+  private generateIntuitiveResponse(
+    input: string,
+    patterns: Pattern[],
+    heuristicResults: Record<string, HeuristicResult>
+  ): { content: string; confidence: number; type: string } {
     // Combine patterns and heuristics to generate a quick response
-    const dominantPattern = patterns.reduce((max, p) => p.salience > max.salience ? p : max, patterns[0]);
-    const dominantHeuristic = Object.values(heuristicResults).reduce((max: any, h: any) => 
-      h.confidence > max.confidence ? h : max, Object.values(heuristicResults)[0]);
+    const dominantPattern = patterns.reduce(
+      (max, p) => (p.salience > max.salience ? p : max),
+      patterns[0]
+    );
+    const heuristicValues = Object.values(heuristicResults);
+    const dominantHeuristic =
+      heuristicValues.length > 0
+        ? heuristicValues.reduce(
+            (max, h) => (h.confidence > max.confidence ? h : max),
+            heuristicValues[0]
+          )
+        : null;
 
-    let content = '';
-    let responseType = 'general';
+    let content = "";
+    let responseType = "general";
 
     if (dominantPattern) {
       switch (dominantPattern.type) {
-        case 'question':
+        case "question":
           content = this.generateQuestionResponse(input, dominantPattern);
-          responseType = 'question_response';
+          responseType = "question_response";
           break;
-        case 'emotional':
+        case "emotional":
           content = this.generateEmotionalResponse(input, dominantPattern);
-          responseType = 'emotional_response';
+          responseType = "emotional_response";
           break;
-        case 'causal':
+        case "causal":
           content = this.generateCausalResponse(input, dominantPattern);
-          responseType = 'causal_response';
+          responseType = "causal_response";
           break;
         default:
           content = this.generateGeneralResponse(input, dominantPattern);
       }
     } else {
-      const heuristicType = dominantHeuristic && typeof dominantHeuristic === 'object' && 'type' in dominantHeuristic ? dominantHeuristic.type : 'general reasoning';
-      const heuristicReasoning = dominantHeuristic && typeof dominantHeuristic === 'object' && 'reasoning' in dominantHeuristic ? dominantHeuristic.reasoning : 'standard approach';
+      const heuristicType =
+        dominantHeuristic &&
+        typeof dominantHeuristic === "object" &&
+        "type" in dominantHeuristic
+          ? dominantHeuristic.type
+          : "general reasoning";
+      const heuristicReasoning =
+        dominantHeuristic &&
+        typeof dominantHeuristic === "object" &&
+        "reasoning" in dominantHeuristic
+          ? dominantHeuristic.reasoning
+          : "standard approach";
       content = `I sense this relates to ${heuristicType}. My initial impression suggests a ${heuristicReasoning}.`;
     }
 
     return {
       content,
+      confidence: dominantPattern?.confidence ?? 0.5,
       type: responseType,
-      dominant_pattern: dominantPattern,
-      dominant_heuristic: dominantHeuristic
     };
   }
 
   private generateQuestionResponse(_input: string, pattern: Pattern): string {
     const questionWord = pattern.content[0];
     switch (questionWord) {
-      case 'what':
+      case "what":
         return "Based on the patterns I recognize, this appears to be asking for identification or definition.";
-      case 'how':
+      case "how":
         return "This seems to be asking about a process or method. My intuition suggests looking at the steps involved.";
-      case 'why':
+      case "why":
         return "This is asking for reasons or causes. I sense there are underlying factors to consider.";
-      case 'when':
+      case "when":
         return "This is about timing. My initial sense is that temporal context is important here.";
-      case 'where':
+      case "where":
         return "This is about location or context. The spatial or situational aspect seems relevant.";
       default:
         return "This appears to be an information-seeking question that requires careful consideration.";
@@ -341,63 +458,73 @@ export class IntuitiveProcessor implements ISystem1Processor {
   }
 
   private generateCausalResponse(_input: string, pattern: Pattern): string {
-    return `I notice causal relationships indicated by "${pattern.content.join(' ')}". This suggests cause-and-effect thinking is needed.`;
+    return `I notice causal relationships indicated by "${pattern.content.join(
+      " "
+    )}". This suggests cause-and-effect thinking is needed.`;
   }
 
   private generateGeneralResponse(_input: string, pattern: Pattern): string {
     return `My initial impression recognizes a ${pattern.type} pattern. This suggests approaching the situation with ${pattern.type}-based reasoning.`;
   }
 
-  getConfidence(result: any): number {
-    let confidence = 0.5; // Base confidence for System 1
-
-    // Adjust based on pattern strength
-    if (result.dominant_pattern) {
-      confidence += result.dominant_pattern.confidence * 0.3;
+  getConfidence(result: unknown): number {
+    // If result has a confidence property, use it
+    if (
+      typeof result === "object" &&
+      result !== null &&
+      "confidence" in result
+    ) {
+      return Math.min(Math.max(result.confidence as number, 0.1), 0.9);
     }
 
-    // Adjust based on heuristic confidence
-    if (result.dominant_heuristic) {
-      confidence += result.dominant_heuristic.confidence * 0.2;
-    }
-
-    // Apply decay for uncertainty
-    confidence *= (1 - this.config.confidence_decay);
-
-    return Math.min(Math.max(confidence, 0.1), 0.9); // Clamp between 0.1 and 0.9
+    // Default confidence for System 1
+    return 0.6;
   }
 
-  private createReasoningPath(patterns: Pattern[], heuristicResults: any, response: any): ReasoningStep[] {
+  private createReasoningPath(
+    patterns: Pattern[],
+    heuristicResults: Record<string, HeuristicResult>,
+    response: { content: string; confidence: number; type: string }
+  ): ReasoningStep[] {
     const steps: ReasoningStep[] = [];
 
     // Pattern recognition step
     if (patterns.length > 0) {
       steps.push({
         type: ReasoningType.PATTERN_MATCH,
-        content: `Recognized ${patterns.length} patterns: ${patterns.map(p => p.type).join(', ')}`,
-        confidence: patterns.reduce((sum, p) => sum + p.confidence, 0) / patterns.length,
-        alternatives: patterns.slice(1, 4).map(p => ({
+        content: `Recognized ${patterns.length} patterns: ${patterns
+          .map((p) => p.type)
+          .join(", ")}`,
+        confidence:
+          patterns.reduce((sum, p) => sum + p.confidence, 0) / patterns.length,
+        alternatives: patterns.slice(1, 4).map((p) => ({
           content: `Alternative pattern: ${p.type}`,
           confidence: p.confidence,
-          reasoning: `Pattern salience: ${p.salience}`
-        }))
+          reasoning: `Pattern salience: ${p.salience}`,
+        })),
       });
     }
 
     // Heuristic application step
     const heuristicNames = Object.keys(heuristicResults);
     if (heuristicNames.length > 0) {
-      const avgConfidence = Object.values(heuristicResults).reduce((sum: number, h: any) => sum + h.confidence, 0) / heuristicNames.length;
-      
+      const avgConfidence =
+        Object.values(heuristicResults).reduce(
+          (sum: number, h) => sum + h.confidence,
+          0
+        ) / heuristicNames.length;
+
       steps.push({
         type: ReasoningType.PATTERN_MATCH,
-        content: `Applied heuristics: ${heuristicNames.join(', ')}`,
+        content: `Applied heuristics: ${heuristicNames.join(", ")}`,
         confidence: avgConfidence,
-        alternatives: Object.entries(heuristicResults).slice(0, 3).map(([name, result]: [string, any]) => ({
-          content: `${name}: ${result.reasoning}`,
-          confidence: result.confidence,
-          reasoning: `Heuristic application`
-        }))
+        alternatives: Object.entries(heuristicResults)
+          .slice(0, 3)
+          .map(([name, result]: [string, HeuristicResult]) => ({
+            content: `${name}: ${result.result}`,
+            confidence: result.confidence,
+            reasoning: `Heuristic application`,
+          })),
       });
     }
 
@@ -406,24 +533,43 @@ export class IntuitiveProcessor implements ISystem1Processor {
       type: ReasoningType.PATTERN_MATCH,
       content: `Intuitive response: ${response.content}`,
       confidence: this.getConfidence(response),
-      alternatives: []
+      alternatives: [],
     });
 
     return steps;
   }
 
-  private assessEmotionalContext(_input: string, patterns: Pattern[]): EmotionalState {
-    const emotionalPatterns = patterns.filter(p => p.type === 'emotional');
-    
+  private assessEmotionalContext(
+    _input: string,
+    patterns: Pattern[]
+  ): EmotionalState {
+    const emotionalPatterns = patterns.filter((p) => p.type === "emotional");
+
     let valence = 0;
     let arousal = 0.3; // Base arousal for System 1
-    let dominance = 0.7; // System 1 tends to be confident
+    const dominance = 0.7; // System 1 tends to be confident
 
     if (emotionalPatterns.length > 0) {
       // Simple emotional assessment based on detected patterns
-      const positiveWords = ['good', 'great', 'excellent', 'happy', 'love', 'amazing', 'wonderful'];
-      const negativeWords = ['bad', 'terrible', 'hate', 'awful', 'horrible', 'sad', 'angry'];
-      
+      const positiveWords = [
+        "good",
+        "great",
+        "excellent",
+        "happy",
+        "love",
+        "amazing",
+        "wonderful",
+      ];
+      const negativeWords = [
+        "bad",
+        "terrible",
+        "hate",
+        "awful",
+        "horrible",
+        "sad",
+        "angry",
+      ];
+
       for (const pattern of emotionalPatterns) {
         const word = pattern.content[0];
         if (positiveWords.includes(word)) {
@@ -441,15 +587,15 @@ export class IntuitiveProcessor implements ISystem1Processor {
       arousal: Math.max(0, Math.min(1, arousal)),
       dominance: Math.max(0, Math.min(1, dominance)),
       specific_emotions: new Map([
-        ['confidence', dominance],
-        ['curiosity', arousal * 0.8],
-        ['uncertainty', 1 - dominance]
-      ])
+        ["confidence", dominance],
+        ["curiosity", arousal * 0.8],
+        ["uncertainty", 1 - dominance],
+      ]),
     };
   }
 
-  process(input: any): Promise<any> {
-    return this.processIntuitive(input);
+  process(input: unknown): Promise<unknown> {
+    return this.processIntuitive(input as CognitiveInput);
   }
 
   reset(): void {
@@ -459,11 +605,11 @@ export class IntuitiveProcessor implements ISystem1Processor {
 
   getStatus(): ComponentStatus {
     return {
-      name: 'IntuitiveProcessor',
+      name: "IntuitiveProcessor",
       initialized: this.initialized,
       active: Date.now() - this.lastActivity < 30000, // Active if used in last 30 seconds
       last_activity: this.lastActivity,
-      error: ''
+      error: "",
     };
   }
 }

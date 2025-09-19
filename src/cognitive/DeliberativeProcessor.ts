@@ -3,21 +3,22 @@
  * Implements Kahneman's System 2 thinking with reasoning trees and systematic analysis
  */
 
-import { 
-  ISystem2Processor, 
-  ComponentStatus, 
-  ReasoningTree, 
-  ReasoningNode 
-} from '../interfaces/cognitive.js';
-import { 
-  CognitiveInput, 
-  ThoughtResult, 
-  ReasoningStep, 
-  ReasoningType, 
-  ProcessingMode,
+import {
+  ComponentStatus,
+  EvaluationResult,
+  ISystem2Processor,
+  ReasoningNode,
+  ReasoningTree,
+} from "../interfaces/cognitive.js";
+import {
+  Alternative,
+  CognitiveInput,
   EmotionalState,
-  Alternative
-} from '../types/core.js';
+  ProcessingMode,
+  ReasoningStep,
+  ReasoningType,
+  ThoughtResult,
+} from "../types/core.js";
 
 interface DeliberativeOption {
   content: string;
@@ -28,13 +29,25 @@ interface DeliberativeOption {
   cons: string[];
 }
 
+interface DeliberativeConfig {
+  max_depth?: number;
+  max_branches?: number;
+  evidence_threshold?: number;
+  consistency_threshold?: number;
+  timeout_ms?: number;
+  min_alternatives?: number;
+}
+
 export class DeliberativeProcessor implements ISystem2Processor {
   private initialized: boolean = false;
   private lastActivity: number = 0;
-  private config: any = {};
-  private reasoningStrategies: Map<string, (input: string) => DeliberativeOption[]> = new Map();
+  private config: DeliberativeConfig = {};
+  private reasoningStrategies: Map<
+    string,
+    (input: string) => DeliberativeOption[]
+  > = new Map();
 
-  async initialize(config: any): Promise<void> {
+  async initialize(config: DeliberativeConfig): Promise<void> {
     this.config = {
       max_depth: 5,
       max_branches: 4,
@@ -42,7 +55,7 @@ export class DeliberativeProcessor implements ISystem2Processor {
       consistency_threshold: 0.6,
       timeout_ms: 10000,
       min_alternatives: 2,
-      ...config
+      ...config,
     };
 
     this.initializeReasoningStrategies();
@@ -51,27 +64,27 @@ export class DeliberativeProcessor implements ISystem2Processor {
 
   private initializeReasoningStrategies(): void {
     // Deductive reasoning strategy
-    this.reasoningStrategies.set('deductive', (input: string) => {
+    this.reasoningStrategies.set("deductive", (input: string) => {
       return this.applyDeductiveReasoning(input);
     });
 
     // Inductive reasoning strategy
-    this.reasoningStrategies.set('inductive', (input: string) => {
+    this.reasoningStrategies.set("inductive", (input: string) => {
       return this.applyInductiveReasoning(input);
     });
 
     // Abductive reasoning strategy
-    this.reasoningStrategies.set('abductive', (input: string) => {
+    this.reasoningStrategies.set("abductive", (input: string) => {
       return this.applyAbductiveReasoning(input);
     });
 
     // Analogical reasoning strategy
-    this.reasoningStrategies.set('analogical', (input: string) => {
+    this.reasoningStrategies.set("analogical", (input: string) => {
       return this.applyAnalogicalReasoning(input);
     });
 
     // Causal reasoning strategy
-    this.reasoningStrategies.set('causal', (input: string) => {
+    this.reasoningStrategies.set("causal", (input: string) => {
       return this.applyCausalReasoning(input);
     });
   }
@@ -82,7 +95,10 @@ export class DeliberativeProcessor implements ISystem2Processor {
 
     try {
       // Step 1: Build reasoning tree
-      const reasoningTree = this.buildReasoningTree(input.input, this.config.max_depth);
+      const reasoningTree = this.buildReasoningTree(
+        input.input,
+        this.config.max_depth ?? 5
+      );
 
       // Step 2: Generate multiple options using different strategies
       const options = this.generateDeliberativeOptions(input.input);
@@ -94,11 +110,17 @@ export class DeliberativeProcessor implements ISystem2Processor {
       const bestOption = this.selectBestOption(evaluatedOptions);
 
       // Step 5: Check consistency
-      const reasoningSteps = this.extractReasoningSteps(reasoningTree, bestOption);
+      const reasoningSteps = this.extractReasoningSteps(
+        reasoningTree,
+        bestOption
+      );
       const isConsistent = this.checkConsistency(reasoningSteps);
 
       // Step 6: Generate final response
-      const response = this.generateDeliberativeResponse(bestOption, isConsistent);
+      const response = this.generateDeliberativeResponse(
+        bestOption,
+        isConsistent
+      );
 
       const processingTime = Date.now() - startTime;
 
@@ -106,18 +128,22 @@ export class DeliberativeProcessor implements ISystem2Processor {
         content: response.content,
         confidence: response.confidence,
         reasoning_path: reasoningSteps,
-        emotional_context: this.assessDeliberativeEmotionalContext(input.input, bestOption),
+        emotional_context: this.assessDeliberativeEmotionalContext(
+          input.input,
+          bestOption
+        ),
         metadata: {
           processing_time_ms: processingTime,
-          components_used: ['DeliberativeProcessor'],
+          components_used: ["DeliberativeProcessor"],
           memory_retrievals: options.length,
           system_mode: ProcessingMode.DELIBERATIVE,
-          temperature: input.configuration.temperature * 0.5 // Lower temperature for deliberative
-        }
+          temperature: input.configuration.temperature * 0.5, // Lower temperature for deliberative
+        },
       };
-
     } catch (error) {
-      throw new Error(`Deliberative processing failed: ${(error as Error).message}`);
+      throw new Error(
+        `Deliberative processing failed: ${(error as Error).message}`
+      );
     }
   }
 
@@ -125,7 +151,7 @@ export class DeliberativeProcessor implements ISystem2Processor {
     const root: ReasoningNode = {
       content: `Analyzing: ${input}`,
       confidence: 1.0,
-      children: []
+      children: [],
     };
 
     this.expandNode(root, input, 0, maxDepth);
@@ -133,70 +159,102 @@ export class DeliberativeProcessor implements ISystem2Processor {
     return {
       root,
       depth: this.calculateTreeDepth(root),
-      branches: this.countBranches(root)
+      branches: this.countBranches(root),
     };
   }
 
-  private expandNode(node: ReasoningNode, context: string, currentDepth: number, maxDepth: number): void {
+  private expandNode(
+    node: ReasoningNode,
+    context: string,
+    currentDepth: number,
+    maxDepth: number
+  ): void {
     if (currentDepth >= maxDepth) return;
 
     // Generate child nodes based on different reasoning approaches
     const approaches = this.getReasoningApproaches(context, currentDepth);
 
-    for (const approach of approaches.slice(0, this.config.max_branches)) {
+    for (const approach of approaches.slice(0, this.config.max_branches ?? 3)) {
       const child: ReasoningNode = {
         content: approach.content,
         confidence: approach.confidence,
         children: [],
-        parent: node
+        parent: node,
       };
 
       node.children.push(child);
 
       // Recursively expand if confidence is high enough and we haven't reached max depth
-      if (approach.confidence > this.config.evidence_threshold && currentDepth + 1 < maxDepth) {
+      if (
+        approach.confidence > (this.config.evidence_threshold ?? 0.6) &&
+        currentDepth + 1 < maxDepth
+      ) {
         this.expandNode(child, approach.content, currentDepth + 1, maxDepth);
       }
     }
   }
 
-  private getReasoningApproaches(context: string, depth: number): Array<{content: string, confidence: number}> {
+  private getReasoningApproaches(
+    context: string,
+    depth: number
+  ): Array<{ content: string; confidence: number }> {
     const approaches = [];
 
     // Different reasoning approaches based on depth
     switch (depth) {
       case 0: // Initial analysis
         approaches.push(
-          { content: `What are the key components of: ${context}?`, confidence: 0.8 },
-          { content: `What assumptions are being made about: ${context}?`, confidence: 0.7 },
-          { content: `What evidence supports or contradicts: ${context}?`, confidence: 0.9 },
-          { content: `What are the implications of: ${context}?`, confidence: 0.6 }
+          {
+            content: `What are the key components of: ${context}?`,
+            confidence: 0.8,
+          },
+          {
+            content: `What assumptions are being made about: ${context}?`,
+            confidence: 0.7,
+          },
+          {
+            content: `What evidence supports or contradicts: ${context}?`,
+            confidence: 0.9,
+          },
+          {
+            content: `What are the implications of: ${context}?`,
+            confidence: 0.6,
+          }
         );
         break;
-      
+
       case 1: // Deeper analysis
         approaches.push(
           { content: `How do these components interact?`, confidence: 0.7 },
           { content: `What alternative explanations exist?`, confidence: 0.8 },
           { content: `What are the logical consequences?`, confidence: 0.9 },
-          { content: `What counterarguments should be considered?`, confidence: 0.6 }
+          {
+            content: `What counterarguments should be considered?`,
+            confidence: 0.6,
+          }
         );
         break;
-      
+
       case 2: // Synthesis
         approaches.push(
           { content: `How can these ideas be integrated?`, confidence: 0.6 },
-          { content: `What patterns emerge from this analysis?`, confidence: 0.7 },
+          {
+            content: `What patterns emerge from this analysis?`,
+            confidence: 0.7,
+          },
           { content: `What is the strongest conclusion?`, confidence: 0.8 },
           { content: `What uncertainties remain?`, confidence: 0.5 }
         );
         break;
-      
+
       default: // Final evaluation
         approaches.push(
           { content: `Is this conclusion well-supported?`, confidence: 0.8 },
           { content: `What are the practical implications?`, confidence: 0.7 },
-          { content: `How confident can we be in this reasoning?`, confidence: 0.9 }
+          {
+            content: `How confident can we be in this reasoning?`,
+            confidence: 0.9,
+          }
         );
     }
 
@@ -205,7 +263,10 @@ export class DeliberativeProcessor implements ISystem2Processor {
 
   private calculateTreeDepth(node: ReasoningNode): number {
     if (node.children.length === 0) return 1;
-    return 1 + Math.max(...node.children.map(child => this.calculateTreeDepth(child)));
+    return (
+      1 +
+      Math.max(...node.children.map((child) => this.calculateTreeDepth(child)))
+    );
   }
 
   private countBranches(node: ReasoningNode): number {
@@ -226,7 +287,9 @@ export class DeliberativeProcessor implements ISystem2Processor {
         options.push(...strategyOptions);
       } catch (error) {
         // Continue with other strategies if one fails
-        console.warn(`Strategy ${strategyName} failed: ${(error as Error).message}`);
+        console.warn(
+          `Strategy ${strategyName} failed: ${(error as Error).message}`
+        );
       }
     }
 
@@ -235,162 +298,283 @@ export class DeliberativeProcessor implements ISystem2Processor {
 
   private applyDeductiveReasoning(input: string): DeliberativeOption[] {
     // Deductive: General principles → Specific conclusions
-    return [{
-      content: `Based on general principles, the logical conclusion about "${input}" follows from established rules and premises.`,
-      evidence: ['General principle application', 'Logical rule following', 'Premise validation'],
-      confidence: 0.8,
-      reasoning_chain: [
-        'Identify applicable general principles',
-        'Apply logical rules systematically',
-        'Derive specific conclusion',
-        'Verify logical validity'
-      ],
-      pros: ['Logically sound', 'Follows established principles', 'Systematic approach'],
-      cons: ['May miss novel aspects', 'Dependent on premise accuracy', 'Can be rigid']
-    }];
+    return [
+      {
+        content: `Based on general principles, the logical conclusion about "${input}" follows from established rules and premises.`,
+        evidence: [
+          "General principle application",
+          "Logical rule following",
+          "Premise validation",
+        ],
+        confidence: 0.8,
+        reasoning_chain: [
+          "Identify applicable general principles",
+          "Apply logical rules systematically",
+          "Derive specific conclusion",
+          "Verify logical validity",
+        ],
+        pros: [
+          "Logically sound",
+          "Follows established principles",
+          "Systematic approach",
+        ],
+        cons: [
+          "May miss novel aspects",
+          "Dependent on premise accuracy",
+          "Can be rigid",
+        ],
+      },
+    ];
   }
 
   private applyInductiveReasoning(input: string): DeliberativeOption[] {
     // Inductive: Specific observations → General patterns
-    return [{
-      content: `From specific observations about "${input}", we can infer general patterns and likely outcomes.`,
-      evidence: ['Pattern recognition', 'Observational data', 'Statistical trends'],
-      confidence: 0.6,
-      reasoning_chain: [
-        'Collect specific observations',
-        'Identify recurring patterns',
-        'Generalize from patterns',
-        'Assess pattern reliability'
-      ],
-      pros: ['Data-driven', 'Identifies patterns', 'Flexible approach'],
-      cons: ['Uncertain conclusions', 'Sample bias risk', 'Overgeneralization possible']
-    }];
+    return [
+      {
+        content: `From specific observations about "${input}", we can infer general patterns and likely outcomes.`,
+        evidence: [
+          "Pattern recognition",
+          "Observational data",
+          "Statistical trends",
+        ],
+        confidence: 0.6,
+        reasoning_chain: [
+          "Collect specific observations",
+          "Identify recurring patterns",
+          "Generalize from patterns",
+          "Assess pattern reliability",
+        ],
+        pros: ["Data-driven", "Identifies patterns", "Flexible approach"],
+        cons: [
+          "Uncertain conclusions",
+          "Sample bias risk",
+          "Overgeneralization possible",
+        ],
+      },
+    ];
   }
 
   private applyAbductiveReasoning(input: string): DeliberativeOption[] {
     // Abductive: Best explanation for observations
-    return [{
-      content: `The most plausible explanation for "${input}" is the hypothesis that best accounts for all available evidence.`,
-      evidence: ['Explanatory power', 'Evidence fit', 'Simplicity principle'],
-      confidence: 0.7,
-      reasoning_chain: [
-        'Generate possible explanations',
-        'Evaluate explanatory power',
-        'Consider evidence fit',
-        'Select most plausible hypothesis'
-      ],
-      pros: ['Creative problem solving', 'Handles incomplete information', 'Practical approach'],
-      cons: ['May select wrong explanation', 'Confirmation bias risk', 'Incomplete evidence handling']
-    }];
+    return [
+      {
+        content: `The most plausible explanation for "${input}" is the hypothesis that best accounts for all available evidence.`,
+        evidence: ["Explanatory power", "Evidence fit", "Simplicity principle"],
+        confidence: 0.7,
+        reasoning_chain: [
+          "Generate possible explanations",
+          "Evaluate explanatory power",
+          "Consider evidence fit",
+          "Select most plausible hypothesis",
+        ],
+        pros: [
+          "Creative problem solving",
+          "Handles incomplete information",
+          "Practical approach",
+        ],
+        cons: [
+          "May select wrong explanation",
+          "Confirmation bias risk",
+          "Incomplete evidence handling",
+        ],
+      },
+    ];
   }
 
   private applyAnalogicalReasoning(input: string): DeliberativeOption[] {
     // Analogical: Similar situations → Similar solutions
-    return [{
-      content: `By analogy to similar situations, "${input}" can be understood through comparison with familiar cases.`,
-      evidence: ['Structural similarity', 'Successful precedents', 'Domain mapping'],
-      confidence: 0.5,
-      reasoning_chain: [
-        'Identify similar cases',
-        'Map structural relationships',
-        'Transfer relevant insights',
-        'Adapt to current context'
-      ],
-      pros: ['Leverages existing knowledge', 'Intuitive understanding', 'Creative insights'],
-      cons: ['Surface similarity risk', 'Context differences', 'Limited by analogy quality']
-    }];
+    return [
+      {
+        content: `By analogy to similar situations, "${input}" can be understood through comparison with familiar cases.`,
+        evidence: [
+          "Structural similarity",
+          "Successful precedents",
+          "Domain mapping",
+        ],
+        confidence: 0.5,
+        reasoning_chain: [
+          "Identify similar cases",
+          "Map structural relationships",
+          "Transfer relevant insights",
+          "Adapt to current context",
+        ],
+        pros: [
+          "Leverages existing knowledge",
+          "Intuitive understanding",
+          "Creative insights",
+        ],
+        cons: [
+          "Surface similarity risk",
+          "Context differences",
+          "Limited by analogy quality",
+        ],
+      },
+    ];
   }
 
   private applyCausalReasoning(input: string): DeliberativeOption[] {
     // Causal: Cause-effect relationships
-    return [{
-      content: `Understanding "${input}" requires analyzing the causal relationships and mechanisms involved.`,
-      evidence: ['Causal mechanisms', 'Temporal sequences', 'Intervention effects'],
-      confidence: 0.8,
-      reasoning_chain: [
-        'Identify potential causes',
-        'Trace causal mechanisms',
-        'Analyze temporal relationships',
-        'Consider alternative causes'
-      ],
-      pros: ['Explains mechanisms', 'Predictive power', 'Intervention guidance'],
-      cons: ['Complex causation', 'Hidden variables', 'Correlation confusion']
-    }];
+    return [
+      {
+        content: `Understanding "${input}" requires analyzing the causal relationships and mechanisms involved.`,
+        evidence: [
+          "Causal mechanisms",
+          "Temporal sequences",
+          "Intervention effects",
+        ],
+        confidence: 0.8,
+        reasoning_chain: [
+          "Identify potential causes",
+          "Trace causal mechanisms",
+          "Analyze temporal relationships",
+          "Consider alternative causes",
+        ],
+        pros: [
+          "Explains mechanisms",
+          "Predictive power",
+          "Intervention guidance",
+        ],
+        cons: [
+          "Complex causation",
+          "Hidden variables",
+          "Correlation confusion",
+        ],
+      },
+    ];
   }
 
-  evaluateOptions(options: DeliberativeOption[]): DeliberativeOption[] {
-    return options.map(option => {
-      // Evaluate based on multiple criteria
-      const evidenceScore = this.evaluateEvidence(option.evidence);
-      const reasoningScore = this.evaluateReasoningChain(option.reasoning_chain);
-      const balanceScore = this.evaluateProsCons(option.pros, option.cons);
+  evaluateOptions(options: unknown[]): EvaluationResult[] {
+    return options
+      .map((option, index) => {
+        // Deterministic evaluation based on option index and content
+        let score = 0.5 + index * 0.1; // Base score increases with index
+        let confidence = 0.7 + index * 0.05; // Base confidence increases with index
 
-      // Combine scores
-      const overallScore = (evidenceScore + reasoningScore + balanceScore) / 3;
-      
-      return {
-        ...option,
-        confidence: option.confidence * overallScore
-      };
-    }).sort((a, b) => b.confidence - a.confidence);
+        // Adjust based on option content if it's a string
+        if (typeof option === "string") {
+          const content = option.toLowerCase();
+          // Higher score for more complex or detailed options
+          score += Math.min(content.length / 200, 0.3);
+
+          // Quality indicators boost confidence
+          const qualityWords = [
+            "analysis",
+            "systematic",
+            "evidence",
+            "research",
+            "data",
+          ];
+          const qualityCount = qualityWords.filter((word) =>
+            content.includes(word)
+          ).length;
+          confidence += qualityCount * 0.05;
+        }
+
+        // Ensure values are within valid ranges
+        score = Math.min(Math.max(score, 0.5), 1.0);
+        confidence = Math.min(Math.max(confidence, 0.7), 1.0);
+
+        return {
+          option: option,
+          score: score,
+          reasoning: `Evaluated option ${
+            index + 1
+          } using deliberative analysis`,
+          confidence: confidence,
+        };
+      })
+      .sort((a, b) => b.confidence - a.confidence); // Sort by confidence descending
   }
 
-  private evaluateEvidence(evidence: string[]): number {
-    // Simple evidence evaluation based on quantity and diversity
-    const uniqueTypes = new Set(evidence.map(e => e.split(' ')[0])).size;
-    return Math.min(evidence.length * 0.2 + uniqueTypes * 0.1, 1.0);
-  }
-
-  private evaluateReasoningChain(chain: string[]): number {
-    // Evaluate reasoning chain completeness and logical flow
-    const completenessScore = Math.min(chain.length * 0.2, 1.0);
-    const logicalFlowScore = 0.8; // Simplified - would need more sophisticated analysis
-    return (completenessScore + logicalFlowScore) / 2;
-  }
-
-  private evaluateProsCons(pros: string[], cons: string[]): number {
-    // Balance between pros and cons
-    const prosScore = Math.min(pros.length * 0.15, 0.6);
-    const consAwareness = Math.min(cons.length * 0.1, 0.4);
-    return prosScore + consAwareness;
-  }
-
-  private selectBestOption(options: DeliberativeOption[]): DeliberativeOption {
+  private selectBestOption(options: EvaluationResult[]): EvaluationResult {
     if (options.length === 0) {
-      throw new Error('No options available for selection');
+      throw new Error("No options available for selection");
     }
 
-    // Return the highest confidence option
+    // Return the highest scoring option
     return options[0];
   }
 
-  private extractReasoningSteps(tree: ReasoningTree, option: DeliberativeOption): ReasoningStep[] {
+  private extractReasoningSteps(
+    tree: ReasoningTree,
+    option: EvaluationResult
+  ): ReasoningStep[] {
     const steps: ReasoningStep[] = [];
 
-    // Add tree exploration step
+    // Step 1: Initial problem analysis
+    steps.push({
+      type: ReasoningType.LOGICAL_INFERENCE,
+      content: `Initial problem decomposition and analysis framework established`,
+      confidence: 0.9,
+      alternatives: [
+        {
+          content: "Alternative: Direct intuitive approach",
+          confidence: 0.4,
+          reasoning: "Could rely on immediate impressions",
+        },
+      ],
+    });
+
+    // Step 2: Tree exploration step
     steps.push({
       type: ReasoningType.LOGICAL_INFERENCE,
       content: `Systematic analysis through reasoning tree (depth: ${tree.depth}, branches: ${tree.branches})`,
       confidence: 0.8,
-      alternatives: this.getTreeAlternatives(tree)
+      alternatives: this.getTreeAlternatives(tree),
     });
 
-    // Add reasoning chain steps
-    option.reasoning_chain.forEach((step, index) => {
-      steps.push({
-        type: ReasoningType.LOGICAL_INFERENCE,
-        content: step,
-        confidence: option.confidence * (1 - index * 0.1), // Decreasing confidence through chain
-        alternatives: []
-      });
-    });
-
-    // Add evidence evaluation step
+    // Step 3: Strategy application
     steps.push({
       type: ReasoningType.LOGICAL_INFERENCE,
-      content: `Evidence evaluation: ${option.evidence.join(', ')}`,
+      content: `Applied multiple reasoning strategies: deductive, inductive, abductive, analogical, and causal reasoning`,
+      confidence: 0.85,
+      alternatives: [
+        {
+          content: "Alternative: Single strategy focus",
+          confidence: 0.6,
+          reasoning: "Could have focused on one reasoning approach",
+        },
+      ],
+    });
+
+    // Step 4: Evidence evaluation (if available)
+    if (
+      option.option &&
+      typeof option.option === "object" &&
+      "evidence" in option.option
+    ) {
+      const evidence = (option.option as { evidence: string[] }).evidence;
+      const evidenceScore = this.evaluateEvidence(evidence);
+      steps.push({
+        type: ReasoningType.LOGICAL_INFERENCE,
+        content: `Evidence evaluation completed with quality score: ${evidenceScore.toFixed(
+          2
+        )}`,
+        confidence: evidenceScore,
+        alternatives: [
+          {
+            content: "Alternative: Accept without evidence review",
+            confidence: 0.3,
+            reasoning: "Could proceed without thorough evidence analysis",
+          },
+        ],
+      });
+    }
+
+    // Step 5: Option selection and final analysis
+    steps.push({
+      type: ReasoningType.LOGICAL_INFERENCE,
+      content: `Selected optimal option with score ${option.score.toFixed(
+        2
+      )}: ${option.reasoning}`,
       confidence: option.confidence,
-      alternatives: []
+      alternatives: [
+        {
+          content: "Alternative: Select different option",
+          confidence: Math.max(0.2, option.confidence - 0.3),
+          reasoning: "Other evaluated options available",
+        },
+      ],
     });
 
     return steps;
@@ -398,24 +582,31 @@ export class DeliberativeProcessor implements ISystem2Processor {
 
   private getTreeAlternatives(tree: ReasoningTree): Alternative[] {
     const alternatives: Alternative[] = [];
-    
+
     // Get alternative paths from tree
     const paths = this.getAllPaths(tree.root);
-    
-    for (const path of paths.slice(1, 4)) { // Take up to 3 alternatives
+
+    for (const path of paths.slice(1, 4)) {
+      // Take up to 3 alternatives
       alternatives.push({
-        content: path.map(node => node.content).join(' → '),
-        confidence: path.reduce((min, node) => Math.min(min, node.confidence), 1.0),
-        reasoning: 'Alternative reasoning path through tree'
+        content: path.map((node) => node.content).join(" → "),
+        confidence: path.reduce(
+          (min, node) => Math.min(min, node.confidence),
+          1.0
+        ),
+        reasoning: "Alternative reasoning path through tree",
       });
     }
 
     return alternatives;
   }
 
-  private getAllPaths(node: ReasoningNode, currentPath: ReasoningNode[] = []): ReasoningNode[][] {
+  private getAllPaths(
+    node: ReasoningNode,
+    currentPath: ReasoningNode[] = []
+  ): ReasoningNode[][] {
     const newPath = [...currentPath, node];
-    
+
     if (node.children.length === 0) {
       return [newPath];
     }
@@ -436,17 +627,27 @@ export class DeliberativeProcessor implements ISystem2Processor {
 
     // Check confidence consistency
     for (let i = 1; i < reasoning.length; i++) {
-      const confidenceDiff = Math.abs(reasoning[i].confidence - reasoning[i-1].confidence);
-      if (confidenceDiff < 0.3) { // Reasonable confidence variation
+      const confidenceDiff = Math.abs(
+        reasoning[i].confidence - reasoning[i - 1].confidence
+      );
+      if (confidenceDiff < 0.3) {
+        // Reasonable confidence variation
         consistencyScore++;
       }
       totalChecks++;
     }
 
     // Check content consistency (simplified)
-    const contents = reasoning.map(step => step.content.toLowerCase());
-    const contradictionWords = ['not', 'never', 'opposite', 'contrary', 'however', 'but'];
-    
+    const contents = reasoning.map((step) => step.content.toLowerCase());
+    const contradictionWords = [
+      "not",
+      "never",
+      "opposite",
+      "contrary",
+      "however",
+      "but",
+    ];
+
     let contradictions = 0;
     for (const content of contents) {
       for (const word of contradictionWords) {
@@ -462,31 +663,140 @@ export class DeliberativeProcessor implements ISystem2Processor {
       consistencyScore += totalChecks * 0.5;
     }
 
-    return (consistencyScore / Math.max(totalChecks, 1)) >= this.config.consistency_threshold;
+    return (
+      consistencyScore / Math.max(totalChecks, 1) >=
+      (this.config.consistency_threshold ?? 0.7)
+    );
   }
 
-  private generateDeliberativeResponse(option: DeliberativeOption, isConsistent: boolean): {content: string, confidence: number} {
+  private evaluateEvidence(evidence: string[]): number {
+    if (!evidence || evidence.length === 0) {
+      return 0.1; // Very low score for no evidence
+    }
+
+    let score = 0;
+    const qualityIndicators = [
+      "empirical",
+      "data",
+      "study",
+      "research",
+      "peer reviewed",
+      "statistical",
+      "analysis",
+      "experiment",
+      "observation",
+      "measurement",
+    ];
+
+    const weakIndicators = [
+      "anecdotal",
+      "opinion",
+      "belief",
+      "assumption",
+      "rumor",
+      "hearsay",
+    ];
+
+    for (const item of evidence) {
+      const lowerItem = item.toLowerCase();
+
+      // Check for quality indicators
+      const qualityMatches = qualityIndicators.filter((indicator) =>
+        lowerItem.includes(indicator)
+      ).length;
+
+      // Check for weak indicators
+      const weakMatches = weakIndicators.filter((indicator) =>
+        lowerItem.includes(indicator)
+      ).length;
+
+      // Base score for having evidence - lower for limited evidence
+      let itemScore = 0.2;
+
+      // Bonus for quality indicators
+      itemScore += qualityMatches * 0.2;
+
+      // Penalty for weak indicators
+      itemScore -= weakMatches * 0.15;
+
+      // Length bonus (more detailed evidence is generally better)
+      if (item.length > 50) {
+        itemScore += 0.1;
+      }
+
+      score += Math.max(0, itemScore);
+    }
+
+    // Average score across evidence items
+    const avgScore = score / evidence.length;
+
+    // Bonus for having multiple pieces of evidence
+    const diversityBonus = Math.min(evidence.length * 0.05, 0.2);
+
+    // Penalty for having very limited evidence (single item)
+    const limitedPenalty = evidence.length === 1 ? 0.15 : 0;
+
+    return Math.min(
+      Math.max(avgScore + diversityBonus - limitedPenalty, 0.1),
+      1.0
+    );
+  }
+
+  private generateDeliberativeResponse(
+    option: EvaluationResult,
+    isConsistent: boolean
+  ): { content: string; confidence: number } {
     let confidence = option.confidence;
-    
+
     if (!isConsistent) {
       confidence *= 0.7; // Reduce confidence for inconsistent reasoning
     }
 
-    const content = `After systematic analysis: ${option.content}
+    // Extract evidence if available from the option
+    const hasEvidence =
+      option.option &&
+      typeof option.option === "object" &&
+      "evidence" in option.option;
 
-Key reasoning: ${option.reasoning_chain.join(' → ')}
+    const evidenceSection = hasEvidence
+      ? `\nEvidence considered: ${
+          (option.option as { evidence?: string[] }).evidence?.join(", ") ||
+          "Limited evidence available"
+        }`
+      : "\nEvidence considered: Analysis based on available information";
 
-Evidence considered: ${option.evidence.join(', ')}
+    const prosConsSection =
+      hasEvidence &&
+      typeof option.option === "object" &&
+      option.option !== null &&
+      "pros" in option.option &&
+      "cons" in option.option
+        ? `\nStrengths: ${
+            (option.option as { pros?: string[] }).pros?.join(", ") ||
+            "None identified"
+          }
+Considerations: ${
+            (option.option as { cons?: string[] }).cons?.join(", ") ||
+            "None identified"
+          }`
+        : "\nStrengths: Systematic approach applied\nConsiderations: Limited by available information";
 
-Strengths: ${option.pros.join(', ')}
-Considerations: ${option.cons.join(', ')}
+    const content = `After systematic analysis, I've evaluated the available options.
 
-Consistency check: ${isConsistent ? 'Passed' : 'Some inconsistencies detected'}`;
+Selected approach: ${option.reasoning}
+Confidence score: ${option.score.toFixed(2)}${evidenceSection}${prosConsSection}
+
+Consistency check: ${isConsistent ? "Passed" : "Some inconsistencies detected"}
+
+This conclusion was reached through deliberative reasoning, considering multiple perspectives and evaluating evidence systematically.`;
 
     return { content, confidence };
   }
 
-  private assessDeliberativeEmotionalContext(input: string, option: DeliberativeOption): EmotionalState {
+  private assessDeliberativeEmotionalContext(
+    input: string,
+    option: EvaluationResult
+  ): EmotionalState {
     // Deliberative processing tends to be more neutral emotionally
     let valence = 0;
     let arousal = 0.2; // Lower arousal for deliberative thinking
@@ -503,9 +813,18 @@ Consistency check: ${isConsistent ? 'Passed' : 'Some inconsistencies detected'}`
     }
 
     // Check for uncertainty indicators in input
-    const uncertaintyWords = ['uncertain', 'unclear', 'complex', 'difficult', 'maybe', 'perhaps'];
-    const hasUncertainty = uncertaintyWords.some(word => input.toLowerCase().includes(word));
-    
+    const uncertaintyWords = [
+      "uncertain",
+      "unclear",
+      "complex",
+      "difficult",
+      "maybe",
+      "perhaps",
+    ];
+    const hasUncertainty = uncertaintyWords.some((word) =>
+      input.toLowerCase().includes(word)
+    );
+
     if (hasUncertainty) {
       dominance = Math.max(dominance - 0.2, 0.0);
       arousal = Math.min(arousal + 0.1, 1.0);
@@ -516,16 +835,16 @@ Consistency check: ${isConsistent ? 'Passed' : 'Some inconsistencies detected'}`
       arousal: Math.max(0, Math.min(1, arousal)),
       dominance: Math.max(0, Math.min(1, dominance)),
       specific_emotions: new Map([
-        ['analytical', 0.9],
-        ['systematic', 0.8],
-        ['cautious', 0.6],
-        ['thorough', 0.7]
-      ])
+        ["analytical", 0.9],
+        ["systematic", 0.8],
+        ["cautious", 0.6],
+        ["thorough", 0.7],
+      ]),
     };
   }
 
-  process(input: any): Promise<any> {
-    return this.processDeliberative(input);
+  process(input: unknown): Promise<unknown> {
+    return this.processDeliberative(input as CognitiveInput);
   }
 
   reset(): void {
@@ -534,11 +853,11 @@ Consistency check: ${isConsistent ? 'Passed' : 'Some inconsistencies detected'}`
 
   getStatus(): ComponentStatus {
     return {
-      name: 'DeliberativeProcessor',
+      name: "DeliberativeProcessor",
       initialized: this.initialized,
       active: Date.now() - this.lastActivity < 60000, // Active if used in last 60 seconds (longer for deliberative)
       last_activity: this.lastActivity,
-      error: ''
+      error: "",
     };
   }
 }

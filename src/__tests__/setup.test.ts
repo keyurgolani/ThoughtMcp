@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { ProcessingMode, ReasoningType } from '../types/core.js';
 import { TOOL_SCHEMAS } from '../types/mcp.js';
-import { ConfigManager, DEFAULT_CONFIG } from '../utils/config.js';
+import { ConfigManager } from '../utils/config.js';
 import { Logger, LogLevel } from '../utils/logger.js';
 
 describe('Project Setup', () => {

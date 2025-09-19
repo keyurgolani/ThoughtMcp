@@ -1,15 +1,22 @@
 /**
  * Integrated Memory System
- * 
+ *
  * Coordinates episodic memory, semantic memory, and consolidation engine
  * to provide a unified memory interface for the cognitive architecture.
  */
 
-import { CognitiveComponent, ComponentStatus } from '../interfaces/cognitive.js';
-import { Episode, Concept, Context } from '../types/core.js';
-import { EpisodicMemory, EpisodicMemoryConfig } from './EpisodicMemory.js';
-import { SemanticMemory, SemanticMemoryConfig } from './SemanticMemory.js';
-import { ConsolidationEngine, ConsolidationConfig, ConsolidationResult } from './ConsolidationEngine.js';
+import {
+  CognitiveComponent,
+  ComponentStatus,
+} from "../interfaces/cognitive.js";
+import { Concept, Context, Episode } from "../types/core.js";
+import {
+  ConsolidationConfig,
+  ConsolidationEngine,
+  ConsolidationResult,
+} from "./ConsolidationEngine.js";
+import { EpisodicMemory, EpisodicMemoryConfig } from "./EpisodicMemory.js";
+import { SemanticMemory, SemanticMemoryConfig } from "./SemanticMemory.js";
 
 export interface MemorySystemConfig {
   episodic: Partial<EpisodicMemoryConfig>;
@@ -54,12 +61,14 @@ export class MemorySystem implements CognitiveComponent {
       auto_consolidation: true,
       memory_decay_interval_ms: 300000, // 5 minutes
       auto_decay: true,
-      ...config
+      ...config,
     };
 
     this.episodicMemory = new EpisodicMemory(this.config.episodic);
     this.semanticMemory = new SemanticMemory(this.config.semantic);
-    this.consolidationEngine = new ConsolidationEngine(this.config.consolidation);
+    this.consolidationEngine = new ConsolidationEngine(
+      this.config.consolidation
+    );
   }
 
   async initialize(config?: Partial<MemorySystemConfig>): Promise<void> {
@@ -85,31 +94,47 @@ export class MemorySystem implements CognitiveComponent {
     this.lastActivity = Date.now();
   }
 
-  async process(input: any): Promise<any> {
+  async process(input: unknown): Promise<unknown> {
     // Generic process method - route to appropriate memory operation
-    if (input.operation === 'store') {
-      return this.storeExperience(input.experience);
-    } else if (input.operation === 'retrieve') {
-      return this.retrieveMemories(input.cue, input.threshold);
-    } else if (input.operation === 'consolidate') {
+    const inputObj = input as {
+      operation?: string;
+      experience?: unknown;
+      cue?: string;
+      threshold?: number;
+    };
+    if (inputObj?.operation === "store") {
+      return this.storeExperience(
+        inputObj.experience as {
+          content: unknown;
+          context: Context;
+          importance: number;
+          emotional_tags?: string[];
+        }
+      );
+    } else if (inputObj?.operation === "retrieve") {
+      return this.retrieveMemories(
+        inputObj.cue as string,
+        inputObj.threshold as number
+      );
+    } else if (inputObj?.operation === "consolidate") {
       return this.runConsolidation();
     }
-    
-    throw new Error('Invalid operation for MemorySystem.process()');
+
+    throw new Error("Invalid operation for MemorySystem.process()");
   }
 
   reset(): void {
     this.episodicMemory.reset();
     this.semanticMemory.reset();
     this.consolidationEngine.reset();
-    
+
     if (this.consolidationTimer) {
       clearInterval(this.consolidationTimer);
     }
     if (this.decayTimer) {
       clearInterval(this.decayTimer);
     }
-    
+
     this.lastActivity = Date.now();
   }
 
@@ -119,10 +144,16 @@ export class MemorySystem implements CognitiveComponent {
     // Note: consolidationStatus available but not used in current status logic
 
     return {
-      name: 'MemorySystem',
-      initialized: this.initialized && episodicStatus.initialized && semanticStatus.initialized,
+      name: "MemorySystem",
+      initialized:
+        this.initialized &&
+        episodicStatus.initialized &&
+        semanticStatus.initialized,
       active: episodicStatus.active || semanticStatus.active,
-      last_activity: Math.max(this.lastActivity, Math.max(episodicStatus.last_activity, semanticStatus.last_activity)),
+      last_activity: Math.max(
+        this.lastActivity,
+        Math.max(episodicStatus.last_activity, semanticStatus.last_activity)
+      ),
     };
   }
 
@@ -130,7 +161,7 @@ export class MemorySystem implements CognitiveComponent {
    * Store an experience in both episodic and semantic memory
    */
   async storeExperience(experience: {
-    content: any;
+    content: unknown;
     context: Context;
     importance: number;
     emotional_tags?: string[];
@@ -146,7 +177,7 @@ export class MemorySystem implements CognitiveComponent {
         timestamp: startTime,
         emotional_tags: experience.emotional_tags || [],
         importance: experience.importance,
-        decay_factor: 1.0
+        decay_factor: 1.0,
       };
 
       // Store in episodic memory
@@ -166,8 +197,8 @@ export class MemorySystem implements CognitiveComponent {
           this.semanticMemory.addRelation(
             semanticId,
             conceptId,
-            'related_to',
-            0.5 + (experience.importance * 0.3)
+            "related_to",
+            0.5 + experience.importance * 0.3
           );
         }
       }
@@ -175,20 +206,19 @@ export class MemorySystem implements CognitiveComponent {
       const result: MemoryStorageResult = {
         episodic_id: episodicId,
         storage_time_ms: Date.now() - startTime,
-        success: true
+        success: true,
       };
-      
+
       if (semanticId) {
         result.semantic_id = semanticId;
       }
-      
-      return result;
 
-    } catch (error) {
+      return result;
+    } catch {
       return {
-        episodic_id: '',
+        episodic_id: "",
         storage_time_ms: Date.now() - startTime,
-        success: false
+        success: false,
       };
     }
   }
@@ -197,7 +227,7 @@ export class MemorySystem implements CognitiveComponent {
    * Retrieve memories from both episodic and semantic systems
    */
   async retrieveMemories(
-    cue: string, 
+    cue: string,
     threshold: number = 0.3
   ): Promise<MemoryRetrievalResult> {
     const startTime = Date.now();
@@ -206,7 +236,7 @@ export class MemorySystem implements CognitiveComponent {
     // Retrieve from both memory systems in parallel
     const [episodicMemories, semanticConcepts] = await Promise.all([
       Promise.resolve(this.episodicMemory.retrieve(cue, threshold)),
-      Promise.resolve(this.semanticMemory.retrieve(cue, threshold))
+      Promise.resolve(this.semanticMemory.retrieve(cue, threshold)),
     ]);
 
     // Compute combined relevance score
@@ -220,7 +250,7 @@ export class MemorySystem implements CognitiveComponent {
       episodic_memories: episodicMemories,
       semantic_concepts: semanticConcepts,
       combined_relevance: combinedRelevance,
-      retrieval_time_ms: Date.now() - startTime
+      retrieval_time_ms: Date.now() - startTime,
     };
   }
 
@@ -283,12 +313,14 @@ export class MemorySystem implements CognitiveComponent {
         concepts_created: 0,
         relations_strengthened: 0,
         episodes_processed: 0,
-        pruned_memories: 0
+        pruned_memories: 0,
       };
     }
 
     // Run consolidation
-    const newConcepts = this.consolidationEngine.consolidate(episodesToConsolidate);
+    const newConcepts = this.consolidationEngine.consolidate(
+      episodesToConsolidate
+    );
 
     // Store new concepts in semantic memory
     for (const concept of newConcepts) {
@@ -299,13 +331,15 @@ export class MemorySystem implements CognitiveComponent {
     this.episodicMemory.decay();
     this.semanticMemory.applyDecay();
 
-    return this.consolidationEngine.getLastConsolidationResult() || {
-      patterns_extracted: 0,
-      concepts_created: newConcepts.length,
-      relations_strengthened: 0,
-      episodes_processed: episodesToConsolidate.length,
-      pruned_memories: 0
-    };
+    return (
+      this.consolidationEngine.getLastConsolidationResult() || {
+        patterns_extracted: 0,
+        concepts_created: newConcepts.length,
+        relations_strengthened: 0,
+        episodes_processed: episodesToConsolidate.length,
+        pruned_memories: 0,
+      }
+    );
   }
 
   /**
@@ -321,7 +355,7 @@ export class MemorySystem implements CognitiveComponent {
       episodic_count: this.episodicMemory.getSize(),
       semantic_count: this.semanticMemory.getActiveConcepts().length,
       consolidation_history: this.consolidationEngine.getConsolidationStats(),
-      last_consolidation: this.consolidationEngine.getLastConsolidationResult()
+      last_consolidation: this.consolidationEngine.getLastConsolidationResult(),
     };
   }
 
@@ -347,7 +381,7 @@ export class MemorySystem implements CognitiveComponent {
       try {
         await this.runConsolidation();
       } catch (error) {
-        console.error('Consolidation process error:', error);
+        console.error("Consolidation process error:", error);
       }
     }, this.config.consolidation_interval_ms);
   }
@@ -358,13 +392,13 @@ export class MemorySystem implements CognitiveComponent {
         this.episodicMemory.decay();
         this.semanticMemory.applyDecay();
       } catch (error) {
-        console.error('Decay process error:', error);
+        console.error("Decay process error:", error);
       }
     }, this.config.memory_decay_interval_ms);
   }
 
   private extractConceptsFromExperience(experience: {
-    content: any;
+    content: unknown;
     context: Context;
     importance: number;
     emotional_tags?: string[];
@@ -377,7 +411,7 @@ export class MemorySystem implements CognitiveComponent {
       content: experience.content,
       relations: [],
       activation: experience.importance,
-      last_accessed: Date.now()
+      last_accessed: Date.now(),
     };
 
     concepts.push(mainConcept);
@@ -386,10 +420,10 @@ export class MemorySystem implements CognitiveComponent {
     if (experience.context.domain) {
       const domainConcept: Concept = {
         id: `domain_${experience.context.domain}`,
-        content: { type: 'domain', value: experience.context.domain },
+        content: { type: "domain", value: experience.context.domain },
         relations: [],
         activation: experience.importance * 0.5,
-        last_accessed: Date.now()
+        last_accessed: Date.now(),
       };
       concepts.push(domainConcept);
     }
@@ -399,10 +433,10 @@ export class MemorySystem implements CognitiveComponent {
       for (const tag of experience.emotional_tags) {
         const emotionalConcept: Concept = {
           id: `emotion_${tag}`,
-          content: { type: 'emotion', value: tag },
+          content: { type: "emotion", value: tag },
           relations: [],
           activation: experience.importance * 0.3,
-          last_accessed: Date.now()
+          last_accessed: Date.now(),
         };
         concepts.push(emotionalConcept);
       }
@@ -411,12 +445,12 @@ export class MemorySystem implements CognitiveComponent {
     return concepts;
   }
 
-  private generateConceptId(content: any): string {
+  private generateConceptId(content: unknown): string {
     const contentStr = JSON.stringify(content);
     let hash = 0;
     for (let i = 0; i < contentStr.length; i++) {
       const char = contentStr.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return `concept_${Math.abs(hash).toString(16)}`;
@@ -431,13 +465,16 @@ export class MemorySystem implements CognitiveComponent {
 
     // Episodic relevance
     if (episodes.length > 0) {
-      const episodicRelevance = episodes.reduce((sum, ep) => sum + ep.importance, 0) / episodes.length;
+      const episodicRelevance =
+        episodes.reduce((sum, ep) => sum + ep.importance, 0) / episodes.length;
       relevance += episodicRelevance * 0.6;
     }
 
     // Semantic relevance
     if (concepts.length > 0) {
-      const semanticRelevance = concepts.reduce((sum, concept) => sum + concept.activation, 0) / concepts.length;
+      const semanticRelevance =
+        concepts.reduce((sum, concept) => sum + concept.activation, 0) /
+        concepts.length;
       relevance += semanticRelevance * 0.4;
     }
 

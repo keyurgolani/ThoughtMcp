@@ -5,16 +5,16 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { CognitiveMCPServer } from '../server/CognitiveMCPServer.js';
-import { ProcessingMode, ReasoningType } from '../types/core.js';
+import { ProcessingMode, ReasoningType, ReasoningStep } from '../types/core.js';
 import { CognitiveTestFramework } from './framework/TestFramework.js';
 
 describe('CognitiveMCPServer', () => {
   let server: CognitiveMCPServer;
-  let testFramework: CognitiveTestFramework;
+  let _testFramework: CognitiveTestFramework;
 
   beforeEach(() => {
     server = new CognitiveMCPServer();
-    testFramework = new CognitiveTestFramework();
+    _testFramework = new CognitiveTestFramework();
   });
 
   afterEach(async () => {
@@ -152,7 +152,7 @@ describe('CognitiveMCPServer', () => {
       it('should reject invalid processing mode', async () => {
         await expect(server.handleThink({ 
           input: 'test', 
-          mode: 'invalid_mode' as ProcessingMode 
+          mode: 'invalid_mode' as unknown as ProcessingMode 
         })).rejects.toThrow('Invalid processing mode');
       });
 
@@ -192,7 +192,7 @@ describe('CognitiveMCPServer', () => {
       it('should reject invalid memory type', async () => {
         await expect(server.handleRemember({ 
           content: 'test', 
-          type: 'invalid' as any 
+          type: 'invalid' as unknown as 'episodic' | 'semantic'
         })).rejects.toThrow('Remember tool requires type to be either "episodic" or "semantic"');
       });
 
@@ -219,7 +219,7 @@ describe('CognitiveMCPServer', () => {
       it('should reject invalid type', async () => {
         await expect(server.handleRecall({ 
           cue: 'test', 
-          type: 'invalid' as any 
+          type: 'invalid' as unknown as 'episodic' | 'semantic' | 'both'
         })).rejects.toThrow('Recall type must be "episodic", "semantic", or "both"');
       });
 
@@ -251,7 +251,7 @@ describe('CognitiveMCPServer', () => {
     describe('Analyze Reasoning Tool Validation', () => {
       it('should reject missing reasoning steps', async () => {
         await expect(server.handleAnalyzeReasoning({ 
-          reasoning_steps: undefined as any 
+          reasoning_steps: undefined as unknown as ReasoningStep[]
         })).rejects.toThrow('Analyze reasoning tool requires an array of reasoning steps');
       });
 
@@ -311,7 +311,7 @@ describe('CognitiveMCPServer', () => {
     it('should provide meaningful error messages', async () => {
       await expect(server.handleThink({ 
         input: 'test', 
-        mode: 'nonexistent' as ProcessingMode 
+        mode: 'nonexistent' as unknown as ProcessingMode 
       })).rejects.toThrow(/Invalid processing mode.*nonexistent/);
     });
   });

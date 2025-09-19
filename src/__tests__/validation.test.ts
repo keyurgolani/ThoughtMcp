@@ -71,7 +71,7 @@ describe('Validation Functions', () => {
       const invalidContext = {
         session_id: 'test-session',
         previous_thoughts: 'not an array'
-      } as any;
+      } as unknown as Context;
 
       expect(() => validateContext(invalidContext)).toThrow(ValidationError);
       expect(() => validateContext(invalidContext)).toThrow('previous_thoughts must be an array');
@@ -136,7 +136,7 @@ describe('Validation Functions', () => {
         content: 'Valid content',
         confidence: 0.8,
         alternatives: []
-      } as any;
+      } as unknown as ReasoningStep;
 
       expect(() => validateReasoningStep(invalidStep)).toThrow(ValidationError);
       expect(() => validateReasoningStep(invalidStep)).toThrow('type must be a valid ReasoningType');
@@ -194,7 +194,7 @@ describe('Validation Functions', () => {
         arousal: 0.5,
         dominance: 0.5,
         specific_emotions: {}
-      } as any;
+      } as unknown as EmotionalState;
 
       expect(() => validateEmotionalState(invalidState)).toThrow(ValidationError);
       expect(() => validateEmotionalState(invalidState)).toThrow('specific_emotions must be a Map');
@@ -248,7 +248,7 @@ describe('Validation Functions', () => {
         memory_retrievals: 1,
         system_mode: 'INVALID_MODE',
         temperature: 0.5
-      } as any;
+      } as unknown as ThoughtMetadata;
 
       expect(() => validateThoughtMetadata(invalidMetadata)).toThrow(ValidationError);
       expect(() => validateThoughtMetadata(invalidMetadata)).toThrow('system_mode must be a valid ProcessingMode');
@@ -350,7 +350,7 @@ describe('Validation Functions', () => {
         emotional_valence: 0,
         importance: 0.5,
         context_tags: []
-      } as any;
+      } as unknown as MemoryChunk;
 
       expect(() => validateMemoryChunk(invalidChunk)).toThrow(ValidationError);
       expect(() => validateMemoryChunk(invalidChunk)).toThrow('associations must be a Set');
@@ -548,7 +548,7 @@ describe('Validation Functions', () => {
         relations: [],
         activation: 0.5,
         last_accessed: Date.now()
-      } as any;
+      } as unknown as Concept;
 
       expect(() => validateConcept(invalidConcept)).toThrow(ValidationError);
       expect(() => validateConcept(invalidConcept)).toThrow('embedding must be an array if provided');
