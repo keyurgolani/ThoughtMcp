@@ -1,6 +1,6 @@
 # Contributing to ThoughtMCP
 
-Thank you for your interest in contributing to ThoughtMCP! This project implements a human-like cognitive architecture for MCP servers, and we welcome contributions from the community.
+Thank you for your interest in contributing to ThoughtMCP! This project implements a human-like cognitive architecture for MCP servers and is currently in **beta**. The core functionality is stable and ready for testing, and we welcome contributions from the community to help refine and enhance the system.
 
 ## Table of Contents
 

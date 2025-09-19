@@ -1,5 +1,7 @@
 # ThoughtMCP Real-World Examples
 
+> **🚀 Beta Examples**: These examples demonstrate the fully functional ThoughtMCP cognitive architecture tools in real-world scenarios. All examples have been tested and validated with the current beta implementation.
+
 This folder contains 5 real-world scenarios demonstrating how the ThoughtMCP cognitive architecture tools can be used to solve practical problems. Each example shows:
 
 - **The Problem**: A realistic situation requiring cognitive processing

@@ -1,6 +1,6 @@
 # ThoughtMCP - Cognitive Architecture MCP Server
 
-> **⚠️ Work in Progress**: This project is currently under active development. The cognitive architecture implementation is in a placeholder state and core functionality is being built out. Expect breaking changes and incomplete features until v1.0.0 release.
+> **🚀 Beta Release**: This project is now in beta! The core cognitive architecture is implemented and functional, with comprehensive real-world examples available. While the system is stable and ready for testing, some advanced features are still being refined. Breaking changes may occur before v1.0.0 release.
 
 A Model Context Protocol (MCP) server that implements human-like cognitive architecture for enhanced AI reasoning. This system mimics biological cognitive processes through multiple processing layers, dual-process thinking, memory systems, emotional processing, and metacognitive monitoring.
 

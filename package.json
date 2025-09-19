@@ -1,6 +1,6 @@
 {
   "name": "thought-mcp",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "MCP server implementing human-like cognitive architecture for enhanced AI reasoning",
   "main": "dist/index.js",
   "type": "module",
