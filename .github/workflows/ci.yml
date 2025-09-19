@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run linting
+      run: npm run lint
+      
+    - name: Run type checking
+      run: npm run type-check
+      
+    - name: Run tests with coverage
+      run: npm run test:coverage
+      
+    - name: Build project
+      run: npm run build
+      
+    - name: Upload coverage reports
+      if: matrix.node-version == '20.x'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        fail_ci_if_error: false
+        
+    - name: Check build artifacts
+      run: |
+        if [ ! -f "dist/index.js" ]; then
+          echo "Build artifact missing: dist/index.js"
+          exit 1
+        fi
+        echo "Build artifacts verified"
+        
+    - name: Validate package.json
+      run: |
+        node -e "
+          const pkg = require('./package.json');
+          if (!pkg.name || !pkg.version || !pkg.description) {
+            console.error('Missing required package.json fields');
+            process.exit(1);
+          }
+          if (!pkg.main || !pkg.scripts || !pkg.scripts.build) {
+            console.error('Missing required package.json configuration');
+            process.exit(1);
+          }
+          console.log('package.json validation passed');
+        "
+        
+    - name: Test package installation
+      run: |
+        npm pack
+        PACKAGE_NAME=$(npm pack --dry-run 2>/dev/null | tail -1)
+        echo "Package would be: $PACKAGE_NAME"

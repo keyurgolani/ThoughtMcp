@@ -1,0 +1,47 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit validations..."
+
+# Run linting
+echo "📝 Checking code style..."
+npm run lint
+if [ $? -ne 0 ]; then
+  echo "❌ Linting failed. Please fix the issues above."
+  exit 1
+fi
+
+# Run type checking
+echo "🔍 Type checking..."
+npm run type-check
+if [ $? -ne 0 ]; then
+  echo "❌ Type checking failed. Please fix the type errors above."
+  exit 1
+fi
+
+# Run tests
+echo "🧪 Running tests..."
+npm run test:run
+if [ $? -ne 0 ]; then
+  echo "❌ Tests failed. Please fix the failing tests above."
+  exit 1
+fi
+
+# Check for sensitive files
+echo "🔒 Checking for sensitive files..."
+if git diff --cached --name-only | grep -E "\.(key|pem|p12|pfx)$|\.env$" > /dev/null; then
+  echo "❌ Attempting to commit sensitive files. Please remove them from the commit."
+  git diff --cached --name-only | grep -E "\.(key|pem|p12|pfx)$|\.env$"
+  exit 1
+fi
+
+# Check for TODO/FIXME in staged files
+echo "📋 Checking for TODO/FIXME comments..."
+TODO_COUNT=$(git diff --cached | grep -E "^\+.*\b(TODO|FIXME|XXX|HACK)\b" | wc -l)
+if [ $TODO_COUNT -gt 0 ]; then
+  echo "⚠️  Found $TODO_COUNT TODO/FIXME comments in staged changes:"
+  git diff --cached | grep -E "^\+.*\b(TODO|FIXME|XXX|HACK)\b" | head -5
+  echo "Consider addressing these before committing."
+fi
+
+echo "✅ Pre-commit validations passed!"

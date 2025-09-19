@@ -1,0 +1,56 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🚀 Running pre-push validations..."
+
+# Get the remote and branch being pushed to
+remote="$1"
+url="$2"
+
+# Run full validation suite
+echo "🔍 Running full validation suite..."
+npm run validate
+if [ $? -ne 0 ]; then
+  echo "❌ Validation suite failed. Please fix the issues above."
+  exit 1
+fi
+
+# Check if we're pushing to main/master
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$current_branch" = "main" ] || [ "$current_branch" = "master" ]; then
+  echo "🔒 Pushing to protected branch: $current_branch"
+  
+  # Additional checks for main branch
+  echo "🧪 Running extended test suite..."
+  npm run test:coverage
+  if [ $? -ne 0 ]; then
+    echo "❌ Extended tests failed on main branch."
+    exit 1
+  fi
+  
+  # Check if version has been updated for main branch
+  if git log --oneline -1 | grep -E "(bump|version|release)" > /dev/null; then
+    echo "✅ Version update detected in recent commits."
+  else
+    echo "⚠️  No version update detected. Consider bumping version for main branch."
+  fi
+fi
+
+# Security check
+echo "🔒 Running security audit..."
+npm audit --audit-level=high > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+  echo "❌ Security vulnerabilities detected. Please run 'npm audit' and fix issues."
+  exit 1
+fi
+
+# Check for large files
+echo "📦 Checking for large files..."
+large_files=$(git diff --cached --name-only | xargs ls -la 2>/dev/null | awk '$5 > 1048576 {print $9 " (" $5 " bytes)"}')
+if [ -n "$large_files" ]; then
+  echo "⚠️  Large files detected (>1MB):"
+  echo "$large_files"
+  echo "Consider using Git LFS for large files."
+fi
+
+echo "✅ Pre-push validations passed!"

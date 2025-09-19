@@ -1,0 +1,63 @@
+{
+  "name": "thought-mcp",
+  "version": "0.0.1",
+  "description": "MCP server implementing human-like cognitive architecture for enhanced AI reasoning",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:framework": "vitest run src/__tests__/framework/TestRunner.ts",
+    "test:cognitive": "vitest run --grep 'cognitive'",
+    "test:performance": "vitest run --grep 'performance'",
+    "test:integration": "vitest run --grep 'integration'",
+    "test:unit": "vitest run --grep 'unit'",
+    "test:compliance": "vitest run --grep 'compliance'",
+    "test:memory": "vitest run --grep 'memory'",
+    "test:bias": "vitest run --grep 'bias'",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "validate": "npm run lint && npm run type-check && npm run test:run && npm run build",
+    "validate:ci": "npm run lint && npm run type-check && npm run test:coverage && npm run build",
+    "prepare": "husky install",
+    "prepublishOnly": "npm run validate:ci"
+  },
+  "keywords": ["mcp", "cognitive", "ai", "reasoning", "neuroscience"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/keyurgolani/ThoughtMcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/keyurgolani/ThoughtMcp/issues"
+  },
+  "homepage": "https://github.com/keyurgolani/ThoughtMcp#readme",
+  "author": {
+    "name": "Keyur Golani",
+    "email": "keyurrgolani@gmail.com",
+    "url": "https://github.com/keyurgolani"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "eslint": "^8.0.0",
+    "husky": "^8.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
