@@ -623,8 +623,11 @@ describe("Comprehensive Integration Tests", () => {
       expect(semanticContent.toLowerCase()).toContain("machine learning");
     });
 
-    it.skip("should maintain memory persistence across server restarts", async () => {
+    it("should maintain memory persistence across server restarts", async () => {
       const sessionId = "persistence_test_session";
+
+      // Clear any existing memory state first
+      await (server as any).memorySystem.reset();
 
       // Store important memories
       const importantMemory =
@@ -638,6 +641,9 @@ describe("Comprehensive Integration Tests", () => {
 
       expect(memoryResult.success).toBe(true);
       const originalMemoryId = memoryResult.memory_id;
+
+      // Force save to ensure persistence
+      await (server as any).memorySystem.saveToStorage();
 
       // Simulate server restart by creating new server instance
       await server.shutdown();

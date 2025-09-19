@@ -335,6 +335,13 @@ cognitive-state/
 *.memory
 *.state
 
+# Brain directories (MCP server memory storage)
+brain/
+data/
+
+# Test artifacts
+test-data/
+
 # Test artifacts
 test-results/
 test-reports/

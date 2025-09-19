@@ -34,6 +34,9 @@ export const DEFAULT_CONFIG: CognitiveConfig = {
   confidence_threshold: 0.6,
   system2_activation_threshold: 0.4,
   memory_retrieval_threshold: 0.3,
+
+  // Brain directory configuration
+  brain_dir: "~/.brain", // Default to hidden directory in user's home
 };
 
 export interface ConfigSource {
@@ -222,6 +225,14 @@ export class ConfigManager {
       );
     }
 
+    // Brain directory configuration
+    if (
+      process.env.COGNITIVE_BRAIN_DIR &&
+      process.env.COGNITIVE_BRAIN_DIR.trim()
+    ) {
+      envConfig.brain_dir = process.env.COGNITIVE_BRAIN_DIR;
+    }
+
     this.applyConfigSource({
       name: "environment",
       priority: 200,
@@ -315,6 +326,23 @@ export class ConfigManager {
   createPreset(name: string, config: Partial<CognitiveConfig>): void {
     // This could be extended to save presets to file
     console.log(`Created preset "${name}" with config:`, config);
+  }
+
+  /**
+   * Get resolved brain directory path with home directory expansion
+   */
+  getBrainDirectoryPath(): string {
+    const brainDir = this.config.brain_dir;
+    return brainDir.startsWith("~")
+      ? join(process.env.HOME || "", brainDir.slice(1))
+      : brainDir;
+  }
+
+  /**
+   * Get memory file path within the brain directory
+   */
+  getMemoryFilePath(): string {
+    return join(this.getBrainDirectoryPath(), "memory.json");
   }
 
   /**

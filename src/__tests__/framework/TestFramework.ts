@@ -1,6 +1,6 @@
 /**
  * Comprehensive Testing Framework for ThoughtMCP
- * 
+ *
  * This framework provides a scalable, flexible testing infrastructure that supports:
  * - Unit testing for individual cognitive components
  * - Integration testing for the full cognitive pipeline
@@ -10,7 +10,7 @@
  * - Cognitive architecture compliance testing
  */
 
-import { expect, vi } from 'vitest';
+import { expect, vi } from "vitest";
 
 // Core testing interfaces
 export interface TestCase<T = any> {
@@ -149,7 +149,7 @@ export class CognitiveTestFramework {
     try {
       // Execute the test
       const result = await this.executeTest(testCase);
-      
+
       // Validate result
       if (testCase.shouldThrow) {
         errors.push(new Error(`Expected test to throw but it didn't`));
@@ -159,7 +159,7 @@ export class CognitiveTestFramework {
 
       // Assess cognitive compliance
       cognitiveCompliance = await this.assessCognitiveCompliance(result);
-      
+
       // Detect biases
       biasDetection = await this.detectBiases(result);
 
@@ -167,8 +167,15 @@ export class CognitiveTestFramework {
     } catch (error) {
       if (testCase.shouldThrow) {
         const errorMessage = (error as Error).message;
-        if (testCase.errorMessage && !errorMessage.includes(testCase.errorMessage)) {
-          errors.push(new Error(`Expected error message to contain "${testCase.errorMessage}" but got "${errorMessage}"`));
+        if (
+          testCase.errorMessage &&
+          !errorMessage.includes(testCase.errorMessage)
+        ) {
+          errors.push(
+            new Error(
+              `Expected error message to contain "${testCase.errorMessage}" but got "${errorMessage}"`
+            )
+          );
         } else {
           passed = true;
         }
@@ -186,7 +193,7 @@ export class CognitiveTestFramework {
 
     const metrics: PerformanceMetrics = {
       executionTime: endTime - startTime,
-      memoryUsage: endMemory - startMemory
+      memoryUsage: endMemory - startMemory,
     };
 
     return {
@@ -194,7 +201,7 @@ export class CognitiveTestFramework {
       metrics,
       cognitiveCompliance,
       biasDetection,
-      errors: errors.length > 0 ? errors : []
+      errors: errors.length > 0 ? errors : [],
     };
   }
 
@@ -206,7 +213,9 @@ export class CognitiveTestFramework {
 
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
-        reject(new Error(`Test "${testCase.name}" timed out after ${timeout}ms`));
+        reject(
+          new Error(`Test "${testCase.name}" timed out after ${timeout}ms`)
+        );
       }, timeout);
 
       try {
@@ -224,14 +233,18 @@ export class CognitiveTestFramework {
   /**
    * Override this method in specific test implementations
    */
-  protected runTestLogic(_testCase: TestCase): any {
-    throw new Error('runTestLogic must be implemented by subclasses');
+  protected runTestLogic(testCase: TestCase): any {
+    // Default implementation for basic test cases
+    // This can be overridden by subclasses for specific behavior
+    return testCase.input;
   }
 
   /**
    * Assess cognitive architecture compliance
    */
-  private async assessCognitiveCompliance(result: any): Promise<CognitiveComplianceReport> {
+  private async assessCognitiveCompliance(
+    result: any
+  ): Promise<CognitiveComplianceReport> {
     const compliance: CognitiveComplianceReport = {
       hierarchicalProcessing: this.checkHierarchicalProcessing(result),
       dualProcessTheory: this.checkDualProcessTheory(result),
@@ -240,7 +253,7 @@ export class CognitiveTestFramework {
       metacognition: this.checkMetacognition(result),
       predictiveProcessing: this.checkPredictiveProcessing(result),
       stochasticProcessing: this.checkStochasticProcessing(result),
-      score: 0
+      score: 0,
     };
 
     // Calculate overall compliance score
@@ -251,7 +264,7 @@ export class CognitiveTestFramework {
       compliance.emotionalProcessing,
       compliance.metacognition,
       compliance.predictiveProcessing,
-      compliance.stochasticProcessing
+      compliance.stochasticProcessing,
     ];
 
     compliance.score = checks.filter(Boolean).length / checks.length;
@@ -269,7 +282,7 @@ export class CognitiveTestFramework {
       availabilityBias: this.measureAvailabilityBias(result),
       confirmationBias: this.measureConfirmationBias(result),
       anchoringBias: this.measureAnchoringBias(result),
-      overallBiasScore: this.calculateOverallBiasScore(result)
+      overallBiasScore: this.calculateOverallBiasScore(result),
     };
   }
 
@@ -312,21 +325,21 @@ export class CognitiveTestFramework {
   // Bias detection methods
   private identifyBiases(result: any): string[] {
     const biases: string[] = [];
-    
+
     if (this.measureConfidenceBias(result) > 0.7) {
-      biases.push('overconfidence');
+      biases.push("overconfidence");
     }
-    
+
     if (this.measureAvailabilityBias(result) > 0.7) {
-      biases.push('availability');
+      biases.push("availability");
     }
-    
+
     if (this.measureConfirmationBias(result) > 0.7) {
-      biases.push('confirmation');
+      biases.push("confirmation");
     }
-    
+
     if (this.measureAnchoringBias(result) > 0.7) {
-      biases.push('anchoring');
+      biases.push("anchoring");
     }
 
     return biases;
@@ -348,19 +361,25 @@ export class CognitiveTestFramework {
 
   private measureConfirmationBias(result: any): number {
     // Measure tendency to seek confirming evidence
-    const alternatives = result?.reasoning_path?.flatMap((step: any) => step.alternatives || []) || [];
+    const alternatives =
+      result?.reasoning_path?.flatMap((step: any) => step.alternatives || []) ||
+      [];
     const mainPath = result?.reasoning_path || [];
-    return mainPath.length > 0 ? 1 - (alternatives.length / mainPath.length) : 0;
+    return mainPath.length > 0 ? 1 - alternatives.length / mainPath.length : 0;
   }
 
   private measureAnchoringBias(result: any): number {
     // Measure tendency to rely heavily on first information
     const reasoningPath = result?.reasoning_path || [];
     if (reasoningPath.length === 0) return 0;
-    
+
     const firstStepConfidence = reasoningPath[0]?.confidence || 0.5;
-    const avgConfidence = reasoningPath.reduce((sum: number, step: any) => sum + (step.confidence || 0.5), 0) / reasoningPath.length;
-    
+    const avgConfidence =
+      reasoningPath.reduce(
+        (sum: number, step: any) => sum + (step.confidence || 0.5),
+        0
+      ) / reasoningPath.length;
+
     return Math.abs(firstStepConfidence - avgConfidence);
   }
 
@@ -369,7 +388,7 @@ export class CognitiveTestFramework {
       this.measureConfidenceBias(result),
       this.measureAvailabilityBias(result),
       this.measureConfirmationBias(result),
-      this.measureAnchoringBias(result)
+      this.measureAnchoringBias(result),
     ];
 
     return biases.reduce((sum, bias) => sum + bias, 0) / biases.length;
@@ -384,33 +403,44 @@ export class CognitiveTestFramework {
   // Utility methods
   private setupGlobalMocks(): void {
     // Set up common mocks for testing
-    vi.mock('fs', () => ({
+    vi.mock("fs", () => ({
       readFileSync: vi.fn(),
       writeFileSync: vi.fn(),
-      existsSync: vi.fn(() => true)
+      existsSync: vi.fn(() => true),
+      promises: {
+        mkdir: vi.fn().mockResolvedValue(undefined),
+        writeFile: vi.fn().mockResolvedValue(undefined),
+        readFile: vi.fn().mockResolvedValue(Buffer.from('{"test": "data"}')),
+        access: vi.fn().mockResolvedValue(undefined),
+        unlink: vi.fn().mockResolvedValue(undefined),
+        rename: vi.fn().mockResolvedValue(undefined),
+        readdir: vi.fn().mockResolvedValue([]),
+        stat: vi.fn().mockResolvedValue({ size: 1024 }),
+        rm: vi.fn().mockResolvedValue(undefined),
+      },
     }));
   }
 
   private loadPerformanceBaselines(): void {
     // Load performance baselines from configuration
-    this.performanceBaselines.set('think', {
+    this.performanceBaselines.set("think", {
       executionTime: 500, // 500ms baseline
-      memoryUsage: 10 * 1024 * 1024 // 10MB baseline
+      memoryUsage: 10 * 1024 * 1024, // 10MB baseline
     });
 
-    this.performanceBaselines.set('remember', {
+    this.performanceBaselines.set("remember", {
       executionTime: 100,
-      memoryUsage: 1 * 1024 * 1024
+      memoryUsage: 1 * 1024 * 1024,
     });
 
-    this.performanceBaselines.set('recall', {
+    this.performanceBaselines.set("recall", {
       executionTime: 200,
-      memoryUsage: 5 * 1024 * 1024
+      memoryUsage: 5 * 1024 * 1024,
     });
   }
 
   protected getMemoryUsage(): number {
-    if (typeof process !== 'undefined' && process.memoryUsage) {
+    if (typeof process !== "undefined" && process.memoryUsage) {
       return process.memoryUsage().heapUsed;
     }
     return 0;
@@ -425,7 +455,7 @@ export class CognitiveTestFramework {
       metacognition: false,
       predictiveProcessing: false,
       stochasticProcessing: false,
-      score: 0
+      score: 0,
     };
   }
 
@@ -436,7 +466,7 @@ export class CognitiveTestFramework {
       availabilityBias: 0,
       confirmationBias: 0,
       anchoringBias: 0,
-      overallBiasScore: 0
+      overallBiasScore: 0,
     };
   }
 
@@ -445,37 +475,54 @@ export class CognitiveTestFramework {
    */
   generateReport(): TestReport {
     const allResults = Array.from(this.testResults.values()).flat();
-    
+
     return {
       totalTests: allResults.length,
-      passedTests: allResults.filter(r => r.passed).length,
-      failedTests: allResults.filter(r => !r.passed).length,
+      passedTests: allResults.filter((r) => r.passed).length,
+      failedTests: allResults.filter((r) => !r.passed).length,
       averageExecutionTime: this.calculateAverageExecutionTime(allResults),
       averageMemoryUsage: this.calculateAverageMemoryUsage(allResults),
-      cognitiveComplianceScore: this.calculateAverageCognitiveCompliance(allResults),
+      cognitiveComplianceScore:
+        this.calculateAverageCognitiveCompliance(allResults),
       overallBiasScore: this.calculateAverageBiasScore(allResults),
-      detailedResults: this.testResults
+      detailedResults: this.testResults,
     };
   }
 
-  private calculateAverageExecutionTime(results: CognitiveTestResult[]): number {
+  private calculateAverageExecutionTime(
+    results: CognitiveTestResult[]
+  ): number {
     if (results.length === 0) return 0;
-    return results.reduce((sum, r) => sum + r.metrics.executionTime, 0) / results.length;
+    return (
+      results.reduce((sum, r) => sum + r.metrics.executionTime, 0) /
+      results.length
+    );
   }
 
   private calculateAverageMemoryUsage(results: CognitiveTestResult[]): number {
     if (results.length === 0) return 0;
-    return results.reduce((sum, r) => sum + r.metrics.memoryUsage, 0) / results.length;
+    return (
+      results.reduce((sum, r) => sum + r.metrics.memoryUsage, 0) /
+      results.length
+    );
   }
 
-  private calculateAverageCognitiveCompliance(results: CognitiveTestResult[]): number {
+  private calculateAverageCognitiveCompliance(
+    results: CognitiveTestResult[]
+  ): number {
     if (results.length === 0) return 0;
-    return results.reduce((sum, r) => sum + r.cognitiveCompliance.score, 0) / results.length;
+    return (
+      results.reduce((sum, r) => sum + r.cognitiveCompliance.score, 0) /
+      results.length
+    );
   }
 
   private calculateAverageBiasScore(results: CognitiveTestResult[]): number {
     if (results.length === 0) return 0;
-    return results.reduce((sum, r) => sum + r.biasDetection.overallBiasScore, 0) / results.length;
+    return (
+      results.reduce((sum, r) => sum + r.biasDetection.overallBiasScore, 0) /
+      results.length
+    );
   }
 }
 
@@ -506,7 +553,10 @@ export class CognitiveComponentTestFramework extends CognitiveTestFramework {
 export class PerformanceTestFramework extends CognitiveTestFramework {
   private benchmarks: Map<string, PerformanceMetrics> = new Map();
 
-  async runPerformanceBenchmark(name: string, testFn: () => Promise<any>): Promise<PerformanceMetrics> {
+  async runPerformanceBenchmark(
+    name: string,
+    testFn: () => Promise<any>
+  ): Promise<PerformanceMetrics> {
     const iterations = 100;
     const results: PerformanceMetrics[] = [];
 
@@ -521,14 +571,18 @@ export class PerformanceTestFramework extends CognitiveTestFramework {
 
       results.push({
         executionTime: endTime - startTime,
-        memoryUsage: endMemory - startMemory
+        memoryUsage: endMemory - startMemory,
       });
     }
 
     const avgMetrics: PerformanceMetrics = {
-      executionTime: results.reduce((sum, r) => sum + r.executionTime, 0) / iterations,
-      memoryUsage: results.reduce((sum, r) => sum + r.memoryUsage, 0) / iterations,
-      throughput: 1000 / (results.reduce((sum, r) => sum + r.executionTime, 0) / iterations)
+      executionTime:
+        results.reduce((sum, r) => sum + r.executionTime, 0) / iterations,
+      memoryUsage:
+        results.reduce((sum, r) => sum + r.memoryUsage, 0) / iterations,
+      throughput:
+        1000 /
+        (results.reduce((sum, r) => sum + r.executionTime, 0) / iterations),
     };
 
     this.benchmarks.set(name, avgMetrics);
@@ -548,31 +602,46 @@ export class PerformanceTestFramework extends CognitiveTestFramework {
 export class MemoryTestFramework extends CognitiveTestFramework {
   async testMemoryConsolidation(memorySystem: any): Promise<boolean> {
     // Test episodic to semantic memory transfer
-    const episodicMemory = { content: 'test memory', importance: 0.8 };
-    await memorySystem.store(episodicMemory);
-    
+    const experience = {
+      content: "test memory",
+      context: { domain: "test" },
+      importance: 0.8,
+    };
+    await memorySystem.storeExperience(experience);
+
     // Simulate consolidation
-    await memorySystem.consolidate();
-    
+    await memorySystem.runConsolidation();
+
     // Check if memory was transferred to semantic system
-    const semanticResults = await memorySystem.recall('test memory', 'semantic');
-    return semanticResults.length > 0;
+    const results = await memorySystem.retrieveMemories("test memory", 0.3);
+    return results.semantic_concepts.length > 0;
   }
 
   async testMemoryDecay(memorySystem: any): Promise<boolean> {
     // Test that memories decay over time
-    const memory = { content: 'decay test', importance: 0.3 };
-    await memorySystem.store(memory);
-    
+    const experience = {
+      content: "decay test",
+      context: { domain: "test" },
+      importance: 0.3,
+    };
+    await memorySystem.storeExperience(experience);
+
     // Simulate time passage
     await this.simulateTimePassage(memorySystem, 1000);
-    
+
     // Check if memory strength decreased
-    const recalled = await memorySystem.recall('decay test');
-    return recalled.length === 0 || recalled[0].activation < memory.importance;
+    const results = await memorySystem.retrieveMemories("decay test", 0.1);
+    return (
+      results.episodic_memories.length === 0 ||
+      (results.episodic_memories.length > 0 &&
+        results.episodic_memories[0].importance < experience.importance)
+    );
   }
 
-  private async simulateTimePassage(memorySystem: any, milliseconds: number): Promise<void> {
+  private async simulateTimePassage(
+    memorySystem: any,
+    milliseconds: number
+  ): Promise<void> {
     // Simulate time passage for memory decay testing
     if (memorySystem.simulateTimePassage) {
       await memorySystem.simulateTimePassage(milliseconds);

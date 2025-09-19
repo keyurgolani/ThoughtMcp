@@ -207,4 +207,7 @@ export interface CognitiveConfig {
   confidence_threshold: number;
   system2_activation_threshold: number;
   memory_retrieval_threshold: number;
+
+  // Brain directory configuration
+  brain_dir: string;
 }

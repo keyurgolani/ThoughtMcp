@@ -11,6 +11,10 @@ import {
 } from "../interfaces/cognitive.js";
 import { Concept, Context, Episode } from "../types/core.js";
 import {
+  PersistenceManager,
+  PersistenceManagerConfig,
+} from "../utils/persistence/index.js";
+import {
   ConsolidationConfig,
   ConsolidationEngine,
   ConsolidationResult,
@@ -22,10 +26,14 @@ export interface MemorySystemConfig {
   episodic: Partial<EpisodicMemoryConfig>;
   semantic: Partial<SemanticMemoryConfig>;
   consolidation: Partial<ConsolidationConfig>;
+  persistence: Partial<PersistenceManagerConfig>;
   consolidation_interval_ms: number;
   auto_consolidation: boolean;
   memory_decay_interval_ms: number;
   auto_decay: boolean;
+  persistence_enabled: boolean;
+  auto_save_enabled: boolean;
+  auto_recovery_enabled: boolean;
 }
 
 export interface MemoryRetrievalResult {
@@ -46,6 +54,7 @@ export class MemorySystem implements CognitiveComponent {
   private episodicMemory: EpisodicMemory;
   private semanticMemory: SemanticMemory;
   private consolidationEngine: ConsolidationEngine;
+  private persistenceManager?: PersistenceManager;
   private config: MemorySystemConfig;
   private initialized: boolean = false;
   private lastActivity: number = 0;
@@ -57,10 +66,14 @@ export class MemorySystem implements CognitiveComponent {
       episodic: {},
       semantic: {},
       consolidation: {},
+      persistence: {},
       consolidation_interval_ms: 60000, // 1 minute
       auto_consolidation: true,
       memory_decay_interval_ms: 300000, // 5 minutes
       auto_decay: true,
+      persistence_enabled: true,
+      auto_save_enabled: true,
+      auto_recovery_enabled: true,
       ...config,
     };
 
@@ -69,6 +82,11 @@ export class MemorySystem implements CognitiveComponent {
     this.consolidationEngine = new ConsolidationEngine(
       this.config.consolidation
     );
+
+    // Initialize persistence manager if enabled
+    if (this.config.persistence_enabled) {
+      this.persistenceManager = new PersistenceManager(this.config.persistence);
+    }
   }
 
   async initialize(config?: Partial<MemorySystemConfig>): Promise<void> {
@@ -80,6 +98,23 @@ export class MemorySystem implements CognitiveComponent {
     await this.episodicMemory.initialize(this.config.episodic);
     await this.semanticMemory.initialize(this.config.semantic);
     await this.consolidationEngine.initialize(this.config.consolidation);
+
+    // Initialize persistence manager if enabled
+    if (this.config.persistence_enabled && this.persistenceManager) {
+      await this.persistenceManager.initialize();
+
+      // Attempt recovery if enabled
+      if (this.config.auto_recovery_enabled) {
+        await this.attemptRecovery();
+      }
+
+      // Start auto-save if enabled
+      if (this.config.auto_save_enabled) {
+        this.persistenceManager.startAutoSave(async () => {
+          await this.saveToStorage();
+        });
+      }
+    }
 
     // Start automatic processes
     if (this.config.auto_consolidation) {
@@ -360,9 +395,214 @@ export class MemorySystem implements CognitiveComponent {
   }
 
   /**
+   * Save current memory state to persistent storage
+   */
+  async saveToStorage(): Promise<void> {
+    if (!this.persistenceManager) {
+      throw new Error("Persistence not enabled");
+    }
+
+    const episodes = Array.from(this.episodicMemory["episodes"].values());
+    const concepts = Array.from(this.semanticMemory["concepts"].values());
+    const relations = Array.from(this.semanticMemory["relations"].values());
+    const lastConsolidation =
+      this.consolidationEngine.getLastConsolidationResult()
+        ?.patterns_extracted || 0;
+
+    await this.persistenceManager.saveMemorySystem(
+      episodes,
+      concepts,
+      relations,
+      lastConsolidation
+    );
+  }
+
+  /**
+   * Load memory state from persistent storage
+   */
+  async loadFromStorage(): Promise<boolean> {
+    if (!this.persistenceManager) {
+      throw new Error("Persistence not enabled");
+    }
+
+    const data = await this.persistenceManager.loadMemorySystem();
+    if (!data) {
+      return false;
+    }
+
+    // Clear current memory
+    this.episodicMemory.reset();
+    this.semanticMemory.reset();
+
+    // Load episodes
+    for (const episode of data.episodicMemories) {
+      this.episodicMemory.store(episode);
+    }
+
+    // Load concepts
+    for (const concept of data.semanticConcepts) {
+      this.semanticMemory.store(concept);
+    }
+
+    // Load relations
+    for (const relation of data.semanticRelations) {
+      this.semanticMemory.addRelation(
+        relation.from,
+        relation.to,
+        relation.type,
+        relation.strength
+      );
+    }
+
+    return true;
+  }
+
+  /**
+   * Create a backup of current memory state
+   */
+  async createBackup(backupId?: string): Promise<string> {
+    if (!this.persistenceManager) {
+      throw new Error("Persistence not enabled");
+    }
+
+    // Save current state first
+    await this.saveToStorage();
+
+    // Create backup
+    return this.persistenceManager.createBackup(backupId);
+  }
+
+  /**
+   * Restore memory state from a backup
+   */
+  async restoreFromBackup(backupId: string): Promise<void> {
+    if (!this.persistenceManager) {
+      throw new Error("Persistence not enabled");
+    }
+
+    const data = await this.persistenceManager.restoreFromBackup(backupId);
+
+    // Clear current memory
+    this.episodicMemory.reset();
+    this.semanticMemory.reset();
+
+    // Load episodes
+    for (const episode of data.episodicMemories) {
+      this.episodicMemory.store(episode);
+    }
+
+    // Load concepts
+    for (const concept of data.semanticConcepts) {
+      this.semanticMemory.store(concept);
+    }
+
+    // Load relations
+    for (const relation of data.semanticRelations) {
+      this.semanticMemory.addRelation(
+        relation.from,
+        relation.to,
+        relation.type,
+        relation.strength
+      );
+    }
+  }
+
+  /**
+   * List available backups
+   */
+  async listBackups(): Promise<string[]> {
+    if (!this.persistenceManager) {
+      throw new Error("Persistence not enabled");
+    }
+
+    return this.persistenceManager.listBackups();
+  }
+
+  /**
+   * Delete a backup
+   */
+  async deleteBackup(backupId: string): Promise<void> {
+    if (!this.persistenceManager) {
+      throw new Error("Persistence not enabled");
+    }
+
+    await this.persistenceManager.deleteBackup(backupId);
+  }
+
+  /**
+   * Get persistence status
+   */
+  getPersistenceStatus(): { enabled: boolean; [key: string]: unknown } {
+    if (!this.persistenceManager) {
+      return { enabled: false };
+    }
+
+    return {
+      enabled: true,
+      ...this.persistenceManager.getStatus(),
+    };
+  }
+
+  /**
+   * Attempt to recover from the most recent backup
+   */
+  private async attemptRecovery(): Promise<void> {
+    if (!this.persistenceManager) {
+      return;
+    }
+
+    try {
+      // First try to load from normal storage
+      const loaded = await this.loadFromStorage();
+      if (loaded) {
+        return;
+      }
+
+      // If that fails, try recovery from backup
+      const recoveredData = await this.persistenceManager.attemptRecovery();
+      if (recoveredData) {
+        // Clear current memory
+        this.episodicMemory.reset();
+        this.semanticMemory.reset();
+
+        // Load recovered data
+        for (const episode of recoveredData.episodicMemories) {
+          this.episodicMemory.store(episode);
+        }
+
+        for (const concept of recoveredData.semanticConcepts) {
+          this.semanticMemory.store(concept);
+        }
+
+        for (const relation of recoveredData.semanticRelations) {
+          this.semanticMemory.addRelation(
+            relation.from,
+            relation.to,
+            relation.type,
+            relation.strength
+          );
+        }
+
+        console.log("Memory system recovered from backup");
+      }
+    } catch (error) {
+      console.error("Recovery attempt failed:", error);
+    }
+  }
+
+  /**
    * Shutdown the memory system
    */
-  shutdown(): void {
+  async shutdown(): Promise<void> {
+    // Save current state before shutdown if persistence is enabled
+    if (this.persistenceManager && this.config.auto_save_enabled) {
+      try {
+        await this.saveToStorage();
+      } catch (error) {
+        console.error("Failed to save memory state during shutdown:", error);
+      }
+    }
+
     if (this.consolidationTimer) {
       clearInterval(this.consolidationTimer);
       this.consolidationTimer = undefined;
@@ -371,6 +611,10 @@ export class MemorySystem implements CognitiveComponent {
     if (this.decayTimer) {
       clearInterval(this.decayTimer);
       this.decayTimer = undefined;
+    }
+
+    if (this.persistenceManager) {
+      await this.persistenceManager.shutdown();
     }
   }
 

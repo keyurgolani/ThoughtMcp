@@ -16,9 +16,20 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
   let server: CognitiveMCPServer;
   let memorySystem: MemorySystem;
   let consolidationEngine: ConsolidationEngine;
+  let memoryConfig: any; // Store config for reuse in persistence tests
 
   beforeEach(async () => {
+    // Create server with unique memory file path to avoid test interference
+    const uniqueId = Math.random().toString(36).substring(7);
+    memoryConfig = {
+      persistence: {
+        file_path: `./test-data/test_memory_${uniqueId}.json`,
+      },
+    };
+
     server = new CognitiveMCPServer();
+    // Override memory system with test-specific config
+    (server as any).memorySystem = new MemorySystem(memoryConfig);
     await server.initialize(true);
 
     // Get references to internal components
@@ -29,6 +40,17 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
 
   afterEach(async () => {
     await server.shutdown();
+
+    // Clean up test memory file
+    try {
+      const fs = await import("fs/promises");
+      const memoryConfig = (memorySystem as any).config;
+      if (memoryConfig?.persistence?.file_path) {
+        await fs.unlink(memoryConfig.persistence.file_path).catch(() => {});
+      }
+    } catch (error) {
+      // Ignore cleanup errors
+    }
   });
 
   describe("Episodic to Semantic Memory Consolidation", () => {
@@ -206,6 +228,9 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
       const persistentMemory = "This memory must survive server restart";
       const sessionId = "persistence_test_session";
 
+      // Clear any existing memory state first
+      await (server as any).memorySystem.reset();
+
       // Store important memory
       const memoryResult = await server.handleRemember({
         content: persistentMemory,
@@ -230,10 +255,15 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
       );
       expect(foundBefore).toBe(true);
 
+      // Force save before shutdown to ensure persistence
+      await (server as any).memorySystem.saveToStorage();
+
       // Simulate server restart
       await server.shutdown();
 
       const newServer = new CognitiveMCPServer();
+      // Use the same memory configuration for the new server instance
+      (newServer as any).memorySystem = new MemorySystem(memoryConfig);
       await newServer.initialize(true);
 
       try {

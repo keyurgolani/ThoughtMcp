@@ -37,6 +37,7 @@ import {
   ThinkArgs,
   TOOL_SCHEMAS,
 } from "../types/mcp.js";
+import { ConfigManager } from "../utils/config.js";
 import { ErrorHandler } from "../utils/ErrorHandler.js";
 import {
   PerformanceMonitor,
@@ -54,6 +55,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   private memorySystem: MemorySystem;
   private performanceMonitor: PerformanceMonitor;
   private metacognitionModule: MetacognitionModule;
+  private configManager: ConfigManager;
 
   constructor(performanceThresholds?: Partial<PerformanceThresholds>) {
     this.server = new Server(
@@ -70,9 +72,24 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       }
     );
 
+    // Initialize configuration manager
+    this.configManager = new ConfigManager();
+
     // Initialize cognitive components
     this.cognitiveOrchestrator = new CognitiveOrchestrator();
-    this.memorySystem = new MemorySystem();
+
+    // Initialize memory system with brain directory configuration
+    const memoryFilePath = this.configManager.getMemoryFilePath();
+    this.memorySystem = new MemorySystem({
+      persistence: {
+        storage_type: "file",
+        file_path: memoryFilePath,
+      },
+      persistence_enabled: true,
+      auto_save_enabled: true,
+      auto_recovery_enabled: true,
+    });
+
     this.metacognitionModule = new MetacognitionModule();
     this.performanceMonitor = new PerformanceMonitor(performanceThresholds);
   }
@@ -1038,7 +1055,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       try {
         // Cleanup cognitive components
         this.cognitiveOrchestrator.reset();
-        this.memorySystem.shutdown();
+        await this.memorySystem.shutdown();
         this.metacognitionModule.reset();
 
         this.initialized = false;
@@ -1098,6 +1115,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       confidence_threshold: 0.6,
       system2_activation_threshold: 0.7,
       memory_retrieval_threshold: 0.3,
+      brain_dir: "~/.brain",
     };
   }
 

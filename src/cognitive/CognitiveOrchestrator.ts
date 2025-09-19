@@ -22,6 +22,7 @@ import {
   ThoughtMetadata,
   ThoughtResult,
 } from "../types/core.js";
+import { ConfigManager } from "../utils/config.js";
 import { DualProcessController } from "./DualProcessController.js";
 import { EmotionalProcessor } from "./EmotionalProcessor.js";
 import { MemorySystem } from "./MemorySystem.js";
@@ -77,6 +78,9 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
   private predictiveProcessor: PredictiveProcessor;
   private stochasticProcessor: StochasticNeuralProcessor;
 
+  // Configuration management
+  private configManager: ConfigManager;
+
   // Orchestrator state
   private initialized: boolean = false;
   private lastActivity: number = 0;
@@ -104,11 +108,26 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
       ...config,
     };
 
+    // Initialize configuration manager
+    this.configManager = new ConfigManager();
+
     // Initialize components
     this.sensoryProcessor = new SensoryProcessor();
     this.workingMemory = new WorkingMemoryModule();
     this.dualProcessController = new DualProcessController();
-    this.memorySystem = new MemorySystem();
+
+    // Initialize memory system with brain directory configuration
+    const memoryFilePath = this.configManager.getMemoryFilePath();
+    this.memorySystem = new MemorySystem({
+      persistence: {
+        storage_type: "file",
+        file_path: memoryFilePath,
+      },
+      persistence_enabled: true,
+      auto_save_enabled: true,
+      auto_recovery_enabled: true,
+    });
+
     this.emotionalProcessor = new EmotionalProcessor();
     this.metacognitionModule = new MetacognitionModule();
     this.predictiveProcessor = new PredictiveProcessor();
@@ -641,6 +660,7 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
       confidence_threshold: 0.6,
       system2_activation_threshold: 0.7,
       memory_retrieval_threshold: 0.3,
+      brain_dir: "~/.brain",
     };
   }
 
