@@ -34,7 +34,7 @@ interface CoherenceMetrics {
   gap_count: number;
 }
 
-interface MetacognitiveAssessment {
+export interface MetacognitiveAssessment {
   confidence: number;
   coherence: number;
   biases_detected: string[];

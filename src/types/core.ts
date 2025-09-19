@@ -28,6 +28,11 @@ export enum ReasoningType {
   CAUSAL = "causal",
   PROBABILISTIC = "probabilistic",
   METACOGNITIVE = "metacognitive",
+  DEDUCTIVE = "deductive",
+  INDUCTIVE = "inductive",
+  ABDUCTIVE = "abductive",
+  HEURISTIC = "heuristic",
+  CONTEXTUAL = "contextual",
 }
 
 // Context information for cognitive processing
@@ -37,6 +42,12 @@ export interface Context {
   domain?: string;
   urgency?: number;
   complexity?: number;
+  timestamp?: number;
+  working_memory?: unknown;
+  emotional_context?: EmotionalState;
+  predictions?: unknown;
+  memories?: unknown;
+  [key: string]: unknown; // Allow additional properties
 }
 
 // Alternative reasoning paths
@@ -107,6 +118,9 @@ export interface ThoughtMetadata {
   system_mode: ProcessingMode;
   temperature: number;
   dual_process_info?: DualProcessInfo;
+  metacognitive_assessment?: unknown;
+  stochastic_processing?: unknown;
+  [key: string]: unknown; // Allow additional properties
 }
 
 // Main result structure for thinking operations

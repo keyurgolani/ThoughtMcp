@@ -10,8 +10,19 @@ import {
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 
+import { CognitiveOrchestrator } from "../cognitive/CognitiveOrchestrator.js";
+import { MemorySystem } from "../cognitive/MemorySystem.js";
+import { MetacognitionModule } from "../cognitive/MetacognitionModule.js";
 import { IMCPServer, IToolHandler } from "../interfaces/mcp.js";
-import type { ReasoningStep, ThoughtResult } from "../types/core.js";
+import type {
+  CognitiveConfig,
+  CognitiveInput,
+  Context,
+  Episode,
+  MemoryChunk,
+  ReasoningStep,
+  ThoughtResult,
+} from "../types/core.js";
 import { ProcessingMode } from "../types/core.js";
 import {
   AnalysisResult,
@@ -27,6 +38,9 @@ import {
 export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   private server: Server;
   private initialized: boolean = false;
+  private cognitiveOrchestrator: CognitiveOrchestrator;
+  private memorySystem: MemorySystem;
+  private metacognitionModule: MetacognitionModule;
 
   constructor() {
     this.server = new Server(
@@ -42,19 +56,31 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         },
       }
     );
+
+    // Initialize cognitive components
+    this.cognitiveOrchestrator = new CognitiveOrchestrator();
+    this.memorySystem = new MemorySystem();
+    this.metacognitionModule = new MetacognitionModule();
   }
 
-  async initialize(): Promise<void> {
+  async initialize(testMode: boolean = false): Promise<void> {
     if (this.initialized) {
       return;
     }
 
+    // Initialize cognitive components first
+    await this.cognitiveOrchestrator.initialize();
+    await this.memorySystem.initialize();
+    await this.metacognitionModule.initialize({});
+
     this.registerTools();
     this.setupRequestHandlers();
 
-    // Connect to stdio transport
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
+    // Connect to stdio transport only if not in test mode
+    if (!testMode) {
+      const transport = new StdioServerTransport();
+      await this.server.connect(transport);
+    }
 
     this.initialized = true;
     console.error("Cognitive MCP Server initialized successfully");
@@ -358,14 +384,12 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     };
   }
 
-  // Tool handler implementations - these will be connected to cognitive components later
+  // Tool handler implementations
   async handleThink(args: ThinkArgs): Promise<ThoughtResult> {
     // Validate arguments first
     const validatedArgs = this.validateThinkArgs(
       args as unknown as Record<string, unknown>
     );
-    const startTime = Date.now();
-
     try {
       console.error(
         `Processing think request: ${validatedArgs.input.substring(0, 100)}${
@@ -373,25 +397,16 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         }`
       );
 
-      // Placeholder implementation - will be replaced with actual cognitive processing
-      const result: ThoughtResult = {
-        content: `Thinking about: ${validatedArgs.input}`,
-        confidence: 0.5,
-        reasoning_path: [],
-        emotional_context: {
-          valence: 0,
-          arousal: 0,
-          dominance: 0,
-          specific_emotions: new Map(),
-        },
-        metadata: {
-          processing_time_ms: Date.now() - startTime,
-          components_used: ["placeholder"],
-          memory_retrievals: 0,
-          system_mode: validatedArgs.mode || ProcessingMode.BALANCED,
-          temperature: validatedArgs.temperature || 0.7,
-        },
+      // Create cognitive input from validated arguments
+      const cognitiveInput: CognitiveInput = {
+        input: validatedArgs.input,
+        context: this.createContext(validatedArgs.context),
+        mode: validatedArgs.mode || ProcessingMode.BALANCED,
+        configuration: this.createCognitiveConfig(validatedArgs),
       };
+
+      // Process through cognitive orchestrator
+      const result = await this.cognitiveOrchestrator.think(cognitiveInput);
 
       console.error(
         `Think request completed in ${result.metadata.processing_time_ms}ms`
@@ -423,18 +438,49 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         }`
       );
 
-      // Placeholder implementation - will be replaced with actual memory storage
-      const memoryId = `mem_${Date.now()}_${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
-      const result: MemoryResult = {
-        success: true,
-        memory_id: memoryId,
-        message: `Successfully stored ${validatedArgs.type} memory with ID ${memoryId}`,
-      };
+      if (validatedArgs.type === "episodic") {
+        // Store as episodic memory
+        const episode: Episode = {
+          content: validatedArgs.content,
+          context: this.createContext(validatedArgs.context),
+          timestamp: Date.now(),
+          emotional_tags: validatedArgs.emotional_tags || [],
+          importance: validatedArgs.importance || 0.5,
+          decay_factor: 1.0,
+        };
 
-      console.error(`Memory stored in ${Date.now() - startTime}ms`);
-      return result;
+        const memoryId = this.memorySystem.storeEpisode(episode);
+
+        const result: MemoryResult = {
+          success: true,
+          memory_id: memoryId,
+          message: `Successfully stored episodic memory with ID ${memoryId}`,
+        };
+
+        console.error(`Episodic memory stored in ${Date.now() - startTime}ms`);
+        return result;
+      } else {
+        // Store as semantic memory through experience storage
+        const experience = {
+          content: validatedArgs.content,
+          context: this.createContext(validatedArgs.context),
+          importance: validatedArgs.importance || 0.5,
+          emotional_tags: validatedArgs.emotional_tags || [],
+        };
+
+        const storageResult = await this.memorySystem.storeExperience(
+          experience
+        );
+
+        const result: MemoryResult = {
+          success: storageResult.success,
+          memory_id: storageResult.semantic_id || storageResult.episodic_id,
+          message: `Successfully stored semantic memory`,
+        };
+
+        console.error(`Semantic memory stored in ${Date.now() - startTime}ms`);
+        return result;
+      }
     } catch (error) {
       console.error("Error in handleRemember:", error);
       throw new Error(
@@ -455,11 +501,58 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     try {
       console.error(`Recalling memories for cue: ${validatedArgs.cue}`);
 
-      // Placeholder implementation - will be replaced with actual memory retrieval
+      const threshold = validatedArgs.threshold || 0.3;
+      const maxResults = validatedArgs.max_results || 10;
+
+      // Retrieve memories from the memory system
+      const retrievalResult = await this.memorySystem.retrieveMemories(
+        validatedArgs.cue,
+        threshold
+      );
+
+      // Format memories for response
+      const memories: MemoryChunk[] = [];
+
+      // Add episodic memories
+      for (const episode of retrievalResult.episodic_memories.slice(
+        0,
+        maxResults
+      )) {
+        memories.push({
+          content: episode.content,
+          activation: episode.importance,
+          timestamp: episode.timestamp,
+          associations: new Set<string>(),
+          emotional_valence: episode.emotional_tags.length > 0 ? 0.5 : 0,
+          importance: episode.importance,
+          context_tags: episode.emotional_tags,
+        });
+      }
+
+      // Add semantic memories if requested
+      if (validatedArgs.type === "both" || validatedArgs.type === "semantic") {
+        for (const concept of retrievalResult.semantic_concepts.slice(
+          0,
+          maxResults - memories.length
+        )) {
+          memories.push({
+            content: concept.content,
+            activation: concept.activation,
+            timestamp: concept.last_accessed,
+            associations: new Set<string>(),
+            emotional_valence: 0,
+            importance: concept.activation,
+            context_tags: [],
+          });
+        }
+      }
+
       const searchTime = Date.now() - startTime;
       const result: RecallResult = {
-        memories: [],
-        total_found: 0,
+        memories: memories,
+        total_found:
+          retrievalResult.episodic_memories.length +
+          retrievalResult.semantic_concepts.length,
         search_time_ms: searchTime,
       };
 
@@ -491,18 +584,22 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         `Analyzing ${validatedArgs.reasoning_steps.length} reasoning steps`
       );
 
-      // Placeholder implementation - will be replaced with actual reasoning analysis
+      // Use metacognition module to analyze reasoning
+      const assessment = this.metacognitionModule.assessReasoning(
+        validatedArgs.reasoning_steps
+      );
+
       const result: AnalysisResult = {
-        coherence_score: 0.5,
-        confidence_assessment: "Moderate confidence - placeholder analysis",
-        detected_biases: [],
-        suggested_improvements: [
-          "This is a placeholder analysis - actual implementation pending",
-        ],
+        coherence_score: assessment.coherence,
+        confidence_assessment: `Confidence: ${assessment.confidence.toFixed(
+          2
+        )} - ${assessment.reasoning}`,
+        detected_biases: assessment.biases_detected,
+        suggested_improvements: assessment.suggestions,
         reasoning_quality: {
-          logical_consistency: 0.5,
-          evidence_support: 0.5,
-          completeness: 0.5,
+          logical_consistency: assessment.coherence,
+          evidence_support: assessment.confidence,
+          completeness: assessment.completeness,
         },
       };
 
@@ -525,8 +622,11 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       console.error("Shutting down Cognitive MCP Server...");
 
       try {
-        // Future: Cleanup cognitive components, save state, etc.
-        // For now, just mark as not initialized
+        // Cleanup cognitive components
+        this.cognitiveOrchestrator.reset();
+        this.memorySystem.shutdown();
+        this.metacognitionModule.reset();
+
         this.initialized = false;
         console.error("Cognitive MCP Server shutdown completed");
       } catch (error) {
@@ -552,16 +652,53 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     };
   }
 
-  // Placeholder method for memory system access - will be implemented with actual memory system
-  getMemorySystem(): unknown {
-    // This is a placeholder that returns a mock memory system for testing
+  // Helper methods for creating cognitive inputs
+  private createContext(contextArgs?: Record<string, unknown>): Context {
     return {
-      store: async (_memory: unknown) => ({ success: true, id: "test_id" }),
-      recall: async (_cue: string) => ({ memories: [], total: 0 }),
-      consolidate: async () => true,
-      simulateTimePassage: async (_ms: number) => {
-        /* no-op for testing */
-      },
+      session_id: (contextArgs?.session_id as string) || "default",
+      domain: contextArgs?.domain as string,
+      urgency: (contextArgs?.urgency as number) || 0.5,
+      complexity: (contextArgs?.complexity as number) || 0.5,
+      previous_thoughts: (contextArgs?.previous_thoughts as string[]) || [],
+      timestamp: Date.now(),
+      ...contextArgs,
     };
+  }
+
+  private createCognitiveConfig(args: ThinkArgs): CognitiveConfig {
+    return {
+      default_mode: args.mode || ProcessingMode.BALANCED,
+      enable_emotion: args.enable_emotion !== false, // Default to true
+      enable_metacognition: args.enable_metacognition !== false, // Default to true
+      enable_prediction: true,
+      working_memory_capacity: 7,
+      episodic_memory_size: 1000,
+      semantic_memory_size: 5000,
+      consolidation_interval: 60000,
+      noise_level: 0.1,
+      temperature: args.temperature || 0.7,
+      attention_threshold: 0.3,
+      max_reasoning_depth: args.max_depth || 10,
+      timeout_ms: 30000,
+      max_concurrent_sessions: 100,
+      confidence_threshold: 0.6,
+      system2_activation_threshold: 0.7,
+      memory_retrieval_threshold: 0.3,
+    };
+  }
+
+  // Access to memory system for testing
+  getMemorySystem(): MemorySystem {
+    return this.memorySystem;
+  }
+
+  // Access to cognitive orchestrator for testing
+  getCognitiveOrchestrator(): CognitiveOrchestrator {
+    return this.cognitiveOrchestrator;
+  }
+
+  // Access to metacognition module for testing
+  getMetacognitionModule(): MetacognitionModule {
+    return this.metacognitionModule;
   }
 }
