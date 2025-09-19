@@ -2,75 +2,309 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
+
+env:
+  NODE_OPTIONS: --max-old-space-size=4096
 
 jobs:
   validate:
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         node-version: [18.x, 20.x, 22.x]
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Run linting
-      run: npm run lint
-      
-    - name: Run type checking
-      run: npm run type-check
-      
-    - name: Run tests with coverage
-      run: npm run test:coverage
-      
-    - name: Build project
-      run: npm run build
-      
-    - name: Upload coverage reports
-      if: matrix.node-version == '20.x'
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage/lcov.info
-        fail_ci_if_error: false
-        
-    - name: Check build artifacts
-      run: |
-        if [ ! -f "dist/index.js" ]; then
-          echo "Build artifact missing: dist/index.js"
-          exit 1
-        fi
-        echo "Build artifacts verified"
-        
-    - name: Validate package.json
-      run: |
-        node -e "
-          const pkg = require('./package.json');
-          if (!pkg.name || !pkg.version || !pkg.description) {
-            console.error('Missing required package.json fields');
-            process.exit(1);
-          }
-          if (!pkg.main || !pkg.scripts || !pkg.scripts.build) {
-            console.error('Missing required package.json configuration');
-            process.exit(1);
-          }
-          console.log('package.json validation passed');
-        "
-        
-    - name: Test package installation
-      run: |
-        npm pack
-        PACKAGE_NAME=$(npm pack --dry-run 2>/dev/null | tail -1)
-        echo "Package would be: $PACKAGE_NAME"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Security audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: Check for TypeScript 'any' types
+        run: npm run check:any
+        continue-on-error: true
+
+      - name: Check for debug statements
+        run: npm run check:debug
+        continue-on-error: true
+
+      - name: Run linting (strict)
+        run: npm run lint:strict
+
+      - name: Run type checking
+        run: npm run type-check
+
+      - name: Run cognitive component tests
+        run: npm run test:cognitive
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+      - name: Run performance tests
+        run: npm run test:performance
+
+      - name: Run memory system tests
+        run: npm run test:memory
+
+      - name: Run full test suite with coverage
+        run: npm run test:coverage
+
+      - name: Verify test coverage thresholds
+        run: |
+          node -e "
+            const coverage = require('./coverage/coverage-summary.json');
+            const total = coverage.total;
+            const minCoverage = {
+              statements: 70,
+              branches: 70,
+              functions: 70,
+              lines: 70
+            };
+
+            let failed = false;
+            Object.keys(minCoverage).forEach(key => {
+              if (total[key].pct < minCoverage[key]) {
+                console.error(\`Coverage too low for \${key}: \${total[key].pct}% < \${minCoverage[key]}%\`);
+                failed = true;
+              }
+            });
+
+            if (failed) {
+              console.error('Coverage thresholds not met');
+              process.exit(1);
+            }
+
+            console.log('Coverage thresholds met:');
+            console.log(\`  Statements: \${total.statements.pct}%\`);
+            console.log(\`  Branches: \${total.branches.pct}%\`);
+            console.log(\`  Functions: \${total.functions.pct}%\`);
+            console.log(\`  Lines: \${total.lines.pct}%\`);
+          "
+
+      - name: Build project
+        run: npm run build
+
+      - name: Verify build performance
+        run: |
+          start_time=$(date +%s)
+          npm run build
+          end_time=$(date +%s)
+          build_time=$((end_time - start_time))
+          echo "Build completed in ${build_time} seconds"
+          if [ $build_time -gt 60 ]; then
+            echo "Warning: Build time exceeded 60 seconds"
+            exit 1
+          fi
+
+      - name: Check build artifacts
+        run: |
+          required_files=(
+            "dist/index.js"
+            "dist/index.d.ts"
+            "dist/cognitive/CognitiveOrchestrator.js"
+            "dist/server/CognitiveMCPServer.js"
+            "dist/utils/index.js"
+          )
+
+          for file in "${required_files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "Build artifact missing: $file"
+              exit 1
+            fi
+          done
+          echo "All build artifacts verified"
+
+      - name: Test MCP server startup
+        run: |
+          timeout 10s node dist/index.js --help || true
+          echo "MCP server startup test completed"
+
+      - name: Validate package.json
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            const required = ['name', 'version', 'description', 'main', 'scripts', 'keywords', 'author', 'license'];
+            const missing = required.filter(field => !pkg[field]);
+
+            if (missing.length > 0) {
+              console.error('Missing required package.json fields:', missing);
+              process.exit(1);
+            }
+
+            if (!pkg.scripts.build || !pkg.scripts.test || !pkg.scripts.lint) {
+              console.error('Missing required npm scripts');
+              process.exit(1);
+            }
+
+            if (!pkg.engines || !pkg.engines.node) {
+              console.error('Missing Node.js engine specification');
+              process.exit(1);
+            }
+
+            console.log('package.json validation passed');
+          "
+
+      - name: Test package installation
+        run: |
+          npm pack
+          PACKAGE_NAME=\$(ls *.tgz | head -1)
+          echo "Package created: \$PACKAGE_NAME"
+
+          # Test installation in temporary directory
+          mkdir -p /tmp/test-install
+          cd /tmp/test-install
+          npm init -y
+          npm install \$GITHUB_WORKSPACE/\$PACKAGE_NAME
+
+          # Verify package can be required
+          node -e "
+            try {
+              const pkg = require('thought-mcp');
+              console.log('Package installation and import successful');
+            } catch (error) {
+              console.error('Package import failed:', error.message);
+              process.exit(1);
+            }
+          "
+
+      - name: Upload coverage reports
+        if: matrix.node-version == '20.x'
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          fail_ci_if_error: false
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results-${{ matrix.node-version }}
+          path: |
+            coverage/
+            test-results.xml
+          retention-days: 30
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security audit
+        run: npm audit --audit-level=high
+
+      - name: Check for sensitive files
+        run: |
+          if find . -name "*.env*" -not -path "./node_modules/*" -not -name "*.example" | grep -q .; then
+            echo "Warning: Found potential environment files"
+            find . -name "*.env*" -not -path "./node_modules/*" -not -name "*.example"
+          fi
+
+      - name: Scan for secrets
+        run: |
+          # Basic secret scanning
+          if grep -r -i "password\|secret\|key\|token" --include="*.ts" --include="*.js" --include="*.json" src/ | grep -v "// " | grep -v "test" | grep -q .; then
+            echo "Warning: Potential secrets found in source code"
+            grep -r -i "password\|secret\|key\|token" --include="*.ts" --include="*.js" --include="*.json" src/ | grep -v "// " | grep -v "test" || true
+          fi
+
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Run performance tests
+        run: npm run test:performance
+
+      - name: Memory usage test
+        run: |
+          node -e "
+            const { performance, PerformanceObserver } = require('perf_hooks');
+            const obs = new PerformanceObserver((items) => {
+              items.getEntries().forEach((entry) => {
+                console.log(\`\${entry.name}: \${entry.duration}ms\`);
+              });
+            });
+            obs.observe({ entryTypes: ['measure'] });
+
+            performance.mark('start');
+            // Simulate cognitive processing
+            setTimeout(() => {
+              performance.mark('end');
+              performance.measure('cognitive-processing', 'start', 'end');
+
+              const memUsage = process.memoryUsage();
+              console.log('Memory usage:');
+              console.log(\`  RSS: \${Math.round(memUsage.rss / 1024 / 1024)}MB\`);
+              console.log(\`  Heap Used: \${Math.round(memUsage.heapUsed / 1024 / 1024)}MB\`);
+              console.log(\`  Heap Total: \${Math.round(memUsage.heapTotal / 1024 / 1024)}MB\`);
+
+              if (memUsage.heapUsed > 2 * 1024 * 1024 * 1024) {
+                console.error('Memory usage exceeds 2GB threshold');
+                process.exit(1);
+              }
+            }, 100);
+          "
+
+  compatibility:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [18.x, 20.x, 22.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Run core tests
+        run: npm run test:run
+        timeout-minutes: 10

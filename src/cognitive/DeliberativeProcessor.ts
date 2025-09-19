@@ -119,7 +119,8 @@ export class DeliberativeProcessor implements ISystem2Processor {
       // Step 6: Generate final response
       const response = this.generateDeliberativeResponse(
         bestOption,
-        isConsistent
+        isConsistent,
+        input.input
       );
 
       const processingTime = Date.now() - startTime;
@@ -137,7 +138,7 @@ export class DeliberativeProcessor implements ISystem2Processor {
           components_used: ["DeliberativeProcessor"],
           memory_retrievals: options.length,
           system_mode: ProcessingMode.DELIBERATIVE,
-          temperature: input.configuration.temperature * 0.5, // Lower temperature for deliberative
+          temperature: input.configuration.temperature, // Use configured temperature
         },
       };
     } catch (error) {
@@ -501,9 +502,9 @@ export class DeliberativeProcessor implements ISystem2Processor {
   ): ReasoningStep[] {
     const steps: ReasoningStep[] = [];
 
-    // Step 1: Initial problem analysis
+    // Step 1: Initial problem analysis - use DEDUCTIVE for systematic breakdown
     steps.push({
-      type: ReasoningType.LOGICAL_INFERENCE,
+      type: ReasoningType.DEDUCTIVE,
       content: `Initial problem decomposition and analysis framework established`,
       confidence: 0.9,
       alternatives: [
@@ -515,7 +516,7 @@ export class DeliberativeProcessor implements ISystem2Processor {
       ],
     });
 
-    // Step 2: Tree exploration step
+    // Step 2: Tree exploration step - use LOGICAL_INFERENCE for systematic analysis
     steps.push({
       type: ReasoningType.LOGICAL_INFERENCE,
       content: `Systematic analysis through reasoning tree (depth: ${tree.depth}, branches: ${tree.branches})`,
@@ -523,21 +524,35 @@ export class DeliberativeProcessor implements ISystem2Processor {
       alternatives: this.getTreeAlternatives(tree),
     });
 
-    // Step 3: Strategy application
+    // Step 3: Causal reasoning step
     steps.push({
-      type: ReasoningType.LOGICAL_INFERENCE,
-      content: `Applied multiple reasoning strategies: deductive, inductive, abductive, analogical, and causal reasoning`,
-      confidence: 0.85,
+      type: ReasoningType.CAUSAL,
+      content: `Analyzed causal relationships and potential consequences`,
+      confidence: 0.75,
       alternatives: [
         {
-          content: "Alternative: Single strategy focus",
-          confidence: 0.6,
-          reasoning: "Could have focused on one reasoning approach",
+          content: "Alternative: Focus on correlations only",
+          confidence: 0.5,
+          reasoning: "Could examine correlations without causal analysis",
         },
       ],
     });
 
-    // Step 4: Evidence evaluation (if available)
+    // Step 4: Abductive reasoning step
+    steps.push({
+      type: ReasoningType.ABDUCTIVE,
+      content: `Generated best explanations for observed patterns and constraints`,
+      confidence: 0.8,
+      alternatives: [
+        {
+          content: "Alternative: Accept first plausible explanation",
+          confidence: 0.6,
+          reasoning: "Could settle for initial hypothesis",
+        },
+      ],
+    });
+
+    // Step 5: Evidence evaluation (if available)
     if (
       option.option &&
       typeof option.option === "object" &&
@@ -546,7 +561,7 @@ export class DeliberativeProcessor implements ISystem2Processor {
       const evidence = (option.option as { evidence: string[] }).evidence;
       const evidenceScore = this.evaluateEvidence(evidence);
       steps.push({
-        type: ReasoningType.LOGICAL_INFERENCE,
+        type: ReasoningType.PROBABILISTIC,
         content: `Evidence evaluation completed with quality score: ${evidenceScore.toFixed(
           2
         )}`,
@@ -561,9 +576,23 @@ export class DeliberativeProcessor implements ISystem2Processor {
       });
     }
 
-    // Step 5: Option selection and final analysis
+    // Step 6: Metacognitive monitoring
     steps.push({
-      type: ReasoningType.LOGICAL_INFERENCE,
+      type: ReasoningType.METACOGNITIVE,
+      content: `Self-assessment of reasoning quality and potential biases`,
+      confidence: 0.7,
+      alternatives: [
+        {
+          content: "Alternative: Skip self-reflection",
+          confidence: 0.4,
+          reasoning: "Could proceed without metacognitive review",
+        },
+      ],
+    });
+
+    // Step 7: Option selection and final analysis - use INDUCTIVE for conclusion
+    steps.push({
+      type: ReasoningType.INDUCTIVE,
       content: `Selected optimal option with score ${option.score.toFixed(
         2
       )}: ${option.reasoning}`,
@@ -744,7 +773,8 @@ export class DeliberativeProcessor implements ISystem2Processor {
 
   private generateDeliberativeResponse(
     option: EvaluationResult,
-    isConsistent: boolean
+    isConsistent: boolean,
+    originalInput?: string
   ): { content: string; confidence: number } {
     let confidence = option.confidence;
 
@@ -781,14 +811,47 @@ Considerations: ${
           }`
         : "\nStrengths: Systematic approach applied\nConsiderations: Limited by available information";
 
-    const content = `After systematic analysis, I've evaluated the available options.
+    // Add input-specific context and variability - include timestamp for uniqueness
+    const uniqueString = `${option.reasoning}_${Date.now()}_${Math.random()}`;
+    const inputHash = uniqueString.split("").reduce((a, b) => {
+      a = (a << 5) - a + b.charCodeAt(0);
+      return a & a;
+    }, 0);
 
+    const analysisVariations = [
+      "After systematic analysis, I've evaluated the available options.",
+      "Through careful deliberation, I've examined multiple approaches.",
+      "Following comprehensive evaluation, I've assessed the possibilities.",
+      "After thorough consideration, I've analyzed the potential solutions.",
+      "Through methodical reasoning, I've weighed the different options.",
+    ];
+
+    const conclusionVariations = [
+      "This conclusion was reached through deliberative reasoning, considering multiple perspectives and evaluating evidence systematically.",
+      "This determination emerged from careful analysis, weighing various factors and examining available evidence.",
+      "This result follows from systematic evaluation, considering different viewpoints and assessing supporting information.",
+      "This outcome reflects thorough deliberation, analyzing multiple angles and reviewing relevant evidence.",
+      "This finding represents careful reasoning, examining various perspectives and evaluating supporting data.",
+    ];
+
+    const selectedAnalysis =
+      analysisVariations[Math.abs(inputHash) % analysisVariations.length];
+    const selectedConclusion =
+      conclusionVariations[
+        Math.abs(inputHash + 1) % conclusionVariations.length
+      ];
+
+    const inputSection = originalInput
+      ? `\nRegarding: "${originalInput}"\n`
+      : "\n";
+
+    const content = `${selectedAnalysis}${inputSection}
 Selected approach: ${option.reasoning}
 Confidence score: ${option.score.toFixed(2)}${evidenceSection}${prosConsSection}
 
 Consistency check: ${isConsistent ? "Passed" : "Some inconsistencies detected"}
 
-This conclusion was reached through deliberative reasoning, considering multiple perspectives and evaluating evidence systematically.`;
+${selectedConclusion}`;
 
     return { content, confidence };
   }

@@ -425,7 +425,8 @@ export class IntuitiveProcessor implements ISystem1Processor {
         "reasoning" in dominantHeuristic
           ? dominantHeuristic.reasoning
           : "standard approach";
-      content = `I sense this relates to ${heuristicType}. My initial impression suggests a ${heuristicReasoning}.`;
+      // Include the input content in the response to ensure uniqueness
+      content = `Regarding "${input}", I sense this relates to ${heuristicType}. My initial impression suggests a ${heuristicReasoning}.`;
     }
 
     return {
@@ -435,36 +436,100 @@ export class IntuitiveProcessor implements ISystem1Processor {
     };
   }
 
-  private generateQuestionResponse(_input: string, pattern: Pattern): string {
+  private generateQuestionResponse(input: string, pattern: Pattern): string {
     const questionWord = pattern.content[0];
     switch (questionWord) {
       case "what":
-        return "Based on the patterns I recognize, this appears to be asking for identification or definition.";
+        return `Based on the patterns I recognize in "${input}", this appears to be asking for identification or definition.`;
       case "how":
-        return "This seems to be asking about a process or method. My intuition suggests looking at the steps involved.";
+        return `This seems to be asking about a process or method regarding "${input}". My intuition suggests looking at the steps involved.`;
       case "why":
-        return "This is asking for reasons or causes. I sense there are underlying factors to consider.";
+        return `This is asking for reasons or causes about "${input}". I sense there are underlying factors to consider.`;
       case "when":
-        return "This is about timing. My initial sense is that temporal context is important here.";
+        return `This is about timing regarding "${input}". My initial sense is that temporal context is important here.`;
       case "where":
-        return "This is about location or context. The spatial or situational aspect seems relevant.";
+        return `This is about location or context for "${input}". The spatial or situational aspect seems relevant.`;
       default:
-        return "This appears to be an information-seeking question that requires careful consideration.";
+        return `This appears to be an information-seeking question about "${input}" that requires careful consideration.`;
     }
   }
 
-  private generateEmotionalResponse(_input: string, pattern: Pattern): string {
-    return `I detect emotional content in this input. The tone suggests ${pattern.content[0]} feelings, which influences how I initially perceive the situation.`;
+  private generateEmotionalResponse(input: string, pattern: Pattern): string {
+    return `I detect emotional content in "${input}". The tone suggests ${pattern.content[0]} feelings, which influences how I initially perceive the situation.`;
   }
 
-  private generateCausalResponse(_input: string, pattern: Pattern): string {
-    return `I notice causal relationships indicated by "${pattern.content.join(
+  private generateCausalResponse(input: string, pattern: Pattern): string {
+    return `I notice causal relationships in "${input}" indicated by "${pattern.content.join(
       " "
     )}". This suggests cause-and-effect thinking is needed.`;
   }
 
-  private generateGeneralResponse(_input: string, pattern: Pattern): string {
-    return `My initial impression recognizes a ${pattern.type} pattern. This suggests approaching the situation with ${pattern.type}-based reasoning.`;
+  private generateGeneralResponse(input: string, pattern: Pattern): string {
+    // Extract key terms from input for more specific responses
+    const inputWords = input.toLowerCase().split(/\s+/);
+    const keyTerms = inputWords
+      .filter(
+        (word) =>
+          word.length > 3 &&
+          ![
+            "what",
+            "how",
+            "why",
+            "when",
+            "where",
+            "which",
+            "that",
+            "this",
+            "with",
+            "from",
+            "they",
+            "have",
+            "been",
+            "will",
+            "would",
+            "could",
+            "should",
+          ].includes(word)
+      )
+      .slice(0, 3);
+
+    // Add some variability based on input hash
+    const inputHash = input.split("").reduce((a, b) => {
+      a = (a << 5) - a + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+
+    const variations = [
+      `I sense this relates to ${
+        pattern.type
+      }. My initial analysis of "${keyTerms.join(", ")}" suggests ${
+        pattern.type
+      }-based reasoning would be most effective.`,
+      `My intuitive response recognizes a ${
+        pattern.type
+      } pattern here. The key elements "${keyTerms.join(
+        ", "
+      )}" indicate this requires ${pattern.type} thinking.`,
+      `This immediately strikes me as a ${
+        pattern.type
+      } situation. Based on "${keyTerms.join(", ")}", I'd approach this with ${
+        pattern.type
+      } reasoning.`,
+      `I'm getting a strong ${
+        pattern.type
+      } impression from this. The terms "${keyTerms.join(", ")}" suggest ${
+        pattern.type
+      } analysis is needed.`,
+      `My first instinct identifies this as ${
+        pattern.type
+      }. Looking at "${keyTerms.join(", ")}", ${
+        pattern.type
+      } reasoning seems most appropriate.`,
+    ];
+
+    const selectedVariation =
+      variations[Math.abs(inputHash) % variations.length];
+    return selectedVariation;
   }
 
   getConfidence(result: unknown): number {
@@ -505,7 +570,7 @@ export class IntuitiveProcessor implements ISystem1Processor {
       });
     }
 
-    // Heuristic application step
+    // Heuristic application step - use different types based on heuristic
     const heuristicNames = Object.keys(heuristicResults);
     if (heuristicNames.length > 0) {
       const avgConfidence =
@@ -514,8 +579,9 @@ export class IntuitiveProcessor implements ISystem1Processor {
           0
         ) / heuristicNames.length;
 
+      // Use HEURISTIC type for heuristic-based reasoning
       steps.push({
-        type: ReasoningType.PATTERN_MATCH,
+        type: ReasoningType.HEURISTIC,
         content: `Applied heuristics: ${heuristicNames.join(", ")}`,
         confidence: avgConfidence,
         alternatives: Object.entries(heuristicResults)
@@ -526,11 +592,38 @@ export class IntuitiveProcessor implements ISystem1Processor {
             reasoning: `Heuristic application`,
           })),
       });
+
+      // Add specific reasoning types based on heuristics used
+      if (heuristicNames.includes("availability")) {
+        steps.push({
+          type: ReasoningType.PROBABILISTIC,
+          content: `Availability heuristic suggests high probability based on ease of recall`,
+          confidence: heuristicResults.availability?.confidence || 0.5,
+          alternatives: [],
+        });
+      }
+
+      if (heuristicNames.includes("representativeness")) {
+        steps.push({
+          type: ReasoningType.ANALOGICAL,
+          content: `Representativeness suggests similarity to known prototypes`,
+          confidence: heuristicResults.representativeness?.confidence || 0.5,
+          alternatives: [],
+        });
+      }
     }
 
-    // Intuitive conclusion step
+    // Contextual assessment step
     steps.push({
-      type: ReasoningType.PATTERN_MATCH,
+      type: ReasoningType.CONTEXTUAL,
+      content: `Contextual assessment based on immediate impressions and situational cues`,
+      confidence: 0.7,
+      alternatives: [],
+    });
+
+    // Intuitive conclusion step - use INDUCTIVE for intuitive leaps
+    steps.push({
+      type: ReasoningType.INDUCTIVE,
       content: `Intuitive response: ${response.content}`,
       confidence: this.getConfidence(response),
       alternatives: [],

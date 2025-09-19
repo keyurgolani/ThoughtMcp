@@ -39,6 +39,10 @@ import {
 } from "../types/mcp.js";
 import { ErrorHandler } from "../utils/ErrorHandler.js";
 import {
+  PerformanceMonitor,
+  PerformanceThresholds,
+} from "../utils/PerformanceMonitor.js";
+import {
   FormattedResponse,
   ResponseFormatter,
 } from "../utils/ResponseFormatter.js";
@@ -48,9 +52,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   private initialized: boolean = false;
   private cognitiveOrchestrator: CognitiveOrchestrator;
   private memorySystem: MemorySystem;
+  private performanceMonitor: PerformanceMonitor;
   private metacognitionModule: MetacognitionModule;
 
-  constructor() {
+  constructor(performanceThresholds?: Partial<PerformanceThresholds>) {
     this.server = new Server(
       {
         name: "thought-mcp",
@@ -69,6 +74,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     this.cognitiveOrchestrator = new CognitiveOrchestrator();
     this.memorySystem = new MemorySystem();
     this.metacognitionModule = new MetacognitionModule();
+    this.performanceMonitor = new PerformanceMonitor(performanceThresholds);
   }
 
   async initialize(testMode: boolean = false): Promise<void> {
@@ -115,17 +121,30 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       // Register call_tool handler with enhanced error handling and validation
       this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
-        const startTime = Date.now();
         const requestId = this.generateRequestId();
+
+        // Start performance measurement
+        const measurement = this.performanceMonitor.startMeasurement(
+          requestId,
+          name
+        );
 
         // Validate tool name
         if (!Object.keys(TOOL_SCHEMAS).includes(name)) {
+          measurement.recordCognitiveMetrics({
+            confidenceScore: 0,
+            reasoningDepth: 0,
+            memoryRetrievals: 0,
+            workingMemoryLoad: 0,
+          });
+          const metrics = measurement.complete();
+
           const errorResponse = ResponseFormatter.formatErrorResponse(
             `Unknown tool: ${name}. Available tools: ${Object.keys(
               TOOL_SCHEMAS
             ).join(", ")}`,
             name,
-            Date.now() - startTime,
+            metrics.responseTime,
             requestId
           );
 
@@ -141,10 +160,18 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
 
         // Validate arguments exist
         if (!args) {
+          measurement.recordCognitiveMetrics({
+            confidenceScore: 0,
+            reasoningDepth: 0,
+            memoryRetrievals: 0,
+            workingMemoryLoad: 0,
+          });
+          const metrics = measurement.complete();
+
           const errorResponse = ResponseFormatter.formatErrorResponse(
             `Missing arguments for tool: ${name}`,
             name,
-            Date.now() - startTime,
+            metrics.responseTime,
             requestId
           );
 
@@ -161,44 +188,82 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         try {
           let result;
           let formattedResponse: FormattedResponse<unknown>;
-          const processingTime = Date.now() - startTime;
 
           switch (name) {
-            case "think":
+            case "think": {
               result = await this.handleThink(this.validateThinkArgs(args));
+              measurement.recordCognitiveMetrics({
+                confidenceScore: result.confidence,
+                reasoningDepth: result.reasoning_path?.length || 0,
+                memoryRetrievals: result.metadata?.memory_retrievals || 0,
+                workingMemoryLoad:
+                  (result.metadata?.working_memory_load as number) || 0,
+                emotionalProcessingTime: result.metadata
+                  ?.emotional_processing_time as number | undefined,
+                metacognitionTime: result.metadata?.metacognition_time as
+                  | number
+                  | undefined,
+              });
+              const thinkMetrics = measurement.complete();
               formattedResponse = ResponseFormatter.formatThinkResponse(
                 result,
-                processingTime,
+                thinkMetrics.responseTime,
                 requestId
               );
               break;
-            case "remember":
+            }
+            case "remember": {
               result = await this.handleRemember(
                 this.validateRememberArgs(args)
               );
+              measurement.recordCognitiveMetrics({
+                confidenceScore: 1.0, // Memory storage is typically successful
+                reasoningDepth: 1,
+                memoryRetrievals: 0,
+                workingMemoryLoad: 0.5,
+              });
+              const rememberMetrics = measurement.complete();
               formattedResponse = ResponseFormatter.formatRememberResponse(
                 result,
-                processingTime,
+                rememberMetrics.responseTime,
                 requestId
               );
               break;
-            case "recall":
+            }
+            case "recall": {
               result = await this.handleRecall(this.validateRecallArgs(args));
+              measurement.recordCognitiveMetrics({
+                confidenceScore: result.memories?.length > 0 ? 0.8 : 0.3,
+                reasoningDepth: 1,
+                memoryRetrievals: result.memories?.length || 0,
+                workingMemoryLoad: 0.3,
+              });
+              measurement.complete();
               formattedResponse = ResponseFormatter.formatRecallResponse(
                 result,
                 requestId
               );
               break;
-            case "analyze_reasoning":
+            }
+            case "analyze_reasoning": {
               result = await this.handleAnalyzeReasoning(
                 this.validateAnalyzeReasoningArgs(args)
               );
+              measurement.recordCognitiveMetrics({
+                confidenceScore: result.coherence_score || 0.5,
+                reasoningDepth: result.detected_biases?.length || 0,
+                memoryRetrievals: 0,
+                workingMemoryLoad: 0.7,
+                metacognitionTime: 100, // Metacognitive analysis takes time
+              });
+              const analyzeMetrics = measurement.complete();
               formattedResponse = ResponseFormatter.formatAnalyzeResponse(
                 result,
-                processingTime,
+                analyzeMetrics.responseTime,
                 requestId
               );
               break;
+            }
             default:
               throw new Error(`Unhandled tool: ${name}`);
           }
@@ -222,7 +287,15 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
             ],
           };
         } catch (error) {
-          const processingTime = Date.now() - startTime;
+          // Record error metrics
+          measurement.recordCognitiveMetrics({
+            confidenceScore: 0,
+            reasoningDepth: 0,
+            memoryRetrievals: 0,
+            workingMemoryLoad: 0,
+          });
+          const errorMetrics = measurement.complete();
+
           const errorMessage =
             error instanceof Error ? error.message : "Unknown error occurred";
           console.error(`Error handling tool ${name}:`, errorMessage);
@@ -231,7 +304,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
           const errorResponse = ResponseFormatter.formatErrorResponse(
             error instanceof Error ? error : errorMessage,
             name,
-            processingTime,
+            errorMetrics.responseTime,
             requestId,
             { tool_args: args }
           );
@@ -471,6 +544,12 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     const startTime = Date.now();
     const requestId = this.generateRequestId();
 
+    // Start performance measurement
+    const measurement = this.performanceMonitor.startMeasurement(
+      requestId,
+      "think"
+    );
+
     try {
       // Validate arguments first
       const validatedArgs = this.validateThinkArgs(
@@ -516,6 +595,24 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       const result = operationResult.data!;
       const processingTime = Date.now() - startTime;
 
+      // Record cognitive metrics
+      measurement.recordCognitiveMetrics({
+        confidenceScore: result.confidence,
+        reasoningDepth: result.reasoning_path?.length || 0,
+        memoryRetrievals: result.metadata?.memory_retrievals || 0,
+        workingMemoryLoad:
+          (result.metadata?.working_memory_load as number) || 0,
+        emotionalProcessingTime: result.metadata?.emotional_processing_time as
+          | number
+          | undefined,
+        metacognitionTime: result.metadata?.metacognition_time as
+          | number
+          | undefined,
+      });
+
+      // Complete measurement
+      measurement.complete();
+
       console.error(`Think request completed in ${processingTime}ms`);
       return result;
     } catch (error) {
@@ -545,6 +642,12 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   async handleRemember(args: RememberArgs): Promise<MemoryResult> {
     const startTime = Date.now();
     const requestId = this.generateRequestId();
+
+    // Start performance measurement
+    const measurement = this.performanceMonitor.startMeasurement(
+      requestId,
+      "remember"
+    );
 
     try {
       // Validate arguments first
@@ -591,6 +694,18 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         }
 
         const processingTime = Date.now() - startTime;
+
+        // Record cognitive metrics
+        measurement.recordCognitiveMetrics({
+          confidenceScore: 1.0, // Memory storage is typically successful
+          reasoningDepth: 1,
+          memoryRetrievals: 0,
+          workingMemoryLoad: 0.5,
+        });
+
+        // Complete measurement
+        measurement.complete();
+
         console.error(`Episodic memory stored in ${processingTime}ms`);
         return operationResult.data!;
       } else {
@@ -624,6 +739,18 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         }
 
         const processingTime = Date.now() - startTime;
+
+        // Record cognitive metrics
+        measurement.recordCognitiveMetrics({
+          confidenceScore: 1.0, // Memory storage is typically successful
+          reasoningDepth: 1,
+          memoryRetrievals: 0,
+          workingMemoryLoad: 0.5,
+        });
+
+        // Complete measurement
+        measurement.complete();
+
         console.error(`Semantic memory stored in ${processingTime}ms`);
         return operationResult.data!;
       }
@@ -653,6 +780,12 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   async handleRecall(args: RecallArgs): Promise<RecallResult> {
     const startTime = Date.now();
     const requestId = this.generateRequestId();
+
+    // Start performance measurement
+    const measurement = this.performanceMonitor.startMeasurement(
+      requestId,
+      "recall"
+    );
 
     // Validate arguments first (outside try-catch to let validation errors throw)
     const validatedArgs = this.validateRecallArgs(
@@ -731,6 +864,17 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         search_time_ms: searchTime,
       };
 
+      // Record cognitive metrics
+      measurement.recordCognitiveMetrics({
+        confidenceScore: result.memories?.length > 0 ? 0.8 : 0.3,
+        reasoningDepth: 1,
+        memoryRetrievals: result.memories?.length || 0,
+        workingMemoryLoad: 0.3,
+      });
+
+      // Complete measurement
+      measurement.complete();
+
       console.error(
         `Memory recall completed in ${searchTime}ms, found ${result.total_found} memories`
       );
@@ -769,6 +913,12 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   ): Promise<AnalysisResult> {
     const startTime = Date.now();
     const requestId = this.generateRequestId();
+
+    // Start performance measurement
+    const measurement = this.performanceMonitor.startMeasurement(
+      requestId,
+      "analyze_reasoning"
+    );
 
     // Validate arguments first (outside try-catch to let validation errors throw)
     const validatedArgs = this.validateAnalyzeReasoningArgs(
@@ -827,6 +977,19 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       };
 
       const processingTime = Date.now() - startTime;
+
+      // Record cognitive metrics
+      measurement.recordCognitiveMetrics({
+        confidenceScore: result.coherence_score || 0.5,
+        reasoningDepth: result.detected_biases?.length || 0,
+        memoryRetrievals: 0,
+        workingMemoryLoad: 0.7,
+        metacognitionTime: 100, // Metacognitive analysis takes time
+      });
+
+      // Complete measurement
+      measurement.complete();
+
       console.log(`Reasoning analysis completed in ${processingTime}ms`);
       return result;
     } catch (error) {
@@ -926,8 +1089,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       episodic_memory_size: 1000,
       semantic_memory_size: 5000,
       consolidation_interval: 60000,
-      noise_level: 0.1,
-      temperature: args.temperature || 0.7,
+      noise_level: 0.3, // Increased for more variability
+      temperature: args.temperature || 0.7, // Default temperature
       attention_threshold: 0.3,
       max_reasoning_depth: args.max_depth || 10,
       timeout_ms: 30000,
@@ -956,5 +1119,40 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   // Generate unique request ID for tracking
   private generateRequestId(): string {
     return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Get performance statistics
+   */
+  getPerformanceStatistics(timeWindow?: number) {
+    return this.performanceMonitor.getStatistics(timeWindow);
+  }
+
+  /**
+   * Get recent performance alerts
+   */
+  getPerformanceAlerts(limit?: number) {
+    return this.performanceMonitor.getAlerts(limit);
+  }
+
+  /**
+   * Export performance metrics
+   */
+  exportPerformanceMetrics() {
+    return this.performanceMonitor.exportMetrics();
+  }
+
+  /**
+   * Clear performance metrics history
+   */
+  clearPerformanceMetrics() {
+    this.performanceMonitor.clearMetrics();
+  }
+
+  /**
+   * Get current memory usage
+   */
+  getCurrentMemoryUsage() {
+    return this.performanceMonitor.getMemoryUsage();
   }
 }
