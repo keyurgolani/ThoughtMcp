@@ -29,7 +29,8 @@
     "dist/**/*",
     "README.md",
     "LICENSE",
-    "package.json"
+    "package.json",
+    "cognitive.config.json"
   ],
   "scripts": {
     "build": "tsc",
