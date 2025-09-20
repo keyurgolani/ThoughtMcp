@@ -13,8 +13,15 @@ import {
 
 describe("CognitiveOrchestrator Integration Tests", () => {
   let orchestrator: CognitiveOrchestrator;
+  let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
+    // Save original environment
+    originalEnv = { ...process.env };
+
+    // Set up test environment with temporary brain directory
+    process.env.COGNITIVE_BRAIN_DIR = "./tmp/test-brain";
+
     orchestrator = new CognitiveOrchestrator({
       enable_all_components: true,
       session_timeout_ms: 60000,
@@ -26,6 +33,9 @@ describe("CognitiveOrchestrator Integration Tests", () => {
 
   afterEach(() => {
     orchestrator.reset();
+
+    // Restore original environment
+    process.env = originalEnv;
   });
 
   describe("Initialization", () => {

@@ -56,9 +56,15 @@ cd ThoughtMcp
 # Install dependencies
 npm install
 
-# Build and start
+# Build and start the server
 npm run build
-npm run dev
+npm start
+
+# Run comprehensive demo (in another terminal)
+npm run example:demo
+
+# Or run performance benchmarks
+npm run example:benchmark
 ```
 
 ### 2. Try Your First Example
@@ -192,6 +198,26 @@ Each example shows:
 - **[Contributing Guide](docs/development/contributing.md)** - How to contribute effectively
 - **[Architecture for Developers](docs/development/architecture.md)** - Codebase structure
 - **[Testing Guide](docs/development/testing.md)** - Writing and running tests
+
+## 📚 Documentation & Examples
+
+### Comprehensive Documentation
+
+- **[Complete API Reference](docs/api/cognitive-tools.md)** - Detailed documentation for all four cognitive tools
+- **[Cognitive Architecture Guide](docs/architecture/cognitive-architecture-guide.md)** - Deep dive into the human-like reasoning system
+- **[Performance & Benchmarking](docs/performance/benchmarking-guide.md)** - Optimization strategies and performance testing
+
+### Practical Examples
+
+- **[Example Applications](examples/)** - Complete working examples demonstrating all features
+- **[Integration Patterns](examples/README.md#advanced-usage-patterns)** - Real-world integration examples
+- **[Performance Testing](examples/README.md#performance-testing)** - Automated benchmarking tools
+
+### Quick Links
+
+- 🚀 **[Quick Start Guide](docs/getting-started/README.md)** - Get up and running in minutes
+- 🔧 **[Configuration Guide](docs/guides/configuration.md)** - Tune the system for your needs
+- 🏗️ **[Development Setup](docs/development/README.md)** - Contributing to the project
 
 ## Why Choose ThoughtMCP?
 

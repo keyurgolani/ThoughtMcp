@@ -3,7 +3,7 @@
  */
 
 import { existsSync, readFileSync } from "fs";
-import { join } from "path";
+import { join, posix } from "path";
 import { CognitiveConfig, ProcessingMode } from "../types/core.js";
 
 // Default configuration values
@@ -333,16 +333,23 @@ export class ConfigManager {
    */
   getBrainDirectoryPath(): string {
     const brainDir = this.config.brain_dir;
-    return brainDir.startsWith("~")
-      ? join(process.env.HOME || "", brainDir.slice(1))
+    const resolved = brainDir.startsWith("~")
+      ? posix.join(process.env.HOME || "", brainDir.slice(1))
       : brainDir;
+
+    // Ensure consistent forward slashes for cross-platform compatibility
+    return resolved.replace(/\\/g, "/");
   }
 
   /**
    * Get memory file path within the brain directory
    */
   getMemoryFilePath(): string {
-    return join(this.getBrainDirectoryPath(), "memory.json");
+    const brainPath = this.getBrainDirectoryPath();
+    // Use posix.join to ensure forward slashes
+    const memoryPath = posix.join(brainPath, "memory.json");
+
+    return memoryPath;
   }
 
   /**

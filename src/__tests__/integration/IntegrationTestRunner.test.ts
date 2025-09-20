@@ -15,6 +15,7 @@ import { DEFAULT_TEST_CONFIG } from "../config/test.config.js";
 
 describe("Integration Test Runner - Comprehensive System Validation", () => {
   let server: CognitiveMCPServer;
+  let originalEnv: NodeJS.ProcessEnv;
   let testResults: {
     endToEndWorkflows: boolean;
     multiClientSessions: boolean;
@@ -31,6 +32,12 @@ describe("Integration Test Runner - Comprehensive System Validation", () => {
   };
 
   beforeAll(async () => {
+    // Save original environment
+    originalEnv = { ...process.env };
+
+    // Set up test environment with temporary brain directory
+    process.env.COGNITIVE_BRAIN_DIR = "./tmp/test-brain";
+
     server = new CognitiveMCPServer();
     await server.initialize(true);
 
@@ -52,6 +59,9 @@ describe("Integration Test Runner - Comprehensive System Validation", () => {
 
   afterAll(async () => {
     await server.shutdown();
+
+    // Restore original environment
+    process.env = originalEnv;
 
     // Generate comprehensive test report
     console.log("\n=== INTEGRATION TEST RESULTS ===");

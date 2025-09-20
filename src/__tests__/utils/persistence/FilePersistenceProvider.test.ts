@@ -16,7 +16,9 @@ describe("FilePersistenceProvider", () => {
   let testFilePath: string;
 
   beforeEach(async () => {
-    testDir = join(process.cwd(), "test-data");
+    // Use unique test directory to avoid conflicts
+    const testId = Math.random().toString(36).substring(7);
+    testDir = join(process.cwd(), `test-data-${testId}`);
     testFilePath = join(testDir, "test-memory.json");
 
     provider = new FilePersistenceProvider();
@@ -320,11 +322,11 @@ describe("FilePersistenceProvider", () => {
 
   describe("error handling", () => {
     it("should handle save errors gracefully", async () => {
-      // Test initialization error first
+      // Test initialization error with a truly invalid path (null character)
       await expect(
         provider.initialize({
           storage_type: "file",
-          file_path: "/invalid/path/file.json",
+          file_path: "/dev/null/\0invalid/file.json",
           backup_interval_ms: 0,
           max_backups: 5,
           compression_enabled: false,

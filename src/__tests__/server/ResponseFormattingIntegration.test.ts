@@ -10,8 +10,16 @@ import { ResponseFormatter } from "../../utils/ResponseFormatter.js";
 
 describe("Response Formatting Integration", () => {
   let server: CognitiveMCPServer;
+  let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
+    // Save original environment
+    originalEnv = { ...process.env };
+
+    // Set up test environment with unique temporary brain directory
+    const testId = Math.random().toString(36).substring(7);
+    process.env.COGNITIVE_BRAIN_DIR = `./tmp/test-brain-${testId}`;
+
     server = new CognitiveMCPServer();
     await server.initialize(true); // Test mode
     ErrorHandler.clearErrorHistory();
@@ -20,6 +28,9 @@ describe("Response Formatting Integration", () => {
   afterEach(async () => {
     await server.shutdown();
     ErrorHandler.clearErrorHistory();
+
+    // Restore original environment
+    process.env = originalEnv;
   });
 
   describe("Think Tool Response Formatting", () => {

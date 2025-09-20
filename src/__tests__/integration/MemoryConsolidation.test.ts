@@ -11,6 +11,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ConsolidationEngine } from "../../cognitive/ConsolidationEngine.js";
 import { MemorySystem } from "../../cognitive/MemorySystem.js";
 import { CognitiveMCPServer } from "../../server/CognitiveMCPServer.js";
+import { TestCleanup } from "../utils/testCleanup.js";
+import {
+  createTestMemoryPath,
+  standardTestCleanup,
+} from "../utils/testHelpers.js";
 
 describe("Memory Consolidation and Cross-Session Persistence", () => {
   let server: CognitiveMCPServer;
@@ -19,11 +24,16 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
   let memoryConfig: any; // Store config for reuse in persistence tests
 
   beforeEach(async () => {
+    TestCleanup.initialize();
+
+    // Set up test environment with temporary brain directory
+    await TestCleanup.createTempBrainDir();
+
     // Create server with unique memory file path to avoid test interference
-    const uniqueId = Math.random().toString(36).substring(7);
+    const memoryFilePath = createTestMemoryPath();
     memoryConfig = {
       persistence: {
-        file_path: `./test-data/test_memory_${uniqueId}.json`,
+        file_path: memoryFilePath,
       },
     };
 
@@ -39,18 +49,7 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
   });
 
   afterEach(async () => {
-    await server.shutdown();
-
-    // Clean up test memory file
-    try {
-      const fs = await import("fs/promises");
-      const memoryConfig = (memorySystem as any).config;
-      if (memoryConfig?.persistence?.file_path) {
-        await fs.unlink(memoryConfig.persistence.file_path).catch(() => {});
-      }
-    } catch (error) {
-      // Ignore cleanup errors
-    }
+    await standardTestCleanup(server);
   });
 
   describe("Episodic to Semantic Memory Consolidation", () => {

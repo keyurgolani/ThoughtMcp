@@ -10,6 +10,12 @@ COGNITIVE_WORKING_MEMORY_CAPACITY=7
 COGNITIVE_EPISODIC_MEMORY_SIZE=1000
 COGNITIVE_SEMANTIC_MEMORY_SIZE=5000
 
+# Brain Directory (Persistent Memory Storage)
+# Default: ~/.brain (global learning across projects)
+# Project-specific: ./brain (isolated to current project)
+# Domain-specific: ~/.brain/domain-name (separate per domain)
+COGNITIVE_BRAIN_DIR=~/.brain
+
 # Neural Processing
 COGNITIVE_TEMPERATURE=0.7
 COGNITIVE_NOISE_LEVEL=0.1

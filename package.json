@@ -38,7 +38,9 @@
     "check:any": "find src -name '*.ts' -exec grep -Hn ': any\\|as any\\|any\\[\\]' {} \\;",
     "check:debug": "find src -name '*.ts' -exec grep -Hn 'console\\.\\|debugger' {} \\;",
     "prepare": "husky install",
-    "prepublishOnly": "npm run validate:ci"
+    "prepublishOnly": "npm run validate:ci",
+    "example:demo": "npm run build && node dist/examples/cognitive-client.js",
+    "example:benchmark": "npm run build && node dist/examples/cognitive-client.js --benchmark"
   },
   "keywords": [
     "mcp",

@@ -2,7 +2,9 @@
  * Utility modules exports
  */
 
+export * from "./CognitiveVisualizer.js";
 export * from "./config.js";
+export * from "./DebugController.js";
 export * from "./ErrorHandler.js";
 export * from "./factories.js";
 export * from "./logger.js";

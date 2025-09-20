@@ -14,14 +14,25 @@ import { TOOL_SCHEMAS } from "../../types/mcp.js";
 
 describe("MCP Protocol Compliance Integration Tests", () => {
   let server: CognitiveMCPServer;
+  let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
+    // Save original environment
+    originalEnv = { ...process.env };
+
+    // Set up test environment with unique temporary brain directory
+    const testId = Math.random().toString(36).substring(7);
+    process.env.COGNITIVE_BRAIN_DIR = `./tmp/test-brain-${testId}`;
+
     server = new CognitiveMCPServer();
     await server.initialize(true);
   });
 
   afterEach(async () => {
     await server.shutdown();
+
+    // Restore original environment
+    process.env = originalEnv;
   });
 
   describe("Tool Schema Validation", () => {

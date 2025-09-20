@@ -15,8 +15,16 @@ import type {
 
 describe("CognitiveMCPServer Tool Handlers", () => {
   let server: CognitiveMCPServer;
+  let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
+    // Save original environment
+    originalEnv = { ...process.env };
+
+    // Set up test environment with unique temporary brain directory
+    const testId = Math.random().toString(36).substring(7);
+    process.env.COGNITIVE_BRAIN_DIR = `./tmp/test-brain-${testId}`;
+
     server = new CognitiveMCPServer();
     // Initialize without connecting to transport for testing
     await server.initialize(true);
@@ -24,6 +32,9 @@ describe("CognitiveMCPServer Tool Handlers", () => {
 
   afterEach(async () => {
     await server.shutdown();
+
+    // Restore original environment
+    process.env = originalEnv;
   });
 
   describe("handleThink", () => {

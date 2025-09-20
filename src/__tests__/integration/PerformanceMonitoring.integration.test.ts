@@ -13,14 +13,24 @@ import {
 
 describe("Performance Monitoring Integration", () => {
   let server: CognitiveMCPServer;
+  let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
+    // Save original environment
+    originalEnv = { ...process.env };
+
+    // Set up test environment with temporary brain directory
+    process.env.COGNITIVE_BRAIN_DIR = "./tmp/test-brain";
+
     server = new CognitiveMCPServer();
     await server.initialize(true); // Test mode
   });
 
   afterEach(() => {
     server.clearPerformanceMetrics();
+
+    // Restore original environment
+    process.env = originalEnv;
   });
 
   describe("Performance Metrics Collection", () => {

@@ -7,11 +7,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Concept, Episode, Relation } from "../../../types/core.js";
 import { PersistenceManager } from "../../../utils/persistence/PersistenceManager.js";
+import { TestCleanup } from "../testCleanup.js";
+import { createTestDataDir } from "../testHelpers.js";
 
 describe("PersistenceManager", () => {
   let manager: PersistenceManager;
 
   beforeEach(async () => {
+    TestCleanup.initialize();
     manager = new PersistenceManager({
       storage_type: "memory",
       backup_interval_ms: 0, // Disable auto-backup for tests
@@ -29,6 +32,7 @@ describe("PersistenceManager", () => {
 
   afterEach(async () => {
     await manager.shutdown();
+    await TestCleanup.cleanup();
   });
 
   describe("initialization", () => {
@@ -39,10 +43,8 @@ describe("PersistenceManager", () => {
     });
 
     it("should initialize with different storage types", async () => {
-      // Create test directory first
-      const fs = await import("fs/promises");
-      const testDir = "./tmp/test-data";
-      await fs.mkdir(testDir, { recursive: true });
+      // Create test directory using helper
+      const testDir = await createTestDataDir();
 
       const fileManager = new PersistenceManager({
         storage_type: "file",
@@ -57,13 +59,7 @@ describe("PersistenceManager", () => {
       expect(status.provider_type).toBe("file");
 
       await fileManager.shutdown();
-
-      // Clean up test directory
-      try {
-        await fs.rm(testDir, { recursive: true, force: true });
-      } catch (error) {
-        // Ignore cleanup errors
-      }
+      // Cleanup handled automatically by TestCleanup
     });
   });
 
@@ -250,8 +246,9 @@ describe("PersistenceManager", () => {
       await manager.saveMemorySystem(episodes, [], [], Date.now());
 
       // Switch to file provider
+      const testId = Math.random().toString(36).substring(7);
       await manager.switchProvider("file", {
-        file_path: "./test-data/switched-memory.json",
+        file_path: `./tmp/test-data-${testId}/switched-memory.json`,
       });
 
       const status = manager.getStatus();
@@ -266,7 +263,8 @@ describe("PersistenceManager", () => {
     it("should handle switch when no data exists", async () => {
       // Create test directory first
       const fs = await import("fs/promises");
-      const testDir = "./tmp/test-data";
+      const testId = Math.random().toString(36).substring(7);
+      const testDir = `./tmp/test-data-${testId}`;
       await fs.mkdir(testDir, { recursive: true });
 
       await manager.switchProvider("file", {

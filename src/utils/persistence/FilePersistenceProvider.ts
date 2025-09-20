@@ -47,11 +47,46 @@ export class FilePersistenceProvider implements IPersistenceProvider {
 
     // Ensure directory exists
     const dir = dirname(this.config.file_path!);
-    await fs.mkdir(dir, { recursive: true });
+
+    try {
+      await fs.mkdir(dir, { recursive: true });
+
+      // Test write permissions by creating a temporary file
+      const testFile = join(
+        dir,
+        `.write-test-${Date.now()}-${Math.random().toString(36).substring(7)}`
+      );
+      await fs.writeFile(testFile, "test");
+      await fs.unlink(testFile);
+    } catch (error) {
+      // Retry once after a small delay to handle race conditions
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        await fs.mkdir(dir, { recursive: true });
+        const testFile = join(
+          dir,
+          `.write-test-${Date.now()}-${Math.random().toString(36).substring(7)}`
+        );
+        await fs.writeFile(testFile, "test");
+        await fs.unlink(testFile);
+      } catch (retryError) {
+        throw new Error(`Cannot create or write to directory: ${dir}`);
+      }
+    }
 
     // Ensure backup directory exists
     const backupDir = join(dir, "backups");
-    await fs.mkdir(backupDir, { recursive: true });
+    try {
+      await fs.mkdir(backupDir, { recursive: true });
+    } catch (error) {
+      // Retry once after a small delay to handle race conditions
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        await fs.mkdir(backupDir, { recursive: true });
+      } catch (retryError) {
+        throw new Error(`Cannot create backup directory: ${backupDir}`);
+      }
+    }
 
     // Start automatic backup process
     if (this.config.backup_interval_ms > 0) {
@@ -127,10 +162,29 @@ export class FilePersistenceProvider implements IPersistenceProvider {
     }
 
     try {
-      // Load current snapshot
-      const snapshot = await this.load();
-      if (!snapshot) {
-        throw new Error("No memory snapshot to backup");
+      // Load current snapshot, or create empty one if none exists
+      let snapshot: MemorySnapshot;
+      try {
+        const loadedSnapshot = await this.load();
+        if (!loadedSnapshot) {
+          throw new Error("No snapshot loaded");
+        }
+        snapshot = loadedSnapshot;
+      } catch (error) {
+        // If no snapshot exists, create an empty one for backup
+        snapshot = {
+          timestamp: Date.now(),
+          version: "1.0.0",
+          episodic_memories: [],
+          semantic_concepts: [],
+          semantic_relations: [],
+          metadata: {
+            total_episodes: 0,
+            total_concepts: 0,
+            total_relations: 0,
+            last_consolidation: Date.now(),
+          },
+        };
       }
 
       // Create backup metadata
@@ -158,6 +212,7 @@ export class FilePersistenceProvider implements IPersistenceProvider {
 
       // Save backup
       const backupDir = join(dirname(this.config.file_path), "backups");
+      await fs.mkdir(backupDir, { recursive: true });
       const backupPath = join(backupDir, `${backupId}.backup`);
       await fs.writeFile(backupPath, buffer);
 

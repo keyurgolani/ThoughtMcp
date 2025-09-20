@@ -7,21 +7,21 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CognitiveMCPServer } from "../server/CognitiveMCPServer.js";
 import { ProcessingMode, ReasoningStep, ReasoningType } from "../types/core.js";
 import { CognitiveTestFramework } from "./framework/TestFramework.js";
+import { TestCleanup } from "./utils/testCleanup.js";
+import { createTestServer, standardTestCleanup } from "./utils/testHelpers.js";
 
 describe("CognitiveMCPServer", () => {
   let server: CognitiveMCPServer;
   let _testFramework: CognitiveTestFramework;
 
   beforeEach(async () => {
-    server = new CognitiveMCPServer();
-    await server.initialize(true); // Initialize in test mode
+    TestCleanup.initialize();
+    server = await createTestServer();
     _testFramework = new CognitiveTestFramework();
   });
 
   afterEach(async () => {
-    if (server.isInitialized()) {
-      await server.shutdown();
-    }
+    await standardTestCleanup(server);
   });
 
   describe("Tool Handlers", () => {

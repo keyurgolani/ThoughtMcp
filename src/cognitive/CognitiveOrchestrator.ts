@@ -23,6 +23,7 @@ import {
   ThoughtResult,
 } from "../types/core.js";
 import { ConfigManager } from "../utils/config.js";
+import { getLogger } from "../utils/logger.js";
 import { DualProcessController } from "./DualProcessController.js";
 import { EmotionalProcessor } from "./EmotionalProcessor.js";
 import { MemorySystem } from "./MemorySystem.js";
@@ -80,6 +81,7 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
 
   // Configuration management
   private configManager: ConfigManager;
+  private logger = getLogger();
 
   // Orchestrator state
   private initialized: boolean = false;
@@ -195,6 +197,27 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
 
     const startTime = Date.now();
     this.lastActivity = startTime;
+    const traceId = this.logger.startTrace();
+
+    // Use traceId for logging context
+    this.logger.debug(
+      "CognitiveOrchestrator",
+      `Processing with trace ID: ${traceId}`
+    );
+
+    this.logger.info(
+      "CognitiveOrchestrator",
+      "Starting cognitive processing pipeline",
+      {
+        input_length: input.input.length,
+        mode: input.mode,
+      },
+      {
+        session_id: input.context.session_id,
+        processing_mode: input.mode,
+        reasoning_step: 0,
+      }
+    );
 
     try {
       // Ensure session exists
@@ -204,34 +227,171 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
       );
 
       // Phase 1: Sensory Processing and Prediction Generation
+      this.logger.debug(
+        "CognitiveOrchestrator",
+        "Phase 1: Sensory processing and prediction generation",
+        {},
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+          reasoning_step: 1,
+        }
+      );
+
+      const sensoryStartTime = Date.now();
       const sensoryData = await this.sensoryProcessor.process(input.input);
+      const sensoryProcessingTime = Date.now() - sensoryStartTime;
+
+      this.logger.logThoughtProcess(
+        "SensoryProcessor",
+        1,
+        "Processed sensory input",
+        0.9,
+        sensoryProcessingTime,
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+        }
+      );
+
+      const predictionStartTime = Date.now();
       const predictions = this.predictiveProcessor.generatePredictions(
         input.context
       );
+      const predictionProcessingTime = Date.now() - predictionStartTime;
+
+      this.logger.logThoughtProcess(
+        "PredictiveProcessor",
+        1,
+        "Generated predictions",
+        0.8,
+        predictionProcessingTime,
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+        }
+      );
 
       // Phase 2: Memory Retrieval and Integration
+      this.logger.debug(
+        "CognitiveOrchestrator",
+        "Phase 2: Memory retrieval and integration",
+        {},
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+          reasoning_step: 2,
+        }
+      );
+
+      const memoryStartTime = Date.now();
       const memoryRetrievalResult = await this.memorySystem.retrieveMemories(
         input.input,
         input.configuration.memory_retrieval_threshold || 0.3
       );
+      const memoryProcessingTime = Date.now() - memoryStartTime;
+
+      this.logger.logMemoryOperation(
+        "MemorySystem",
+        "retrieve",
+        `Retrieved ${memoryRetrievalResult.episodic_memories.length} episodic and ${memoryRetrievalResult.semantic_concepts.length} semantic memories`,
+        undefined,
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+          processing_time: memoryProcessingTime,
+        }
+      );
 
       // Phase 3: Working Memory Integration
+      this.logger.debug(
+        "CognitiveOrchestrator",
+        "Phase 3: Working memory integration",
+        {},
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+          reasoning_step: 3,
+        }
+      );
+
       const workingMemoryInput = {
         sensory_data: sensoryData,
         predictions: predictions,
         memories: memoryRetrievalResult,
         input: input.input,
       };
+
+      const wmStartTime = Date.now();
       const workingMemoryState = await this.workingMemory.process(
         workingMemoryInput
       );
+      const wmProcessingTime = Date.now() - wmStartTime;
+
+      // Calculate working memory load (simplified)
+      const wmLoad = Math.min(
+        1.0,
+        (workingMemoryState.active_chunks?.length || 0) / 7
+      );
+
+      this.logger.logThoughtProcess(
+        "WorkingMemoryModule",
+        3,
+        "Integrated information into working memory",
+        0.85,
+        wmProcessingTime,
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+          working_memory_load: wmLoad,
+        }
+      );
 
       // Phase 4: Emotional Assessment
+      this.logger.debug(
+        "CognitiveOrchestrator",
+        "Phase 4: Emotional assessment",
+        {},
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+          reasoning_step: 4,
+        }
+      );
+
+      const emotionalStartTime = Date.now();
       const emotionalContext = await this.emotionalProcessor.process(
         input.input
       );
+      const emotionalProcessingTime = Date.now() - emotionalStartTime;
+
+      this.logger.logEmotionalState(
+        "EmotionalProcessor",
+        "Assessed emotional context",
+        {
+          valence: emotionalContext.valence,
+          arousal: emotionalContext.arousal,
+          dominance: emotionalContext.dominance,
+        },
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+          processing_time: emotionalProcessingTime,
+        }
+      );
 
       // Phase 5: Dual-Process Reasoning
+      this.logger.debug(
+        "CognitiveOrchestrator",
+        "Phase 5: Dual-process reasoning",
+        {},
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+          reasoning_step: 5,
+        }
+      );
+
       const reasoningInput: CognitiveInput = {
         ...input,
         context: {
@@ -243,8 +403,22 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
         },
       };
 
+      const reasoningStartTime = Date.now();
       let thoughtSequence = await this.dualProcessController.process(
         reasoningInput
+      );
+      const reasoningProcessingTime = Date.now() - reasoningStartTime;
+
+      this.logger.logThoughtProcess(
+        "DualProcessController",
+        5,
+        "Completed dual-process reasoning",
+        thoughtSequence.confidence,
+        reasoningProcessingTime,
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+        }
       );
 
       // Phase 6: Stochastic Enhancement (if enabled)
@@ -257,12 +431,58 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
 
       // Phase 7: Metacognitive Monitoring and Adjustment
       if (input.configuration.enable_metacognition) {
+        this.logger.debug(
+          "CognitiveOrchestrator",
+          "Phase 7: Metacognitive monitoring and adjustment",
+          {},
+          {
+            session_id: input.context.session_id,
+            processing_mode: input.mode,
+            reasoning_step: 7,
+          }
+        );
+
+        const metacognitiveStartTime = Date.now();
         const metacognitiveAssessment =
           await this.metacognitionModule.assessReasoning(
             thoughtSequence.reasoning_path
           );
+        const metacognitiveProcessingTime = Date.now() - metacognitiveStartTime;
+
+        const metacognitiveFlags: string[] = [];
+        if (metacognitiveAssessment.should_reconsider)
+          metacognitiveFlags.push("should_reconsider");
+        if (metacognitiveAssessment.confidence < 0.5)
+          metacognitiveFlags.push("low_confidence");
+        if (metacognitiveAssessment.biases_detected.length > 0)
+          metacognitiveFlags.push("biases_detected");
+
+        this.logger.logMetacognition(
+          "MetacognitionModule",
+          `Metacognitive assessment completed. Confidence: ${metacognitiveAssessment.confidence.toFixed(
+            2
+          )}`,
+          metacognitiveFlags,
+          {
+            session_id: input.context.session_id,
+            processing_mode: input.mode,
+            processing_time: metacognitiveProcessingTime,
+            confidence: metacognitiveAssessment.confidence,
+          }
+        );
 
         if (metacognitiveAssessment.should_reconsider) {
+          this.logger.debug(
+            "CognitiveOrchestrator",
+            "Applying metacognitive adjustments",
+            {},
+            {
+              session_id: input.context.session_id,
+              processing_mode: input.mode,
+              metacognitive_flags: ["applying_adjustments"],
+            }
+          );
+
           // Apply metacognitive adjustments
           thoughtSequence = await this.applyMetacognitiveAdjustments(
             thoughtSequence,
@@ -278,7 +498,32 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
       }
 
       // Phase 8: Memory Storage
+      this.logger.debug(
+        "CognitiveOrchestrator",
+        "Phase 8: Memory storage",
+        {},
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+          reasoning_step: 8,
+        }
+      );
+
+      const storageStartTime = Date.now();
       await this.storeExperience(input, thoughtSequence, session);
+      const storageProcessingTime = Date.now() - storageStartTime;
+
+      this.logger.logMemoryOperation(
+        "MemorySystem",
+        "store",
+        "Stored cognitive experience",
+        undefined,
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+          processing_time: storageProcessingTime,
+        }
+      );
 
       // Phase 9: Finalize result and update session
       const processingTime = Date.now() - startTime;
@@ -292,8 +537,39 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
 
       this.updateSession(session, finalResult);
 
+      this.logger.info(
+        "CognitiveOrchestrator",
+        "Cognitive processing pipeline completed successfully",
+        {
+          total_processing_time: processingTime,
+          final_confidence: finalResult.confidence,
+          reasoning_steps: finalResult.reasoning_path.length,
+        },
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+          confidence: finalResult.confidence,
+          processing_time: processingTime,
+        }
+      );
+
+      this.logger.endTrace();
       return finalResult;
     } catch (error) {
+      this.logger.error(
+        "CognitiveOrchestrator",
+        `Cognitive processing failed: ${error}`,
+        {
+          error: error instanceof Error ? error.message : String(error),
+        },
+        {
+          session_id: input.context.session_id,
+          processing_mode: input.mode,
+          metacognitive_flags: ["error"],
+        }
+      );
+
+      this.logger.endTrace();
       throw new Error(`Cognitive processing failed: ${error}`);
     }
   }
