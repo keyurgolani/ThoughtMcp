@@ -519,6 +519,21 @@ export class MemorySystem implements CognitiveComponent {
   }
 
   /**
+   * Simulate time passage for memory decay testing
+   */
+  async simulateTimePassage(milliseconds: number): Promise<void> {
+    // Apply decay to episodic memories
+    if (this.episodicMemory.simulateDecay) {
+      await this.episodicMemory.simulateDecay(milliseconds);
+    }
+
+    // Apply decay to semantic memories if applicable
+    if (this.semanticMemory.simulateDecay) {
+      await this.semanticMemory.simulateDecay(milliseconds);
+    }
+  }
+
+  /**
    * Delete a backup
    */
   async deleteBackup(backupId: string): Promise<void> {

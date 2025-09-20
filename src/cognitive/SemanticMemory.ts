@@ -446,4 +446,26 @@ export class SemanticMemory implements ISemanticMemory {
       }
     }
   }
+
+  /**
+   * Simulate memory decay for testing purposes
+   */
+  async simulateDecay(milliseconds: number): Promise<void> {
+    const decayFactor = Math.exp(-0.001 * (milliseconds / 1000)); // Small decay rate for semantic memory
+
+    for (const [id, concept] of this.concepts) {
+      // Apply decay to concept activation
+      const updatedConcept = {
+        ...concept,
+        activation: concept.activation * decayFactor,
+      };
+
+      // Remove concepts that have decayed below threshold
+      if (updatedConcept.activation < 0.1) {
+        this.concepts.delete(id);
+      } else {
+        this.concepts.set(id, updatedConcept);
+      }
+    }
+  }
 }

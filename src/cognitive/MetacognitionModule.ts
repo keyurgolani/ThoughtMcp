@@ -388,7 +388,9 @@ export class MetacognitionModule implements IMetacognitionModule {
     let alternativeScore = 0;
 
     reasoning.forEach((step) => {
-      alternativeScore += step.alternatives.length * 0.4;
+      // Handle cases where alternatives might be undefined
+      const alternativesLength = step.alternatives?.length || 0;
+      alternativeScore += alternativesLength * 0.4;
 
       const content = step.content.toLowerCase();
       const alternativeKeywords = [
@@ -473,7 +475,7 @@ export class MetacognitionModule implements IMetacognitionModule {
 
     // Check for lack of alternative consideration
     const stepsWithAlternatives = reasoning.filter(
-      (step) => step.alternatives.length > 0
+      (step) => step.alternatives?.length > 0
     ).length;
     if (stepsWithAlternatives / reasoning.length < 0.3) {
       biases.push("tunnel_vision");
@@ -632,7 +634,7 @@ export class MetacognitionModule implements IMetacognitionModule {
 
     // Check for consideration of alternatives
     const totalAlternatives = reasoning.reduce(
-      (sum, step) => sum + step.alternatives.length,
+      (sum, step) => sum + (step.alternatives?.length || 0),
       0
     );
     completenessScore +=

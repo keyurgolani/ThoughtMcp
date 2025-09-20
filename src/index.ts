@@ -27,7 +27,13 @@ async function main(): Promise<void> {
 }
 
 // Only run main if this file is executed directly (not imported)
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Check multiple conditions to handle different execution contexts (direct, npx, etc.)
+const isMainModule =
+  import.meta.url === `file://${process.argv[1]}` ||
+  process.argv[1]?.endsWith("index.js") ||
+  process.argv[1]?.includes("thoughtmcp");
+
+if (isMainModule) {
   // Handle unhandled promise rejections
   process.on("unhandledRejection", (reason, promise) => {
     console.error("Unhandled Rejection at:", promise, "reason:", reason);

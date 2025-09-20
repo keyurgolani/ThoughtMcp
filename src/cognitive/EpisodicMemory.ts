@@ -379,4 +379,29 @@ export class EpisodicMemory implements IEpisodicMemory {
       }
     }
   }
+
+  /**
+   * Simulate memory decay for testing purposes
+   */
+  async simulateDecay(milliseconds: number): Promise<void> {
+    // Use a more aggressive decay rate for testing (10x normal rate)
+    const testDecayRate = this.config.decay_rate * 10;
+    const decayFactor = Math.exp(-testDecayRate * (milliseconds / 1000));
+    const episodesToRemove: string[] = [];
+
+    for (const [episodeId, episode] of this.episodes.entries()) {
+      // Apply decay to importance
+      episode.importance *= decayFactor;
+
+      // Mark episodes for removal that have decayed below threshold
+      if (episode.importance < 0.1) {
+        episodesToRemove.push(episodeId);
+      }
+    }
+
+    // Remove decayed episodes
+    for (const episodeId of episodesToRemove) {
+      this.removeEpisode(episodeId);
+    }
+  }
 }

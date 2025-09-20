@@ -238,7 +238,7 @@ export class PersistenceManager {
   stopAutoSave(): void {
     if (this.autoSaveTimer) {
       clearInterval(this.autoSaveTimer);
-      this.autoSaveTimer = undefined as any;
+      this.autoSaveTimer = undefined;
     }
   }
 
@@ -324,7 +324,7 @@ export class PersistenceManager {
   private stopAutoBackup(): void {
     if (this.autoBackupTimer) {
       clearInterval(this.autoBackupTimer);
-      this.autoBackupTimer = undefined as any;
+      this.autoBackupTimer = undefined;
     }
   }
 }

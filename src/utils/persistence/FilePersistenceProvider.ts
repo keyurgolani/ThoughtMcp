@@ -314,7 +314,7 @@ export class FilePersistenceProvider implements IPersistenceProvider {
   async cleanup(): Promise<void> {
     if (this.backupTimer) {
       clearInterval(this.backupTimer);
-      this.backupTimer = undefined as any;
+      this.backupTimer = undefined;
     }
   }
 

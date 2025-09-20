@@ -12,10 +12,7 @@ import {
 
 import { CognitiveOrchestrator } from "../cognitive/CognitiveOrchestrator.js";
 import { MemorySystem } from "../cognitive/MemorySystem.js";
-import {
-  MetacognitionModule,
-  MetacognitiveAssessment,
-} from "../cognitive/MetacognitionModule.js";
+import { MetacognitionModule } from "../cognitive/MetacognitionModule.js";
 import { IMCPServer, IToolHandler } from "../interfaces/mcp.js";
 import type {
   CognitiveConfig,
@@ -267,18 +264,26 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 this.validateAnalyzeReasoningArgs(args)
               );
               measurement.recordCognitiveMetrics({
-                confidenceScore: result.coherence_score || 0.5,
-                reasoningDepth: result.detected_biases?.length || 0,
+                confidenceScore:
+                  (result as AnalysisResult).coherence_score || 0.5,
+                reasoningDepth:
+                  (result as AnalysisResult).detected_biases?.length || 0,
                 memoryRetrievals: 0,
                 workingMemoryLoad: 0.7,
-                metacognitionTime: 100, // Metacognitive analysis takes time
+                metacognitionTime: 100,
               });
               const analyzeMetrics = measurement.complete();
-              formattedResponse = ResponseFormatter.formatAnalyzeResponse(
-                result,
-                analyzeMetrics.responseTime,
-                requestId
-              );
+              formattedResponse = {
+                success: true,
+                data: result,
+                metadata: {
+                  timestamp: Date.now(),
+                  processing_time_ms: analyzeMetrics.responseTime,
+                  tool_name: "analyze_reasoning",
+                  version: "1.0.0",
+                  ...(requestId && { request_id: requestId }),
+                },
+              };
               break;
             }
             default:
@@ -925,6 +930,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     }
   }
 
+  testMethod(): string {
+    return "test";
+  }
+
   async handleAnalyzeReasoning(
     args: AnalyzeReasoningArgs
   ): Promise<AnalysisResult> {
@@ -937,77 +946,46 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       "analyze_reasoning"
     );
 
-    // Validate arguments first (outside try-catch to let validation errors throw)
-    const validatedArgs = this.validateAnalyzeReasoningArgs(
-      args as unknown as Record<string, unknown>
-    );
-
     try {
-      console.error(
-        `Analyzing ${validatedArgs.reasoning_steps.length} reasoning steps`
+      // Validate arguments first - let validation errors throw
+      const validatedArgs = this.validateAnalyzeReasoningArgs(
+        args as unknown as Record<string, unknown>
       );
 
-      // Use metacognition module to analyze reasoning with error handling
-      const operationResult = await ErrorHandler.withErrorHandling(
-        async () =>
-          this.metacognitionModule.assessReasoning(
-            validatedArgs.reasoning_steps
-          ),
-        "MetacognitionModule",
-        { enableFallbacks: true, maxRetries: 2 }
+      const assessment = this.metacognitionModule.assessReasoning(
+        validatedArgs.reasoning_steps
       );
 
-      if (!operationResult.success) {
-        // Provide fallback analysis
-        const processingTime = Date.now() - startTime;
-        console.error(
-          `Reasoning analysis failed after ${processingTime}ms, providing fallback assessment`
-        );
-
-        return {
-          coherence_score: 0.5,
-          confidence_assessment:
-            "Confidence: 0.50 - Fallback assessment due to analysis failure",
-          detected_biases: ["Analysis unavailable due to system error"],
-          suggested_improvements: ["Retry analysis when system is stable"],
-          reasoning_quality: {
-            logical_consistency: 0.5,
-            evidence_support: 0.5,
-            completeness: 0.5,
-          },
-        };
-      }
-
-      const assessment = operationResult.data as MetacognitiveAssessment;
-      const result: AnalysisResult = {
-        coherence_score: assessment.coherence,
-        confidence_assessment: `Confidence: ${assessment.confidence.toFixed(
-          2
-        )} - ${assessment.reasoning}`,
-        detected_biases: assessment.biases_detected,
-        suggested_improvements: assessment.suggestions,
+      const result = {
+        coherence_score: assessment.coherence || 0.5,
+        confidence_assessment: `Confidence: ${(
+          assessment.confidence || 0.5
+        ).toFixed(2)} - ${assessment.reasoning || "No reasoning provided"}`,
+        detected_biases: assessment.biases_detected || [],
+        suggested_improvements: assessment.suggestions || [],
         reasoning_quality: {
-          logical_consistency: assessment.coherence,
-          evidence_support: assessment.confidence,
-          completeness: assessment.completeness,
+          logical_consistency: assessment.coherence || 0.5,
+          evidence_support: assessment.confidence || 0.5,
+          completeness: assessment.completeness || 0.5,
         },
       };
 
-      const processingTime = Date.now() - startTime;
-
       // Record cognitive metrics
       measurement.recordCognitiveMetrics({
-        confidenceScore: result.coherence_score || 0.5,
-        reasoningDepth: result.detected_biases?.length || 0,
+        confidenceScore: assessment.confidence || 0.5,
+        reasoningDepth: validatedArgs.reasoning_steps.length,
         memoryRetrievals: 0,
-        workingMemoryLoad: 0.7,
-        metacognitionTime: 100, // Metacognitive analysis takes time
+        workingMemoryLoad: 0,
       });
 
       // Complete measurement
       measurement.complete();
 
-      console.log(`Reasoning analysis completed in ${processingTime}ms`);
+      const processingTime = Date.now() - startTime;
+      console.error(
+        `Analyze reasoning request completed in ${processingTime}ms`
+      );
+
       return result;
     } catch (error) {
       const processingTime = Date.now() - startTime;
@@ -1016,35 +994,27 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         error
       );
 
-      // Handle error with graceful degradation
-      const errorResult = await ErrorHandler.handleError(
-        error instanceof Error ? error : new Error(String(error)),
-        "handleAnalyzeReasoning",
-        { steps_count: args.reasoning_steps.length, requestId },
-        { enableFallbacks: true }
-      );
-
-      if (errorResult.canContinue) {
-        // Return fallback analysis
-        return {
-          coherence_score: 0.5,
-          confidence_assessment:
-            "Confidence: 0.50 - Fallback assessment due to analysis failure",
-          detected_biases: ["Analysis unavailable due to system error"],
-          suggested_improvements: ["Retry analysis when system is stable"],
-          reasoning_quality: {
-            logical_consistency: 0.5,
-            evidence_support: 0.5,
-            completeness: 0.5,
-          },
-        };
+      // Re-throw validation errors to maintain expected behavior
+      if (
+        error instanceof Error &&
+        (error.message.includes("requires") ||
+          error.message.includes("At least one"))
+      ) {
+        throw error;
       }
 
-      throw new Error(
-        `Reasoning analysis failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      return {
+        coherence_score: 0.5,
+        confidence_assessment:
+          "Confidence: 0.50 - Error occurred during analysis",
+        detected_biases: ["Analysis failed due to error"],
+        suggested_improvements: ["Check system logs for details"],
+        reasoning_quality: {
+          logical_consistency: 0.5,
+          evidence_support: 0.5,
+          completeness: 0.5,
+        },
+      };
     }
   }
 

@@ -359,7 +359,7 @@ export class DatabasePersistenceProvider implements IPersistenceProvider {
   async cleanup(): Promise<void> {
     if (this.connection) {
       await this.connection.close();
-      this.connection = undefined as any;
+      this.connection = undefined;
     }
   }
 
