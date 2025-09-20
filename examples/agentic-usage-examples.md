@@ -140,7 +140,7 @@ Remember this decision process and outcome for future strategic discussions.
 // Ask ThoughtMCP to help with architecture decisions
 
 /*
-@thought-mcp I'm designing the state management for this e-commerce app.
+@thoughtmcp I'm designing the state management for this e-commerce app.
 Think through the options:
 
 1. Redux Toolkit (familiar, predictable, verbose)
@@ -166,7 +166,7 @@ Remember the decision and reasoning for future projects.
 ```typescript
 // Debugging a complex issue in Cursor
 /*
-@thought-mcp Help me think through this bug systematically:
+@thoughtmcp Help me think through this bug systematically:
 
 Problem: Users report that shopping cart items disappear randomly
 Frequency: ~5% of users, seems random
@@ -191,7 +191,7 @@ function ShoppingCart() {
 
 ```typescript
 /*
-@thought-mcp This component is causing performance issues. Think through optimization strategies:
+@thoughtmcp This component is causing performance issues. Think through optimization strategies:
 
 Current issues:
 - Re-renders on every parent update
@@ -215,7 +215,7 @@ function ProductList({ products, filters, onSelect }) {
 ```javascript
 // In Void Editor, designing a new API
 /**
- * @thought-mcp Review this API design using analytical thinking:
+ * @thoughtmcp Review this API design using analytical thinking:
  *
  * POST /api/v1/orders
  * {
@@ -246,7 +246,7 @@ class OrderController {
 ```python
 # In Void Editor, working on a recommendation system
 """
-@thought-mcp Help me choose the right algorithm for this recommendation engine:
+@thoughtmcp Help me choose the right algorithm for this recommendation engine:
 
 Requirements:
 - Real-time recommendations (< 100ms response)
@@ -402,7 +402,7 @@ How can we improve our approach to [type of problem] based on this experience?
 
 ### Cursor IDE
 
-- Integrate with code context using @thought-mcp mentions
+- Integrate with code context using @thoughtmcp mentions
 - Use for real-time code review and suggestions
 - Configure for fast responses during active coding
 

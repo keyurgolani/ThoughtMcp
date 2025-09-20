@@ -12,6 +12,7 @@ import {
   PersistenceStatus,
 } from "../../interfaces/persistence.js";
 import { Concept, Episode, Relation } from "../../types/core.js";
+import { getVersion } from "../version.js";
 import { DatabasePersistenceProvider } from "./DatabasePersistenceProvider.js";
 import { FilePersistenceProvider } from "./FilePersistenceProvider.js";
 import { MemoryPersistenceProvider } from "./MemoryPersistenceProvider.js";
@@ -43,7 +44,7 @@ export class PersistenceManager {
       auto_save_interval_ms: 60000, // 1 minute
       auto_backup_enabled: true,
       recovery_enabled: true,
-      version: "1.0.0",
+      version: getVersion(),
       ...config,
     };
 

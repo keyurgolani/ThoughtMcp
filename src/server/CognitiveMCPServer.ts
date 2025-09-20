@@ -44,6 +44,7 @@ import {
   FormattedResponse,
   ResponseFormatter,
 } from "../utils/ResponseFormatter.js";
+import { getVersion } from "../utils/version.js";
 
 export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   private server: Server;
@@ -57,8 +58,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   constructor(performanceThresholds?: Partial<PerformanceThresholds>) {
     this.server = new Server(
       {
-        name: "thought-mcp",
-        version: "1.0.0",
+        name: "thoughtmcp",
+        version: getVersion(),
         description:
           "MCP server implementing human-like cognitive architecture for enhanced AI reasoning",
       },
@@ -280,7 +281,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                   timestamp: Date.now(),
                   processing_time_ms: analyzeMetrics.responseTime,
                   tool_name: "analyze_reasoning",
-                  version: "1.0.0",
+                  version: getVersion(),
                   ...(requestId && { request_id: requestId }),
                 },
               };
@@ -1047,8 +1048,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   // Utility method to get server info
   getServerInfo(): { name: string; version: string; initialized: boolean } {
     return {
-      name: "thought-mcp",
-      version: "1.0.0",
+      name: "thoughtmcp",
+      version: getVersion(),
       initialized: this.initialized,
     };
   }

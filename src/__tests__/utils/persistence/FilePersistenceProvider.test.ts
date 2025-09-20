@@ -9,6 +9,7 @@ import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MemorySnapshot } from "../../../interfaces/persistence.js";
 import { FilePersistenceProvider } from "../../../utils/persistence/FilePersistenceProvider.js";
+import { getVersion } from "../../../utils/version.js";
 
 describe("FilePersistenceProvider", () => {
   let provider: FilePersistenceProvider;
@@ -105,7 +106,7 @@ describe("FilePersistenceProvider", () => {
     it("should save and load memory snapshot", async () => {
       const snapshot: MemorySnapshot = {
         timestamp: Date.now(),
-        version: "1.0.0",
+        version: getVersion(),
         episodic_memories: [
           {
             content: { text: "test memory" },
@@ -170,7 +171,7 @@ describe("FilePersistenceProvider", () => {
 
       const snapshot: MemorySnapshot = {
         timestamp: Date.now(),
-        version: "1.0.0",
+        version: getVersion(),
         episodic_memories: [],
         semantic_concepts: [],
         semantic_relations: [],
@@ -212,7 +213,7 @@ describe("FilePersistenceProvider", () => {
     it("should create and restore backup", async () => {
       const snapshot: MemorySnapshot = {
         timestamp: Date.now(),
-        version: "1.0.0",
+        version: getVersion(),
         episodic_memories: [],
         semantic_concepts: [],
         semantic_relations: [],
@@ -237,7 +238,7 @@ describe("FilePersistenceProvider", () => {
     it("should cleanup old backups", async () => {
       const snapshot: MemorySnapshot = {
         timestamp: Date.now(),
-        version: "1.0.0",
+        version: getVersion(),
         episodic_memories: [],
         semantic_concepts: [],
         semantic_relations: [],
@@ -265,7 +266,7 @@ describe("FilePersistenceProvider", () => {
     it("should delete backup", async () => {
       const snapshot: MemorySnapshot = {
         timestamp: Date.now(),
-        version: "1.0.0",
+        version: getVersion(),
         episodic_memories: [],
         semantic_concepts: [],
         semantic_relations: [],
@@ -292,7 +293,7 @@ describe("FilePersistenceProvider", () => {
     it("should verify backup checksum", async () => {
       const snapshot: MemorySnapshot = {
         timestamp: Date.now(),
-        version: "1.0.0",
+        version: getVersion(),
         episodic_memories: [],
         semantic_concepts: [],
         semantic_relations: [],
@@ -338,7 +339,7 @@ describe("FilePersistenceProvider", () => {
     it("should handle operations when not initialized", async () => {
       const snapshot: MemorySnapshot = {
         timestamp: Date.now(),
-        version: "1.0.0",
+        version: getVersion(),
         episodic_memories: [],
         semantic_concepts: [],
         semantic_relations: [],

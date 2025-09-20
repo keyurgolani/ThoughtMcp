@@ -49,7 +49,7 @@ Create or edit `.kiro/settings/mcp.json` in your project root:
 ```json
 {
   "mcpServers": {
-    "thought-mcp": {
+    "thoughtmcp": {
       "command": "node",
       "args": ["/path/to/ThoughtMcp/dist/index.js"],
       "env": {
@@ -74,7 +74,7 @@ For global access across all projects, edit `~/.kiro/settings/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "thought-mcp-global": {
+    "thoughtmcp-global": {
       "command": "node",
       "args": ["/path/to/ThoughtMcp/dist/index.js"],
       "env": {
@@ -124,7 +124,7 @@ Claude Desktop uses a centralized MCP configuration file.
 ```json
 {
   "mcpServers": {
-    "thought-mcp": {
+    "thoughtmcp": {
       "command": "node",
       "args": ["/absolute/path/to/ThoughtMcp/dist/index.js"],
       "env": {
@@ -166,7 +166,7 @@ Cursor IDE supports MCP through VS Code extensions and configuration.
 ```json
 {
   "mcp.servers": {
-    "thought-mcp": {
+    "thoughtmcp": {
       "command": "node",
       "args": ["/path/to/ThoughtMcp/dist/index.js"],
       "env": {
@@ -187,9 +187,9 @@ Create `.cursor/mcp.json` in your project:
 ```json
 {
   "servers": {
-    "thought-mcp": {
+    "thoughtmcp": {
       "command": "node",
-      "args": ["./node_modules/thought-mcp/dist/index.js"],
+      "args": ["./node_modules/thoughtmcp/dist/index.js"],
       "cwd": "${workspaceFolder}",
       "env": {
         "COGNITIVE_DEFAULT_MODE": "analytical",
@@ -207,11 +207,11 @@ Create `.cursor/mcp.json` in your project:
 Use Cursor's AI chat with cognitive processing:
 
 ```
-@thought-mcp think about the best architecture for this React component
+@thoughtmcp think about the best architecture for this React component
 
-@thought-mcp remember this coding pattern for future use
+@thoughtmcp remember this coding pattern for future use
 
-@thought-mcp what do you recall about similar component designs?
+@thoughtmcp what do you recall about similar component designs?
 ```
 
 ## Void Editor
@@ -226,7 +226,7 @@ Create `void-mcp-config.json` in your project root:
 {
   "mcp": {
     "servers": {
-      "thought-mcp": {
+      "thoughtmcp": {
         "executable": "node",
         "args": ["/path/to/ThoughtMcp/dist/index.js"],
         "environment": {
@@ -253,7 +253,7 @@ Add to your Void settings file:
   "mcp.configFile": "./void-mcp-config.json",
   "mcp.autoConnect": true,
   "ai.providers": {
-    "thought-mcp": {
+    "thoughtmcp": {
       "enabled": true,
       "priority": "high"
     }
@@ -270,7 +270,7 @@ For any MCP-compatible environment, use this template:
 ```json
 {
   "mcpServers": {
-    "thought-mcp": {
+    "thoughtmcp": {
       "command": "node",
       "args": ["/absolute/path/to/ThoughtMcp/dist/index.js"],
       "env": {
@@ -409,7 +409,7 @@ Configure separate brain directories for different domains:
 ```json
 {
   "mcpServers": {
-    "thought-mcp-coding": {
+    "thoughtmcp-coding": {
       "command": "node",
       "args": ["/path/to/ThoughtMcp/dist/index.js"],
       "env": {
@@ -417,7 +417,7 @@ Configure separate brain directories for different domains:
         "COGNITIVE_DEFAULT_MODE": "analytical"
       }
     },
-    "thought-mcp-creative": {
+    "thoughtmcp-creative": {
       "command": "node",
       "args": ["/path/to/ThoughtMcp/dist/index.js"],
       "env": {

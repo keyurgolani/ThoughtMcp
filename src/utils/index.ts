@@ -14,3 +14,4 @@ export * from "./persistence/index.js";
 export * from "./ResponseFormatter.js";
 export * from "./SessionManager.js";
 export * from "./validation.js";
+export * from "./version.js";

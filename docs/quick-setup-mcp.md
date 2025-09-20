@@ -25,7 +25,7 @@ Add to `.kiro/settings/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "thought-mcp": {
+    "thoughtmcp": {
       "command": "node",
       "args": ["/full/path/to/ThoughtMcp/dist/index.js"],
       "env": {
@@ -43,7 +43,7 @@ Add to `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "thought-mcp": {
+    "thoughtmcp": {
       "command": "node",
       "args": ["/full/path/to/ThoughtMcp/dist/index.js"]
     }

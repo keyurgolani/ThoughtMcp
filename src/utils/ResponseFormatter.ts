@@ -28,8 +28,10 @@ export interface ResponseMetadata {
   request_id?: string;
 }
 
+import { getVersion } from "./version.js";
+
 export class ResponseFormatter {
-  private static readonly VERSION = "1.0.0";
+  private static readonly VERSION = getVersion();
 
   /**
    * Format a successful ThoughtResult response

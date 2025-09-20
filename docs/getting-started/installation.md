@@ -47,7 +47,7 @@ For production deployments and easy integration.
 
 ```bash
 # This will be available soon
-npm install thought-mcp
+npm install thoughtmcp
 ```
 
 ### Method 3: Docker (Coming Soon)

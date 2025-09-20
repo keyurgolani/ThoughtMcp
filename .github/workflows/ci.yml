@@ -184,7 +184,7 @@ jobs:
           # Verify package can be imported
           node --input-type=module -e "
             try {
-              const pkg = await import('thought-mcp');
+              const pkg = await import('thoughtmcp');
               console.log('Package installation and import successful');
               console.log('Available exports:', Object.keys(pkg));
             } catch (error) {

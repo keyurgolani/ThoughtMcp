@@ -6,6 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CognitiveMCPServer } from "../server/CognitiveMCPServer.js";
 import { ProcessingMode, ReasoningStep, ReasoningType } from "../types/core.js";
+import { getVersion } from "../utils/version.js";
 import { CognitiveTestFramework } from "./framework/TestFramework.js";
 import { TestCleanup } from "./utils/testCleanup.js";
 import { createTestServer, standardTestCleanup } from "./utils/testHelpers.js";
@@ -135,8 +136,8 @@ describe("CognitiveMCPServer", () => {
   describe("Server Lifecycle", () => {
     it("should initialize server info correctly", () => {
       const info = server.getServerInfo();
-      expect(info.name).toBe("thought-mcp");
-      expect(info.version).toBe("1.0.0");
+      expect(info.name).toBe("thoughtmcp");
+      expect(info.version).toBe(getVersion());
       expect(info.initialized).toBe(true);
     });
 

@@ -10,6 +10,7 @@ import {
 } from "../../types/core.js";
 import { AnalysisResult, MemoryResult, RecallResult } from "../../types/mcp.js";
 import { ResponseFormatter } from "../../utils/ResponseFormatter.js";
+import { getVersion } from "../../utils/version.js";
 
 describe("ResponseFormatter", () => {
   let mockThoughtResult: ThoughtResult;
@@ -348,7 +349,7 @@ describe("ResponseFormatter", () => {
           timestamp: Date.now(),
           processing_time_ms: 100,
           tool_name: "test",
-          version: "1.0.0",
+          version: getVersion(),
         },
       } as any;
 
@@ -371,7 +372,7 @@ describe("ResponseFormatter", () => {
           timestamp: Date.now(),
           processing_time_ms: 100,
           tool_name: "test",
-          version: "1.0.0",
+          version: getVersion(),
         },
       } as any;
 
@@ -385,7 +386,7 @@ describe("ResponseFormatter", () => {
           timestamp: Date.now(),
           processing_time_ms: 100,
           tool_name: "test",
-          version: "1.0.0",
+          version: getVersion(),
         },
       } as any;
 

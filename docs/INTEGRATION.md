@@ -43,7 +43,7 @@ mkdir -p .kiro/settings
 cat > .kiro/settings/mcp.json << 'EOF'
 {
   "mcpServers": {
-    "thought-mcp": {
+    "thoughtmcp": {
       "command": "node",
       "args": ["/absolute/path/to/ThoughtMcp/dist/index.js"],
       "env": {
@@ -91,7 +91,7 @@ Think through the architecture for this new feature
 # 2. Edit claude_desktop_config.json
 {
   "mcpServers": {
-    "thought-mcp": {
+    "thoughtmcp": {
       "command": "node",
       "args": ["/absolute/path/to/ThoughtMcp/dist/index.js"],
       "env": {
@@ -126,7 +126,7 @@ Write a creative story using emotional and intuitive thinking
 
 {
   "mcp.servers": {
-    "thought-mcp": {
+    "thoughtmcp": {
       "command": "node",
       "args": ["/absolute/path/to/ThoughtMcp/dist/index.js"],
       "env": {
@@ -141,13 +141,13 @@ Write a creative story using emotional and intuitive thinking
 **Usage Examples**:
 
 ```typescript
-// Use @thought-mcp in comments or chat
+// Use @thoughtmcp in comments or chat
 /*
-@thought-mcp Think through the best stanagement solution for this React app.
+@thoughtmcp Think through the best stanagement solution for this React app.
 Consider team experience, app complexity, and performance requirements.
 */
 
-// @thought-mcp Help debug this performance issue systematically
+// @thoughtmcp Help debug this performance issue systematically
 ```
 
 ### Void Editor
@@ -159,7 +159,7 @@ Consider team experience, app complexity, and performance requirements.
 {
   "mcp": {
     "servers": {
-      "thought-mcp": {
+      "thoughtmcp": {
         "executable": "node",
         "args": ["/absolute/path/to/ThoughtMcp/dist/index.js"],
         "environment": {
@@ -182,7 +182,7 @@ Consider team experience, app complexity, and performance requirements.
 ```json
 {
   "mcpServers": {
-    "thought-mcp": {
+    "thoughtmcp": {
       "command": "node",
       "args": ["/absolute/path/to/ThoughtMcp/dist/index.js"],
       "env": {
@@ -410,7 +410,7 @@ Configure separate instances for different domains:
 ```json
 {
   "mcpServers": {
-    "thought-mcp-coding": {
+    "thoughtmcp-coding": {
       "command": "node",
       "args": ["/path/to/ThoughtMcp/dist/index.js"],
       "env": {
@@ -418,7 +418,7 @@ Configure separate instances for different domains:
         "COGNITIVE_DEFAULT_MODE": "analytical"
       }
     },
-    "thought-mcp-creative": {
+    "thoughtmcp-creative": {
       "command": "node",
       "args": ["/path/to/ThoughtMcp/dist/index.js"],
       "env": {

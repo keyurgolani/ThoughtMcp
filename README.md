@@ -93,7 +93,7 @@ ThoughtMCP works with popular AI development environments:
 ```json
 {
   "mcpServers": {
-    "thought-mcp": {
+    "thoughtmcp": {
       "command": "node",
       "args": ["/path/to/ThoughtMcp/dist/index.js"],
       "env": {

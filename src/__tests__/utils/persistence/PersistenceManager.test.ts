@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Concept, Episode, Relation } from "../../../types/core.js";
 import { PersistenceManager } from "../../../utils/persistence/PersistenceManager.js";
+import { getVersion } from "../../../utils/version.js";
 import { TestCleanup } from "../testCleanup.js";
 import { createTestDataDir } from "../testHelpers.js";
 
@@ -24,7 +25,7 @@ describe("PersistenceManager", () => {
       auto_save_enabled: false, // Disable auto-save for tests
       auto_backup_enabled: false,
       recovery_enabled: true,
-      version: "1.0.0",
+      version: getVersion(),
     });
 
     await manager.initialize();
@@ -354,7 +355,7 @@ describe("PersistenceManager", () => {
       const customManager = new PersistenceManager({
         storage_type: "memory",
         max_backups: 5,
-        version: "2.0.0",
+        version: getVersion(),
       });
 
       await customManager.initialize();

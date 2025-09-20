@@ -629,7 +629,7 @@ class CognitiveAI {
   async initialize() {
     const transport = new StdioClientTransport({
       command: "node",
-      args: ["path/to/thought-mcp/dist/index.js"],
+      args: ["path/to/thoughtmcp/dist/index.js"],
     });
 
     this.client = new Client({ name: "my-app", version: "1.0.0" }, {});

@@ -18,6 +18,7 @@ import {
   PersistenceConfig,
   PersistenceStatus,
 } from "../../interfaces/persistence.js";
+import { getVersion } from "../version.js";
 
 const gzipAsync = promisify(gzip);
 const gunzipAsync = promisify(gunzip);
@@ -174,7 +175,7 @@ export class FilePersistenceProvider implements IPersistenceProvider {
         // If no snapshot exists, create an empty one for backup
         snapshot = {
           timestamp: Date.now(),
-          version: "1.0.0",
+          version: getVersion(),
           episodic_memories: [],
           semantic_concepts: [],
           semantic_relations: [],
