@@ -89,7 +89,7 @@ jobs:
             let failed = false;
             Object.keys(minCoverage).forEach(key => {
               if (total[key].pct < minCoverage[key]) {
-                console.error(\`Coverage too low for \${key}: \${total[key].pct}% < \${minCoverage[key]}%\`);
+                console.error('Coverage too low for ' + key + ': ' + total[key].pct + '% < ' + minCoverage[key] + '%');
                 failed = true;
               }
             });
@@ -100,10 +100,10 @@ jobs:
             }
 
             console.log('Coverage thresholds met:');
-            console.log(\`  Statements: \${total.statements.pct}%\`);
-            console.log(\`  Branches: \${total.branches.pct}%\`);
-            console.log(\`  Functions: \${total.functions.pct}%\`);
-            console.log(\`  Lines: \${total.lines.pct}%\`);
+            console.log('  Statements: ' + total.statements.pct + '%');
+            console.log('  Branches: ' + total.branches.pct + '%');
+            console.log('  Functions: ' + total.functions.pct + '%');
+            console.log('  Lines: ' + total.lines.pct + '%');
           "
 
       - name: Build project
@@ -172,20 +172,21 @@ jobs:
       - name: Test package installation
         run: |
           npm pack
-          PACKAGE_NAME=\$(ls *.tgz | head -1)
-          echo "Package created: \$PACKAGE_NAME"
+          PACKAGE_NAME=$(ls *.tgz | head -1)
+          echo "Package created: $PACKAGE_NAME"
 
           # Test installation in temporary directory
           mkdir -p /tmp/test-install
           cd /tmp/test-install
           npm init -y
-          npm install \$GITHUB_WORKSPACE/\$PACKAGE_NAME
+          npm install $GITHUB_WORKSPACE/$PACKAGE_NAME
 
-          # Verify package can be required
-          node -e "
+          # Verify package can be imported
+          node --input-type=module -e "
             try {
-              const pkg = require('thought-mcp');
+              const pkg = await import('thought-mcp');
               console.log('Package installation and import successful');
+              console.log('Available exports:', Object.keys(pkg));
             } catch (error) {
               console.error('Package import failed:', error.message);
               process.exit(1);
@@ -275,7 +276,7 @@ jobs:
             const { performance, PerformanceObserver } = require('perf_hooks');
             const obs = new PerformanceObserver((items) => {
               items.getEntries().forEach((entry) => {
-                console.log(\`\${entry.name}: \${entry.duration}ms\`);
+                console.log(entry.name + ': ' + entry.duration + 'ms');
               });
             });
             obs.observe({ entryTypes: ['measure'] });
@@ -288,9 +289,9 @@ jobs:
 
               const memUsage = process.memoryUsage();
               console.log('Memory usage:');
-              console.log(\`  RSS: \${Math.round(memUsage.rss / 1024 / 1024)}MB\`);
-              console.log(\`  Heap Used: \${Math.round(memUsage.heapUsed / 1024 / 1024)}MB\`);
-              console.log(\`  Heap Total: \${Math.round(memUsage.heapTotal / 1024 / 1024)}MB\`);
+              console.log('  RSS: ' + Math.round(memUsage.rss / 1024 / 1024) + 'MB');
+              console.log('  Heap Used: ' + Math.round(memUsage.heapUsed / 1024 / 1024) + 'MB');
+              console.log('  Heap Total: ' + Math.round(memUsage.heapTotal / 1024 / 1024) + 'MB');
 
               if (memUsage.heapUsed > 2 * 1024 * 1024 * 1024) {
                 console.error('Memory usage exceeds 2GB threshold');

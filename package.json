@@ -4,6 +4,33 @@
   "description": "MCP server implementing human-like cognitive architecture for enhanced AI reasoning",
   "main": "dist/index.js",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./cognitive": {
+      "import": "./dist/cognitive/index.js",
+      "types": "./dist/cognitive/index.d.ts"
+    },
+    "./server": {
+      "import": "./dist/server/CognitiveMCPServer.js",
+      "types": "./dist/server/CognitiveMCPServer.d.ts"
+    },
+    "./utils": {
+      "import": "./dist/utils/index.js",
+      "types": "./dist/utils/index.d.ts"
+    }
+  },
+  "bin": {
+    "thought-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
