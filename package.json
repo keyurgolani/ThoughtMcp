@@ -33,7 +33,7 @@
     "cognitive.config.json"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/index.js",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "test": "vitest",
