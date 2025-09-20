@@ -48,6 +48,17 @@ Most AI systems process text once and respond. ThoughtMCP implements multiple th
 
 ### 1. Install and Setup
 
+#### Option A: NPX (Recommended - No Installation Required)
+
+```bash
+# Use directly with npx - no installation needed
+npx thoughtmcp@latest
+
+# Or configure in your MCP client (see configuration examples below)
+```
+
+#### Option B: Local Development Setup
+
 ```bash
 # Clone the repository
 git clone https://github.com/keyurgolani/ThoughtMcp.git
@@ -77,7 +88,7 @@ ThoughtMCP works with popular AI development environments:
 - **[Void Editor](docs/integration/agentic-environments.md#void-editor)** - Modern AI editor
 - **[Generic MCP](docs/integration/agentic-environments.md#generic-mcp-configuration)** - Any MCP-compatible system
 
-**Quick Kiro Setup:**
+**Quick Kiro Setup (Local Development):**
 
 ```json
 {
@@ -94,7 +105,139 @@ ThoughtMCP works with popular AI development environments:
 }
 ```
 
+**Quick Kiro Setup (NPX - Recommended):**
+
+```json
+{
+  "mcpServers": {
+    "task-manager": {
+      "command": "npx",
+      "args": ["thoughtmcp@latest"],
+      "env": {
+        "COGNITIVE_DEFAULT_MODE": "balanced",
+        "COGNITIVE_ENABLE_EMOTION": "true",
+        "COGNITIVE_ENABLE_METACOGNITION": "true",
+        "COGNITIVE_WORKING_MEMORY_CAPACITY": "7",
+        "COGNITIVE_EPISODIC_MEMORY_SIZE": "1000",
+        "COGNITIVE_SEMANTIC_MEMORY_SIZE": "5000",
+        "COGNITIVE_TEMPERATURE": "0.7",
+        "COGNITIVE_TIMEOUT_MS": "30000",
+        "COGNITIVE_BRAIN_DIR": "~/.brain",
+        "LOG_LEVEL": "INFO"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
 👉 **[Complete Integration Guide](docs/INTEGRATION.md)** | **[Environment-Specific Setup](docs/integration/agentic-environments.md)**
+
+## MCP Server Configuration
+
+ThoughtMCP can be configured as an MCP server using environment variables. All configuration options are optional and have sensible defaults.
+
+### Environment Variables
+
+| Variable                            | Default    | Description                                                                              |
+| ----------------------------------- | ---------- | ---------------------------------------------------------------------------------------- |
+| `COGNITIVE_DEFAULT_MODE`            | `balanced` | Default thinking mode: `intuitive`, `deliberative`, `balanced`, `creative`, `analytical` |
+| `COGNITIVE_ENABLE_EMOTION`          | `true`     | Enable emotional processing and somatic markers                                          |
+| `COGNITIVE_ENABLE_METACOGNITION`    | `true`     | Enable self-monitoring and bias detection                                                |
+| `COGNITIVE_WORKING_MEMORY_CAPACITY` | `7`        | Working memory capacity (Miller's 7±2)                                                   |
+| `COGNITIVE_EPISODIC_MEMORY_SIZE`    | `1000`     | Maximum episodic memories to store                                                       |
+| `COGNITIVE_SEMANTIC_MEMORY_SIZE`    | `5000`     | Maximum semantic concepts to store                                                       |
+| `COGNITIVE_TEMPERATURE`             | `0.7`      | Randomness in neural processing (0.0-2.0)                                                |
+| `COGNITIVE_TIMEOUT_MS`              | `30000`    | Maximum processing time per request                                                      |
+| `COGNITIVE_BRAIN_DIR`               | `~/.brain` | Directory for persistent memory storage                                                  |
+| `LOG_LEVEL`                         | `INFO`     | Logging level: `DEBUG`, `INFO`, `WARN`, `ERROR`                                          |
+
+### Example Configurations
+
+#### Kiro IDE Configuration
+
+```json
+{
+  "mcpServers": {
+    "task-manager": {
+      "command": "npx",
+      "args": ["thoughtmcp@latest"],
+      "env": {
+        "COGNITIVE_DEFAULT_MODE": "balanced",
+        "COGNITIVE_ENABLE_EMOTION": "true",
+        "COGNITIVE_ENABLE_METACOGNITION": "true",
+        "COGNITIVE_WORKING_MEMORY_CAPACITY": "7",
+        "COGNITIVE_EPISODIC_MEMORY_SIZE": "1000",
+        "COGNITIVE_SEMANTIC_MEMORY_SIZE": "5000",
+        "COGNITIVE_TEMPERATURE": "0.7",
+        "COGNITIVE_TIMEOUT_MS": "30000",
+        "COGNITIVE_BRAIN_DIR": "~/.brain",
+        "LOG_LEVEL": "INFO"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+#### Claude Desktop Configuration
+
+```json
+{
+  "mcpServers": {
+    "thought": {
+      "command": "npx",
+      "args": ["thoughtmcp@latest"],
+      "env": {
+        "COGNITIVE_DEFAULT_MODE": "analytical",
+        "COGNITIVE_ENABLE_EMOTION": "false",
+        "COGNITIVE_TEMPERATURE": "0.5"
+      }
+    }
+  }
+}
+```
+
+#### High-Performance Configuration
+
+```json
+{
+  "mcpServers": {
+    "thought-fast": {
+      "command": "npx",
+      "args": ["thoughtmcp@latest"],
+      "env": {
+        "COGNITIVE_DEFAULT_MODE": "intuitive",
+        "COGNITIVE_WORKING_MEMORY_CAPACITY": "5",
+        "COGNITIVE_TIMEOUT_MS": "10000",
+        "COGNITIVE_TEMPERATURE": "0.3",
+        "LOG_LEVEL": "WARN"
+      }
+    }
+  }
+}
+```
+
+#### Creative Mode Configuration
+
+```json
+{
+  "mcpServers": {
+    "thought-creative": {
+      "command": "npx",
+      "args": ["thoughtmcp@latest"],
+      "env": {
+        "COGNITIVE_DEFAULT_MODE": "creative",
+        "COGNITIVE_TEMPERATURE": "1.2",
+        "COGNITIVE_ENABLE_EMOTION": "true",
+        "COGNITIVE_WORKING_MEMORY_CAPACITY": "9"
+      }
+    }
+  }
+}
+```
 
 ### 2. Try Your First Example
 

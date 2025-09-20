@@ -2,6 +2,7 @@
 
 /**
  * Entry point for the Cognitive MCP Server
+ * Configurable as MCP server with: npx thoughtmcp@latest
  */
 
 import { CognitiveMCPServer } from "./server/CognitiveMCPServer.js";

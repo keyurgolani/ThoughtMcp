@@ -1,7 +1,7 @@
 {
-  "name": "thought-mcp",
+  "name": "thoughtmcp",
   "version": "0.1.0",
-  "description": "MCP server implementing human-like cognitive architecture for enhanced AI reasoning",
+  "description": "AI that thinks more like humans do - MCP server with human-like cognitive architecture for enhanced reasoning, memory, and self-monitoring",
   "main": "dist/index.js",
   "type": "module",
   "exports": {
@@ -23,7 +23,7 @@
     }
   },
   "bin": {
-    "thought-mcp": "./dist/index.js"
+    "thoughtmcp": "./dist/index.js"
   },
   "files": [
     "dist/**/*",
@@ -76,7 +76,15 @@
     "cognitive",
     "ai",
     "reasoning",
-    "neuroscience"
+    "neuroscience",
+    "memory",
+    "metacognition",
+    "dual-process",
+    "human-like",
+    "thinking",
+    "claude",
+    "kiro",
+    "cursor"
   ],
   "repository": {
     "type": "git",
