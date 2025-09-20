@@ -53,6 +53,16 @@ The main example client that demonstrates:
 - **Reasoning Analysis**: Metacognitive analysis of reasoning processes
 - **Performance Benchmarking**: Automated performance testing
 
+### `agentic-usage-examples.md`
+
+Comprehensive guide showing how to use ThoughtMCP in different AI development environments:
+
+- **[Kiro IDE Examples](agentic-usage-examples.md#kiro-ide-examples)** - Code review, learning sessions, project planning
+- **[Claude Desktop Examples](agentic-usage-examples.md#claude-desktop-examples)** - Research, creative writing, decision making
+- **[Cursor IDE Examples](agentic-usage-examples.md#cursor-ide-examples)** - Architecture decisions, bug investigation, performance optimization
+- **[Void Editor Examples](agentic-usage-examples.md#void-editor-examples)** - API design, algorithm selection
+- **[Cross-Environment Patterns](agentic-usage-examples.md#cross-environment-patterns)** - Reusable patterns for any environment
+
 ## Usage Examples
 
 ### 1. Basic Thinking

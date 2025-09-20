@@ -67,6 +67,35 @@ npm run example:demo
 npm run example:benchmark
 ```
 
+### 🤖 **Use in Your AI Environment**
+
+ThoughtMCP works with popular AI development environments:
+
+- **[Kiro IDE](docs/integration/agentic-environments.md#kiro-ide)** - Workspace and user-level configuration
+- **[Claude Desktop](docs/integration/agentic-environments.md#claude-desktop)** - Desktop app integration
+- **[Cursor IDE](docs/integration/agentic-environments.md#cursor-ide)** - VS Code-based AI coding
+- **[Void Editor](docs/integration/agentic-environments.md#void-editor)** - Modern AI editor
+- **[Generic MCP](docs/integration/agentic-environments.md#generic-mcp-configuration)** - Any MCP-compatible system
+
+**Quick Kiro Setup:**
+
+```json
+{
+  "mcpServers": {
+    "thought-mcp": {
+      "command": "node",
+      "args": ["/path/to/ThoughtMcp/dist/index.js"],
+      "env": {
+        "COGNITIVE_DEFAULT_MODE": "balanced",
+        "COGNITIVE_ENABLE_EMOTION": "true"
+      }
+    }
+  }
+}
+```
+
+👉 **[Complete Integration Guide](docs/INTEGRATION.md)** | **[Environment-Specific Setup](docs/integration/agentic-environments.md)**
+
 ### 2. Try Your First Example
 
 Ask ThoughtMCP to help with a decision:
@@ -182,6 +211,7 @@ Each example shows:
 
 - **[API Reference](docs/api/)** - Complete tool documentation and schemas
 - **[Integration Guide](docs/guides/integration.md)** - Add to your applications
+- **[Agentic Environments](docs/integration/agentic-environments.md)** - Configure in Kiro, Claude, Cursor, Void, and more
 - **[Configuration](docs/guides/configuration.md)** - Customize behavior and performance
 - **[Troubleshooting](docs/guides/troubleshooting.md)** - Common issues and solutions
 

@@ -40,7 +40,9 @@
     "prepare": "husky install",
     "prepublishOnly": "npm run validate:ci",
     "example:demo": "npm run build && node dist/examples/cognitive-client.js",
-    "example:benchmark": "npm run build && node dist/examples/cognitive-client.js --benchmark"
+    "example:benchmark": "npm run build && node dist/examples/cognitive-client.js --benchmark",
+    "validate:mcp": "node scripts/validate-mcp-config.js",
+    "setup:mcp": "npm run build && npm run validate:mcp"
   },
   "keywords": [
     "mcp",
