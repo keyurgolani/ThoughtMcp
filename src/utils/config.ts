@@ -114,10 +114,10 @@ export class ConfigManager {
             config: file_config,
           });
 
-          console.log(`Loaded configuration from ${file_path}`);
+          // Configuration loaded from file
         }
-      } catch (error) {
-        console.warn(`Failed to load configuration from ${file_path}:`, error);
+      } catch {
+        // Failed to load configuration from file
       }
     }
   }
@@ -323,9 +323,9 @@ export class ConfigManager {
   /**
    * Create configuration tuning preset
    */
-  createPreset(name: string, config: Partial<CognitiveConfig>): void {
+  createPreset(_name: string, _config: Partial<CognitiveConfig>): void {
     // This could be extended to save presets to file
-    console.log(`Created preset "${name}" with config:`, config);
+    // Created preset with configuration
   }
 
   /**

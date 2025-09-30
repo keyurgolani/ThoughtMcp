@@ -282,15 +282,12 @@ export class DeliberativeProcessor implements ISystem2Processor {
     const options: DeliberativeOption[] = [];
 
     // Apply each reasoning strategy
-    for (const [strategyName, strategy] of this.reasoningStrategies) {
+    for (const [_strategyName, strategy] of this.reasoningStrategies) {
       try {
         const strategyOptions = strategy(input);
         options.push(...strategyOptions);
-      } catch (error) {
-        // Continue with other strategies if one fails
-        console.warn(
-          `Strategy ${strategyName} failed: ${(error as Error).message}`
-        );
+      } catch {
+        // Strategy failed, continue with other strategies
       }
     }
 

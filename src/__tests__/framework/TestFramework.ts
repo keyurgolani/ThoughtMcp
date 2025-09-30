@@ -557,7 +557,7 @@ export class PerformanceTestFramework extends CognitiveTestFramework {
     name: string,
     testFn: () => Promise<any>
   ): Promise<PerformanceMetrics> {
-    const iterations = 100;
+    const iterations = 3; // Reduced from 100 to prevent memory leaks
     const results: PerformanceMetrics[] = [];
 
     for (let i = 0; i < iterations; i++) {

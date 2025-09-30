@@ -66,12 +66,20 @@ Welcome to the comprehensive documentation for ThoughtMCP, an MCP server impleme
 - **Emotional Processing**: Somatic markers and emotional modulation
 - **Metacognitive Monitoring**: Self-awareness and bias detection
 
-### 🔧 Four Core Tools
+### 🔧 Seven Cognitive Tools
+
+#### Core Cognitive Tools
 
 1. **`think`** - Process input through cognitive architecture
 2. **`remember`** - Store information in memory systems
 3. **`recall`** - Retrieve memories based on cues
 4. **`analyze_reasoning`** - Analyze reasoning for quality and biases
+
+#### Advanced Systematic Thinking Tools
+
+5. **`analyze_systematically`** - Apply proven thinking frameworks automatically
+6. **`think_parallel`** - Multi-stream reasoning with conflict resolution
+7. **`decompose_problem`** - Break complex problems into manageable components
 
 ### 🎯 Processing Modes
 

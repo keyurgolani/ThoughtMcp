@@ -286,7 +286,7 @@ Recall relevant knowledge:
 }
 ```
 
-## The Four Thinking Tools
+## The Complete Cognitive Toolkit
 
 ### 🧠 **Think** - Systematic Reasoning
 
@@ -296,6 +296,7 @@ Process complex questions using human-like reasoning:
 - **Deliberative mode**: Slow, careful analysis
 - **Creative mode**: Innovative problem-solving
 - **Analytical mode**: Logical, data-driven reasoning
+- **Balanced mode**: Adaptive combination of all approaches
 
 ### 💾 **Remember** - Build Knowledge
 
@@ -323,6 +324,35 @@ Check thinking quality and identify potential problems:
 - **Logic validation**: Ensure arguments are sound
 - **Confidence assessment**: Evaluate certainty levels
 - **Improvement suggestions**: Get better at reasoning
+
+### 🎯 **Analyze Systematically** - Framework-Based Problem Solving
+
+Apply proven thinking frameworks automatically:
+
+- **Auto framework selection**: Chooses optimal approach (Design Thinking, Scientific Method, Root Cause Analysis, etc.)
+- **Structured analysis**: Breaks problems into systematic steps
+- **Multiple perspectives**: Considers alternative approaches
+- **Evidence-based recommendations**: Provides reasoning for framework choice
+
+### 🔀 **Think Parallel** - Multi-Stream Reasoning
+
+Process problems through multiple reasoning streams simultaneously:
+
+- **Analytical stream**: Logical, evidence-based reasoning
+- **Creative stream**: Innovative and unconventional approaches
+- **Critical stream**: Bias detection and assumption challenging
+- **Synthetic stream**: Integration and holistic perspective
+- **Real-time coordination**: Streams share insights and resolve conflicts
+
+### 🧩 **Decompose Problem** - Complex Problem Breakdown
+
+Break down complex challenges into manageable components:
+
+- **Hierarchical decomposition**: Multi-level problem breakdown
+- **Dependency mapping**: Identifies relationships between sub-problems
+- **Priority ranking**: Determines optimal execution order
+- **Critical path analysis**: Highlights bottlenecks and key dependencies
+- **Multiple strategies**: Functional, temporal, stakeholder, and component-based approaches
 
 ## Real-World Examples
 

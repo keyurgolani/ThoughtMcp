@@ -109,7 +109,9 @@ Humans naturally monitor their own reasoning:
 }
 ```
 
-## The Four ThoughtMCP Tools
+## The Seven ThoughtMCP Tools
+
+### Core Cognitive Tools
 
 ### 🧠 Think Tool
 
@@ -235,45 +237,166 @@ Humans naturally monitor their own reasoning:
 - Suggestions for improvement
 - Overall coherence score
 
+### Advanced Systematic Thinking Tools
+
+### 🎯 Analyze Systematically Tool
+
+**What it does:** Applies proven thinking frameworks automatically to solve problems
+
+**Think of it like:** Having access to a library of expert problem-solving methods that are automatically selected based on your problem type
+
+**Frameworks available:**
+
+- Design Thinking for user-centered problems
+- Scientific Method for hypothesis-driven analysis
+- Root Cause Analysis for troubleshooting
+- Systems Thinking for complex interconnected issues
+- And more...
+
+**Example:**
+
+```json
+{
+  "tool": "analyze_systematically",
+  "arguments": {
+    "input": "How can we reduce customer churn in our SaaS product?",
+    "mode": "auto"
+  }
+}
+```
+
+**Response includes:**
+
+- Automatically selected framework (e.g., Design Thinking)
+- Step-by-step analysis using that framework
+- Alternative approaches considered
+- Structured recommendations
+
+### 🔀 Think Parallel Tool
+
+**What it does:** Processes problems through multiple reasoning streams simultaneously
+
+**Think of it like:** Having a team of experts (analytical, creative, critical, synthetic) all working on your problem at the same time, then combining their insights
+
+**Reasoning streams:**
+
+- **Analytical**: Logic and evidence-based reasoning
+- **Creative**: Innovative and unconventional approaches
+- **Critical**: Bias detection and assumption challenging
+- **Synthetic**: Integration and holistic perspective
+
+**Example:**
+
+```json
+{
+  "tool": "think_parallel",
+  "arguments": {
+    "input": "Should we pivot our business model to subscription-based?",
+    "enable_coordination": true
+  }
+}
+```
+
+**Response includes:**
+
+- Insights from each reasoning stream
+- Conflicts identified and resolved
+- Synthesized conclusion combining all perspectives
+- Confidence levels for each stream
+
+### 🧩 Decompose Problem Tool
+
+**What it does:** Breaks complex problems into manageable, prioritized components
+
+**Think of it like:** Having a project manager who takes your big, overwhelming problem and creates a clear action plan with priorities and dependencies
+
+**Decomposition strategies:**
+
+- **Hierarchical**: Break down by logical sub-components
+- **Functional**: Organize by required capabilities
+- **Temporal**: Structure by time-based phases
+- **Stakeholder**: Group by different perspectives
+
+**Example:**
+
+```json
+{
+  "tool": "decompose_problem",
+  "arguments": {
+    "input": "Launch a new AI-powered mobile app in 6 months",
+    "max_depth": 3,
+    "strategies": ["functional", "temporal"]
+  }
+}
+```
+
+**Response includes:**
+
+- Hierarchical breakdown of the problem
+- Dependencies between components
+- Priority ranking of sub-problems
+- Critical path analysis
+- Resource requirements
+
 ## How the Tools Work Together
 
 The real power comes from using the tools together:
 
-### Example: Making a Business Decision
+### Example: Solving a Complex Business Problem
 
-1. **Think** about the decision systematically
-2. **Recall** relevant past experiences and knowledge
-3. **Remember** the current situation for future reference
-4. **Analyze** the reasoning quality before finalizing
+Let's say you need to "Improve customer retention for our SaaS product." Here's how you might use all the tools together:
 
 ```json
-// Step 1: Initial thinking
+// Step 1: Break down the complex problem
+{
+  "tool": "decompose_problem",
+  "arguments": {
+    "input": "Improve customer retention for our SaaS product",
+    "strategy": "functional",
+    "max_depth": 3
+  }
+}
+// Result: Problem broken into sub-components like "Analyze churn reasons", "Improve onboarding", "Enhance product value"
+
+// Step 2: Apply systematic thinking to the main problem
+{
+  "tool": "analyze_systematically",
+  "arguments": {
+    "input": "Improve customer retention for our SaaS product",
+    "mode": "auto"
+  }
+}
+// Result: System selects Design Thinking framework, provides structured analysis
+
+// Step 3: Get multiple perspectives through parallel reasoning
+{
+  "tool": "think_parallel",
+  "arguments": {
+    "input": "What are the most effective strategies to improve SaaS customer retention?",
+    "enable_coordination": true
+  }
+}
+// Result: Analytical, creative, critical, and synthetic perspectives combined
+
+// Step 4: Recall relevant past experience
+{
+  "tool": "recall",
+  "arguments": {
+    "cue": "customer retention SaaS churn strategies"
+  }
+}
+// Result: Past experiences and knowledge about retention strategies
+
+// Step 5: Final integrated thinking with all context
 {
   "tool": "think",
   "arguments": {
-    "input": "Should we hire two junior developers or one senior developer?",
+    "input": "Based on the systematic analysis, parallel reasoning, and past experience, what's our best retention strategy?",
     "mode": "deliberative"
   }
 }
 
-// Step 2: Recall relevant experience
-{
-  "tool": "recall",
-  "arguments": {
-    "cue": "hiring decisions junior senior developers team productivity"
-  }
-}
-
-// Step 3: Final analysis with recalled information
-{
-  "tool": "think",
-  "arguments": {
-    "input": "Based on past experience with hiring, should we hire two junior developers or one senior developer?",
-    "mode": "analytical"
-  }
-}
-
-// Step 4: Quality check the reasoning
+// Step 6: Quality check the reasoning
 {
   "tool": "analyze_reasoning",
   "arguments": {
@@ -281,13 +404,13 @@ The real power comes from using the tools together:
   }
 }
 
-// Step 5: Remember the decision for future reference
+// Step 7: Remember the insights for future use
 {
   "tool": "remember",
   "arguments": {
-    "content": "Decided to hire one senior developer because mentorship capacity was limited",
-    "type": "episodic",
-    "importance": 0.7
+    "content": "Customer retention improved most through better onboarding and proactive support outreach",
+    "type": "semantic",
+    "importance": 0.9
   }
 }
 ```
@@ -324,26 +447,44 @@ The real power comes from using the tools together:
 
 ## Common Patterns
 
-### Pattern 1: Problem Solving
+### Pattern 1: Simple Problem Solving
 
 1. Think about the problem
 2. Recall similar past problems
 3. Think again with additional context
 4. Analyze the reasoning quality
 
-### Pattern 2: Learning from Experience
+### Pattern 2: Complex Problem Solving
+
+1. Decompose the problem into manageable parts
+2. Apply systematic thinking frameworks
+3. Use parallel reasoning for multiple perspectives
+4. Integrate insights and analyze reasoning quality
+5. Remember the solution approach for future use
+
+### Pattern 3: Learning from Experience
 
 1. Remember important experiences
 2. Store general principles learned
 3. Recall when facing similar situations
 4. Build expertise over time
 
-### Pattern 3: Decision Making
+### Pattern 4: Strategic Decision Making
 
-1. Think through options systematically
-2. Recall relevant past decisions
-3. Analyze reasoning for biases
-4. Remember the decision and outcome
+1. Decompose the decision into key factors
+2. Think through options using parallel reasoning
+3. Apply systematic frameworks for structured analysis
+4. Recall relevant past decisions
+5. Analyze reasoning for biases
+6. Remember the decision and outcome
+
+### Pattern 5: Innovation and Creativity
+
+1. Use parallel reasoning with emphasis on creative stream
+2. Apply systematic thinking with Design Thinking framework
+3. Decompose innovation challenges into components
+4. Think in creative mode with high temperature
+5. Analyze and refine creative ideas
 
 ## What Makes This Different?
 

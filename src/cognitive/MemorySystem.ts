@@ -598,10 +598,10 @@ export class MemorySystem implements CognitiveComponent {
           );
         }
 
-        console.log("Memory system recovered from backup");
+        // Memory system recovered from backup
       }
-    } catch (error) {
-      console.error("Recovery attempt failed:", error);
+    } catch {
+      // Recovery attempt failed
     }
   }
 
@@ -613,8 +613,8 @@ export class MemorySystem implements CognitiveComponent {
     if (this.persistenceManager && this.config.auto_save_enabled) {
       try {
         await this.saveToStorage();
-      } catch (error) {
-        console.error("Failed to save memory state during shutdown:", error);
+      } catch {
+        // Failed to save memory state during shutdown
       }
     }
 
@@ -639,8 +639,8 @@ export class MemorySystem implements CognitiveComponent {
     this.consolidationTimer = setInterval(async () => {
       try {
         await this.runConsolidation();
-      } catch (error) {
-        console.error("Consolidation process error:", error);
+      } catch {
+        // Consolidation process error occurred
       }
     }, this.config.consolidation_interval_ms);
   }
@@ -650,8 +650,8 @@ export class MemorySystem implements CognitiveComponent {
       try {
         this.episodicMemory.decay();
         this.semanticMemory.applyDecay();
-      } catch (error) {
-        console.error("Decay process error:", error);
+      } catch {
+        // Decay process error occurred
       }
     }, this.config.memory_decay_interval_ms);
   }

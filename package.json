@@ -1,6 +1,6 @@
 {
   "name": "thoughtmcp",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "AI that thinks more like humans do - MCP server with human-like cognitive architecture for enhanced reasoning, memory, and self-monitoring",
   "main": "dist/index.js",
   "type": "module",

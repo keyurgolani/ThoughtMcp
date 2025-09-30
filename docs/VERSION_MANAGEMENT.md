@@ -14,7 +14,7 @@ The version is defined only in `package.json`:
 
 ```json
 {
-  "version": "0.2.1"
+  "version": "0.3.0"
 }
 ```
 
@@ -26,12 +26,12 @@ All code that needs to reference the version uses the centralized version utilit
 import { getVersion, getVersionInfo } from "../utils/version.js";
 
 // Get the current version
-const version = getVersion(); // "0.2.1"
+const version = getVersion(); // "0.3.0"
 
 // Get detailed version information
 const versionInfo = getVersionInfo();
 // {
-//   version: "0.2.1",
+//   version: "0.3.0",
 //   major: 0,
 //   minor: 2,
 //   patch: 1,
@@ -55,13 +55,13 @@ The following components automatically use the centralized version:
 Use the provided scripts for version bumping:
 
 ```bash
-# Bump patch version (0.2.1 -> 0.2.2)
+# Bump patch version (0.3.0 -> 0.3.1)
 npm run version:patch
 
-# Bump minor version (0.2.1 -> 0.3.0)
+# Bump minor version (0.3.0 -> 0.4.0)
 npm run version:minor
 
-# Bump major version (0.2.1 -> 1.0.0)
+# Bump major version (0.3.0 -> 1.0.0)
 npm run version:major
 
 # Set specific version

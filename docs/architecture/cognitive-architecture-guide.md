@@ -640,3 +640,289 @@ const agentProfiles = {
 ```
 
 This cognitive architecture provides a flexible, biologically-inspired framework for human-like AI reasoning. By understanding and tuning these components, you can create AI systems that think more naturally and effectively across diverse domains and use cases.
+
+## Systematic Thinking Architecture
+
+### Overview
+
+The systematic thinking layer adds structured problem-solving capabilities to the cognitive architecture, implementing multiple thinking frameworks that can be automatically selected based on problem characteristics. This layer operates independently of accumulated memories, enabling real-time systematic analysis.
+
+### Architecture Components
+
+```mermaid
+graph TB
+    Input[Problem Input] --> PA[Problem Analyzer]
+    PA --> PS[Problem Structure]
+    PS --> DFS[Dynamic Framework Selector]
+    DFS --> FR[Framework Recommendation]
+
+    FR --> STO[Systematic Thinking Orchestrator]
+    STO --> PRP[Parallel Reasoning Processor]
+    PRP --> AS[Analytical Stream]
+    PRP --> CS[Creative Stream]
+    PRP --> CRS[Critical Stream]
+    PRP --> SS[Synthetic Stream]
+
+    AS --> SSM[Stream Synchronization Manager]
+    CS --> SSM
+    CRS --> SSM
+    SS --> SSM
+
+    SSM --> CR[Conflict Resolution]
+    CR --> RTPD[Real-Time Problem Decomposer]
+    RTPD --> SAR[Systematic Analysis Result]
+
+    DFS -.-> TF1[Scientific Method]
+    DFS -.-> TF2[Design Thinking]
+    DFS -.-> TF3[Systems Thinking]
+    DFS -.-> TF4[Critical Thinking]
+    DFS -.-> TF5[Creative Problem Solving]
+    DFS -.-> TF6[Root Cause Analysis]
+    DFS -.-> TF7[First Principles]
+    DFS -.-> TF8[Scenario Planning]
+```
+
+### Core Components
+
+#### 1. Problem Analyzer
+
+Analyzes incoming problems to extract key characteristics:
+
+- **Complexity Assessment**: Estimates problem complexity (0-1 scale)
+- **Uncertainty Quantification**: Measures problem uncertainty levels
+- **Domain Classification**: Identifies problem domain (technology, business, science, etc.)
+- **Constraint Extraction**: Identifies time, resource, and technical constraints
+- **Stakeholder Identification**: Maps relevant stakeholders and their interests
+
+```typescript
+interface ProblemCharacteristics {
+  complexity: number; // 0-1 scale
+  uncertainty: number; // 0-1 scale
+  domain: string;
+  constraints: string[];
+  stakeholders: string[];
+  time_sensitivity: number;
+  resource_requirements: string[];
+}
+```
+
+#### 2. Dynamic Framework Selector
+
+Automatically selects the most appropriate thinking framework based on problem characteristics:
+
+```typescript
+interface FrameworkSelection {
+  framework: ThinkingFramework;
+  confidence: number;
+  reasoning: string;
+  alternatives: AlternativeFramework[];
+}
+```
+
+**Framework Selection Logic**:
+
+- **Scientific Method**: High uncertainty + empirical validation needed
+- **Design Thinking**: User-centered problems + iteration required
+- **Systems Thinking**: High complexity + multiple stakeholders
+- **Critical Thinking**: Evidence evaluation + argument analysis
+- **Creative Problem Solving**: Innovation required + open-ended
+- **Root Cause Analysis**: Problem diagnosis + causal relationships
+- **First Principles**: Fundamental understanding + breakthrough needed
+- **Scenario Planning**: Future uncertainty + strategic planning
+
+#### 3. Parallel Reasoning Processor
+
+Executes multiple reasoning streams simultaneously:
+
+- **Analytical Stream**: Logical, data-driven analysis
+- **Creative Stream**: Innovative, divergent thinking
+- **Critical Stream**: Skeptical evaluation and risk assessment
+- **Synthetic Stream**: Integration and pattern recognition
+
+Each stream operates independently and contributes unique perspectives to the final solution.
+
+#### 4. Stream Synchronization Manager
+
+Coordinates parallel streams and resolves conflicts:
+
+```typescript
+interface StreamCoordination {
+  synchronization_points: SyncPoint[];
+  conflict_resolutions: ConflictResolution[];
+  consensus_building: ConsensusStrategy;
+  quality_assurance: QualityMetrics;
+}
+```
+
+#### 5. Real-Time Problem Decomposer
+
+Breaks down complex problems into manageable components:
+
+- **Hierarchical Decomposition**: Tree-like problem breakdown
+- **Dependency Mapping**: Identifies relationships between sub-problems
+- **Priority Analysis**: Ranks sub-problems by importance and urgency
+- **Critical Path Identification**: Finds bottlenecks and key dependencies
+
+### Integration with Core Architecture
+
+The systematic thinking layer integrates seamlessly with the core cognitive architecture:
+
+#### Memory Integration
+
+- **Framework Learning**: System learns which frameworks work best for different problem types
+- **Pattern Recognition**: Identifies recurring problem patterns and optimal approaches
+- **Experience Storage**: Stores systematic thinking results for future reference
+- **Context Retrieval**: Leverages past systematic analyses for similar problems
+
+#### Dual-Process Integration
+
+- **System 1 Enhancement**: Intuitive framework selection based on pattern recognition
+- **System 2 Activation**: Deliberative systematic analysis for complex problems
+- **Hybrid Processing**: Combines intuitive insights with systematic analysis
+- **Metacognitive Monitoring**: Evaluates systematic thinking quality and adjusts approach
+
+#### Emotional Processing Integration
+
+- **Stakeholder Empathy**: Considers emotional impact on different stakeholders
+- **Decision Confidence**: Emotional assessment of systematic thinking results
+- **Bias Detection**: Identifies emotional biases in systematic analysis
+- **Motivation Analysis**: Understands underlying motivations in problem context
+
+### Configuration and Tuning
+
+#### Framework Selection Tuning
+
+```typescript
+const systematicThinkingConfig = {
+  framework_selection: {
+    auto_selection_threshold: 0.7, // Confidence threshold for automatic selection
+    fallback_framework: "systems_thinking", // Default when uncertain
+    multi_framework_mode: true, // Use multiple frameworks simultaneously
+    learning_enabled: true, // Learn from framework effectiveness
+  },
+  parallel_processing: {
+    max_streams: 4, // Maximum concurrent reasoning streams
+    synchronization_interval: 500, // ms between sync points
+    conflict_resolution_strategy: "weighted_consensus",
+    quality_threshold: 0.6, // Minimum quality for stream results
+  },
+  problem_decomposition: {
+    max_depth: 4, // Maximum decomposition levels
+    min_complexity_threshold: 0.5, // Minimum complexity for decomposition
+    dependency_analysis_enabled: true,
+    critical_path_optimization: true,
+  },
+};
+```
+
+#### Performance Optimization
+
+**For Speed**:
+
+```typescript
+const fastSystematicConfig = {
+  framework_selection: { auto_selection_threshold: 0.5 },
+  parallel_processing: { max_streams: 2 },
+  problem_decomposition: { max_depth: 2 },
+  quality_vs_speed_tradeoff: "speed",
+};
+```
+
+**For Quality**:
+
+```typescript
+const qualitySystematicConfig = {
+  framework_selection: { auto_selection_threshold: 0.8 },
+  parallel_processing: { max_streams: 6 },
+  problem_decomposition: { max_depth: 6 },
+  quality_vs_speed_tradeoff: "quality",
+};
+```
+
+### Domain-Specific Systematic Thinking
+
+#### Technology Domain
+
+```typescript
+const techSystematicConfig = {
+  preferred_frameworks: [
+    "first_principles",
+    "systems_thinking",
+    "root_cause_analysis",
+  ],
+  problem_characteristics: {
+    complexity_weight: 0.8,
+    technical_constraints_priority: "high",
+    scalability_considerations: true,
+  },
+  decomposition_strategy: "functional",
+};
+```
+
+#### Business Domain
+
+```typescript
+const businessSystematicConfig = {
+  preferred_frameworks: [
+    "design_thinking",
+    "scenario_planning",
+    "systems_thinking",
+  ],
+  problem_characteristics: {
+    stakeholder_analysis_depth: "high",
+    market_considerations: true,
+    risk_assessment_priority: "high",
+  },
+  decomposition_strategy: "stakeholder",
+};
+```
+
+#### Research Domain
+
+```typescript
+const researchSystematicConfig = {
+  preferred_frameworks: [
+    "scientific_method",
+    "critical_thinking",
+    "first_principles",
+  ],
+  problem_characteristics: {
+    uncertainty_tolerance: "high",
+    evidence_requirements: "strict",
+    hypothesis_generation: true,
+  },
+  decomposition_strategy: "temporal",
+};
+```
+
+### Best Practices
+
+#### 1. Framework Selection
+
+- **Trust the Auto-Selection**: The system learns from experience and improves over time
+- **Override When Necessary**: Manual framework selection for specialized domains
+- **Combine Frameworks**: Use multiple frameworks for complex, multi-faceted problems
+- **Monitor Effectiveness**: Track which frameworks work best for your use cases
+
+#### 2. Parallel Processing
+
+- **Balance Streams**: Ensure all reasoning streams contribute meaningfully
+- **Resolve Conflicts Early**: Address contradictions between streams promptly
+- **Synthesize Insights**: Combine unique insights from different streams
+- **Quality Control**: Maintain quality standards across all streams
+
+#### 3. Problem Decomposition
+
+- **Appropriate Depth**: Don't over-decompose simple problems
+- **Dependency Awareness**: Always consider relationships between sub-problems
+- **Priority Focus**: Start with high-priority, high-impact components
+- **Iterative Refinement**: Refine decomposition as understanding improves
+
+#### 4. Integration with Core Systems
+
+- **Memory Utilization**: Leverage past systematic analyses for similar problems
+- **Emotional Consideration**: Include stakeholder emotions in systematic analysis
+- **Metacognitive Monitoring**: Continuously evaluate systematic thinking quality
+- **Adaptive Learning**: Allow the system to learn and improve from experience
+
+The systematic thinking architecture provides a powerful framework for structured problem-solving that complements the core cognitive architecture's intuitive and deliberative processes. By combining multiple thinking frameworks with parallel processing and real-time problem decomposition, it enables sophisticated analysis of complex problems while maintaining the flexibility and adaptability of human-like reasoning.

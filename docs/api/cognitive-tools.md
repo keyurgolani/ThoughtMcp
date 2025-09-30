@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ThoughtMCP server provides four core cognitive tools that implement human-like thinking processes through the Model Context Protocol (MCP). These tools enable AI systems to process information through multiple cognitive layers, maintain memory systems, and perform metacognitive analysis.
+The ThoughtMCP server provides seven core cognitive tools that implement human-like thinking processes through the Model Context Protocol (MCP). These tools enable AI systems to process information through multiple cognitive layers, maintain memory systems, perform systematic thinking analysis, and execute parallel reasoning processes.
 
 ## Tool Specifications
 
@@ -747,3 +747,372 @@ class AdvancedCognitiveAI extends CognitiveAI {
 - Handle graceful degradation scenarios
 - Log errors with sufficient context for debugging
 - Provide meaningful error messages to users
+
+## Systematic Thinking Tools
+
+The following tools implement systematic thinking frameworks for structured problem analysis and solution development.
+
+### 5. `analyze_systematically` - Systematic Analysis Tool
+
+Analyze problems using systematic thinking frameworks with automatic framework selection and structured problem decomposition.
+
+#### Schema
+
+```json
+{
+  "name": "analyze_systematically",
+  "description": "Analyze problems using systematic thinking frameworks with automatic framework selection and structured problem decomposition",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "input": {
+        "type": "string",
+        "description": "The problem or question to analyze systematically"
+      },
+      "mode": {
+        "type": "string",
+        "enum": ["auto", "hybrid", "manual"],
+        "default": "auto",
+        "description": "Framework selection mode"
+      },
+      "context": {
+        "type": "object",
+        "description": "Contextual information for analysis",
+        "properties": {
+          "domain": { "type": "string" },
+          "session_id": { "type": "string" },
+          "urgency": { "type": "number", "minimum": 0, "maximum": 1 },
+          "complexity": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "required": ["input"]
+  }
+}
+```
+
+#### Response Format
+
+```typescript
+interface SystematicAnalysisResult {
+  problem_structure: ProblemStructure;
+  recommended_framework: FrameworkRecommendation;
+  analysis_steps: AnalysisStep[];
+  confidence: number;
+  processing_time_ms: number;
+  alternative_approaches: AlternativeApproach[];
+}
+
+interface ProblemStructure {
+  main_problem: Problem;
+  sub_problems: Problem[];
+  dependencies: string[];
+  constraints: string[];
+  stakeholders: string[];
+}
+
+interface FrameworkRecommendation {
+  framework: ThinkingFramework;
+  confidence: number;
+  reasoning: string;
+}
+
+interface ThinkingFramework {
+  type:
+    | "scientific_method"
+    | "design_thinking"
+    | "systems_thinking"
+    | "critical_thinking"
+    | "creative_problem_solving"
+    | "root_cause_analysis"
+    | "first_principles"
+    | "scenario_planning";
+  name: string;
+  description: string;
+  steps: FrameworkStep[];
+  strengths: string[];
+  limitations: string[];
+}
+```
+
+#### Usage Examples
+
+**Analyze Technical Problem**
+
+```typescript
+const result = await client.request({
+  method: "tools/call",
+  params: {
+    name: "analyze_systematically",
+    arguments: {
+      input:
+        "How can we improve the performance of our distributed system while maintaining reliability?",
+      context: {
+        domain: "technology",
+        complexity: 0.8,
+        urgency: 0.6,
+      },
+    },
+  },
+});
+```
+
+### 6. `think_parallel` - Parallel Reasoning Tool
+
+Process problems through parallel reasoning streams (analytical, creative, critical, synthetic) with real-time coordination and conflict resolution.
+
+#### Schema
+
+```json
+{
+  "name": "think_parallel",
+  "description": "Process problems through parallel reasoning streams with real-time coordination and conflict resolution",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "input": {
+        "type": "string",
+        "description": "The problem or question to process through parallel reasoning"
+      },
+      "streams": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": ["analytical", "creative", "critical", "synthetic"]
+        },
+        "default": ["analytical", "creative", "critical", "synthetic"],
+        "description": "Reasoning streams to activate"
+      },
+      "context": {
+        "type": "object",
+        "description": "Contextual information for processing",
+        "properties": {
+          "domain": { "type": "string" },
+          "session_id": { "type": "string" },
+          "time_limit_ms": { "type": "number" }
+        }
+      }
+    },
+    "required": ["input"]
+  }
+}
+```
+
+#### Response Format
+
+```typescript
+interface ParallelReasoningResult {
+  synthesized_result: SynthesizedThought;
+  stream_results: StreamResult[];
+  conflicts_resolved: ConflictResolution[];
+  processing_time_ms: number;
+  confidence: number;
+}
+
+interface StreamResult {
+  stream_type: "analytical" | "creative" | "critical" | "synthetic";
+  content: string;
+  confidence: number;
+  reasoning_steps: string[];
+  unique_insights: string[];
+}
+
+interface ConflictResolution {
+  conflicting_streams: string[];
+  conflict_description: string;
+  resolution_strategy: string;
+  final_decision: string;
+}
+```
+
+#### Usage Examples
+
+**Parallel Analysis of Business Problem**
+
+```typescript
+const result = await client.request({
+  method: "tools/call",
+  params: {
+    name: "think_parallel",
+    arguments: {
+      input:
+        "Should we expand our product line to include AI-powered features?",
+      streams: ["analytical", "creative", "critical"],
+      context: {
+        domain: "business",
+        session_id: "strategy_session_1",
+      },
+    },
+  },
+});
+```
+
+### 7. `decompose_problem` - Problem Decomposition Tool
+
+Decompose complex problems into hierarchical structures with dependency mapping, priority analysis, and critical path identification using multiple decomposition strategies.
+
+#### Schema
+
+```json
+{
+  "name": "decompose_problem",
+  "description": "Decompose complex problems into hierarchical structures with dependency mapping and priority analysis",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "input": {
+        "type": "string",
+        "description": "The complex problem to decompose"
+      },
+      "strategy": {
+        "type": "string",
+        "enum": [
+          "hierarchical",
+          "functional",
+          "temporal",
+          "stakeholder",
+          "risk_based"
+        ],
+        "default": "hierarchical",
+        "description": "Decomposition strategy to use"
+      },
+      "max_depth": {
+        "type": "number",
+        "default": 4,
+        "minimum": 1,
+        "maximum": 8,
+        "description": "Maximum decomposition depth"
+      },
+      "context": {
+        "type": "object",
+        "description": "Contextual information for decomposition",
+        "properties": {
+          "domain": { "type": "string" },
+          "session_id": { "type": "string" },
+          "constraints": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "required": ["input"]
+  }
+}
+```
+
+#### Response Format
+
+```typescript
+interface ProblemDecompositionResult {
+  root_problem: ProblemNode;
+  decomposition_tree: ProblemNode[];
+  dependencies: DependencyMapping[];
+  critical_path: string[];
+  priority_analysis: PriorityAnalysis;
+  processing_time_ms: number;
+}
+
+interface ProblemNode {
+  id: string;
+  title: string;
+  description: string;
+  level: number;
+  parent_id?: string;
+  children_ids: string[];
+  complexity: number;
+  estimated_effort: number;
+  priority: number;
+  risks: string[];
+}
+
+interface DependencyMapping {
+  from_node_id: string;
+  to_node_id: string;
+  dependency_type: "prerequisite" | "parallel" | "optional";
+  strength: number;
+}
+
+interface PriorityAnalysis {
+  high_priority_nodes: string[];
+  quick_wins: string[];
+  bottlenecks: string[];
+  recommendations: string[];
+}
+```
+
+#### Usage Examples
+
+**Decompose Software Development Project**
+
+```typescript
+const result = await client.request({
+  method: "tools/call",
+  params: {
+    name: "decompose_problem",
+    arguments: {
+      input:
+        "Build a scalable e-commerce platform with real-time inventory management",
+      strategy: "functional",
+      max_depth: 3,
+      context: {
+        domain: "software_development",
+        constraints: [
+          "6-month timeline",
+          "team of 5 developers",
+          "cloud-first architecture",
+        ],
+      },
+    },
+  },
+});
+```
+
+## Systematic Thinking Integration
+
+### Framework Selection
+
+The `analyze_systematically` tool automatically selects the most appropriate thinking framework based on problem characteristics:
+
+- **Scientific Method**: For hypothesis-driven problems requiring empirical validation
+- **Design Thinking**: For user-centered problems requiring empathy and iteration
+- **Systems Thinking**: For complex interconnected problems with multiple stakeholders
+- **Critical Thinking**: For problems requiring careful evaluation of evidence and arguments
+- **Creative Problem Solving**: For problems requiring innovative solutions
+- **Root Cause Analysis**: For problems requiring identification of underlying causes
+- **First Principles**: For problems requiring fundamental understanding
+- **Scenario Planning**: For problems involving uncertainty and future planning
+
+### Parallel Processing Benefits
+
+The `think_parallel` tool provides several advantages:
+
+1. **Diverse Perspectives**: Multiple reasoning streams provide different viewpoints
+2. **Conflict Resolution**: Automatic identification and resolution of contradictions
+3. **Enhanced Creativity**: Creative stream generates novel solutions
+4. **Quality Assurance**: Critical stream identifies potential issues
+5. **Synthesis**: Synthetic stream combines insights into coherent solutions
+
+### Problem Decomposition Strategies
+
+The `decompose_problem` tool supports multiple decomposition approaches:
+
+- **Hierarchical**: Break down by logical sub-components
+- **Functional**: Decompose by required functions or capabilities
+- **Temporal**: Break down by time-based phases or stages
+- **Stakeholder**: Organize by different stakeholder perspectives
+- **Risk-based**: Prioritize by risk levels and mitigation strategies
+
+### Best Practices for Systematic Thinking
+
+1. **Start with Analysis**: Use `analyze_systematically` to understand the problem structure
+2. **Apply Parallel Thinking**: Use `think_parallel` for complex decisions requiring multiple perspectives
+3. **Decompose When Needed**: Use `decompose_problem` for large, complex problems
+4. **Iterate and Refine**: Combine tools iteratively for comprehensive analysis
+5. **Document Insights**: Store systematic thinking results in memory for future reference
+
+### Integration with Core Tools
+
+Systematic thinking tools work seamlessly with core cognitive tools:
+
+- **Enhanced Think Tool**: The `think` tool automatically uses systematic thinking for complex analytical problems
+- **Memory Integration**: Systematic thinking results are stored and retrieved through memory tools
+- **Reasoning Analysis**: Use `analyze_reasoning` to evaluate systematic thinking quality
+- **Continuous Learning**: System learns from systematic thinking patterns to improve framework selection

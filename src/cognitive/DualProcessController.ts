@@ -128,7 +128,7 @@ export class DualProcessController {
         resolution_strategy: decision.reasoning,
         processing_time_system1: system1Result.metadata.processing_time_ms,
         processing_time_system2:
-          system2Result?.metadata.processing_time_ms || 0,
+          system2Result?.metadata.processing_time_ms ?? 0,
       });
 
       return finalResult;

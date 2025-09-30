@@ -292,7 +292,7 @@ export class SessionManager {
     });
 
     if (expired_sessions.length > 0) {
-      console.log(`Cleaned up ${expired_sessions.length} expired sessions`);
+      // Cleaned up expired sessions
     }
   }
 
@@ -308,7 +308,7 @@ export class SessionManager {
       this.sessions.delete(session_id);
     });
 
-    console.log(`Cleaned up ${sessions.length} oldest sessions due to limit`);
+    // Cleaned up oldest sessions due to limit
   }
 
   /**

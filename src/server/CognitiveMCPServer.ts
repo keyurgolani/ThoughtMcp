@@ -13,7 +13,18 @@ import {
 import { CognitiveOrchestrator } from "../cognitive/CognitiveOrchestrator.js";
 import { MemorySystem } from "../cognitive/MemorySystem.js";
 import { MetacognitionModule } from "../cognitive/MetacognitionModule.js";
+import { ParallelReasoningProcessor } from "../cognitive/ParallelReasoningProcessor.js";
+import {
+  DecompositionResult,
+  RealTimeProblemDecomposer,
+} from "../cognitive/RealTimeProblemDecomposer.js";
+import { SystematicThinkingOrchestrator } from "../cognitive/SystematicThinkingOrchestrator.js";
 import { IMCPServer, IToolHandler } from "../interfaces/mcp.js";
+import { ParallelReasoningResult } from "../interfaces/parallel-reasoning.js";
+import {
+  Problem,
+  SystematicThinkingMode,
+} from "../interfaces/systematic-thinking.js";
 import type {
   CognitiveConfig,
   CognitiveInput,
@@ -27,11 +38,15 @@ import { ProcessingMode } from "../types/core.js";
 import {
   AnalysisResult,
   AnalyzeReasoningArgs,
+  AnalyzeSystematicallyArgs,
+  DecomposeProblemArgs,
   MemoryResult,
   RecallArgs,
   RecallResult,
   RememberArgs,
+  SystematicAnalysisResult,
   ThinkArgs,
+  ThinkParallelArgs,
   TOOL_SCHEMAS,
 } from "../types/mcp.js";
 import { ConfigManager } from "../utils/config.js";
@@ -53,6 +68,9 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   private memorySystem: MemorySystem;
   private performanceMonitor: PerformanceMonitor;
   private metacognitionModule: MetacognitionModule;
+  private systematicThinkingOrchestrator: SystematicThinkingOrchestrator;
+  private parallelReasoningProcessor: ParallelReasoningProcessor;
+  private realTimeProblemDecomposer: RealTimeProblemDecomposer;
   private configManager: ConfigManager;
 
   constructor(performanceThresholds?: Partial<PerformanceThresholds>) {
@@ -89,6 +107,9 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     });
 
     this.metacognitionModule = new MetacognitionModule();
+    this.systematicThinkingOrchestrator = new SystematicThinkingOrchestrator();
+    this.parallelReasoningProcessor = new ParallelReasoningProcessor();
+    this.realTimeProblemDecomposer = new RealTimeProblemDecomposer();
     this.performanceMonitor = new PerformanceMonitor(performanceThresholds);
   }
 
@@ -101,6 +122,9 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     await this.cognitiveOrchestrator.initialize();
     await this.memorySystem.initialize();
     await this.metacognitionModule.initialize({});
+    await this.systematicThinkingOrchestrator.initialize();
+    await this.parallelReasoningProcessor.initialize();
+    await this.realTimeProblemDecomposer.initialize();
 
     this.registerTools();
     this.setupRequestHandlers();
@@ -287,6 +311,85 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               };
               break;
             }
+            case "analyze_systematically": {
+              result = await this.handleAnalyzeSystematically(
+                this.validateAnalyzeSystematicallyArgs(args)
+              );
+              const systematicResult = result as SystematicAnalysisResult;
+              measurement.recordCognitiveMetrics({
+                confidenceScore: systematicResult.confidence || 0.7,
+                reasoningDepth: systematicResult.analysis_steps?.length || 0,
+                memoryRetrievals: 0,
+                workingMemoryLoad: 0.8,
+                metacognitionTime: systematicResult.processing_time_ms ?? 0,
+              });
+              const systematicMetrics = measurement.complete();
+              formattedResponse = {
+                success: true,
+                data: result,
+                metadata: {
+                  timestamp: Date.now(),
+                  processing_time_ms: systematicMetrics.responseTime,
+                  tool_name: "analyze_systematically",
+                  version: getVersion(),
+                  ...(requestId && { request_id: requestId }),
+                },
+              };
+              break;
+            }
+            case "think_parallel": {
+              result = await this.handleThinkParallel(
+                this.validateThinkParallelArgs(args)
+              );
+              const parallelResult = result as ParallelReasoningResult;
+              measurement.recordCognitiveMetrics({
+                confidenceScore: parallelResult.confidence || 0.7,
+                reasoningDepth: parallelResult.stream_results?.length || 0,
+                memoryRetrievals: 0,
+                workingMemoryLoad: 0.9,
+                metacognitionTime: parallelResult.processing_time_ms ?? 0,
+              });
+              const parallelMetrics = measurement.complete();
+              formattedResponse = {
+                success: true,
+                data: result,
+                metadata: {
+                  timestamp: Date.now(),
+                  processing_time_ms: parallelMetrics.responseTime,
+                  tool_name: "think_parallel",
+                  version: getVersion(),
+                  ...(requestId && { request_id: requestId }),
+                },
+              };
+              break;
+            }
+            case "decompose_problem": {
+              result = await this.handleDecomposeProblem(
+                this.validateDecomposeProblemArgs(args)
+              );
+              const decompositionResult = result as DecompositionResult;
+              measurement.recordCognitiveMetrics({
+                confidenceScore: decompositionResult.confidence || 0.7,
+                reasoningDepth:
+                  decompositionResult.hierarchical_structure?.length || 0,
+                memoryRetrievals: 0,
+                workingMemoryLoad: 0.8,
+                metacognitionTime: decompositionResult.processing_time_ms ?? 0,
+              });
+              const decompositionMetrics = measurement.complete();
+              formattedResponse = {
+                success: true,
+                data: result,
+                metadata: {
+                  timestamp: Date.now(),
+                  processing_time_ms: decompositionMetrics.responseTime,
+                  tool_name: "decompose_problem",
+                  version: getVersion(),
+                  ...(requestId && { request_id: requestId }),
+                },
+              };
+              break;
+            }
             default:
               throw new Error(`Unhandled tool: ${name}`);
           }
@@ -426,6 +529,17 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     }
 
     if (
+      args.systematic_thinking_mode &&
+      !["auto", "hybrid", "manual"].includes(
+        args.systematic_thinking_mode as string
+      )
+    ) {
+      throw new Error(
+        `Invalid systematic thinking mode: ${args.systematic_thinking_mode}. Valid modes: auto, hybrid, manual`
+      );
+    }
+
+    if (
       args.temperature !== undefined &&
       (typeof args.temperature !== "number" ||
         args.temperature < 0 ||
@@ -449,6 +563,11 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       context: args.context as Record<string, unknown>,
       enable_emotion: args.enable_emotion as boolean,
       enable_metacognition: args.enable_metacognition as boolean,
+      enable_systematic_thinking: args.enable_systematic_thinking as boolean,
+      systematic_thinking_mode: args.systematic_thinking_mode as
+        | "auto"
+        | "hybrid"
+        | "manual",
       max_depth: args.max_depth as number,
       temperature: args.temperature as number,
     };
@@ -559,6 +678,111 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     return {
       reasoning_steps: args.reasoning_steps as ReasoningStep[],
       context: args.context as Record<string, unknown>,
+    };
+  }
+
+  private validateAnalyzeSystematicallyArgs(
+    args: Record<string, unknown>
+  ): AnalyzeSystematicallyArgs {
+    if (!args.input || typeof args.input !== "string") {
+      throw new Error(
+        "Analyze systematically tool requires a valid input string"
+      );
+    }
+
+    if (
+      args.mode &&
+      !["auto", "hybrid", "manual"].includes(args.mode as string)
+    ) {
+      throw new Error(
+        `Invalid systematic thinking mode: ${args.mode}. Valid modes: auto, hybrid, manual`
+      );
+    }
+
+    return {
+      input: args.input as string,
+      mode: args.mode as SystematicThinkingMode,
+      context: args.context as Record<string, unknown>,
+    };
+  }
+
+  private validateThinkParallelArgs(
+    args: Record<string, unknown>
+  ): ThinkParallelArgs {
+    if (!args.input || typeof args.input !== "string") {
+      throw new Error("Think parallel tool requires a valid input string");
+    }
+
+    if (
+      args.synchronization_interval !== undefined &&
+      (typeof args.synchronization_interval !== "number" ||
+        args.synchronization_interval < 100 ||
+        args.synchronization_interval > 5000)
+    ) {
+      throw new Error(
+        "Synchronization interval must be a number between 100 and 5000 milliseconds"
+      );
+    }
+
+    return {
+      input: args.input as string,
+      context: args.context as Record<string, unknown>,
+      enable_coordination: args.enable_coordination as boolean,
+      synchronization_interval: args.synchronization_interval as number,
+    };
+  }
+
+  private validateDecomposeProblemArgs(
+    args: Record<string, unknown>
+  ): DecomposeProblemArgs {
+    if (!args.input || typeof args.input !== "string") {
+      throw new Error("Decompose problem tool requires a valid input string");
+    }
+
+    if (
+      args.strategies !== undefined &&
+      (!Array.isArray(args.strategies) ||
+        !args.strategies.every((s) => typeof s === "string"))
+    ) {
+      throw new Error("Strategies must be an array of strings");
+    }
+
+    if (
+      args.max_depth !== undefined &&
+      (typeof args.max_depth !== "number" ||
+        args.max_depth < 1 ||
+        args.max_depth > 5)
+    ) {
+      throw new Error("Max depth must be a number between 1 and 5");
+    }
+
+    const validStrategies = [
+      "functional",
+      "temporal",
+      "stakeholder",
+      "component",
+      "risk",
+      "resource",
+      "complexity",
+    ];
+
+    if (args.strategies) {
+      for (const strategy of args.strategies as string[]) {
+        if (!validStrategies.includes(strategy)) {
+          throw new Error(
+            `Invalid strategy: ${strategy}. Valid strategies: ${validStrategies.join(
+              ", "
+            )}`
+          );
+        }
+      }
+    }
+
+    return {
+      input: args.input as string,
+      context: args.context as Record<string, unknown>,
+      strategies: args.strategies as string[],
+      max_depth: args.max_depth as number,
     };
   }
 
@@ -1019,6 +1243,322 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     }
   }
 
+  async handleAnalyzeSystematically(
+    args: AnalyzeSystematicallyArgs
+  ): Promise<SystematicAnalysisResult> {
+    const startTime = Date.now();
+    const requestId = this.generateRequestId();
+
+    // Start performance measurement
+    const measurement = this.performanceMonitor.startMeasurement(
+      requestId,
+      "analyze_systematically"
+    );
+
+    try {
+      // Validate arguments first
+      const validatedArgs = this.validateAnalyzeSystematicallyArgs(
+        args as unknown as Record<string, unknown>
+      );
+
+      console.error(
+        `Processing systematic analysis request: ${validatedArgs.input.substring(
+          0,
+          100
+        )}${validatedArgs.input.length > 100 ? "..." : ""}`
+      );
+
+      // Process through systematic thinking orchestrator with error handling
+      const operationResult = await ErrorHandler.withErrorHandling(
+        () =>
+          this.systematicThinkingOrchestrator.analyzeSystematically(
+            validatedArgs.input,
+            validatedArgs.mode || "auto",
+            validatedArgs.context
+              ? this.createContext(validatedArgs.context)
+              : undefined
+          ),
+        "SystematicThinkingOrchestrator",
+        {
+          enableFallbacks: true,
+          maxRetries: 2,
+          retryDelayMs: 1000,
+          timeoutMs: 30000,
+          criticalComponents: ["SystematicThinkingOrchestrator"],
+        }
+      );
+
+      if (!operationResult.success) {
+        // Handle graceful degradation
+        if (operationResult.data) {
+          console.error(
+            "Systematic analysis completed with degraded functionality"
+          );
+          return operationResult.data as SystematicAnalysisResult;
+        }
+        throw operationResult.error || new Error("Systematic analysis failed");
+      }
+
+      const result = operationResult.data!;
+      const processingTime = Date.now() - startTime;
+
+      // Record cognitive metrics
+      measurement.recordCognitiveMetrics({
+        confidenceScore: result.confidence,
+        reasoningDepth: result.analysis_steps?.length || 0,
+        memoryRetrievals: 0, // Systematic thinking is memory-independent
+        workingMemoryLoad: 0.8,
+        metacognitionTime: result.processing_time_ms,
+      });
+
+      // Complete measurement
+      measurement.complete();
+
+      console.error(`Systematic analysis completed in ${processingTime}ms`);
+      return result;
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      console.error(
+        `Error in handleAnalyzeSystematically after ${processingTime}ms:`,
+        error
+      );
+
+      // Handle error with graceful degradation
+      const errorResult = await ErrorHandler.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        "handleAnalyzeSystematically",
+        { input: args.input, requestId },
+        { enableFallbacks: true }
+      );
+
+      if (errorResult.canContinue && errorResult.fallbackData) {
+        return errorResult.fallbackData as SystematicAnalysisResult;
+      }
+
+      throw new Error(
+        `Systematic analysis failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  async handleThinkParallel(
+    args: ThinkParallelArgs
+  ): Promise<ParallelReasoningResult> {
+    const startTime = Date.now();
+    const requestId = this.generateRequestId();
+
+    // Start performance measurement
+    const measurement = this.performanceMonitor.startMeasurement(
+      requestId,
+      "think_parallel"
+    );
+
+    try {
+      // Validate arguments first
+      const validatedArgs = this.validateThinkParallelArgs(
+        args as unknown as Record<string, unknown>
+      );
+
+      console.error(
+        `Processing parallel reasoning request: ${validatedArgs.input.substring(
+          0,
+          100
+        )}${validatedArgs.input.length > 100 ? "..." : ""}`
+      );
+
+      // Create problem structure from input
+      const problem = this.createProblemFromInput(
+        validatedArgs.input,
+        this.createContext(validatedArgs.context)
+      );
+
+      // Process through parallel reasoning processor with error handling
+      const operationResult = await ErrorHandler.withErrorHandling(
+        () =>
+          this.parallelReasoningProcessor.processParallel(
+            problem,
+            this.createContext(validatedArgs.context)
+          ),
+        "ParallelReasoningProcessor",
+        {
+          enableFallbacks: true,
+          maxRetries: 2,
+          retryDelayMs: 1000,
+          timeoutMs: 45000, // Longer timeout for parallel processing
+          criticalComponents: ["ParallelReasoningProcessor"],
+        }
+      );
+
+      if (!operationResult.success) {
+        // Handle graceful degradation
+        if (operationResult.data) {
+          console.error(
+            "Parallel reasoning completed with degraded functionality"
+          );
+          return operationResult.data as ParallelReasoningResult;
+        }
+        throw (
+          operationResult.error ||
+          new Error("Parallel reasoning processing failed")
+        );
+      }
+
+      const result = operationResult.data! as ParallelReasoningResult;
+      const processingTime = Date.now() - startTime;
+
+      // Record cognitive metrics
+      measurement.recordCognitiveMetrics({
+        confidenceScore: result.confidence,
+        reasoningDepth: result.stream_results?.length || 0,
+        memoryRetrievals: 0,
+        workingMemoryLoad: 0.9, // Higher load for parallel processing
+        metacognitionTime: result.processing_time_ms,
+      });
+
+      // Complete measurement
+      measurement.complete();
+
+      console.error(
+        `Parallel reasoning completed in ${processingTime}ms with confidence ${result.confidence} across ${result.stream_results.length} streams`
+      );
+      return result;
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      console.error(
+        `Error in handleThinkParallel after ${processingTime}ms:`,
+        error
+      );
+
+      // Handle error with graceful degradation
+      const errorResult = await ErrorHandler.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        "handleThinkParallel",
+        { input: args.input, requestId },
+        { enableFallbacks: true }
+      );
+
+      if (errorResult.canContinue && errorResult.fallbackData) {
+        return errorResult.fallbackData as ParallelReasoningResult;
+      }
+
+      throw new Error(
+        `Parallel reasoning failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  async handleDecomposeProblem(
+    args: DecomposeProblemArgs
+  ): Promise<DecompositionResult> {
+    const startTime = Date.now();
+    const requestId = this.generateRequestId();
+
+    // Start performance measurement
+    const measurement = this.performanceMonitor.startMeasurement(
+      requestId,
+      "decompose_problem"
+    );
+
+    try {
+      // Validate arguments first
+      const validatedArgs = this.validateDecomposeProblemArgs(
+        args as unknown as Record<string, unknown>
+      );
+
+      console.error(
+        `Processing problem decomposition request: ${validatedArgs.input.substring(
+          0,
+          100
+        )}${validatedArgs.input.length > 100 ? "..." : ""}`
+      );
+
+      // Create problem structure from input
+      const problem = this.createProblemFromInput(
+        validatedArgs.input,
+        this.createContext(validatedArgs.context)
+      );
+
+      // Process through real-time problem decomposer with error handling
+      const operationResult = await ErrorHandler.withErrorHandling(
+        () =>
+          this.realTimeProblemDecomposer.decomposeRealTime(
+            problem,
+            this.createContext(validatedArgs.context)
+          ),
+        "RealTimeProblemDecomposer",
+        {
+          enableFallbacks: true,
+          maxRetries: 2,
+          retryDelayMs: 1000,
+          timeoutMs: 30000,
+          criticalComponents: ["RealTimeProblemDecomposer"],
+        }
+      );
+
+      if (!operationResult.success) {
+        // Handle graceful degradation
+        if (operationResult.data) {
+          console.error(
+            "Problem decomposition completed with degraded functionality"
+          );
+          return operationResult.data as DecompositionResult;
+        }
+        throw (
+          operationResult.error ||
+          new Error("Problem decomposition processing failed")
+        );
+      }
+
+      const result = operationResult.data! as DecompositionResult;
+      const processingTime = Date.now() - startTime;
+
+      // Record cognitive metrics
+      measurement.recordCognitiveMetrics({
+        confidenceScore: result.confidence,
+        reasoningDepth: result.hierarchical_structure?.length || 0,
+        memoryRetrievals: 0,
+        workingMemoryLoad: 0.8, // High load for decomposition processing
+        metacognitionTime: result.processing_time_ms,
+      });
+
+      // Complete measurement
+      measurement.complete();
+
+      console.error(
+        `Problem decomposition completed in ${processingTime}ms with confidence ${result.confidence} and ${result.hierarchical_structure.length} nodes`
+      );
+      return result;
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      console.error(
+        `Error in handleDecomposeProblem after ${processingTime}ms:`,
+        error
+      );
+
+      // Handle error with graceful degradation
+      const errorResult = await ErrorHandler.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        "handleDecomposeProblem",
+        { input: args.input, requestId },
+        { enableFallbacks: true }
+      );
+
+      if (errorResult.canContinue && errorResult.fallbackData) {
+        return errorResult.fallbackData as DecompositionResult;
+      }
+
+      throw new Error(
+        `Problem decomposition failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
   async shutdown(): Promise<void> {
     if (this.initialized) {
       console.error("Shutting down Cognitive MCP Server...");
@@ -1067,6 +1607,153 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     };
   }
 
+  private createProblemFromInput(input: string, context: Context): Problem {
+    // Simple problem creation from input - in a real implementation this would be more sophisticated
+    const complexity = this.estimateComplexity(input);
+    const uncertainty = this.estimateUncertainty(input);
+    const domain = context.domain || this.identifyDomain(input);
+    const constraints = this.extractConstraints(input);
+    const stakeholders = this.identifyStakeholders(input);
+    const timeSensitivity =
+      context.urgency || this.assessTimeSensitivity(input);
+    const resourceRequirements = this.identifyResourceRequirements(input);
+
+    return {
+      description: input,
+      domain,
+      complexity,
+      uncertainty,
+      constraints,
+      stakeholders,
+      time_sensitivity: timeSensitivity,
+      resource_requirements: resourceRequirements,
+    };
+  }
+
+  private estimateComplexity(input: string): number {
+    let complexity = 0.3; // Base complexity
+    const complexityIndicators = [
+      /multiple|various|several|many/i,
+      /system|network|interconnected/i,
+      /complex|complicated|intricate/i,
+      /interdependent|interrelated/i,
+    ];
+
+    for (const indicator of complexityIndicators) {
+      if (indicator.test(input)) {
+        complexity += 0.15;
+      }
+    }
+
+    if (input.length > 100) complexity += 0.1;
+    if (input.length > 200) complexity += 0.1;
+
+    return Math.min(complexity, 1.0);
+  }
+
+  private estimateUncertainty(input: string): number {
+    let uncertainty = 0.2; // Base uncertainty
+    const uncertaintyIndicators = [
+      /uncertain|unclear|unknown/i,
+      /might|could|possibly|perhaps/i,
+      /estimate|approximate|roughly/i,
+      /future|predict|forecast/i,
+    ];
+
+    for (const indicator of uncertaintyIndicators) {
+      if (indicator.test(input)) {
+        uncertainty += 0.15;
+      }
+    }
+
+    return Math.min(uncertainty, 1.0);
+  }
+
+  private identifyDomain(input: string): string {
+    const domainKeywords = {
+      technology: /software|code|system|technical|IT|computer|database/i,
+      business: /business|strategy|market|revenue|profit|customer/i,
+      science: /research|experiment|hypothesis|scientific|study/i,
+      design: /design|user|interface|experience|creative/i,
+    };
+
+    for (const [domain, pattern] of Object.entries(domainKeywords)) {
+      if (pattern.test(input)) {
+        return domain;
+      }
+    }
+
+    return "general";
+  }
+
+  private extractConstraints(input: string): string[] {
+    const constraints: string[] = [];
+
+    if (/deadline|urgent|quickly|time/i.test(input)) {
+      constraints.push("time_constraint");
+    }
+    if (/budget|cost|cheap|expensive/i.test(input)) {
+      constraints.push("budget_constraint");
+    }
+    if (/resource|limited|shortage/i.test(input)) {
+      constraints.push("resource_constraint");
+    }
+
+    return constraints;
+  }
+
+  private identifyStakeholders(input: string): string[] {
+    const stakeholders: string[] = [];
+    const stakeholderPatterns = {
+      users: /user|customer|client/i,
+      team: /team|colleague|developer/i,
+      management: /manager|executive|leadership/i,
+    };
+
+    for (const [stakeholder, pattern] of Object.entries(stakeholderPatterns)) {
+      if (pattern.test(input)) {
+        stakeholders.push(stakeholder);
+      }
+    }
+
+    return stakeholders;
+  }
+
+  private assessTimeSensitivity(input: string): number {
+    let sensitivity = 0.3; // Base sensitivity
+    const urgencyIndicators = [
+      /urgent|asap|immediately|quickly/i,
+      /deadline|due|schedule/i,
+      /critical|important|priority/i,
+    ];
+
+    for (const indicator of urgencyIndicators) {
+      if (indicator.test(input)) {
+        sensitivity += 0.2;
+      }
+    }
+
+    return Math.min(sensitivity, 1.0);
+  }
+
+  private identifyResourceRequirements(input: string): string[] {
+    const resources: string[] = [];
+    const resourcePatterns = {
+      human_resources: /people|team|staff|developer/i,
+      technical_resources: /server|software|tool|platform/i,
+      financial_resources: /budget|funding|investment/i,
+      time_resources: /time|schedule|deadline/i,
+    };
+
+    for (const [resource, pattern] of Object.entries(resourcePatterns)) {
+      if (pattern.test(input)) {
+        resources.push(resource);
+      }
+    }
+
+    return resources;
+  }
+
   private createCognitiveConfig(args: ThinkArgs): CognitiveConfig {
     return {
       default_mode: args.mode || ProcessingMode.BALANCED,
@@ -1086,6 +1773,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       confidence_threshold: 0.6,
       system2_activation_threshold: 0.7,
       memory_retrieval_threshold: 0.3,
+      enable_systematic_thinking: args.enable_systematic_thinking !== false, // Default to true
+      systematic_thinking_mode: args.systematic_thinking_mode || "auto",
       brain_dir: "~/.brain",
     };
   }

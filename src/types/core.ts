@@ -208,6 +208,10 @@ export interface CognitiveConfig {
   system2_activation_threshold: number;
   memory_retrieval_threshold: number;
 
+  // Systematic thinking configuration
+  enable_systematic_thinking?: boolean;
+  systematic_thinking_mode?: "auto" | "hybrid" | "manual";
+
   // Brain directory configuration
   brain_dir: string;
 }
