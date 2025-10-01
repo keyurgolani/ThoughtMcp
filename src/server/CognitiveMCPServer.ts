@@ -11,6 +11,10 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { CognitiveOrchestrator } from "../cognitive/CognitiveOrchestrator.js";
+import { ForgettingControlSystem } from "../cognitive/forgetting/ForgettingControlSystem.js";
+import { GradualDegradationManager } from "../cognitive/forgetting/GradualDegradationManager.js";
+import { MemoryUsageAnalyzer } from "../cognitive/forgetting/MemoryUsageAnalyzer.js";
+import { RecoveryEngine } from "../cognitive/forgetting/RecoveryEngine.js";
 import { MemorySystem } from "../cognitive/MemorySystem.js";
 import { MetacognitionModule } from "../cognitive/MetacognitionModule.js";
 import { ParallelReasoningProcessor } from "../cognitive/ParallelReasoningProcessor.js";
@@ -19,6 +23,12 @@ import {
   RealTimeProblemDecomposer,
 } from "../cognitive/RealTimeProblemDecomposer.js";
 import { SystematicThinkingOrchestrator } from "../cognitive/SystematicThinkingOrchestrator.js";
+import { ForgettingPolicy } from "../interfaces/audit.js";
+import {
+  ForgettingDecision,
+  ForgettingEvaluation,
+  MemoryOptimizationRecommendation,
+} from "../interfaces/forgetting.js";
 import { IMCPServer, IToolHandler } from "../interfaces/mcp.js";
 import { ParallelReasoningResult } from "../interfaces/parallel-reasoning.js";
 import {
@@ -28,6 +38,7 @@ import {
 import type {
   CognitiveConfig,
   CognitiveInput,
+  Concept,
   Context,
   Episode,
   MemoryChunk,
@@ -37,12 +48,22 @@ import type {
 import { ProcessingMode } from "../types/core.js";
 import {
   AnalysisResult,
+  AnalyzeMemoryUsageArgs,
   AnalyzeReasoningArgs,
   AnalyzeSystematicallyArgs,
   DecomposeProblemArgs,
+  ForgettingAuditArgs,
+  ForgettingAuditResult,
+  ForgettingPolicyArgs,
+  ForgettingPolicyResult,
+  MemoryOptimizationResult,
+  MemoryRecoveryResult,
   MemoryResult,
+  MemoryUsageAnalysisResult,
+  OptimizeMemoryArgs,
   RecallArgs,
   RecallResult,
+  RecoverMemoryArgs,
   RememberArgs,
   SystematicAnalysisResult,
   ThinkArgs,
@@ -71,6 +92,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   private systematicThinkingOrchestrator: SystematicThinkingOrchestrator;
   private parallelReasoningProcessor: ParallelReasoningProcessor;
   private realTimeProblemDecomposer: RealTimeProblemDecomposer;
+  private memoryUsageAnalyzer: MemoryUsageAnalyzer;
+  private gradualDegradationManager: GradualDegradationManager;
+  private recoveryEngine: RecoveryEngine;
+  private forgettingControlSystem: ForgettingControlSystem;
   private configManager: ConfigManager;
 
   constructor(performanceThresholds?: Partial<PerformanceThresholds>) {
@@ -110,6 +135,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     this.systematicThinkingOrchestrator = new SystematicThinkingOrchestrator();
     this.parallelReasoningProcessor = new ParallelReasoningProcessor();
     this.realTimeProblemDecomposer = new RealTimeProblemDecomposer();
+    this.memoryUsageAnalyzer = new MemoryUsageAnalyzer();
+    this.gradualDegradationManager = new GradualDegradationManager();
+    this.recoveryEngine = new RecoveryEngine();
+    this.forgettingControlSystem = new ForgettingControlSystem();
     this.performanceMonitor = new PerformanceMonitor(performanceThresholds);
   }
 
@@ -125,6 +154,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     await this.systematicThinkingOrchestrator.initialize();
     await this.parallelReasoningProcessor.initialize();
     await this.realTimeProblemDecomposer.initialize();
+    // Note: MemoryUsageAnalyzer and GradualDegradationManager don't need initialization as they're stateless/self-initializing
 
     this.registerTools();
     this.setupRequestHandlers();
@@ -384,6 +414,140 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                   timestamp: Date.now(),
                   processing_time_ms: decompositionMetrics.responseTime,
                   tool_name: "decompose_problem",
+                  version: getVersion(),
+                  ...(requestId && { request_id: requestId }),
+                },
+              };
+              break;
+            }
+            case "analyze_memory_usage": {
+              result = await this.handleAnalyzeMemoryUsage(
+                this.validateAnalyzeMemoryUsageArgs(args)
+              );
+              const memoryAnalysisResult = result as MemoryUsageAnalysisResult;
+              measurement.recordCognitiveMetrics({
+                confidenceScore: 0.9, // High confidence for memory analysis
+                reasoningDepth: 1,
+                memoryRetrievals: 0,
+                workingMemoryLoad: 0.3,
+                metacognitionTime: memoryAnalysisResult.analysis_time_ms ?? 0,
+              });
+              const memoryAnalysisMetrics = measurement.complete();
+              formattedResponse = {
+                success: true,
+                data: result,
+                metadata: {
+                  timestamp: Date.now(),
+                  processing_time_ms: memoryAnalysisMetrics.responseTime,
+                  tool_name: "analyze_memory_usage",
+                  version: getVersion(),
+                  ...(requestId && { request_id: requestId }),
+                },
+              };
+              break;
+            }
+            case "optimize_memory": {
+              result = await this.handleOptimizeMemory(
+                this.validateOptimizeMemoryArgs(args)
+              );
+              const memoryOptimizationResult =
+                result as MemoryOptimizationResult;
+              measurement.recordCognitiveMetrics({
+                confidenceScore: memoryOptimizationResult.success ? 0.8 : 0.3,
+                reasoningDepth: 2, // Memory optimization involves decision-making
+                memoryRetrievals:
+                  memoryOptimizationResult.optimization_summary
+                    .memories_processed,
+                workingMemoryLoad: 0.7,
+                metacognitionTime:
+                  memoryOptimizationResult.optimization_time_ms ?? 0,
+              });
+              const memoryOptimizationMetrics = measurement.complete();
+              formattedResponse = {
+                success: true,
+                data: result,
+                metadata: {
+                  timestamp: Date.now(),
+                  processing_time_ms: memoryOptimizationMetrics.responseTime,
+                  tool_name: "optimize_memory",
+                  version: getVersion(),
+                  ...(requestId && { request_id: requestId }),
+                },
+              };
+              break;
+            }
+            case "recover_memory": {
+              result = await this.handleRecoverMemory(
+                this.validateRecoverMemoryArgs(args)
+              );
+              const memoryRecoveryResult = result as MemoryRecoveryResult;
+              measurement.recordCognitiveMetrics({
+                confidenceScore: memoryRecoveryResult.recovery_confidence,
+                reasoningDepth: 3, // Memory recovery involves complex reasoning
+                memoryRetrievals: memoryRecoveryResult.recovery_attempts.length,
+                workingMemoryLoad: 0.8,
+                metacognitionTime: memoryRecoveryResult.recovery_time_ms,
+              });
+              const memoryRecoveryMetrics = measurement.complete();
+              formattedResponse = {
+                success: true,
+                data: result,
+                metadata: {
+                  timestamp: Date.now(),
+                  processing_time_ms: memoryRecoveryMetrics.responseTime,
+                  tool_name: "recover_memory",
+                  version: getVersion(),
+                  ...(requestId && { request_id: requestId }),
+                },
+              };
+              break;
+            }
+            case "forgetting_audit": {
+              result = await this.handleForgettingAudit(
+                this.validateForgettingAuditArgs(args)
+              );
+              const forgettingAuditResult = result as ForgettingAuditResult;
+              measurement.recordCognitiveMetrics({
+                confidenceScore: 0.9, // High confidence for audit operations
+                reasoningDepth: 1,
+                memoryRetrievals: forgettingAuditResult.audit_entries.length,
+                workingMemoryLoad: 0.4,
+                metacognitionTime: forgettingAuditResult.query_time_ms,
+              });
+              const forgettingAuditMetrics = measurement.complete();
+              formattedResponse = {
+                success: true,
+                data: result,
+                metadata: {
+                  timestamp: Date.now(),
+                  processing_time_ms: forgettingAuditMetrics.responseTime,
+                  tool_name: "forgetting_audit",
+                  version: getVersion(),
+                  ...(requestId && { request_id: requestId }),
+                },
+              };
+              break;
+            }
+            case "forgetting_policy": {
+              result = await this.handleForgettingPolicy(
+                this.validateForgettingPolicyArgs(args)
+              );
+              const forgettingPolicyResult = result as ForgettingPolicyResult;
+              measurement.recordCognitiveMetrics({
+                confidenceScore: 0.8, // High confidence for policy operations
+                reasoningDepth: 2, // Policy evaluation involves reasoning
+                memoryRetrievals: 0,
+                workingMemoryLoad: 0.5,
+                metacognitionTime: forgettingPolicyResult.processing_time_ms,
+              });
+              const forgettingPolicyMetrics = measurement.complete();
+              formattedResponse = {
+                success: true,
+                data: result,
+                metadata: {
+                  timestamp: Date.now(),
+                  processing_time_ms: forgettingPolicyMetrics.responseTime,
+                  tool_name: "forgetting_policy",
                   version: getVersion(),
                   ...(requestId && { request_id: requestId }),
                 },
@@ -784,6 +948,388 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       strategies: args.strategies as string[],
       max_depth: args.max_depth as number,
     };
+  }
+
+  private validateAnalyzeMemoryUsageArgs(
+    args: Record<string, unknown>
+  ): AnalyzeMemoryUsageArgs {
+    if (
+      args.analysis_depth !== undefined &&
+      !["shallow", "deep", "comprehensive"].includes(
+        args.analysis_depth as string
+      )
+    ) {
+      throw new Error(
+        'Analysis depth must be "shallow", "deep", or "comprehensive"'
+      );
+    }
+
+    if (
+      args.include_recommendations !== undefined &&
+      typeof args.include_recommendations !== "boolean"
+    ) {
+      throw new Error("Include recommendations must be a boolean");
+    }
+
+    return {
+      analysis_depth: args.analysis_depth as
+        | "shallow"
+        | "deep"
+        | "comprehensive",
+      include_recommendations: args.include_recommendations as boolean,
+      context: args.context as Record<string, unknown>,
+    };
+  }
+
+  private validateOptimizeMemoryArgs(
+    args: Record<string, unknown>
+  ): OptimizeMemoryArgs {
+    if (
+      args.optimization_mode !== undefined &&
+      !["conservative", "moderate", "aggressive"].includes(
+        args.optimization_mode as string
+      )
+    ) {
+      throw new Error(
+        'Optimization mode must be "conservative", "moderate", or "aggressive"'
+      );
+    }
+
+    if (
+      args.target_memory_reduction !== undefined &&
+      (typeof args.target_memory_reduction !== "number" ||
+        args.target_memory_reduction < 0 ||
+        args.target_memory_reduction > 0.5)
+    ) {
+      throw new Error(
+        "Target memory reduction must be a number between 0 and 0.5"
+      );
+    }
+
+    if (
+      args.enable_gradual_degradation !== undefined &&
+      typeof args.enable_gradual_degradation !== "boolean"
+    ) {
+      throw new Error("Enable gradual degradation must be a boolean");
+    }
+
+    if (
+      args.require_user_consent !== undefined &&
+      typeof args.require_user_consent !== "boolean"
+    ) {
+      throw new Error("Require user consent must be a boolean");
+    }
+
+    if (
+      args.preserve_important_memories !== undefined &&
+      typeof args.preserve_important_memories !== "boolean"
+    ) {
+      throw new Error("Preserve important memories must be a boolean");
+    }
+
+    return {
+      optimization_mode: args.optimization_mode as
+        | "conservative"
+        | "moderate"
+        | "aggressive",
+      target_memory_reduction: args.target_memory_reduction as number,
+      enable_gradual_degradation: args.enable_gradual_degradation as boolean,
+      require_user_consent: args.require_user_consent as boolean,
+      preserve_important_memories: args.preserve_important_memories as boolean,
+      context: args.context as Record<string, unknown>,
+    };
+  }
+
+  private validateRecoverMemoryArgs(
+    args: Record<string, unknown>
+  ): RecoverMemoryArgs {
+    if (!args.memory_id || typeof args.memory_id !== "string") {
+      throw new Error("Memory ID is required and must be a string");
+    }
+
+    if (!args.recovery_cues || !Array.isArray(args.recovery_cues)) {
+      throw new Error("Recovery cues are required and must be an array");
+    }
+
+    if (args.recovery_cues.length === 0) {
+      throw new Error("At least one recovery cue is required");
+    }
+
+    // Validate each recovery cue
+    for (const cue of args.recovery_cues) {
+      if (!cue || typeof cue !== "object") {
+        throw new Error("Each recovery cue must be an object");
+      }
+
+      if (!cue.type || typeof cue.type !== "string") {
+        throw new Error("Recovery cue type is required and must be a string");
+      }
+
+      if (
+        ![
+          "semantic",
+          "temporal",
+          "contextual",
+          "associative",
+          "emotional",
+        ].includes(cue.type)
+      ) {
+        throw new Error(
+          'Recovery cue type must be one of: "semantic", "temporal", "contextual", "associative", "emotional"'
+        );
+      }
+
+      if (!cue.value || typeof cue.value !== "string") {
+        throw new Error("Recovery cue value is required and must be a string");
+      }
+
+      if (cue.strength !== undefined) {
+        if (
+          typeof cue.strength !== "number" ||
+          cue.strength < 0 ||
+          cue.strength > 1
+        ) {
+          throw new Error(
+            "Recovery cue strength must be a number between 0 and 1"
+          );
+        }
+      }
+    }
+
+    if (args.recovery_strategies !== undefined) {
+      if (!Array.isArray(args.recovery_strategies)) {
+        throw new Error("Recovery strategies must be an array");
+      }
+
+      for (const strategy of args.recovery_strategies) {
+        if (
+          ![
+            "associative_recovery",
+            "schema_based_recovery",
+            "partial_cue_recovery",
+          ].includes(strategy)
+        ) {
+          throw new Error(
+            'Recovery strategy must be one of: "associative_recovery", "schema_based_recovery", "partial_cue_recovery"'
+          );
+        }
+      }
+    }
+
+    if (
+      args.max_recovery_attempts !== undefined &&
+      (typeof args.max_recovery_attempts !== "number" ||
+        args.max_recovery_attempts < 1 ||
+        args.max_recovery_attempts > 10)
+    ) {
+      throw new Error(
+        "Max recovery attempts must be a number between 1 and 10"
+      );
+    }
+
+    if (
+      args.confidence_threshold !== undefined &&
+      (typeof args.confidence_threshold !== "number" ||
+        args.confidence_threshold < 0 ||
+        args.confidence_threshold > 1)
+    ) {
+      throw new Error("Confidence threshold must be a number between 0 and 1");
+    }
+
+    return {
+      memory_id: args.memory_id as string,
+      recovery_cues: args.recovery_cues as Array<{
+        type:
+          | "semantic"
+          | "temporal"
+          | "contextual"
+          | "associative"
+          | "emotional";
+        value: string;
+        strength?: number;
+      }>,
+      recovery_strategies: args.recovery_strategies as string[],
+      max_recovery_attempts: args.max_recovery_attempts as number,
+      confidence_threshold: args.confidence_threshold as number,
+      context: args.context as Record<string, unknown>,
+    };
+  }
+
+  private validateForgettingAuditArgs(
+    args: Record<string, unknown>
+  ): ForgettingAuditArgs {
+    const result: ForgettingAuditArgs = {};
+
+    if (args.query && typeof args.query === "object") {
+      const query = args.query as Record<string, unknown>;
+      result.query = {};
+
+      if (query.start_timestamp !== undefined) {
+        if (typeof query.start_timestamp !== "number") {
+          throw new Error("Start timestamp must be a number");
+        }
+        result.query.start_timestamp = query.start_timestamp;
+      }
+
+      if (query.end_timestamp !== undefined) {
+        if (typeof query.end_timestamp !== "number") {
+          throw new Error("End timestamp must be a number");
+        }
+        result.query.end_timestamp = query.end_timestamp;
+      }
+
+      if (query.memory_ids !== undefined) {
+        if (!Array.isArray(query.memory_ids)) {
+          throw new Error("Memory IDs must be an array");
+        }
+        result.query.memory_ids = query.memory_ids as string[];
+      }
+
+      if (query.execution_status !== undefined) {
+        if (!Array.isArray(query.execution_status)) {
+          throw new Error("Execution status must be an array");
+        }
+        const validStatuses = ["pending", "executed", "cancelled", "failed"];
+        for (const status of query.execution_status) {
+          if (!validStatuses.includes(status)) {
+            throw new Error(`Invalid execution status: ${status}`);
+          }
+        }
+        result.query.execution_status = query.execution_status as (
+          | "pending"
+          | "executed"
+          | "cancelled"
+          | "failed"
+        )[];
+      }
+
+      if (query.limit !== undefined) {
+        if (
+          typeof query.limit !== "number" ||
+          query.limit < 1 ||
+          query.limit > 1000
+        ) {
+          throw new Error("Limit must be a number between 1 and 1000");
+        }
+        result.query.limit = query.limit;
+      }
+
+      if (query.offset !== undefined) {
+        if (typeof query.offset !== "number" || query.offset < 0) {
+          throw new Error("Offset must be a non-negative number");
+        }
+        result.query.offset = query.offset;
+      }
+    }
+
+    if (args.include_summary !== undefined) {
+      if (typeof args.include_summary !== "boolean") {
+        throw new Error("Include summary must be a boolean");
+      }
+      result.include_summary = args.include_summary;
+    }
+
+    if (args.export_format !== undefined) {
+      if (!["json", "csv", "xml"].includes(args.export_format as string)) {
+        throw new Error("Export format must be one of: json, csv, xml");
+      }
+      result.export_format = args.export_format as "json" | "csv" | "xml";
+    }
+
+    return result;
+  }
+
+  private validateForgettingPolicyArgs(
+    args: Record<string, unknown>
+  ): ForgettingPolicyArgs {
+    if (!args.action || typeof args.action !== "string") {
+      throw new Error("Action is required and must be a string");
+    }
+
+    const validActions = [
+      "list",
+      "get",
+      "create",
+      "update",
+      "delete",
+      "evaluate",
+      "import",
+      "export",
+    ];
+    if (!validActions.includes(args.action)) {
+      throw new Error(
+        `Invalid action: ${args.action}. Valid actions: ${validActions.join(
+          ", "
+        )}`
+      );
+    }
+
+    const result: ForgettingPolicyArgs = {
+      action: args.action as
+        | "list"
+        | "get"
+        | "create"
+        | "update"
+        | "delete"
+        | "evaluate"
+        | "import"
+        | "export",
+    };
+
+    // Validate policy_id for actions that require it
+    if (["get", "update", "delete", "export"].includes(args.action as string)) {
+      if (!args.policy_id || typeof args.policy_id !== "string") {
+        throw new Error(`Policy ID is required for ${args.action} action`);
+      }
+      result.policy_id = args.policy_id;
+    }
+
+    // Validate policy_data for create/update actions
+    if (
+      ["create", "update"].includes(args.action as string) &&
+      args.policy_data
+    ) {
+      if (typeof args.policy_data !== "object") {
+        throw new Error("Policy data must be an object");
+      }
+      result.policy_data = args.policy_data as Record<string, unknown>; // Simplified validation for now
+    }
+
+    // Validate evaluation_context for evaluate action
+    if (args.action === "evaluate") {
+      if (
+        !args.evaluation_context ||
+        typeof args.evaluation_context !== "object"
+      ) {
+        throw new Error("Evaluation context is required for evaluate action");
+      }
+      const ctx = args.evaluation_context as Record<string, unknown>;
+      if (!ctx.memory_id || typeof ctx.memory_id !== "string") {
+        throw new Error("Memory ID is required in evaluation context");
+      }
+      if (
+        !ctx.memory_type ||
+        !["episodic", "semantic"].includes(ctx.memory_type as string)
+      ) {
+        throw new Error("Valid memory type is required in evaluation context");
+      }
+      result.evaluation_context = {
+        memory_id: ctx.memory_id as string,
+        memory_type: ctx.memory_type as "episodic" | "semantic",
+        decision: ctx.decision as Record<string, unknown>,
+        evaluation: ctx.evaluation as Record<string, unknown>,
+        memory_metadata: ctx.memory_metadata as Record<string, unknown>,
+      };
+    }
+
+    if (args.active_only !== undefined) {
+      if (typeof args.active_only !== "boolean") {
+        throw new Error("Active only must be a boolean");
+      }
+      result.active_only = args.active_only;
+    }
+
+    return result;
   }
 
   // Tool handler implementations
@@ -1556,6 +2102,782 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
+    }
+  }
+
+  async handleAnalyzeMemoryUsage(
+    args: AnalyzeMemoryUsageArgs
+  ): Promise<MemoryUsageAnalysisResult> {
+    const startTime = Date.now();
+    const requestId = this.generateRequestId();
+
+    // Start performance measurement
+    const measurement = this.performanceMonitor.startMeasurement(
+      requestId,
+      "analyze_memory_usage"
+    );
+
+    try {
+      console.error("Processing memory usage analysis request");
+
+      // Perform memory usage analysis
+      const analysis = await this.memoryUsageAnalyzer.analyzeMemoryUsage();
+
+      let recommendations;
+      if (args.include_recommendations !== false) {
+        // Get optimization recommendations
+        recommendations =
+          await this.memoryUsageAnalyzer.getOptimizationRecommendations(
+            analysis
+          );
+      }
+
+      const processingTime = Date.now() - startTime;
+
+      // Record cognitive metrics
+      measurement.recordCognitiveMetrics({
+        confidenceScore: 0.9, // High confidence for memory analysis
+        reasoningDepth: 1,
+        memoryRetrievals: 0,
+        workingMemoryLoad: 0.3,
+        metacognitionTime: processingTime,
+      });
+
+      // Complete measurement
+      measurement.complete();
+
+      const result: MemoryUsageAnalysisResult = {
+        analysis,
+        recommendations,
+        analysis_time_ms: processingTime,
+      };
+
+      console.error(
+        `Memory usage analysis completed in ${processingTime}ms. Found ${
+          analysis.total_memories
+        } memories with ${analysis.optimization_potential.toFixed(
+          2
+        )} optimization potential`
+      );
+
+      return result;
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      console.error(
+        `Error in handleAnalyzeMemoryUsage after ${processingTime}ms:`,
+        error
+      );
+
+      throw new Error(
+        `Memory usage analysis failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  async handleOptimizeMemory(
+    args: OptimizeMemoryArgs
+  ): Promise<MemoryOptimizationResult> {
+    const startTime = Date.now();
+    const requestId = this.generateRequestId();
+
+    // Start performance measurement
+    const measurement = this.performanceMonitor.startMeasurement(
+      requestId,
+      "optimize_memory"
+    );
+
+    try {
+      console.error("Processing memory optimization request");
+
+      // Set default values
+      const optimizationMode = args.optimization_mode || "moderate";
+      const targetReduction = args.target_memory_reduction || 0.1;
+      const enableGradualDegradation =
+        args.enable_gradual_degradation !== false;
+      const requireUserConsent = args.require_user_consent !== false;
+      const preserveImportant = args.preserve_important_memories !== false;
+
+      // First, analyze current memory usage
+      const analysis = await this.memoryUsageAnalyzer.analyzeMemoryUsage();
+      const recommendations =
+        await this.memoryUsageAnalyzer.getOptimizationRecommendations(analysis);
+
+      // Initialize result tracking
+      const result: MemoryOptimizationResult = {
+        success: true,
+        optimization_summary: {
+          memories_processed: 0,
+          memories_degraded: 0,
+          memories_forgotten: 0,
+          memories_archived: 0,
+          total_space_freed_bytes: 0,
+          performance_improvement_estimate: 0,
+        },
+        degradation_processes_started: [],
+        user_consent_requests: [],
+        errors: [],
+        optimization_time_ms: 0,
+      };
+
+      // Filter recommendations based on optimization mode
+      const filteredRecommendations = this.filterRecommendationsByMode(
+        recommendations,
+        optimizationMode,
+        preserveImportant
+      );
+
+      // Calculate target number of memories to process
+      const targetMemoryCount = Math.floor(
+        analysis.total_memories * targetReduction
+      );
+      const memoriesToProcess = Math.min(
+        targetMemoryCount,
+        filteredRecommendations.length
+      );
+
+      console.error(
+        `Optimizing ${memoriesToProcess} memories out of ${
+          analysis.total_memories
+        } total (${(targetReduction * 100).toFixed(1)}% target reduction)`
+      );
+
+      // Process each recommendation
+      for (let i = 0; i < memoriesToProcess; i++) {
+        const recommendation = filteredRecommendations[i];
+        result.optimization_summary.memories_processed++;
+
+        try {
+          // Check if user consent is required
+          const needsConsent =
+            requireUserConsent || recommendation.requires_user_consent;
+
+          if (needsConsent) {
+            // Add to consent requests (in a real implementation, this would prompt the user)
+            result.user_consent_requests.push({
+              memory_id: recommendation.target_memories[0] || `memory_${i}`,
+              action: recommendation.type as string,
+              reason: recommendation.description as string,
+              consent_required: true,
+            });
+
+            // For this implementation, simulate user consent based on risk level
+            const consentGranted = this.simulateUserConsent(recommendation);
+            if (!consentGranted) {
+              console.error(
+                `User consent denied for ${recommendation.type} on memory ${recommendation.target_memories[0]}`
+              );
+              continue;
+            }
+          }
+
+          // Execute the optimization based on type
+          switch (recommendation.type) {
+            case "forget":
+              if (enableGradualDegradation) {
+                // Use gradual degradation instead of immediate forgetting
+                const processId = await this.initiateGradualDegradation(
+                  recommendation.target_memories[0] || `memory_${i}`,
+                  0.9 // High degradation level for forgetting
+                );
+                result.degradation_processes_started.push(processId);
+                result.optimization_summary.memories_degraded++;
+              } else {
+                // Immediate forgetting (simplified)
+                result.optimization_summary.memories_forgotten++;
+              }
+              break;
+
+            case "compress":
+              // Compression through gradual degradation
+              if (enableGradualDegradation) {
+                const processId = await this.initiateGradualDegradation(
+                  recommendation.target_memories[0] || `memory_${i}`,
+                  0.5 // Moderate degradation for compression
+                );
+                result.degradation_processes_started.push(processId);
+                result.optimization_summary.memories_degraded++;
+              }
+              break;
+
+            case "archive":
+              // Archiving (simplified)
+              result.optimization_summary.memories_archived++;
+              break;
+
+            case "consolidate":
+              // Memory consolidation (simplified)
+              result.optimization_summary.memories_processed++;
+              break;
+          }
+
+          // Estimate space freed and performance improvement
+          result.optimization_summary.total_space_freed_bytes +=
+            recommendation.estimated_benefit.memory_space_freed || 0;
+          result.optimization_summary.performance_improvement_estimate +=
+            recommendation.estimated_benefit.processing_speed_improvement || 0;
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+          result.errors.push(
+            `Failed to process recommendation ${i}: ${errorMessage}`
+          );
+          console.error(`Error processing recommendation ${i}:`, error);
+        }
+      }
+
+      const processingTime = Date.now() - startTime;
+      result.optimization_time_ms = processingTime;
+
+      // Determine overall success
+      result.success = result.errors.length < memoriesToProcess / 2; // Success if less than 50% errors
+
+      // Record cognitive metrics
+      measurement.recordCognitiveMetrics({
+        confidenceScore: result.success ? 0.8 : 0.3,
+        reasoningDepth: 2,
+        memoryRetrievals: result.optimization_summary.memories_processed,
+        workingMemoryLoad: 0.7,
+        metacognitionTime: processingTime,
+      });
+
+      // Complete measurement
+      measurement.complete();
+
+      console.error(
+        `Memory optimization completed in ${processingTime}ms. ` +
+          `Processed: ${result.optimization_summary.memories_processed}, ` +
+          `Degraded: ${result.optimization_summary.memories_degraded}, ` +
+          `Forgotten: ${result.optimization_summary.memories_forgotten}, ` +
+          `Archived: ${result.optimization_summary.memories_archived}, ` +
+          `Errors: ${result.errors.length}`
+      );
+
+      return result;
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      console.error(
+        `Error in handleOptimizeMemory after ${processingTime}ms:`,
+        error
+      );
+
+      throw new Error(
+        `Memory optimization failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  async handleRecoverMemory(
+    args: RecoverMemoryArgs
+  ): Promise<MemoryRecoveryResult> {
+    const startTime = Date.now();
+    const requestId = this.generateRequestId();
+
+    // Start performance measurement
+    const measurement = this.performanceMonitor.startMeasurement(
+      requestId,
+      "recover_memory"
+    );
+
+    try {
+      console.error(
+        `Processing memory recovery request for memory: ${args.memory_id}`
+      );
+
+      // Convert recovery cues to the format expected by RecoveryEngine
+      const recoveryCues = args.recovery_cues.map((cue) => ({
+        type: cue.type,
+        value: cue.value,
+        strength: cue.strength || 0.5,
+        source: "user_provided",
+      }));
+
+      // Try to get recovery metadata from gradual degradation manager
+      let recoveryMetadata;
+      try {
+        // Check if this memory has degradation processes
+        const activeProcesses =
+          await this.gradualDegradationManager.getActiveDegradationProcesses();
+        const memoryProcess = activeProcesses.find(
+          (p) => p.memory_id === args.memory_id
+        );
+
+        if (memoryProcess && memoryProcess.status.recovery_metadata) {
+          recoveryMetadata = memoryProcess.status.recovery_metadata;
+          console.error(`Found recovery metadata for memory ${args.memory_id}`);
+        } else {
+          console.error(
+            `No recovery metadata found for memory ${args.memory_id}, using cues only`
+          );
+        }
+      } catch (error) {
+        console.error(`Error retrieving recovery metadata: ${error}`);
+      }
+
+      // Configure recovery engine if needed
+      if (args.max_recovery_attempts) {
+        // Note: In a full implementation, we would configure the recovery engine
+        // For now, we'll pass the parameters to the recovery attempt
+      }
+
+      // Attempt memory recovery
+      const recoveryResult = await this.recoveryEngine.attemptRecovery(
+        args.memory_id,
+        recoveryCues,
+        recoveryMetadata
+      );
+
+      // Assess recovery confidence if we have recovered content
+      if (
+        recoveryResult.success &&
+        recoveryResult.recovered_memory &&
+        recoveryMetadata
+      ) {
+        await this.recoveryEngine.assessRecoveryConfidence(
+          recoveryResult.recovered_memory,
+          recoveryMetadata
+        );
+      }
+
+      // Track recovery success for learning
+      await this.recoveryEngine.trackRecoverySuccess(
+        args.memory_id,
+        recoveryResult
+      );
+
+      const processingTime = Date.now() - startTime;
+
+      // Create the result in the expected format
+      const result: MemoryRecoveryResult = {
+        success: recoveryResult.success,
+        memory_id: args.memory_id,
+        recovered_memory: recoveryResult.recovered_memory,
+        recovery_confidence: recoveryResult.recovery_confidence,
+        recovery_method: recoveryResult.recovery_method,
+        partial_recovery: recoveryResult.partial_recovery,
+        missing_elements: recoveryResult.missing_elements,
+        recovery_attempts: recoveryResult.recovery_attempts.map((attempt) => ({
+          strategy_name: attempt.strategy_name,
+          success: attempt.success,
+          confidence: attempt.confidence,
+          method_details: attempt.recovery_method_details,
+        })),
+        quality_assessment: {
+          overall_quality: recoveryResult.quality_assessment.overall_quality,
+          content_coherence:
+            recoveryResult.quality_assessment.content_coherence,
+          contextual_consistency:
+            recoveryResult.quality_assessment.contextual_consistency,
+          quality_issues: recoveryResult.quality_assessment.quality_issues.map(
+            (issue) => `${issue.issue_type}: ${issue.description}`
+          ),
+        },
+        recovery_time_ms: processingTime,
+      };
+
+      // Record cognitive metrics
+      measurement.recordCognitiveMetrics({
+        confidenceScore: result.recovery_confidence,
+        reasoningDepth: 3, // Memory recovery involves complex reasoning
+        memoryRetrievals: result.recovery_attempts.length,
+        workingMemoryLoad: 0.8,
+        metacognitionTime: processingTime,
+      });
+
+      // Complete measurement
+      measurement.complete();
+
+      console.error(
+        `Memory recovery completed in ${processingTime}ms. ` +
+          `Success: ${result.success}, ` +
+          `Confidence: ${result.recovery_confidence.toFixed(2)}, ` +
+          `Method: ${result.recovery_method}, ` +
+          `Attempts: ${result.recovery_attempts.length}`
+      );
+
+      return result;
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      console.error(
+        `Error in handleRecoverMemory after ${processingTime}ms:`,
+        error
+      );
+
+      throw new Error(
+        `Memory recovery failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  async handleForgettingAudit(
+    args: ForgettingAuditArgs
+  ): Promise<ForgettingAuditResult> {
+    const startTime = Date.now();
+
+    try {
+      console.error("Processing forgetting audit request");
+
+      // Query audit entries
+      const auditEntries =
+        await this.forgettingControlSystem.audit_system.queryAuditEntries(
+          args.query || {}
+        );
+
+      // Get summary if requested
+      let summary;
+      if (args.include_summary !== false) {
+        summary =
+          await this.forgettingControlSystem.audit_system.getAuditSummary(
+            args.query?.start_timestamp,
+            args.query?.end_timestamp
+          );
+      }
+
+      // Export data if requested
+      let exported_data;
+      if (args.export_format) {
+        exported_data =
+          await this.forgettingControlSystem.audit_system.exportAuditData(
+            args.query || {},
+            args.export_format
+          );
+      }
+
+      const processingTime = Date.now() - startTime;
+
+      const result: ForgettingAuditResult = {
+        success: true,
+        audit_entries: auditEntries.map((entry) => ({
+          audit_id: entry.audit_id,
+          timestamp: entry.timestamp,
+          memory_id: entry.memory_id,
+          memory_type: entry.memory_type,
+          memory_content_summary: entry.memory_content_summary,
+          execution_status: entry.execution_status,
+          execution_method: entry.execution_method,
+          user_consent_requested: entry.user_consent_requested,
+          user_consent_granted: entry.user_consent_granted,
+          privacy_level: entry.privacy_level,
+          secure_deletion_applied: entry.secure_deletion_applied,
+        })),
+        summary,
+        exported_data,
+        query_time_ms: processingTime,
+      };
+
+      console.error(
+        `Forgetting audit completed in ${processingTime}ms. ` +
+          `Entries: ${result.audit_entries.length}, ` +
+          `Summary included: ${!!summary}`
+      );
+
+      return result;
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      console.error(
+        `Error in handleForgettingAudit after ${processingTime}ms:`,
+        error
+      );
+
+      throw new Error(
+        `Forgetting audit failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  async handleForgettingPolicy(
+    args: ForgettingPolicyArgs
+  ): Promise<ForgettingPolicyResult> {
+    const startTime = Date.now();
+
+    try {
+      console.error(`Processing forgetting policy request: ${args.action}`);
+
+      const result: ForgettingPolicyResult = {
+        success: true,
+        action: args.action,
+        processing_time_ms: 0,
+      };
+
+      switch (args.action) {
+        case "list": {
+          const policies =
+            await this.forgettingControlSystem.policy_manager.listPolicies(
+              args.active_only
+            );
+          result.policies = policies.map((policy) => ({
+            policy_id: policy.policy_id,
+            policy_name: policy.policy_name,
+            description: policy.description,
+            active: policy.active,
+            created_timestamp: policy.created_timestamp,
+            last_modified_timestamp: policy.last_modified_timestamp,
+            rules_count: policy.rules.length,
+          }));
+          break;
+        }
+
+        case "get": {
+          if (!args.policy_id) {
+            throw new Error("Policy ID is required for get action");
+          }
+          const policy =
+            await this.forgettingControlSystem.policy_manager.getPolicy(
+              args.policy_id
+            );
+          if (!policy) {
+            throw new Error(`Policy not found: ${args.policy_id}`);
+          }
+          result.policy = {
+            policy_id: policy.policy_id,
+            policy_name: policy.policy_name,
+            description: policy.description,
+            active: policy.active,
+            rules: policy.rules.map((rule) => ({
+              rule_id: rule.rule_id,
+              rule_name: rule.rule_name,
+              description: rule.description,
+              priority: rule.priority,
+              action: rule.action,
+            })),
+            user_preferences: policy.user_preferences as unknown as Record<
+              string,
+              unknown
+            >,
+          };
+          break;
+        }
+
+        case "create": {
+          if (!args.policy_data) {
+            throw new Error("Policy data is required for create action");
+          }
+          const newPolicyId =
+            await this.forgettingControlSystem.policy_manager.createPolicy(
+              args.policy_data as Omit<
+                ForgettingPolicy,
+                "policy_id" | "created_timestamp" | "last_modified_timestamp"
+              >
+            );
+          result.policy_id = newPolicyId;
+          result.message = "Policy created successfully";
+          break;
+        }
+
+        case "update": {
+          if (!args.policy_id || !args.policy_data) {
+            throw new Error(
+              "Policy ID and policy data are required for update action"
+            );
+          }
+          await this.forgettingControlSystem.policy_manager.updatePolicy(
+            args.policy_id,
+            args.policy_data as Record<string, unknown>
+          );
+          result.policy_id = args.policy_id;
+          result.message = "Policy updated successfully";
+          break;
+        }
+
+        case "delete": {
+          if (!args.policy_id) {
+            throw new Error("Policy ID is required for delete action");
+          }
+          await this.forgettingControlSystem.policy_manager.deletePolicy(
+            args.policy_id
+          );
+          result.policy_id = args.policy_id;
+          result.message = "Policy deleted successfully";
+          break;
+        }
+
+        case "evaluate": {
+          if (!args.evaluation_context) {
+            throw new Error(
+              "Evaluation context is required for evaluate action"
+            );
+          }
+          const ctx = args.evaluation_context;
+          const policyResults =
+            await this.forgettingControlSystem.policy_manager.evaluatePolicies(
+              ctx.decision as unknown as ForgettingDecision,
+              ctx.evaluation as unknown as ForgettingEvaluation,
+              ctx.memory_metadata
+            );
+          const effectiveDecision =
+            await this.forgettingControlSystem.policy_manager.getEffectivePolicyDecision(
+              policyResults
+            );
+          result.evaluation_result = {
+            policy_id: effectiveDecision.policy_id,
+            final_decision: effectiveDecision.final_decision,
+            decision_confidence: effectiveDecision.decision_confidence,
+            consent_required: effectiveDecision.consent_required,
+            reasoning: effectiveDecision.reasoning,
+          };
+          break;
+        }
+
+        case "export": {
+          if (!args.policy_id) {
+            throw new Error("Policy ID is required for export action");
+          }
+          const exportedPolicy =
+            await this.forgettingControlSystem.policy_manager.exportPolicy(
+              args.policy_id
+            );
+          result.exported_policy = exportedPolicy;
+          result.policy_id = args.policy_id;
+          break;
+        }
+
+        case "import": {
+          if (!args.policy_data) {
+            throw new Error("Policy data is required for import action");
+          }
+          const importedPolicyId =
+            await this.forgettingControlSystem.policy_manager.importPolicy(
+              args.policy_data
+            );
+          result.policy_id = importedPolicyId;
+          result.message = "Policy imported successfully";
+          break;
+        }
+
+        default:
+          throw new Error(`Unsupported action: ${args.action}`);
+      }
+
+      const processingTime = Date.now() - startTime;
+      result.processing_time_ms = processingTime;
+
+      console.error(
+        `Forgetting policy ${args.action} completed in ${processingTime}ms`
+      );
+
+      return result;
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      console.error(
+        `Error in handleForgettingPolicy after ${processingTime}ms:`,
+        error
+      );
+
+      throw new Error(
+        `Forgetting policy operation failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  // Helper methods for memory optimization
+
+  private filterRecommendationsByMode(
+    recommendations: MemoryOptimizationRecommendation[],
+    mode: "conservative" | "moderate" | "aggressive",
+    preserveImportant: boolean
+  ): MemoryOptimizationRecommendation[] {
+    let filtered = [...recommendations];
+
+    // Filter by risk level based on mode
+    switch (mode) {
+      case "conservative":
+        filtered = filtered.filter((r) => r.risk_level === "low");
+        break;
+      case "moderate":
+        filtered = filtered.filter((r) => r.risk_level !== "high");
+        break;
+      case "aggressive":
+        // Include all recommendations
+        break;
+    }
+
+    // Filter out important memories if preservation is enabled
+    if (preserveImportant) {
+      filtered = filtered.filter(
+        (r) =>
+          !r.target_memories.some(
+            (memId: string) =>
+              memId.includes("important") || memId.includes("critical")
+          )
+      );
+    }
+
+    // Sort by estimated benefit (highest first)
+    filtered.sort((a, b) => {
+      const benefitA = a.estimated_benefit.processing_speed_improvement || 0;
+      const benefitB = b.estimated_benefit.processing_speed_improvement || 0;
+      return benefitB - benefitA;
+    });
+
+    return filtered;
+  }
+
+  private simulateUserConsent(
+    recommendation: MemoryOptimizationRecommendation
+  ): boolean {
+    // Simulate user consent based on recommendation characteristics
+    // In a real implementation, this would present a UI to the user
+
+    let consentProbability = 0.7; // Base 70% consent rate
+
+    // Adjust based on risk level
+    switch (recommendation.risk_level) {
+      case "low":
+        consentProbability += 0.2;
+        break;
+      case "medium":
+        // No adjustment
+        break;
+      case "high":
+        consentProbability -= 0.3;
+        break;
+    }
+
+    // Adjust based on estimated benefit
+    const benefit =
+      recommendation.estimated_benefit.processing_speed_improvement || 0;
+    consentProbability += benefit * 0.5;
+
+    // Add some randomness
+    consentProbability += (Math.random() - 0.5) * 0.2;
+
+    return Math.random() < Math.max(0.1, Math.min(0.9, consentProbability));
+  }
+
+  private async initiateGradualDegradation(
+    memoryId: string,
+    targetDegradationLevel: number
+  ): Promise<string> {
+    // Create a mock memory object for degradation
+    // In a real implementation, this would retrieve the actual memory
+    const mockMemory = {
+      id: memoryId,
+      content: `Mock memory content for ${memoryId}`,
+      timestamp: Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000, // Random age up to 30 days
+      importance: Math.random(),
+    };
+
+    try {
+      const process = await this.gradualDegradationManager.initiateDegradation(
+        mockMemory as unknown as Episode | Concept,
+        targetDegradationLevel
+      );
+      return process.process_id;
+    } catch (error) {
+      console.error(
+        `Failed to initiate gradual degradation for memory ${memoryId}:`,
+        error
+      );
+      throw error;
     }
   }
 

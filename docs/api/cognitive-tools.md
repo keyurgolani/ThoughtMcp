@@ -947,7 +947,129 @@ const result = await client.request({
 });
 ```
 
-### 7. `decompose_problem` - Problem Decomposition Tool
+### 7. `analyze_memory_usage` - Memory Optimization Tool
+
+Analyze current memory usage patterns and identify optimization opportunities for selective forgetting and memory management.
+
+#### Schema
+
+```json
+{
+  "name": "analyze_memory_usage",
+  "description": "Analyze current memory usage patterns and identify optimization opportunities for selective forgetting and memory management",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "analysis_depth": {
+        "type": "string",
+        "enum": ["shallow", "deep", "comprehensive"],
+        "default": "deep",
+        "description": "Depth of memory analysis to perform"
+      },
+      "include_recommendations": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether to include optimization recommendations"
+      },
+      "context": {
+        "type": "object",
+        "description": "Contextual information for analysis",
+        "properties": {
+          "session_id": { "type": "string" },
+          "domain": { "type": "string" },
+          "time_range": { "type": "string" }
+        }
+      }
+    }
+  }
+}
+```
+
+#### Response Format
+
+```typescript
+interface MemoryUsageAnalysisResult {
+  memory_usage: MemoryUsageStats;
+  optimization_opportunities: OptimizationOpportunity[];
+  recommendations: MemoryRecommendation[];
+  analysis_time_ms: number;
+}
+
+interface MemoryUsageStats {
+  total_memories: number;
+  episodic_memories: number;
+  semantic_memories: number;
+  fragmented_memories: number;
+  conflicting_memories: number;
+  memory_efficiency: number;
+  storage_utilization: number;
+}
+
+interface OptimizationOpportunity {
+  type: "compress" | "consolidate" | "archive" | "forget";
+  target_memories: string[];
+  estimated_benefit: {
+    memory_space_freed: number;
+    processing_speed_improvement: number;
+    interference_reduction: number;
+    focus_improvement: number;
+  };
+  risk_level: "low" | "medium" | "high";
+  description: string;
+  requires_user_consent: boolean;
+}
+
+interface MemoryRecommendation {
+  category: "storage" | "retrieval" | "consolidation" | "forgetting";
+  priority: "low" | "medium" | "high" | "critical";
+  action: string;
+  expected_impact: string;
+  implementation_complexity: "simple" | "moderate" | "complex";
+}
+```
+
+#### Usage Examples
+
+**Basic Memory Analysis**
+
+```typescript
+const result = await client.request({
+  method: "tools/call",
+  params: {
+    name: "analyze_memory_usage",
+    arguments: {
+      analysis_depth: "deep",
+      include_recommendations: true,
+      context: {
+        session_id: "session_123",
+        domain: "general",
+      },
+    },
+  },
+});
+```
+
+**Comprehensive Memory Optimization**
+
+```typescript
+const result = await client.request({
+  method: "tools/call",
+  params: {
+    name: "analyze_memory_usage",
+    arguments: {
+      analysis_depth: "comprehensive",
+      include_recommendations: true,
+      context: {
+        session_id: "long_running_session",
+        domain: "research",
+        time_range: "last_30_days",
+      },
+    },
+  },
+});
+```
+
+### 8. `decompose_problem` - Problem Decomposition Tool
 
 Decompose complex problems into hierarchical structures with dependency mapping, priority analysis, and critical path identification using multiple decomposition strategies.
 

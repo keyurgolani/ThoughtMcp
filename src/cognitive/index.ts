@@ -32,3 +32,13 @@ export { BaseReasoningStream } from "./streams/BaseReasoningStream.js";
 export { CreativeReasoningStream } from "./streams/CreativeReasoningStream.js";
 export { CriticalReasoningStream } from "./streams/CriticalReasoningStream.js";
 export { SyntheticReasoningStream } from "./streams/SyntheticReasoningStream.js";
+
+// Export forgetting system components
+export {
+  ForgettingDecisionSynthesizer,
+  ForgettingEvaluationEngine,
+  ImportanceBasedStrategyImpl,
+  InterferenceBasedStrategyImpl,
+  MemoryUsageAnalyzer,
+  TemporalDecayStrategyImpl,
+} from "./forgetting/index.js";

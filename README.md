@@ -18,24 +18,24 @@ Most AI systems process text once and respond. ThoughtMCP implements multiple th
 
 ### 🧠 **Human-Like Thinking**
 
-- **Fast intuitive responses** for familiar problems
-- **Careful deliberation** for complex decisions
-- **Creative exploration** for innovation challenges
-- **Analytical reasoning** for technical problems
+- **Dual-Process Reasoning**: Fast intuitive responses (System 1) and careful deliberation (System 2)
+- **Multiple Reasoning Modes**: Analytical, creative, critical, and synthetic thinking
+- **Metacognitive Awareness**: Self-monitoring with bias detection and reasoning quality assessment
+- **Systematic Problem-Solving**: Automatic framework selection (Design Thinking, Scientific Method, Root Cause Analysis, etc.)
 
-### 💾 **Learning Memory**
+### 💾 **Sophisticated Memory Systems**
 
-- **Remembers experiences** and learns from them
-- **Builds knowledge** that improves over time
-- **Recalls relevant information** when making decisions
-- **Consolidates patterns** from specific cases to general principles
+- **Episodic Memory**: Remembers specific experiences with emotional context
+- **Semantic Memory**: Stores general knowledge and concepts
+- **Memory Management**: Smart forgetting, archiving, and consolidation
+- **Context-Aware Retrieval**: Finds relevant memories based on similarity and associations
 
-### 🔍 **Self-Monitoring**
+### 🔀 **Advanced Problem-Solving**
 
-- **Checks its own reasoning** for quality and biases
-- **Provides confidence levels** for transparency
-- **Suggests improvements** to its own thinking
-- **Adapts approach** based on problem complexity
+- **Parallel Reasoning**: Multiple reasoning streams working simultaneously
+- **Problem Decomposition**: Breaks complex problems into manageable parts with dependency mapping
+- **Framework Selection**: Automatically chooses optimal thinking frameworks based on problem type
+- **Quality Control**: Continuous reasoning validation and improvement suggestions
 
 ### ⚡ **Production Ready**
 
@@ -288,42 +288,81 @@ Recall relevant knowledge:
 
 ## The Complete Cognitive Toolkit
 
-### 🧠 **Think** - Systematic Reasoning
+### 🧠 **Think** - Human-Like Reasoning
 
-Process complex questions using human-like reasoning:
+Process complex questions using sophisticated cognitive architecture:
 
-- **Intuitive mode**: Fast, gut-reaction responses
-- **Deliberative mode**: Slow, careful analysis
-- **Creative mode**: Innovative problem-solving
-- **Analytical mode**: Logical, data-driven reasoning
-- **Balanced mode**: Adaptive combination of all approaches
+- **Dual-Process Thinking**: System 1 (intuitive) and System 2 (deliberative) processing
+- **Multiple Modes**: Intuitive, deliberative, creative, analytical, and balanced approaches
+- **Metacognitive Monitoring**: Self-assessment with bias detection and quality control
+- **Emotional Processing**: Somatic markers and emotional context integration
+- **Stochastic Neural Processing**: Realistic neural noise and enhancement patterns
 
 ### 💾 **Remember** - Build Knowledge
 
-Store experiences and insights for future use:
+Store experiences and insights with sophisticated memory systems:
 
-- **Episodic memory**: Specific experiences and events
-- **Semantic memory**: General knowledge and principles
-- **Importance weighting**: Prioritize what matters most
-- **Emotional tagging**: Remember how things felt
+- **Episodic Memory**: Specific experiences with emotional context and importance weighting
+- **Semantic Memory**: General knowledge with concept relationships and associations
+- **Memory Consolidation**: Automatic pattern extraction and knowledge integration
+- **Emotional Tagging**: Rich emotional context for better recall and decision-making
 
-### 🔍 **Recall** - Find Relevant Information
+### 🔍 **Recall** - Intelligent Retrieval
 
-Retrieve past experiences and knowledge when needed:
+Retrieve past experiences and knowledge with advanced search capabilities:
 
-- **Similarity matching**: Find related experiences
-- **Context-aware**: Consider current situation
-- **Confidence scoring**: Know how relevant results are
-- **Cross-memory search**: Search both experience and knowledge
+- **Similarity Matching**: Vector-based semantic similarity with activation spreading
+- **Context-Aware Search**: Considers current situation and emotional state
+- **Cross-Memory Integration**: Searches both episodic experiences and semantic knowledge
+- **Confidence Scoring**: Provides reliability metrics for retrieved information
 
-### 🔬 **Analyze Reasoning** - Quality Control
+### 🔬 **Analyze Reasoning** - Quality Assurance
 
-Check thinking quality and identify potential problems:
+Comprehensive reasoning quality assessment and improvement:
 
-- **Bias detection**: Spot common reasoning errors
-- **Logic validation**: Ensure arguments are sound
-- **Confidence assessment**: Evaluate certainty levels
-- **Improvement suggestions**: Get better at reasoning
+- **Bias Detection**: Identifies tunnel vision, confirmation bias, and other cognitive errors
+- **Logic Validation**: Evaluates argument structure and evidence support
+- **Confidence Calibration**: Assesses certainty levels and suggests evidence gathering
+- **Improvement Recommendations**: Specific suggestions for better reasoning
+
+### 🎯 **Analyze Systematically** - Framework-Based Problem Solving
+
+Apply proven thinking frameworks automatically:
+
+- **Auto Framework Selection**: Chooses optimal approach (Design Thinking, Scientific Method, Root Cause Analysis, etc.)
+- **Structured Analysis**: Breaks problems into systematic steps with clear methodology
+- **Multiple Perspectives**: Considers alternative approaches and trade-offs
+- **Evidence-Based Recommendations**: Provides reasoning for framework choice and confidence levels
+
+### 🔀 **Think Parallel** - Multi-Stream Reasoning
+
+Process problems through multiple reasoning streams simultaneously:
+
+- **Analytical Stream**: Logical, evidence-based reasoning with systematic evaluation
+- **Creative Stream**: Innovative approaches with unconventional alternatives
+- **Critical Stream**: Bias detection, assumption challenging, and quality assessment
+- **Synthetic Stream**: Integration of perspectives with holistic solution development
+- **Real-Time Coordination**: Streams share insights, resolve conflicts, and build consensus
+
+### 🧩 **Decompose Problem** - Complex Problem Breakdown
+
+Break down complex challenges into manageable, prioritized components:
+
+- **Hierarchical Decomposition**: Multi-level problem breakdown with clear structure
+- **Dependency Mapping**: Identifies relationships and constraints between sub-problems
+- **Priority Ranking**: Determines optimal execution order based on impact and urgency
+- **Critical Path Analysis**: Highlights bottlenecks and key dependencies for efficient execution
+- **Multiple Strategies**: Functional, temporal, stakeholder, and component-based approaches
+
+### 🧠 **Memory Management** - Advanced Memory Operations
+
+Sophisticated memory optimization and management capabilities:
+
+- **Memory Analysis**: Comprehensive usage analysis with optimization recommendations
+- **Smart Forgetting**: Selective forgetting of low-importance and rarely-accessed memories
+- **Memory Recovery**: Advanced recovery of degraded memories using associative cues
+- **Policy Management**: Configurable forgetting policies with user consent controls
+- **Audit Trails**: Complete forgetting audit logs with impact assessment and rollback capabilities
 
 ### 🎯 **Analyze Systematically** - Framework-Based Problem Solving
 
