@@ -18,6 +18,7 @@ import { RecoveryEngine } from "../cognitive/forgetting/RecoveryEngine.js";
 import { MemorySystem } from "../cognitive/MemorySystem.js";
 import { MetacognitionModule } from "../cognitive/MetacognitionModule.js";
 import { ParallelReasoningProcessor } from "../cognitive/ParallelReasoningProcessor.js";
+import { ProbabilisticReasoningEngine } from "../cognitive/ProbabilisticReasoningEngine.js";
 import {
   DecompositionResult,
   RealTimeProblemDecomposer,
@@ -31,6 +32,7 @@ import {
 } from "../interfaces/forgetting.js";
 import { IMCPServer, IToolHandler } from "../interfaces/mcp.js";
 import { ParallelReasoningResult } from "../interfaces/parallel-reasoning.js";
+import type { ProbabilisticReasoningResult } from "../interfaces/probabilistic-reasoning.js";
 import {
   Problem,
   SystematicThinkingMode,
@@ -68,6 +70,7 @@ import {
   SystematicAnalysisResult,
   ThinkArgs,
   ThinkParallelArgs,
+  ThinkProbabilisticArgs,
   TOOL_SCHEMAS,
 } from "../types/mcp.js";
 import { ConfigManager } from "../utils/config.js";
@@ -91,6 +94,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   private metacognitionModule: MetacognitionModule;
   private systematicThinkingOrchestrator: SystematicThinkingOrchestrator;
   private parallelReasoningProcessor: ParallelReasoningProcessor;
+  private probabilisticReasoningEngine: ProbabilisticReasoningEngine;
   private realTimeProblemDecomposer: RealTimeProblemDecomposer;
   private memoryUsageAnalyzer: MemoryUsageAnalyzer;
   private gradualDegradationManager: GradualDegradationManager;
@@ -134,6 +138,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     this.metacognitionModule = new MetacognitionModule();
     this.systematicThinkingOrchestrator = new SystematicThinkingOrchestrator();
     this.parallelReasoningProcessor = new ParallelReasoningProcessor();
+    this.probabilisticReasoningEngine = new ProbabilisticReasoningEngine();
     this.realTimeProblemDecomposer = new RealTimeProblemDecomposer();
     this.memoryUsageAnalyzer = new MemoryUsageAnalyzer();
     this.gradualDegradationManager = new GradualDegradationManager();
@@ -387,6 +392,34 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                   timestamp: Date.now(),
                   processing_time_ms: parallelMetrics.responseTime,
                   tool_name: "think_parallel",
+                  version: getVersion(),
+                  ...(requestId && { request_id: requestId }),
+                },
+              };
+              break;
+            }
+            case "think_probabilistic": {
+              result = await this.handleThinkProbabilistic(
+                this.validateThinkProbabilisticArgs(args)
+              );
+              const probabilisticResult =
+                result as ProbabilisticReasoningResult;
+              measurement.recordCognitiveMetrics({
+                confidenceScore: probabilisticResult.confidence || 0.5,
+                reasoningDepth:
+                  probabilisticResult.reasoning_chain?.steps?.length || 0,
+                memoryRetrievals: 0,
+                workingMemoryLoad: 0.8,
+                metacognitionTime: probabilisticResult.processing_time_ms ?? 0,
+              });
+              const probabilisticMetrics = measurement.complete();
+              formattedResponse = {
+                success: true,
+                data: result,
+                metadata: {
+                  timestamp: Date.now(),
+                  processing_time_ms: probabilisticMetrics.responseTime,
+                  tool_name: "think_probabilistic",
                   version: getVersion(),
                   ...(requestId && { request_id: requestId }),
                 },
@@ -893,6 +926,52 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       context: args.context as Record<string, unknown>,
       enable_coordination: args.enable_coordination as boolean,
       synchronization_interval: args.synchronization_interval as number,
+    };
+  }
+
+  private validateThinkProbabilisticArgs(
+    args: Record<string, unknown>
+  ): ThinkProbabilisticArgs {
+    if (!args.input || typeof args.input !== "string") {
+      throw new Error("Think probabilistic tool requires a valid input string");
+    }
+
+    if (
+      args.uncertainty_threshold !== undefined &&
+      (typeof args.uncertainty_threshold !== "number" ||
+        args.uncertainty_threshold < 0 ||
+        args.uncertainty_threshold > 1)
+    ) {
+      throw new Error("Uncertainty threshold must be a number between 0 and 1");
+    }
+
+    if (
+      args.max_hypotheses !== undefined &&
+      (typeof args.max_hypotheses !== "number" ||
+        args.max_hypotheses < 1 ||
+        args.max_hypotheses > 10)
+    ) {
+      throw new Error("Max hypotheses must be a number between 1 and 10");
+    }
+
+    if (
+      args.evidence_weight_threshold !== undefined &&
+      (typeof args.evidence_weight_threshold !== "number" ||
+        args.evidence_weight_threshold < 0 ||
+        args.evidence_weight_threshold > 1)
+    ) {
+      throw new Error(
+        "Evidence weight threshold must be a number between 0 and 1"
+      );
+    }
+
+    return {
+      input: args.input as string,
+      context: args.context as Record<string, unknown>,
+      enable_bayesian_updating: args.enable_bayesian_updating as boolean,
+      uncertainty_threshold: args.uncertainty_threshold as number,
+      max_hypotheses: args.max_hypotheses as number,
+      evidence_weight_threshold: args.evidence_weight_threshold as number,
     };
   }
 
@@ -1994,6 +2073,186 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
+    }
+  }
+
+  async handleThinkProbabilistic(
+    args: ThinkProbabilisticArgs
+  ): Promise<ProbabilisticReasoningResult> {
+    const startTime = Date.now();
+    const requestId = this.generateRequestId();
+
+    // Start performance measurement
+    const measurement = this.performanceMonitor.startMeasurement(
+      requestId,
+      "think_probabilistic"
+    );
+
+    try {
+      console.error(
+        `Processing probabilistic reasoning request: ${args.input.substring(
+          0,
+          100
+        )}${args.input.length > 100 ? "..." : ""}`
+      );
+
+      // Create context from arguments
+      const context = this.createContext(args.context);
+
+      // Process through probabilistic reasoning engine with error handling
+      const operationResult = await ErrorHandler.withErrorHandling(
+        () =>
+          this.probabilisticReasoningEngine.processWithUncertainty(
+            args.input,
+            context
+          ),
+        "ProbabilisticReasoningEngine",
+        {
+          enableFallbacks: true,
+          maxRetries: 2,
+          retryDelayMs: 1000,
+          timeoutMs: 30000,
+          criticalComponents: ["ProbabilisticReasoningEngine"],
+        }
+      );
+
+      if (!operationResult.success) {
+        // Handle graceful degradation
+        if (operationResult.data) {
+          console.error(
+            `Probabilistic reasoning completed with warnings: ${operationResult.error}`
+          );
+          return operationResult.data as ProbabilisticReasoningResult;
+        }
+
+        // Create fallback response
+        console.error(
+          `Probabilistic reasoning failed: ${operationResult.error}`
+        );
+        return {
+          conclusion: `Unable to process probabilistic reasoning: ${operationResult.error}`,
+          confidence: 0.1,
+          uncertainty_assessment: {
+            epistemic_uncertainty: 0.9,
+            aleatoric_uncertainty: 0.5,
+            combined_uncertainty: 0.95,
+            confidence_interval: [0.05, 0.15],
+            uncertainty_sources: [
+              {
+                type: "model_limitations",
+                description: "Processing error occurred",
+                impact: 0.9,
+                mitigation_suggestions: [
+                  "Retry with simpler input",
+                  "Check input format",
+                ],
+              },
+            ],
+            reliability_assessment: 0.1,
+          },
+          belief_network: {
+            nodes: new Map(),
+            edges: new Map(),
+            prior_probabilities: new Map(),
+            conditional_probabilities: new Map(),
+            evidence_nodes: [],
+          },
+          evidence_integration: {
+            total_evidence_count: 0,
+            evidence_quality_score: 0,
+            conflicting_evidence: [],
+            supporting_evidence: [],
+            evidence_synthesis: "No evidence available due to processing error",
+            reliability_weighted_score: 0,
+          },
+          alternative_hypotheses: [],
+          reasoning_chain: {
+            steps: [],
+            logical_structure: "",
+            confidence_propagation: [],
+            uncertainty_propagation: [],
+            branch_points: [],
+          },
+          processing_time_ms: Date.now() - startTime,
+        };
+      }
+
+      const result = operationResult.data as ProbabilisticReasoningResult;
+
+      // Record cognitive metrics
+      measurement.recordCognitiveMetrics({
+        confidenceScore: result.confidence,
+        reasoningDepth: result.reasoning_chain?.steps?.length || 0,
+        memoryRetrievals: 0,
+        workingMemoryLoad: 0.8,
+        metacognitionTime: result.processing_time_ms,
+      });
+
+      console.error(
+        `Probabilistic reasoning completed successfully in ${result.processing_time_ms}ms with confidence ${result.confidence}`
+      );
+
+      return result;
+    } catch (error) {
+      // Record error metrics
+      measurement.recordCognitiveMetrics({
+        confidenceScore: 0,
+        reasoningDepth: 0,
+        memoryRetrievals: 0,
+        workingMemoryLoad: 0,
+      });
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      console.error(`Error in probabilistic reasoning: ${errorMessage}`);
+
+      // Return error response
+      return {
+        conclusion: `Error in probabilistic reasoning: ${errorMessage}`,
+        confidence: 0.0,
+        uncertainty_assessment: {
+          epistemic_uncertainty: 1.0,
+          aleatoric_uncertainty: 0.5,
+          combined_uncertainty: 1.0,
+          confidence_interval: [0.0, 0.0],
+          uncertainty_sources: [
+            {
+              type: "model_limitations",
+              description: `Processing error: ${errorMessage}`,
+              impact: 1.0,
+              mitigation_suggestions: [
+                "Check input format",
+                "Retry with different parameters",
+              ],
+            },
+          ],
+          reliability_assessment: 0.0,
+        },
+        belief_network: {
+          nodes: new Map(),
+          edges: new Map(),
+          prior_probabilities: new Map(),
+          conditional_probabilities: new Map(),
+          evidence_nodes: [],
+        },
+        evidence_integration: {
+          total_evidence_count: 0,
+          evidence_quality_score: 0,
+          conflicting_evidence: [],
+          supporting_evidence: [],
+          evidence_synthesis: "No evidence available due to error",
+          reliability_weighted_score: 0,
+        },
+        alternative_hypotheses: [],
+        reasoning_chain: {
+          steps: [],
+          logical_structure: "",
+          confidence_propagation: [],
+          uncertainty_propagation: [],
+          branch_points: [],
+        },
+        processing_time_ms: Date.now() - startTime,
+      };
     }
   }
 

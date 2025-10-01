@@ -17,6 +17,7 @@ export { MemorySystem } from "./MemorySystem.js";
 export { MetacognitionModule } from "./MetacognitionModule.js";
 export { ParallelReasoningProcessor } from "./ParallelReasoningProcessor.js";
 export { PredictiveProcessor } from "./PredictiveProcessor.js";
+export { ProbabilisticReasoningEngine } from "./ProbabilisticReasoningEngine.js";
 export { ProblemAnalyzer } from "./ProblemAnalyzer.js";
 export { RealTimeProblemDecomposer } from "./RealTimeProblemDecomposer.js";
 export { SemanticMemory } from "./SemanticMemory.js";
@@ -24,6 +25,7 @@ export { SensoryProcessor } from "./SensoryProcessor.js";
 export { StochasticNeuralProcessor } from "./StochasticNeuralProcessor.js";
 export { StreamSynchronizationManager } from "./StreamSynchronizationManager.js";
 export { SystematicThinkingOrchestrator } from "./SystematicThinkingOrchestrator.js";
+export { UncertaintyQuantifier } from "./UncertaintyQuantifier.js";
 export { WorkingMemoryModule } from "./WorkingMemoryModule.js";
 
 // Export stream classes

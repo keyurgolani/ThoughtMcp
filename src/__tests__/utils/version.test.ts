@@ -30,7 +30,7 @@ describe("Version Utility", () => {
 
     it("should return current package version", () => {
       const version = getVersion();
-      expect(version).toBe("0.4.0"); // Current version
+      expect(version).toBe("0.4.1"); // Current version
     });
   });
 
@@ -51,13 +51,13 @@ describe("Version Utility", () => {
       expect(typeof versionInfo.isPrerelease).toBe("boolean");
     });
 
-    it("should parse version 0.3.0 correctly", () => {
+    it("should parse version 0.4.1 correctly", () => {
       const versionInfo = getVersionInfo();
 
-      expect(versionInfo.version).toBe("0.4.0");
+      expect(versionInfo.version).toBe("0.4.1");
       expect(versionInfo.major).toBe(0);
       expect(versionInfo.minor).toBe(4);
-      expect(versionInfo.patch).toBe(0);
+      expect(versionInfo.patch).toBe(1);
       expect(versionInfo.isPrerelease).toBe(false);
     });
 

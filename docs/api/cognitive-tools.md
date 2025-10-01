@@ -1238,3 +1238,234 @@ Systematic thinking tools work seamlessly with core cognitive tools:
 - **Memory Integration**: Systematic thinking results are stored and retrieved through memory tools
 - **Reasoning Analysis**: Use `analyze_reasoning` to evaluate systematic thinking quality
 - **Continuous Learning**: System learns from systematic thinking patterns to improve framework selection
+
+## Probabilistic Reasoning Tools
+
+The following tool implements probabilistic reasoning with Bayesian belief updating and uncertainty quantification for handling uncertain information and making decisions under uncertainty.
+
+### 9. `think_probabilistic` - Probabilistic Reasoning Tool
+
+Process input through probabilistic reasoning with Bayesian belief updating and uncertainty quantification.
+
+#### Schema
+
+```json
+{
+  "name": "think_probabilistic",
+  "description": "Process input through probabilistic reasoning with Bayesian belief updating and uncertainty quantification",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "input": {
+        "type": "string",
+        "description": "The input text or question to process with probabilistic reasoning"
+      },
+      "context": {
+        "type": "object",
+        "description": "Contextual information for probabilistic processing",
+        "properties": {
+          "session_id": { "type": "string" },
+          "domain": { "type": "string" },
+          "urgency": { "type": "number", "minimum": 0, "maximum": 1 },
+          "complexity": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      },
+      "enable_bayesian_updating": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether to enable Bayesian belief updating"
+      },
+      "uncertainty_threshold": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.1,
+        "description": "Threshold for uncertainty reporting"
+      },
+      "max_hypotheses": {
+        "type": "number",
+        "minimum": 1,
+        "maximum": 10,
+        "default": 3,
+        "description": "Maximum number of hypotheses to generate"
+      },
+      "evidence_weight_threshold": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.3,
+        "description": "Minimum weight for evidence to be considered"
+      }
+    },
+    "required": ["input"]
+  }
+}
+```
+
+#### Response Format
+
+```typescript
+interface ProbabilisticReasoningResult {
+  hypotheses: Hypothesis[];
+  evidence_analysis: EvidenceAnalysis;
+  uncertainty_assessment: UncertaintyAssessment;
+  bayesian_updates: BayesianUpdate[];
+  confidence: number;
+  processing_time_ms: number;
+  recommendations: string[];
+}
+
+interface Hypothesis {
+  id: string;
+  description: string;
+  prior_probability: number;
+  posterior_probability: number;
+  evidence_support: number;
+  confidence_interval: [number, number];
+  supporting_evidence: string[];
+  contradicting_evidence: string[];
+}
+
+interface EvidenceAnalysis {
+  total_evidence_pieces: number;
+  strong_evidence: number;
+  weak_evidence: number;
+  conflicting_evidence: number;
+  evidence_quality: number;
+  reliability_assessment: number;
+}
+
+interface UncertaintyAssessment {
+  epistemic_uncertainty: number; // Knowledge uncertainty (0-1)
+  aleatoric_uncertainty: number; // Inherent randomness (0-1)
+  total_uncertainty: number; // Combined uncertainty (0-1)
+  uncertainty_sources: string[];
+  confidence_calibration: number;
+}
+
+interface BayesianUpdate {
+  hypothesis_id: string;
+  prior: number;
+  likelihood: number;
+  posterior: number;
+  evidence_description: string;
+  update_strength: number;
+}
+```
+
+#### Usage Examples
+
+**Medical Diagnosis with Uncertainty**
+
+```typescript
+const result = await client.request({
+  method: "tools/call",
+  params: {
+    name: "think_probabilistic",
+    arguments: {
+      input:
+        "Patient presents with fever, cough, and fatigue. What are the most likely diagnoses?",
+      context: {
+        domain: "medical",
+        complexity: 0.7,
+      },
+      max_hypotheses: 5,
+      uncertainty_threshold: 0.05,
+    },
+  },
+});
+```
+
+**Investment Decision Under Uncertainty**
+
+```typescript
+const result = await client.request({
+  method: "tools/call",
+  params: {
+    name: "think_probabilistic",
+    arguments: {
+      input:
+        "Should we invest in renewable energy stocks given current market conditions?",
+      context: {
+        domain: "finance",
+        urgency: 0.6,
+        complexity: 0.8,
+      },
+      enable_bayesian_updating: true,
+      evidence_weight_threshold: 0.4,
+    },
+  },
+});
+```
+
+**Scientific Hypothesis Testing**
+
+```typescript
+const result = await client.request({
+  method: "tools/call",
+  params: {
+    name: "think_probabilistic",
+    arguments: {
+      input:
+        "Based on experimental data, what is the probability that our new drug is effective?",
+      context: {
+        domain: "research",
+        complexity: 0.9,
+      },
+      max_hypotheses: 3,
+      uncertainty_threshold: 0.01,
+      evidence_weight_threshold: 0.5,
+    },
+  },
+});
+```
+
+#### Key Features
+
+**Bayesian Belief Updating**
+
+- Updates probability estimates as new evidence becomes available
+- Maintains prior beliefs and incorporates new information systematically
+- Provides transparent reasoning about probability changes
+
+**Uncertainty Quantification**
+
+- Distinguishes between epistemic (knowledge) and aleatoric (inherent) uncertainty
+- Provides confidence intervals for probability estimates
+- Identifies sources of uncertainty for targeted information gathering
+
+**Evidence Analysis**
+
+- Evaluates strength and reliability of evidence
+- Identifies conflicting or contradictory information
+- Weights evidence based on quality and relevance
+
+**Hypothesis Generation**
+
+- Generates multiple competing hypotheses
+- Ranks hypotheses by probability and evidence support
+- Provides supporting and contradicting evidence for each hypothesis
+
+#### Best Practices
+
+**When to Use Probabilistic Reasoning**
+
+- Decision making under uncertainty
+- Medical diagnosis and risk assessment
+- Financial and investment analysis
+- Scientific hypothesis testing
+- Risk management and safety analysis
+
+**Parameter Tuning**
+
+- Use lower `uncertainty_threshold` for high-stakes decisions
+- Increase `max_hypotheses` for complex problems with many possibilities
+- Adjust `evidence_weight_threshold` based on evidence quality requirements
+- Enable Bayesian updating when dealing with sequential evidence
+
+**Interpreting Results**
+
+- Pay attention to confidence intervals, not just point estimates
+- Consider both epistemic and aleatoric uncertainty
+- Review evidence quality and potential biases
+- Use uncertainty assessment to guide further information gathering

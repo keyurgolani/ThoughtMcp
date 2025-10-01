@@ -104,6 +104,15 @@ export interface ForgettingAuditArgs {
   export_format?: "json" | "csv" | "xml";
 }
 
+export interface ThinkProbabilisticArgs {
+  input: string;
+  context?: Partial<Context>;
+  enable_bayesian_updating?: boolean;
+  uncertainty_threshold?: number;
+  max_hypotheses?: number;
+  evidence_weight_threshold?: number;
+}
+
 export interface ForgettingPolicyArgs {
   action:
     | "list"
@@ -196,6 +205,9 @@ export type { SystematicAnalysisResult } from "../interfaces/systematic-thinking
 
 // Re-export ParallelReasoningResult from parallel-reasoning interface
 export type { ParallelReasoningResult } from "../interfaces/parallel-reasoning.js";
+
+// Re-export ProbabilisticReasoningResult from probabilistic-reasoning interface
+export type { ProbabilisticReasoningResult } from "../interfaces/probabilistic-reasoning.js";
 
 // Re-export DecompositionResult from RealTimeProblemDecomposer
 export type { DecompositionResult } from "../cognitive/RealTimeProblemDecomposer.js";
@@ -891,6 +903,59 @@ export const TOOL_SCHEMAS = {
           description: "Format for exporting audit data (optional)",
         },
       },
+    },
+  },
+
+  think_probabilistic: {
+    name: "think_probabilistic",
+    description:
+      "Process input through probabilistic reasoning with Bayesian belief updating and uncertainty quantification",
+    inputSchema: {
+      type: "object",
+      properties: {
+        input: {
+          type: "string",
+          description:
+            "The input text or question to process with probabilistic reasoning",
+        },
+        context: {
+          type: "object",
+          properties: {
+            session_id: { type: "string" },
+            domain: { type: "string" },
+            urgency: { type: "number", minimum: 0, maximum: 1 },
+            complexity: { type: "number", minimum: 0, maximum: 1 },
+          },
+          description: "Contextual information for probabilistic processing",
+        },
+        enable_bayesian_updating: {
+          type: "boolean",
+          description: "Whether to enable Bayesian belief updating",
+          default: true,
+        },
+        uncertainty_threshold: {
+          type: "number",
+          minimum: 0,
+          maximum: 1,
+          description: "Threshold for uncertainty reporting",
+          default: 0.1,
+        },
+        max_hypotheses: {
+          type: "number",
+          minimum: 1,
+          maximum: 10,
+          description: "Maximum number of hypotheses to generate",
+          default: 3,
+        },
+        evidence_weight_threshold: {
+          type: "number",
+          minimum: 0,
+          maximum: 1,
+          description: "Minimum weight for evidence to be considered",
+          default: 0.3,
+        },
+      },
+      required: ["input"],
     },
   },
 

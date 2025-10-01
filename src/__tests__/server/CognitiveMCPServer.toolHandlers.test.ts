@@ -665,4 +665,121 @@ describe("CognitiveMCPServer Tool Handlers", () => {
       expect(recallResult.total_found).toBeGreaterThanOrEqual(0);
     });
   });
+
+  describe("handleThinkProbabilistic", () => {
+    it("should process probabilistic reasoning request with basic input", async () => {
+      const args: ThinkProbabilisticArgs = {
+        input:
+          "What is the probability that it will rain tomorrow given cloudy skies?",
+      };
+
+      const result = await server.handleThinkProbabilistic(args);
+
+      expect(result).toBeDefined();
+      expect(result.conclusion).toBeDefined();
+      expect(typeof result.conclusion).toBe("string");
+      expect(result.confidence).toBeDefined();
+      expect(typeof result.confidence).toBe("number");
+      expect(result.confidence).toBeGreaterThanOrEqual(0);
+      expect(result.confidence).toBeLessThanOrEqual(1);
+      expect(result.uncertainty_assessment).toBeDefined();
+      expect(result.belief_network).toBeDefined();
+      expect(result.evidence_integration).toBeDefined();
+      expect(Array.isArray(result.alternative_hypotheses)).toBe(true);
+      expect(result.reasoning_chain).toBeDefined();
+      expect(typeof result.processing_time_ms).toBe("number");
+    });
+
+    it("should handle probabilistic reasoning with context", async () => {
+      const args: ThinkProbabilisticArgs = {
+        input:
+          "Should I invest in this stock given the current market conditions?",
+        context: {
+          domain: "finance",
+          session_id: "test-session",
+        },
+      };
+
+      const result = await server.handleThinkProbabilistic(args);
+
+      expect(result).toBeDefined();
+      expect(result.conclusion).toBeDefined();
+      expect(result.uncertainty_assessment).toBeDefined();
+      expect(result.uncertainty_assessment.epistemic_uncertainty).toBeDefined();
+      expect(result.uncertainty_assessment.aleatoric_uncertainty).toBeDefined();
+      expect(result.uncertainty_assessment.combined_uncertainty).toBeDefined();
+      expect(
+        Array.isArray(result.uncertainty_assessment.confidence_interval)
+      ).toBe(true);
+      expect(result.uncertainty_assessment.confidence_interval).toHaveLength(2);
+      expect(
+        Array.isArray(result.uncertainty_assessment.uncertainty_sources)
+      ).toBe(true);
+    });
+
+    it("should generate multiple hypotheses for complex scenarios", async () => {
+      const args: ThinkProbabilisticArgs = {
+        input:
+          "What are the possible outcomes of implementing a new software architecture?",
+      };
+
+      const result = await server.handleThinkProbabilistic(args);
+
+      expect(result).toBeDefined();
+      expect(Array.isArray(result.alternative_hypotheses)).toBe(true);
+      expect(result.alternative_hypotheses.length).toBeGreaterThan(0);
+      expect(result.belief_network.nodes.size).toBeGreaterThan(0);
+      expect(result.reasoning_chain.steps).toBeDefined();
+      expect(Array.isArray(result.reasoning_chain.steps)).toBe(true);
+      expect(result.reasoning_chain.steps.length).toBeGreaterThan(0);
+    });
+
+    it("should handle uncertainty quantification correctly", async () => {
+      const args: ThinkProbabilisticArgs = {
+        input: "What is the likelihood of success for this uncertain project?",
+      };
+
+      const result = await server.handleThinkProbabilistic(args);
+
+      expect(result).toBeDefined();
+      expect(result.uncertainty_assessment).toBeDefined();
+
+      const uncertainty = result.uncertainty_assessment;
+      expect(uncertainty.epistemic_uncertainty).toBeGreaterThanOrEqual(0);
+      expect(uncertainty.epistemic_uncertainty).toBeLessThanOrEqual(1);
+      expect(uncertainty.aleatoric_uncertainty).toBeGreaterThanOrEqual(0);
+      expect(uncertainty.aleatoric_uncertainty).toBeLessThanOrEqual(1);
+      expect(uncertainty.combined_uncertainty).toBeGreaterThanOrEqual(0);
+      expect(uncertainty.combined_uncertainty).toBeLessThanOrEqual(1);
+      expect(uncertainty.reliability_assessment).toBeGreaterThanOrEqual(0);
+      expect(uncertainty.reliability_assessment).toBeLessThanOrEqual(1);
+    });
+
+    it("should handle empty input gracefully", async () => {
+      const args: ThinkProbabilisticArgs = { input: "" };
+
+      const result = await server.handleThinkProbabilistic(args);
+
+      expect(result).toBeDefined();
+      expect(result.conclusion).toBeDefined();
+      expect(result.confidence).toBeGreaterThanOrEqual(0);
+      expect(result.uncertainty_assessment).toBeDefined();
+      expect(
+        result.uncertainty_assessment.combined_uncertainty
+      ).toBeGreaterThan(0.3); // Higher uncertainty for empty input
+    });
+
+    it("should handle edge cases gracefully", async () => {
+      const args: ThinkProbabilisticArgs = {
+        input: "A very short input",
+      };
+
+      const result = await server.handleThinkProbabilistic(args);
+
+      expect(result).toBeDefined();
+      expect(result.conclusion).toBeDefined();
+      expect(result.confidence).toBeGreaterThan(0);
+      expect(result.processing_time_ms).toBeGreaterThanOrEqual(0);
+    });
+  });
 });
