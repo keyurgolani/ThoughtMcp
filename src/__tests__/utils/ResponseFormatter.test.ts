@@ -251,7 +251,7 @@ describe("ResponseFormatter", () => {
 
       expect(response.error!.code).toBe("VALIDATION_ERROR");
       expect(response.error!.suggestions).toContain(
-        "Check that all required parameters are provided"
+        "💡 Double-check your parameters - something's not quite right"
       );
     });
 
@@ -263,7 +263,7 @@ describe("ResponseFormatter", () => {
 
       expect(response.error!.code).toBe("TIMEOUT_ERROR");
       expect(response.error!.suggestions).toContain(
-        "Try reducing the complexity of the request"
+        "⏱️ Your request took too long - let's try a simpler approach"
       );
     });
 
@@ -275,7 +275,7 @@ describe("ResponseFormatter", () => {
 
       expect(response.error!.code).toBe("MEMORY_ERROR");
       expect(response.error!.suggestions).toContain(
-        "Try reducing the amount of data being processed"
+        "🧠 Memory system is getting full - time for some cleanup"
       );
     });
 

@@ -154,7 +154,7 @@ describe("CognitiveMCPServer", () => {
     describe("Think Tool Validation", () => {
       it("should reject empty input", async () => {
         await expect(server.handleThink({ input: "" })).rejects.toThrow(
-          "Think tool requires a valid input string"
+          "❌ Parameter validation failed for 'think' tool"
         );
       });
 
@@ -164,7 +164,7 @@ describe("CognitiveMCPServer", () => {
             input: "test",
             mode: "invalid_mode" as unknown as ProcessingMode,
           })
-        ).rejects.toThrow("Invalid processing mode");
+        ).rejects.toThrow("❌ Parameter validation failed for 'think' tool");
       });
 
       it("should reject invalid temperature", async () => {
@@ -173,14 +173,14 @@ describe("CognitiveMCPServer", () => {
             input: "test",
             temperature: -1,
           })
-        ).rejects.toThrow("Temperature must be a number between 0 and 2");
+        ).rejects.toThrow("❌ Parameter validation failed for 'think' tool");
 
         await expect(
           server.handleThink({
             input: "test",
             temperature: 3,
           })
-        ).rejects.toThrow("Temperature must be a number between 0 and 2");
+        ).rejects.toThrow("❌ Parameter validation failed for 'think' tool");
       });
 
       it("should reject invalid max_depth", async () => {
@@ -189,14 +189,14 @@ describe("CognitiveMCPServer", () => {
             input: "test",
             max_depth: 0,
           })
-        ).rejects.toThrow("Max depth must be a number between 1 and 20");
+        ).rejects.toThrow("❌ Parameter validation failed for 'think' tool");
 
         await expect(
           server.handleThink({
             input: "test",
             max_depth: 25,
           })
-        ).rejects.toThrow("Max depth must be a number between 1 and 20");
+        ).rejects.toThrow("❌ Parameter validation failed for 'think' tool");
       });
     });
 
@@ -207,7 +207,7 @@ describe("CognitiveMCPServer", () => {
             content: "",
             type: "semantic",
           })
-        ).rejects.toThrow("Remember tool requires a valid content string");
+        ).rejects.toThrow("❌ Parameter validation failed for 'remember' tool");
       });
 
       it("should reject invalid memory type", async () => {
@@ -216,9 +216,7 @@ describe("CognitiveMCPServer", () => {
             content: "test",
             type: "invalid" as unknown as "episodic" | "semantic",
           })
-        ).rejects.toThrow(
-          'Remember tool requires type to be either "episodic" or "semantic"'
-        );
+        ).rejects.toThrow("❌ Parameter validation failed for 'remember' tool");
       });
 
       it("should reject invalid importance", async () => {
@@ -228,7 +226,7 @@ describe("CognitiveMCPServer", () => {
             type: "semantic",
             importance: -1,
           })
-        ).rejects.toThrow("Importance must be a number between 0 and 1");
+        ).rejects.toThrow("❌ Parameter validation failed for 'remember' tool");
 
         await expect(
           server.handleRemember({
@@ -236,14 +234,14 @@ describe("CognitiveMCPServer", () => {
             type: "semantic",
             importance: 2,
           })
-        ).rejects.toThrow("Importance must be a number between 0 and 1");
+        ).rejects.toThrow("❌ Parameter validation failed for 'remember' tool");
       });
     });
 
     describe("Recall Tool Validation", () => {
       it("should reject empty cue", async () => {
         await expect(server.handleRecall({ cue: "" })).rejects.toThrow(
-          "Recall tool requires a valid cue string"
+          "❌ Parameter validation failed for 'recall' tool"
         );
       });
 
@@ -253,9 +251,7 @@ describe("CognitiveMCPServer", () => {
             cue: "test",
             type: "invalid" as unknown as "episodic" | "semantic" | "both",
           })
-        ).rejects.toThrow(
-          'Recall type must be "episodic", "semantic", or "both"'
-        );
+        ).rejects.toThrow("❌ Parameter validation failed for 'recall' tool");
       });
 
       it("should reject invalid threshold", async () => {
@@ -264,14 +260,14 @@ describe("CognitiveMCPServer", () => {
             cue: "test",
             threshold: -1,
           })
-        ).rejects.toThrow("Threshold must be a number between 0 and 1");
+        ).rejects.toThrow("❌ Parameter validation failed for 'recall' tool");
 
         await expect(
           server.handleRecall({
             cue: "test",
             threshold: 2,
           })
-        ).rejects.toThrow("Threshold must be a number between 0 and 1");
+        ).rejects.toThrow("❌ Parameter validation failed for 'recall' tool");
       });
 
       it("should reject invalid max_results", async () => {
@@ -280,14 +276,14 @@ describe("CognitiveMCPServer", () => {
             cue: "test",
             max_results: 0,
           })
-        ).rejects.toThrow("Max results must be a number between 1 and 50");
+        ).rejects.toThrow("❌ Parameter validation failed for 'recall' tool");
 
         await expect(
           server.handleRecall({
             cue: "test",
             max_results: 100,
           })
-        ).rejects.toThrow("Max results must be a number between 1 and 50");
+        ).rejects.toThrow("❌ Parameter validation failed for 'recall' tool");
       });
     });
 
@@ -375,7 +371,9 @@ describe("CognitiveMCPServer", () => {
           input: "test",
           mode: "nonexistent" as unknown as ProcessingMode,
         })
-      ).rejects.toThrow(/Invalid processing mode.*nonexistent/);
+      ).rejects.toThrow(
+        /Think processing failed.*❌ Parameter validation failed for 'think' tool[\s\S]*nonexistent/
+      );
     });
   });
 

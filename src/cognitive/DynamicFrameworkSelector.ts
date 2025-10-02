@@ -704,17 +704,18 @@ export class DynamicFrameworkSelector implements IDynamicFrameworkSelector {
   ): string {
     const reasons: string[] = [];
 
+    // Start with user-friendly framework selection explanation
     reasons.push(
-      `Selected ${framework.name} with confidence ${(score * 100).toFixed(0)}%`
+      `I recommend ${framework.name} because it's the best fit for your specific problem type`
     );
 
-    // Add specific reasoning based on characteristics
+    // Add detailed, user-friendly reasoning based on characteristics
     if (
       characteristics.is_well_defined &&
       framework.type === "scientific_method"
     ) {
       reasons.push(
-        "Problem is well-defined, suitable for systematic investigation"
+        "Your problem has clear parameters and measurable outcomes, making it perfect for systematic testing and validation"
       );
     }
 
@@ -723,7 +724,7 @@ export class DynamicFrameworkSelector implements IDynamicFrameworkSelector {
       framework.type === "design_thinking"
     ) {
       reasons.push(
-        "Problem requires creative solutions, design thinking approach recommended"
+        "This challenge needs innovative solutions and user-centered thinking - Design Thinking excels at generating creative, practical ideas"
       );
     }
 
@@ -732,7 +733,7 @@ export class DynamicFrameworkSelector implements IDynamicFrameworkSelector {
       framework.type === "systems_thinking"
     ) {
       reasons.push(
-        "Problem involves complex systems, holistic approach needed"
+        "Your problem involves multiple interconnected parts - Systems Thinking will help you see the big picture and find leverage points for maximum impact"
       );
     }
 
@@ -740,11 +741,109 @@ export class DynamicFrameworkSelector implements IDynamicFrameworkSelector {
       characteristics.requires_root_cause &&
       framework.type === "root_cause_analysis"
     ) {
-      reasons.push("Problem requires identifying underlying causes");
+      reasons.push(
+        "You're dealing with symptoms of a deeper issue - Root Cause Analysis will help you fix the real problem, not just the surface symptoms"
+      );
     }
 
-    reasons.push(`Framework strengths: ${framework.strengths.join(", ")}`);
+    if (framework.type === "critical_thinking") {
+      reasons.push(
+        "This situation requires careful evaluation of information and arguments - Critical Thinking will help you make well-reasoned decisions"
+      );
+    }
+
+    if (framework.type === "creative_problem_solving") {
+      reasons.push(
+        "You need breakthrough solutions - Creative Problem Solving will help you think outside the box and generate innovative approaches"
+      );
+    }
+
+    if (framework.type === "first_principles") {
+      reasons.push(
+        "This problem benefits from questioning basic assumptions - First Principles Thinking will help you build solutions from fundamental truths"
+      );
+    }
+
+    if (framework.type === "scenario_planning") {
+      reasons.push(
+        "You're dealing with uncertainty about the future - Scenario Planning will help you prepare for multiple possible outcomes"
+      );
+    }
+
+    // Add confidence explanation in user-friendly terms
+    const confidenceLevel =
+      score >= 0.8
+        ? "very confident"
+        : score >= 0.6
+        ? "confident"
+        : "moderately confident";
+    reasons.push(
+      `I'm ${confidenceLevel} (${(score * 100).toFixed(
+        0
+      )}%) this framework will work well for your situation`
+    );
+
+    // Add what makes this framework particularly good
+    const strengthsExplanation = this.explainFrameworkStrengths(
+      framework,
+      characteristics
+    );
+    if (strengthsExplanation) {
+      reasons.push(strengthsExplanation);
+    }
 
     return reasons.join(". ");
+  }
+
+  private explainFrameworkStrengths(
+    framework: ThinkingFramework,
+    _characteristics: ProblemCharacteristics
+  ): string {
+    const explanations: string[] = [];
+
+    switch (framework.type) {
+      case "scientific_method":
+        explanations.push(
+          "It provides rigorous, evidence-based analysis that builds reliable conclusions"
+        );
+        break;
+      case "design_thinking":
+        explanations.push(
+          "It keeps users at the center while systematically exploring creative solutions"
+        );
+        break;
+      case "systems_thinking":
+        explanations.push(
+          "It reveals hidden connections and helps you intervene at the most effective points"
+        );
+        break;
+      case "critical_thinking":
+        explanations.push(
+          "It helps you cut through bias and misinformation to reach sound conclusions"
+        );
+        break;
+      case "creative_problem_solving":
+        explanations.push(
+          "It balances creative exploration with practical implementation planning"
+        );
+        break;
+      case "root_cause_analysis":
+        explanations.push(
+          "It ensures you solve the real problem and prevent it from happening again"
+        );
+        break;
+      case "first_principles":
+        explanations.push(
+          "It breaks free from conventional thinking to find truly innovative solutions"
+        );
+        break;
+      case "scenario_planning":
+        explanations.push(
+          "It helps you make robust decisions that work across multiple possible futures"
+        );
+        break;
+    }
+
+    return explanations.join(". ");
   }
 }

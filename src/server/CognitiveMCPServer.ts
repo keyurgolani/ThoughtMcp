@@ -75,6 +75,7 @@ import {
 } from "../types/mcp.js";
 import { ConfigManager } from "../utils/config.js";
 import { ErrorHandler } from "../utils/ErrorHandler.js";
+import { ParameterValidator } from "../utils/ParameterValidator.js";
 import {
   PerformanceMonitor,
   PerformanceThresholds,
@@ -279,10 +280,16 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                   | undefined,
               });
               const thinkMetrics = measurement.complete();
-              formattedResponse = ResponseFormatter.formatThinkResponse(
+              // Use enhanced response format with improved reasoning presentation
+              const thinkArgs = args as unknown as ThinkArgs;
+              formattedResponse = ResponseFormatter.createEnhancedThinkResponse(
                 result,
                 thinkMetrics.responseTime,
-                requestId
+                {
+                  requestId,
+                  verbosityLevel: thinkArgs.verbosity || "standard",
+                  includeExecutiveSummary: thinkArgs.include_executive_summary,
+                }
               );
               break;
             }
@@ -333,17 +340,27 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 metacognitionTime: 100,
               });
               const analyzeMetrics = measurement.complete();
-              formattedResponse = {
-                success: true,
-                data: result,
-                metadata: {
-                  timestamp: Date.now(),
-                  processing_time_ms: analyzeMetrics.responseTime,
-                  tool_name: "analyze_reasoning",
-                  version: getVersion(),
-                  ...(requestId && { request_id: requestId }),
-                },
-              };
+              const analyzeArgs = args as unknown as AnalyzeReasoningArgs;
+              formattedResponse = ResponseFormatter.createStandardizedResponse(
+                result,
+                "analyze_reasoning",
+                analyzeMetrics.responseTime,
+                {
+                  requestId,
+                  verbosityLevel: analyzeArgs.verbosity || "standard",
+                  confidence: (result as AnalysisResult).coherence_score,
+                  includeExecutiveSummary:
+                    analyzeArgs.include_executive_summary !== false,
+                  filteringOptions: {
+                    maxItems:
+                      analyzeArgs.verbosity === "summary"
+                        ? 5
+                        : analyzeArgs.verbosity === "detailed"
+                        ? 50
+                        : 20,
+                  },
+                }
+              );
               break;
             }
             case "analyze_systematically": {
@@ -359,17 +376,28 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 metacognitionTime: systematicResult.processing_time_ms ?? 0,
               });
               const systematicMetrics = measurement.complete();
-              formattedResponse = {
-                success: true,
-                data: result,
-                metadata: {
-                  timestamp: Date.now(),
-                  processing_time_ms: systematicMetrics.responseTime,
-                  tool_name: "analyze_systematically",
-                  version: getVersion(),
-                  ...(requestId && { request_id: requestId }),
-                },
-              };
+              const systematicArgs =
+                args as unknown as AnalyzeSystematicallyArgs;
+              formattedResponse = ResponseFormatter.createStandardizedResponse(
+                result,
+                "analyze_systematically",
+                systematicMetrics.responseTime,
+                {
+                  requestId,
+                  verbosityLevel: systematicArgs.verbosity || "standard",
+                  confidence: systematicResult.confidence,
+                  includeExecutiveSummary:
+                    systematicArgs.include_executive_summary !== false,
+                  filteringOptions: {
+                    maxItems:
+                      systematicArgs.verbosity === "summary"
+                        ? 3
+                        : systematicArgs.verbosity === "detailed"
+                        ? 20
+                        : 10,
+                  },
+                }
+              );
               break;
             }
             case "think_parallel": {
@@ -385,17 +413,27 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 metacognitionTime: parallelResult.processing_time_ms ?? 0,
               });
               const parallelMetrics = measurement.complete();
-              formattedResponse = {
-                success: true,
-                data: result,
-                metadata: {
-                  timestamp: Date.now(),
-                  processing_time_ms: parallelMetrics.responseTime,
-                  tool_name: "think_parallel",
-                  version: getVersion(),
-                  ...(requestId && { request_id: requestId }),
-                },
-              };
+              const parallelArgs = args as unknown as ThinkParallelArgs;
+              formattedResponse = ResponseFormatter.createStandardizedResponse(
+                result,
+                "think_parallel",
+                parallelMetrics.responseTime,
+                {
+                  requestId,
+                  verbosityLevel: parallelArgs.verbosity || "standard",
+                  confidence: parallelResult.confidence,
+                  includeExecutiveSummary:
+                    parallelArgs.include_executive_summary !== false,
+                  filteringOptions: {
+                    maxItems:
+                      parallelArgs.verbosity === "summary"
+                        ? 4
+                        : parallelArgs.verbosity === "detailed"
+                        ? 12
+                        : 8,
+                  },
+                }
+              );
               break;
             }
             case "think_probabilistic": {
@@ -413,17 +451,28 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 metacognitionTime: probabilisticResult.processing_time_ms ?? 0,
               });
               const probabilisticMetrics = measurement.complete();
-              formattedResponse = {
-                success: true,
-                data: result,
-                metadata: {
-                  timestamp: Date.now(),
-                  processing_time_ms: probabilisticMetrics.responseTime,
-                  tool_name: "think_probabilistic",
-                  version: getVersion(),
-                  ...(requestId && { request_id: requestId }),
-                },
-              };
+              const probabilisticArgs =
+                args as unknown as ThinkProbabilisticArgs;
+              formattedResponse = ResponseFormatter.createStandardizedResponse(
+                result,
+                "think_probabilistic",
+                probabilisticMetrics.responseTime,
+                {
+                  requestId,
+                  verbosityLevel: probabilisticArgs.verbosity || "standard",
+                  confidence: probabilisticResult.confidence,
+                  includeExecutiveSummary:
+                    probabilisticArgs.include_executive_summary !== false,
+                  filteringOptions: {
+                    maxItems:
+                      probabilisticArgs.verbosity === "summary"
+                        ? 5
+                        : probabilisticArgs.verbosity === "detailed"
+                        ? 25
+                        : 15,
+                  },
+                }
+              );
               break;
             }
             case "decompose_problem": {
@@ -440,17 +489,27 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 metacognitionTime: decompositionResult.processing_time_ms ?? 0,
               });
               const decompositionMetrics = measurement.complete();
-              formattedResponse = {
-                success: true,
-                data: result,
-                metadata: {
-                  timestamp: Date.now(),
-                  processing_time_ms: decompositionMetrics.responseTime,
-                  tool_name: "decompose_problem",
-                  version: getVersion(),
-                  ...(requestId && { request_id: requestId }),
-                },
-              };
+              const decompositionArgs = args as unknown as DecomposeProblemArgs;
+              formattedResponse = ResponseFormatter.createStandardizedResponse(
+                result,
+                "decompose_problem",
+                decompositionMetrics.responseTime,
+                {
+                  requestId,
+                  verbosityLevel: decompositionArgs.verbosity || "standard",
+                  confidence: decompositionResult.confidence,
+                  includeExecutiveSummary:
+                    decompositionArgs.include_executive_summary !== false,
+                  filteringOptions: {
+                    maxItems:
+                      decompositionArgs.verbosity === "summary"
+                        ? 5
+                        : decompositionArgs.verbosity === "detailed"
+                        ? 30
+                        : 15,
+                  },
+                }
+              );
               break;
             }
             case "analyze_memory_usage": {
@@ -466,17 +525,30 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 metacognitionTime: memoryAnalysisResult.analysis_time_ms ?? 0,
               });
               const memoryAnalysisMetrics = measurement.complete();
-              formattedResponse = {
-                success: true,
-                data: result,
-                metadata: {
-                  timestamp: Date.now(),
-                  processing_time_ms: memoryAnalysisMetrics.responseTime,
-                  tool_name: "analyze_memory_usage",
-                  version: getVersion(),
-                  ...(requestId && { request_id: requestId }),
-                },
-              };
+              const memoryAnalysisArgs =
+                args as unknown as AnalyzeMemoryUsageArgs;
+              formattedResponse = ResponseFormatter.createStandardizedResponse(
+                result,
+                "analyze_memory_usage",
+                memoryAnalysisMetrics.responseTime,
+                {
+                  requestId,
+                  verbosityLevel: memoryAnalysisArgs.verbosity || "standard",
+                  confidence: 0.9,
+                  includeExecutiveSummary:
+                    memoryAnalysisArgs.include_executive_summary !== false,
+                  filteringOptions: {
+                    maxItems:
+                      memoryAnalysisArgs.verbosity === "summary"
+                        ? 10
+                        : memoryAnalysisArgs.verbosity === "detailed"
+                        ? 100
+                        : 50,
+                    priorityThreshold:
+                      memoryAnalysisArgs.verbosity === "summary" ? 0.7 : 0.3,
+                  },
+                }
+              );
               break;
             }
             case "optimize_memory": {
@@ -496,17 +568,29 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                   memoryOptimizationResult.optimization_time_ms ?? 0,
               });
               const memoryOptimizationMetrics = measurement.complete();
-              formattedResponse = {
-                success: true,
-                data: result,
-                metadata: {
-                  timestamp: Date.now(),
-                  processing_time_ms: memoryOptimizationMetrics.responseTime,
-                  tool_name: "optimize_memory",
-                  version: getVersion(),
-                  ...(requestId && { request_id: requestId }),
-                },
-              };
+              const memoryOptimizationArgs =
+                args as unknown as OptimizeMemoryArgs;
+              formattedResponse = ResponseFormatter.createStandardizedResponse(
+                result,
+                "optimize_memory",
+                memoryOptimizationMetrics.responseTime,
+                {
+                  requestId,
+                  verbosityLevel:
+                    memoryOptimizationArgs.verbosity || "standard",
+                  confidence: memoryOptimizationResult.success ? 0.8 : 0.3,
+                  includeExecutiveSummary:
+                    memoryOptimizationArgs.include_executive_summary !== false,
+                  filteringOptions: {
+                    maxItems:
+                      memoryOptimizationArgs.verbosity === "summary"
+                        ? 5
+                        : memoryOptimizationArgs.verbosity === "detailed"
+                        ? 50
+                        : 20,
+                  },
+                }
+              );
               break;
             }
             case "recover_memory": {
@@ -522,17 +606,27 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 metacognitionTime: memoryRecoveryResult.recovery_time_ms,
               });
               const memoryRecoveryMetrics = measurement.complete();
-              formattedResponse = {
-                success: true,
-                data: result,
-                metadata: {
-                  timestamp: Date.now(),
-                  processing_time_ms: memoryRecoveryMetrics.responseTime,
-                  tool_name: "recover_memory",
-                  version: getVersion(),
-                  ...(requestId && { request_id: requestId }),
-                },
-              };
+              const memoryRecoveryArgs = args as unknown as RecoverMemoryArgs;
+              formattedResponse = ResponseFormatter.createStandardizedResponse(
+                result,
+                "recover_memory",
+                memoryRecoveryMetrics.responseTime,
+                {
+                  requestId,
+                  verbosityLevel: memoryRecoveryArgs.verbosity || "standard",
+                  confidence: memoryRecoveryResult.recovery_confidence,
+                  includeExecutiveSummary:
+                    memoryRecoveryArgs.include_executive_summary !== false,
+                  filteringOptions: {
+                    maxItems:
+                      memoryRecoveryArgs.verbosity === "summary"
+                        ? 3
+                        : memoryRecoveryArgs.verbosity === "detailed"
+                        ? 15
+                        : 8,
+                  },
+                }
+              );
               break;
             }
             case "forgetting_audit": {
@@ -548,17 +642,28 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 metacognitionTime: forgettingAuditResult.query_time_ms,
               });
               const forgettingAuditMetrics = measurement.complete();
-              formattedResponse = {
-                success: true,
-                data: result,
-                metadata: {
-                  timestamp: Date.now(),
-                  processing_time_ms: forgettingAuditMetrics.responseTime,
-                  tool_name: "forgetting_audit",
-                  version: getVersion(),
-                  ...(requestId && { request_id: requestId }),
-                },
-              };
+              const forgettingAuditArgs =
+                args as unknown as ForgettingAuditArgs;
+              formattedResponse = ResponseFormatter.createStandardizedResponse(
+                result,
+                "forgetting_audit",
+                forgettingAuditMetrics.responseTime,
+                {
+                  requestId,
+                  verbosityLevel: forgettingAuditArgs.verbosity || "standard",
+                  confidence: 0.9,
+                  includeExecutiveSummary:
+                    forgettingAuditArgs.include_executive_summary !== false,
+                  filteringOptions: {
+                    maxItems:
+                      forgettingAuditArgs.verbosity === "summary"
+                        ? 10
+                        : forgettingAuditArgs.verbosity === "detailed"
+                        ? 100
+                        : 50,
+                  },
+                }
+              );
               break;
             }
             case "forgetting_policy": {
@@ -574,17 +679,28 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 metacognitionTime: forgettingPolicyResult.processing_time_ms,
               });
               const forgettingPolicyMetrics = measurement.complete();
-              formattedResponse = {
-                success: true,
-                data: result,
-                metadata: {
-                  timestamp: Date.now(),
-                  processing_time_ms: forgettingPolicyMetrics.responseTime,
-                  tool_name: "forgetting_policy",
-                  version: getVersion(),
-                  ...(requestId && { request_id: requestId }),
-                },
-              };
+              const forgettingPolicyArgs =
+                args as unknown as ForgettingPolicyArgs;
+              formattedResponse = ResponseFormatter.createStandardizedResponse(
+                result,
+                "forgetting_policy",
+                forgettingPolicyMetrics.responseTime,
+                {
+                  requestId,
+                  verbosityLevel: forgettingPolicyArgs.verbosity || "standard",
+                  confidence: 0.8,
+                  includeExecutiveSummary:
+                    forgettingPolicyArgs.include_executive_summary !== false,
+                  filteringOptions: {
+                    maxItems:
+                      forgettingPolicyArgs.verbosity === "summary"
+                        ? 5
+                        : forgettingPolicyArgs.verbosity === "detailed"
+                        ? 25
+                        : 15,
+                  },
+                }
+              );
               break;
             }
             default:
@@ -708,50 +824,24 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     throw new Error("Request handling not yet implemented");
   }
 
-  // Argument validation methods
+  // Argument validation methods with enhanced error handling
   private validateThinkArgs(args: Record<string, unknown>): ThinkArgs {
-    if (!args.input || typeof args.input !== "string") {
-      throw new Error("Think tool requires a valid input string");
-    }
+    // Use enhanced validation
+    const validationResult = ParameterValidator.validateThinkParameters(args);
 
-    if (
-      args.mode &&
-      !Object.values(ProcessingMode).includes(args.mode as ProcessingMode)
-    ) {
-      throw new Error(
-        `Invalid processing mode: ${args.mode}. Valid modes: ${Object.values(
-          ProcessingMode
-        ).join(", ")}`
+    if (!validationResult.isValid) {
+      const errorMessage = ParameterValidator.formatValidationErrors(
+        validationResult,
+        "think"
       );
+      throw new Error(errorMessage);
     }
 
-    if (
-      args.systematic_thinking_mode &&
-      !["auto", "hybrid", "manual"].includes(
-        args.systematic_thinking_mode as string
-      )
-    ) {
-      throw new Error(
-        `Invalid systematic thinking mode: ${args.systematic_thinking_mode}. Valid modes: auto, hybrid, manual`
-      );
-    }
-
-    if (
-      args.temperature !== undefined &&
-      (typeof args.temperature !== "number" ||
-        args.temperature < 0 ||
-        args.temperature > 2)
-    ) {
-      throw new Error("Temperature must be a number between 0 and 2");
-    }
-
-    if (
-      args.max_depth !== undefined &&
-      (typeof args.max_depth !== "number" ||
-        args.max_depth < 1 ||
-        args.max_depth > 20)
-    ) {
-      throw new Error("Max depth must be a number between 1 and 20");
+    // Log warnings if any
+    if (validationResult.warnings.length > 0) {
+      const warningMessage =
+        ParameterValidator.formatValidationWarnings(validationResult);
+      console.warn(`Think tool parameter warnings:\n${warningMessage}`);
     }
 
     return {
@@ -771,23 +861,23 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   }
 
   private validateRememberArgs(args: Record<string, unknown>): RememberArgs {
-    if (!args.content || typeof args.content !== "string") {
-      throw new Error("Remember tool requires a valid content string");
-    }
+    // Use enhanced validation
+    const validationResult =
+      ParameterValidator.validateRememberParameters(args);
 
-    if (!args.type || !["episodic", "semantic"].includes(args.type as string)) {
-      throw new Error(
-        'Remember tool requires type to be either "episodic" or "semantic"'
+    if (!validationResult.isValid) {
+      const errorMessage = ParameterValidator.formatValidationErrors(
+        validationResult,
+        "remember"
       );
+      throw new Error(errorMessage);
     }
 
-    if (
-      args.importance !== undefined &&
-      (typeof args.importance !== "number" ||
-        args.importance < 0 ||
-        args.importance > 1)
-    ) {
-      throw new Error("Importance must be a number between 0 and 1");
+    // Log warnings if any
+    if (validationResult.warnings.length > 0) {
+      const warningMessage =
+        ParameterValidator.formatValidationWarnings(validationResult);
+      console.warn(`Remember tool parameter warnings:\n${warningMessage}`);
     }
 
     return {
@@ -800,33 +890,22 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   }
 
   private validateRecallArgs(args: Record<string, unknown>): RecallArgs {
-    if (!args.cue || typeof args.cue !== "string") {
-      throw new Error("Recall tool requires a valid cue string");
+    // Use enhanced validation
+    const validationResult = ParameterValidator.validateRecallParameters(args);
+
+    if (!validationResult.isValid) {
+      const errorMessage = ParameterValidator.formatValidationErrors(
+        validationResult,
+        "recall"
+      );
+      throw new Error(errorMessage);
     }
 
-    if (
-      args.type &&
-      !["episodic", "semantic", "both"].includes(args.type as string)
-    ) {
-      throw new Error('Recall type must be "episodic", "semantic", or "both"');
-    }
-
-    if (
-      args.threshold !== undefined &&
-      (typeof args.threshold !== "number" ||
-        args.threshold < 0 ||
-        args.threshold > 1)
-    ) {
-      throw new Error("Threshold must be a number between 0 and 1");
-    }
-
-    if (
-      args.max_results !== undefined &&
-      (typeof args.max_results !== "number" ||
-        args.max_results < 1 ||
-        args.max_results > 50)
-    ) {
-      throw new Error("Max results must be a number between 1 and 50");
+    // Log warnings if any
+    if (validationResult.warnings.length > 0) {
+      const warningMessage =
+        ParameterValidator.formatValidationWarnings(validationResult);
+      console.warn(`Recall tool parameter warnings:\n${warningMessage}`);
     }
 
     return {
@@ -2405,18 +2484,31 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       // Complete measurement
       measurement.complete();
 
-      const result: MemoryUsageAnalysisResult = {
+      // Format the analysis results with enhanced user experience
+      const { MemoryAnalysisFormatter } = await import(
+        "../utils/MemoryAnalysisFormatter.js"
+      );
+      const summaryLevel =
+        args.analysis_depth === "shallow"
+          ? "overview"
+          : args.analysis_depth === "comprehensive"
+          ? "full"
+          : "detailed";
+
+      const formattedAnalysis = MemoryAnalysisFormatter.formatAnalysis(
         analysis,
-        recommendations,
+        recommendations || [],
+        summaryLevel
+      );
+
+      const result: MemoryUsageAnalysisResult = {
+        analysis: formattedAnalysis,
+        recommendations: formattedAnalysis.prioritized_recommendations,
         analysis_time_ms: processingTime,
       };
 
       console.error(
-        `Memory usage analysis completed in ${processingTime}ms. Found ${
-          analysis.total_memories
-        } memories with ${analysis.optimization_potential.toFixed(
-          2
-        )} optimization potential`
+        `Memory usage analysis completed in ${processingTime}ms. Health score: ${formattedAnalysis.health_score.overall_score}/100 (${formattedAnalysis.health_score.health_status})`
       );
 
       return result;

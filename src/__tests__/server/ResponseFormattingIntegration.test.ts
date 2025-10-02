@@ -57,7 +57,7 @@ describe("Response Formatting Integration", () => {
           input: "",
           mode: ProcessingMode.BALANCED,
         })
-      ).rejects.toThrow("Think tool requires a valid input string");
+      ).rejects.toThrow("❌ Parameter validation failed for 'think' tool");
     });
 
     it("should handle think tool with invalid mode gracefully", async () => {
@@ -66,7 +66,7 @@ describe("Response Formatting Integration", () => {
           input: "test",
           mode: "invalid_mode" as any,
         })
-      ).rejects.toThrow("Invalid processing mode");
+      ).rejects.toThrow("❌ Parameter validation failed for 'think' tool");
     });
 
     it("should handle think tool with invalid temperature gracefully", async () => {
@@ -75,7 +75,7 @@ describe("Response Formatting Integration", () => {
           input: "test",
           temperature: -1,
         })
-      ).rejects.toThrow("Temperature must be a number between 0 and 2");
+      ).rejects.toThrow("❌ Parameter validation failed for 'think' tool");
     });
   });
 
@@ -101,7 +101,7 @@ describe("Response Formatting Integration", () => {
           content: "",
           type: "episodic",
         })
-      ).rejects.toThrow("Remember tool requires a valid content string");
+      ).rejects.toThrow("❌ Parameter validation failed for 'remember' tool");
     });
 
     it("should handle remember tool with invalid type gracefully", async () => {
@@ -110,9 +110,7 @@ describe("Response Formatting Integration", () => {
           content: "test",
           type: "invalid" as any,
         })
-      ).rejects.toThrow(
-        'Remember tool requires type to be either "episodic" or "semantic"'
-      );
+      ).rejects.toThrow("❌ Parameter validation failed for 'remember' tool");
     });
 
     it("should handle remember tool with invalid importance gracefully", async () => {
@@ -122,7 +120,7 @@ describe("Response Formatting Integration", () => {
           type: "episodic",
           importance: 2,
         })
-      ).rejects.toThrow("Importance must be a number between 0 and 1");
+      ).rejects.toThrow("❌ Parameter validation failed for 'remember' tool");
     });
   });
 
@@ -153,7 +151,7 @@ describe("Response Formatting Integration", () => {
         server.handleRecall({
           cue: "",
         })
-      ).rejects.toThrow("Recall tool requires a valid cue string");
+      ).rejects.toThrow("❌ Parameter validation failed for 'recall' tool");
     });
 
     it("should handle recall tool with invalid type gracefully", async () => {
@@ -162,9 +160,7 @@ describe("Response Formatting Integration", () => {
           cue: "test",
           type: "invalid" as any,
         })
-      ).rejects.toThrow(
-        'Recall type must be "episodic", "semantic", or "both"'
-      );
+      ).rejects.toThrow("❌ Parameter validation failed for 'recall' tool");
     });
 
     it("should handle recall tool with invalid threshold gracefully", async () => {
@@ -173,7 +169,7 @@ describe("Response Formatting Integration", () => {
           cue: "test",
           threshold: 2,
         })
-      ).rejects.toThrow("Threshold must be a number between 0 and 1");
+      ).rejects.toThrow("❌ Parameter validation failed for 'recall' tool");
     });
 
     it("should handle recall tool with invalid max_results gracefully", async () => {
@@ -182,7 +178,7 @@ describe("Response Formatting Integration", () => {
           cue: "test",
           max_results: 100,
         })
-      ).rejects.toThrow("Max results must be a number between 1 and 50");
+      ).rejects.toThrow("❌ Parameter validation failed for 'recall' tool");
     });
   });
 
@@ -270,7 +266,7 @@ describe("Response Formatting Integration", () => {
       } catch (error) {
         expect(error).toBeInstanceOf(Error);
         expect(error.message).toContain(
-          "Think tool requires a valid input string"
+          "❌ Parameter validation failed for 'think' tool"
         );
       }
     });
@@ -300,15 +296,15 @@ describe("Response Formatting Integration", () => {
       const testCases = [
         {
           input: { input: "", mode: ProcessingMode.BALANCED },
-          expectedError: "think tool requires a valid input string",
+          expectedError: "❌ parameter validation failed for 'think' tool",
         },
         {
           input: { input: "test", temperature: -1 },
-          expectedError: "Temperature must be a number between 0 and 2",
+          expectedError: "❌ parameter validation failed for 'think' tool",
         },
         {
           input: { input: "test", max_depth: 0 },
-          expectedError: "Max depth must be a number between 1 and 20",
+          expectedError: "❌ parameter validation failed for 'think' tool",
         },
       ];
 

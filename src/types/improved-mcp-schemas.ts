@@ -1,380 +1,8 @@
 /**
- * MCP-specific types and tool interfaces
+ * Improved MCP tool schemas with user-friendly descriptions and examples
  */
 
-import { SystematicThinkingMode } from "../interfaces/systematic-thinking.js";
-import { Context, MemoryChunk, ProcessingMode, ReasoningStep } from "./core.js";
-
-// Tool argument types for MCP interface
-
-export interface ThinkArgs {
-  input: string;
-  mode?: ProcessingMode;
-  context?: Partial<Context>;
-  enable_emotion?: boolean;
-  enable_metacognition?: boolean;
-  enable_systematic_thinking?: boolean;
-  systematic_thinking_mode?: "auto" | "hybrid" | "manual";
-  temperature?: number;
-  max_depth?: number;
-  verbosity?: "summary" | "standard" | "detailed" | "technical";
-  include_executive_summary?: boolean;
-}
-
-export interface RememberArgs {
-  content: string;
-  type: "episodic" | "semantic";
-  importance?: number;
-  context?: Partial<Context>;
-  emotional_tags?: string[];
-}
-
-export interface RecallArgs {
-  cue: string;
-  type?: "episodic" | "semantic" | "both";
-  threshold?: number;
-  max_results?: number;
-  context?: Partial<Context>;
-}
-
-export interface AnalyzeReasoningArgs {
-  reasoning_steps: ReasoningStep[];
-  context?: Partial<Context>;
-  verbosity?: "summary" | "standard" | "detailed" | "technical";
-  include_executive_summary?: boolean;
-}
-
-export interface AnalyzeSystematicallyArgs {
-  input: string;
-  mode?: SystematicThinkingMode;
-  context?: Partial<Context>;
-  verbosity?: "summary" | "standard" | "detailed" | "technical";
-  include_executive_summary?: boolean;
-}
-
-export interface ThinkParallelArgs {
-  input: string;
-  context?: Partial<Context>;
-  enable_coordination?: boolean;
-  synchronization_interval?: number;
-  verbosity?: "summary" | "standard" | "detailed" | "technical";
-  include_executive_summary?: boolean;
-}
-
-export interface DecomposeProblemArgs {
-  input: string;
-  context?: Partial<Context>;
-  strategies?: string[];
-  max_depth?: number;
-  verbosity?: "summary" | "standard" | "detailed" | "technical";
-  include_executive_summary?: boolean;
-}
-
-export interface AnalyzeMemoryUsageArgs {
-  analysis_depth?: "shallow" | "deep" | "comprehensive";
-  include_recommendations?: boolean;
-  context?: Partial<Context>;
-  verbosity?: "summary" | "standard" | "detailed" | "technical";
-  include_executive_summary?: boolean;
-}
-
-export interface OptimizeMemoryArgs {
-  optimization_mode?: "conservative" | "moderate" | "aggressive";
-  target_memory_reduction?: number;
-  enable_gradual_degradation?: boolean;
-  require_user_consent?: boolean;
-  preserve_important_memories?: boolean;
-  context?: Partial<Context>;
-  verbosity?: "summary" | "standard" | "detailed" | "technical";
-  include_executive_summary?: boolean;
-}
-
-export interface RecoverMemoryArgs {
-  memory_id: string;
-  recovery_cues: Array<{
-    type: "semantic" | "temporal" | "contextual" | "associative" | "emotional";
-    value: string;
-    strength?: number;
-  }>;
-  recovery_strategies?: string[];
-  max_recovery_attempts?: number;
-  confidence_threshold?: number;
-  context?: Partial<Context>;
-  verbosity?: "summary" | "standard" | "detailed" | "technical";
-  include_executive_summary?: boolean;
-}
-
-export interface ForgettingAuditArgs {
-  query?: {
-    start_timestamp?: number;
-    end_timestamp?: number;
-    memory_ids?: string[];
-    execution_status?: ("pending" | "executed" | "cancelled" | "failed")[];
-    execution_method?: ("automatic" | "manual" | "user_requested")[];
-    user_consent_granted?: boolean;
-    privacy_level?: ("public" | "private" | "confidential" | "restricted")[];
-    limit?: number;
-    offset?: number;
-  };
-  include_summary?: boolean;
-  export_format?: "json" | "csv" | "xml";
-  verbosity?: "summary" | "standard" | "detailed" | "technical";
-  include_executive_summary?: boolean;
-}
-
-export interface ThinkProbabilisticArgs {
-  input: string;
-  context?: Partial<Context>;
-  enable_bayesian_updating?: boolean;
-  uncertainty_threshold?: number;
-  max_hypotheses?: number;
-  evidence_weight_threshold?: number;
-  verbosity?: "summary" | "standard" | "detailed" | "technical";
-  include_executive_summary?: boolean;
-}
-
-export interface ForgettingPolicyArgs {
-  action:
-    | "list"
-    | "get"
-    | "create"
-    | "update"
-    | "delete"
-    | "evaluate"
-    | "import"
-    | "export";
-  policy_id?: string;
-  policy_data?: {
-    policy_name?: string;
-    description?: string;
-    active?: boolean;
-    rules?: Array<{
-      rule_name: string;
-      description?: string;
-      priority: number;
-      conditions: Array<{
-        condition_type:
-          | "memory_type"
-          | "importance_threshold"
-          | "age_days"
-          | "access_frequency"
-          | "content_category"
-          | "privacy_level"
-          | "user_tag";
-        operator:
-          | "equals"
-          | "not_equals"
-          | "greater_than"
-          | "less_than"
-          | "contains"
-          | "not_contains"
-          | "in"
-          | "not_in";
-        value: unknown;
-        weight?: number;
-      }>;
-      condition_logic: "AND" | "OR";
-      action: "allow" | "deny" | "require_consent" | "delay" | "modify";
-      action_parameters?: Record<string, unknown>;
-    }>;
-    user_preferences?: {
-      consent_required_by_default?: boolean;
-      protected_categories?: string[];
-      max_auto_forget_importance?: number;
-      retention_period_days?: number;
-    };
-  };
-  evaluation_context?: {
-    memory_id: string;
-    memory_type: "episodic" | "semantic";
-    decision: Record<string, unknown>;
-    evaluation: Record<string, unknown>;
-    memory_metadata: Record<string, unknown>;
-  };
-  active_only?: boolean;
-  verbosity?: "summary" | "standard" | "detailed" | "technical";
-  include_executive_summary?: boolean;
-}
-
-// Tool result types
-
-export interface MemoryResult {
-  success: boolean;
-  memory_id: string;
-  message: string;
-}
-
-export interface RecallResult {
-  memories: MemoryChunk[];
-  total_found: number;
-  search_time_ms: number;
-}
-
-export interface AnalysisResult {
-  coherence_score: number;
-  confidence_assessment: string;
-  detected_biases: string[];
-  suggested_improvements: string[];
-  reasoning_quality: {
-    logical_consistency: number;
-    evidence_support: number;
-    completeness: number;
-  };
-}
-
-// Re-export SystematicAnalysisResult from systematic-thinking interface
-export type { SystematicAnalysisResult } from "../interfaces/systematic-thinking.js";
-
-// Re-export ParallelReasoningResult from parallel-reasoning interface
-export type { ParallelReasoningResult } from "../interfaces/parallel-reasoning.js";
-
-// Re-export ProbabilisticReasoningResult from probabilistic-reasoning interface
-export type { ProbabilisticReasoningResult } from "../interfaces/probabilistic-reasoning.js";
-
-// Re-export DecompositionResult from RealTimeProblemDecomposer
-export type { DecompositionResult } from "../cognitive/RealTimeProblemDecomposer.js";
-
-// Re-export forgetting system types
-// Import and re-export forgetting system types
-import type {
-  MemoryOptimizationRecommendation as IMemoryOptimizationRecommendation,
-  MemoryUsageAnalysis as IMemoryUsageAnalysis,
-} from "../interfaces/forgetting.js";
-
-export type MemoryUsageAnalysis = IMemoryUsageAnalysis;
-export type MemoryOptimizationRecommendation =
-  IMemoryOptimizationRecommendation;
-
-export interface MemoryUsageAnalysisResult {
-  analysis:
-    | MemoryUsageAnalysis
-    | import("../utils/MemoryAnalysisFormatter.js").FormattedMemoryAnalysis;
-  recommendations?:
-    | MemoryOptimizationRecommendation[]
-    | import("../utils/MemoryAnalysisFormatter.js").FormattedRecommendation[];
-  analysis_time_ms: number;
-}
-
-export interface MemoryOptimizationResult {
-  success: boolean;
-  optimization_summary: {
-    memories_processed: number;
-    memories_degraded: number;
-    memories_forgotten: number;
-    memories_archived: number;
-    total_space_freed_bytes: number;
-    performance_improvement_estimate: number;
-  };
-  degradation_processes_started: string[]; // Process IDs
-  user_consent_requests: {
-    memory_id: string;
-    action: string;
-    reason: string;
-    consent_required: boolean;
-  }[];
-  errors: string[];
-  optimization_time_ms: number;
-}
-
-export interface MemoryRecoveryResult {
-  success: boolean;
-  memory_id: string;
-  recovered_memory?: unknown;
-  recovery_confidence: number;
-  recovery_method: string;
-  partial_recovery: boolean;
-  missing_elements: string[];
-  recovery_attempts: Array<{
-    strategy_name: string;
-    success: boolean;
-    confidence: number;
-    method_details: string;
-  }>;
-  quality_assessment: {
-    overall_quality: number;
-    content_coherence: number;
-    contextual_consistency: number;
-    quality_issues: string[];
-  };
-  recovery_time_ms: number;
-}
-
-export interface ForgettingAuditResult {
-  success: boolean;
-  audit_entries: Array<{
-    audit_id: string;
-    timestamp: number;
-    memory_id: string;
-    memory_type: "episodic" | "semantic";
-    memory_content_summary: string;
-    execution_status: "pending" | "executed" | "cancelled" | "failed";
-    execution_method: "automatic" | "manual" | "user_requested";
-    user_consent_requested: boolean;
-    user_consent_granted?: boolean;
-    privacy_level: "public" | "private" | "confidential" | "restricted";
-    secure_deletion_applied: boolean;
-  }>;
-  summary?: {
-    total_entries: number;
-    entries_by_status: Record<string, number>;
-    entries_by_method: Record<string, number>;
-    total_memory_freed_bytes: number;
-    average_processing_improvement_ms: number;
-    user_consent_rate: number;
-    recovery_attempt_rate: number;
-    recovery_success_rate: number;
-    time_period: {
-      start_timestamp: number;
-      end_timestamp: number;
-    };
-  };
-  exported_data?: string;
-  query_time_ms: number;
-}
-
-export interface ForgettingPolicyResult {
-  success: boolean;
-  action: string;
-  policy_id?: string;
-  policies?: Array<{
-    policy_id: string;
-    policy_name: string;
-    description: string;
-    active: boolean;
-    created_timestamp: number;
-    last_modified_timestamp: number;
-    rules_count: number;
-  }>;
-  policy?: {
-    policy_id: string;
-    policy_name: string;
-    description: string;
-    active: boolean;
-    rules: Array<{
-      rule_id: string;
-      rule_name: string;
-      description: string;
-      priority: number;
-      action: string;
-    }>;
-    user_preferences: Record<string, unknown>;
-  };
-  evaluation_result?: {
-    policy_id: string;
-    final_decision: "allow" | "deny" | "require_consent" | "delay" | "modify";
-    decision_confidence: number;
-    consent_required: boolean;
-    reasoning: string[];
-  };
-  exported_policy?: unknown;
-  message?: string;
-  processing_time_ms: number;
-}
-
-// Import improved schemas
-
-// MCP tool schemas with user-friendly descriptions
-export const TOOL_SCHEMAS = {
+export const IMPROVED_TOOL_SCHEMAS = {
   think: {
     name: "think",
     description:
@@ -451,19 +79,6 @@ export const TOOL_SCHEMAS = {
           description:
             "How deep to think: 5 for quick, 10 for normal, 15+ for very thorough",
           default: 10,
-        },
-        verbosity: {
-          type: "string",
-          enum: ["summary", "standard", "detailed", "technical"],
-          description:
-            "Response detail level: 'summary' for key points only, 'standard' for balanced output, 'detailed' for comprehensive analysis, 'technical' for full diagnostic info",
-          default: "standard",
-        },
-        include_executive_summary: {
-          type: "boolean",
-          description:
-            "Include a brief executive summary with key findings and recommendations",
-          default: true,
         },
       },
       required: ["input"],
@@ -607,19 +222,6 @@ export const TOOL_SCHEMAS = {
           },
           description: "Optional context about the reasoning situation",
         },
-        verbosity: {
-          type: "string",
-          enum: ["summary", "standard", "detailed", "technical"],
-          description:
-            "Response detail level: 'summary' for key points only, 'standard' for balanced output, 'detailed' for comprehensive analysis, 'technical' for full diagnostic info",
-          default: "standard",
-        },
-        include_executive_summary: {
-          type: "boolean",
-          description:
-            "Include a brief executive summary with key findings and recommendations",
-          default: true,
-        },
       },
       required: ["reasoning_steps"],
     },
@@ -654,19 +256,6 @@ export const TOOL_SCHEMAS = {
           },
           description:
             "Context about the problem (domain, urgency, complexity level)",
-        },
-        verbosity: {
-          type: "string",
-          enum: ["summary", "standard", "detailed", "technical"],
-          description:
-            "Response detail level: 'summary' for key points only, 'standard' for balanced output, 'detailed' for comprehensive analysis, 'technical' for full diagnostic info",
-          default: "standard",
-        },
-        include_executive_summary: {
-          type: "boolean",
-          description:
-            "Include a brief executive summary with key findings and recommendations",
-          default: true,
         },
       },
       required: ["input"],
@@ -708,19 +297,6 @@ export const TOOL_SCHEMAS = {
           description:
             "How often thinking streams coordinate (milliseconds, default: 1000)",
           default: 1000,
-        },
-        verbosity: {
-          type: "string",
-          enum: ["summary", "standard", "detailed", "technical"],
-          description:
-            "Response detail level: 'summary' for key points only, 'standard' for balanced output, 'detailed' for comprehensive analysis, 'technical' for full diagnostic info",
-          default: "standard",
-        },
-        include_executive_summary: {
-          type: "boolean",
-          description:
-            "Include a brief executive summary with key findings and recommendations",
-          default: true,
         },
       },
       required: ["input"],
@@ -775,18 +351,61 @@ export const TOOL_SCHEMAS = {
             "How many levels deep to break down the problem (2-3 usually works well)",
           default: 3,
         },
-        verbosity: {
+      },
+      required: ["input"],
+    },
+  },
+
+  think_probabilistic: {
+    name: "think_probabilistic",
+    description:
+      "Handle uncertain situations by working with probabilities, updating beliefs based on evidence, and quantifying confidence levels. Great for risk assessment and decisions with incomplete information.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        input: {
           type: "string",
-          enum: ["summary", "standard", "detailed", "technical"],
           description:
-            "Response detail level: 'summary' for key points only, 'standard' for balanced output, 'detailed' for comprehensive analysis, 'technical' for full diagnostic info",
-          default: "standard",
+            "The uncertain situation or question to analyze probabilistically",
         },
-        include_executive_summary: {
+        context: {
+          type: "object",
+          properties: {
+            session_id: { type: "string" },
+            domain: { type: "string" },
+            urgency: { type: "number", minimum: 0, maximum: 1 },
+            complexity: { type: "number", minimum: 0, maximum: 1 },
+          },
+          description: "Context about the uncertain situation",
+        },
+        enable_bayesian_updating: {
           type: "boolean",
           description:
-            "Include a brief executive summary with key findings and recommendations",
+            "Update beliefs as new evidence comes in (recommended for evolving situations)",
           default: true,
+        },
+        uncertainty_threshold: {
+          type: "number",
+          minimum: 0,
+          maximum: 1,
+          description:
+            "When to flag high uncertainty (0.1 = flag if >10% uncertain)",
+          default: 0.1,
+        },
+        max_hypotheses: {
+          type: "number",
+          minimum: 1,
+          maximum: 10,
+          description: "Maximum number of possible explanations to consider",
+          default: 3,
+        },
+        evidence_weight_threshold: {
+          type: "number",
+          minimum: 0,
+          maximum: 1,
+          description:
+            "Minimum strength of evidence to consider (0.3 = ignore weak evidence)",
+          default: 0.3,
         },
       },
       required: ["input"],
@@ -820,19 +439,6 @@ export const TOOL_SCHEMAS = {
           },
           description: "Optional context for the analysis",
         },
-        verbosity: {
-          type: "string",
-          enum: ["summary", "standard", "detailed", "technical"],
-          description:
-            "Response detail level: 'summary' for key points only, 'standard' for balanced output, 'detailed' for comprehensive analysis, 'technical' for full diagnostic info",
-          default: "standard",
-        },
-        include_executive_summary: {
-          type: "boolean",
-          description:
-            "Include a brief executive summary with key findings and recommendations",
-          default: true,
-        },
       },
     },
   },
@@ -844,11 +450,31 @@ export const TOOL_SCHEMAS = {
     inputSchema: {
       type: "object",
       properties: {
+        action: {
+          type: "string",
+          enum: ["analyze", "optimize", "preview_cleanup", "execute_cleanup"],
+          description:
+            "What to do: 'analyze' for memory analysis, 'optimize' for traditional optimization, 'preview_cleanup' to see cleanup options, 'execute_cleanup' for one-click cleanup",
+          default: "analyze",
+        },
+        cleanup_option: {
+          type: "string",
+          enum: [
+            "quick_tidy",
+            "smart_cleanup",
+            "deep_clean",
+            "performance_boost",
+            "storage_saver",
+            "privacy_cleanup",
+          ],
+          description:
+            "One-click cleanup option (for 'preview_cleanup' or 'execute_cleanup'): 'quick_tidy' (safest), 'smart_cleanup' (recommended), 'deep_clean' (thorough), 'performance_boost' (speed), 'storage_saver' (space), 'privacy_cleanup' (secure)",
+        },
         optimization_mode: {
           type: "string",
           enum: ["conservative", "moderate", "aggressive"],
           description:
-            "Cleanup level: 'conservative' for minimal changes, 'moderate' for balanced cleanup (recommended), 'aggressive' for maximum cleanup",
+            "Cleanup level for traditional optimization: 'conservative' for minimal changes, 'moderate' for balanced cleanup (recommended), 'aggressive' for maximum cleanup",
           default: "moderate",
         },
         target_memory_reduction: {
@@ -883,19 +509,6 @@ export const TOOL_SCHEMAS = {
             domain: { type: "string" },
           },
           description: "Optional context for optimization",
-        },
-        verbosity: {
-          type: "string",
-          enum: ["summary", "standard", "detailed", "technical"],
-          description:
-            "Response detail level: 'summary' for key points only, 'standard' for balanced output, 'detailed' for comprehensive analysis, 'technical' for full diagnostic info",
-          default: "standard",
-        },
-        include_executive_summary: {
-          type: "boolean",
-          description:
-            "Include a brief executive summary with key findings and recommendations",
-          default: true,
         },
       },
     },
@@ -986,19 +599,6 @@ export const TOOL_SCHEMAS = {
           },
           description: "Optional context for recovery",
         },
-        verbosity: {
-          type: "string",
-          enum: ["summary", "standard", "detailed", "technical"],
-          description:
-            "Response detail level: 'summary' for key points only, 'standard' for balanced output, 'detailed' for comprehensive analysis, 'technical' for full diagnostic info",
-          default: "standard",
-        },
-        include_executive_summary: {
-          type: "boolean",
-          description:
-            "Include a brief executive summary with key findings and recommendations",
-          default: true,
-        },
       },
       required: ["memory_id", "recovery_cues"],
     },
@@ -1011,6 +611,20 @@ export const TOOL_SCHEMAS = {
     inputSchema: {
       type: "object",
       properties: {
+        view_type: {
+          type: "string",
+          enum: ["summary", "detailed", "recent_highlights"],
+          description:
+            "What to show: 'summary' for overview (recommended), 'detailed' for full audit log, 'recent_highlights' for latest important changes",
+          default: "summary",
+        },
+        time_period: {
+          type: "string",
+          enum: ["today", "week", "month", "quarter", "year", "all"],
+          description:
+            "Time period to review: 'today', 'week' (recommended), 'month', 'quarter', 'year', or 'all'",
+          default: "week",
+        },
         query: {
           type: "object",
           properties: {
@@ -1089,89 +703,7 @@ export const TOOL_SCHEMAS = {
           enum: ["json", "csv", "xml"],
           description: "Format for exporting audit data (optional)",
         },
-        verbosity: {
-          type: "string",
-          enum: ["summary", "standard", "detailed", "technical"],
-          description:
-            "Response detail level: 'summary' for key points only, 'standard' for balanced output, 'detailed' for comprehensive analysis, 'technical' for full diagnostic info",
-          default: "standard",
-        },
-        include_executive_summary: {
-          type: "boolean",
-          description:
-            "Include a brief executive summary with key findings and recommendations",
-          default: true,
-        },
       },
-    },
-  },
-
-  think_probabilistic: {
-    name: "think_probabilistic",
-    description:
-      "Handle uncertain situations by working with probabilities, updating beliefs based on evidence, and quantifying confidence levels. Great for risk assessment and decisions with incomplete information.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        input: {
-          type: "string",
-          description:
-            "The uncertain situation or question to analyze probabilistically",
-        },
-        context: {
-          type: "object",
-          properties: {
-            session_id: { type: "string" },
-            domain: { type: "string" },
-            urgency: { type: "number", minimum: 0, maximum: 1 },
-            complexity: { type: "number", minimum: 0, maximum: 1 },
-          },
-          description: "Context about the uncertain situation",
-        },
-        enable_bayesian_updating: {
-          type: "boolean",
-          description:
-            "Update beliefs as new evidence comes in (recommended for evolving situations)",
-          default: true,
-        },
-        uncertainty_threshold: {
-          type: "number",
-          minimum: 0,
-          maximum: 1,
-          description:
-            "When to flag high uncertainty (0.1 = flag if >10% uncertain)",
-          default: 0.1,
-        },
-        max_hypotheses: {
-          type: "number",
-          minimum: 1,
-          maximum: 10,
-          description: "Maximum number of possible explanations to consider",
-          default: 3,
-        },
-        evidence_weight_threshold: {
-          type: "number",
-          minimum: 0,
-          maximum: 1,
-          description:
-            "Minimum strength of evidence to consider (0.3 = ignore weak evidence)",
-          default: 0.3,
-        },
-        verbosity: {
-          type: "string",
-          enum: ["summary", "standard", "detailed", "technical"],
-          description:
-            "Response detail level: 'summary' for key points only, 'standard' for balanced output, 'detailed' for comprehensive analysis, 'technical' for full diagnostic info",
-          default: "standard",
-        },
-        include_executive_summary: {
-          type: "boolean",
-          description:
-            "Include a brief executive summary with key findings and recommendations",
-          default: true,
-        },
-      },
-      required: ["input"],
     },
   },
 
@@ -1193,9 +725,23 @@ export const TOOL_SCHEMAS = {
             "evaluate",
             "import",
             "export",
+            "list_presets",
+            "use_preset",
           ],
           description:
-            "What to do: 'list' to see policies, 'create' to make new policy, 'get' to see specific policy details",
+            "What to do: 'list' to see policies, 'create' to make new policy, 'list_presets' to see easy options, 'use_preset' to apply a preset",
+        },
+        preset_id: {
+          type: "string",
+          enum: [
+            "conservative",
+            "balanced",
+            "aggressive",
+            "minimal",
+            "privacy_focused",
+          ],
+          description:
+            "Easy preset to use (for 'use_preset' action): 'conservative' (safest), 'balanced' (recommended), 'aggressive' (performance), 'minimal' (essential only), 'privacy_focused' (secure)",
         },
         policy_id: {
           type: "string",
@@ -1207,17 +753,36 @@ export const TOOL_SCHEMAS = {
           description:
             "Policy details (needed for 'create' and 'update' actions)",
           properties: {
-            policy_name: { type: "string" },
-            description: { type: "string" },
-            active: { type: "boolean" },
+            policy_name: {
+              type: "string",
+              description: "Name for this policy",
+            },
+            description: {
+              type: "string",
+              description: "What this policy does",
+            },
+            active: {
+              type: "boolean",
+              description: "Whether this policy is currently active",
+            },
             rules: {
               type: "array",
               items: {
                 type: "object",
                 properties: {
-                  rule_name: { type: "string" },
-                  description: { type: "string" },
-                  priority: { type: "number" },
+                  rule_name: {
+                    type: "string",
+                    description: "Name for this rule",
+                  },
+                  description: {
+                    type: "string",
+                    description: "What this rule does",
+                  },
+                  priority: {
+                    type: "number",
+                    description:
+                      "Rule priority (higher numbers = more important)",
+                  },
                   conditions: {
                     type: "array",
                     items: {
@@ -1234,6 +799,8 @@ export const TOOL_SCHEMAS = {
                             "privacy_level",
                             "user_tag",
                           ],
+                          description:
+                            "What to check: 'importance_threshold' for importance level, 'age_days' for how old, 'memory_type' for episodic/semantic",
                         },
                         operator: {
                           type: "string",
@@ -1247,16 +814,25 @@ export const TOOL_SCHEMAS = {
                             "in",
                             "not_in",
                           ],
+                          description:
+                            "How to compare: 'greater_than' for >, 'equals' for =, 'contains' for text matching",
                         },
-                        value: {},
-                        weight: { type: "number" },
+                        value: { description: "Value to compare against" },
+                        weight: {
+                          type: "number",
+                          description: "How important this condition is",
+                        },
                       },
                       required: ["condition_type", "operator", "value"],
                     },
+                    description:
+                      "Conditions that must be met for this rule to apply",
                   },
                   condition_logic: {
                     type: "string",
                     enum: ["AND", "OR"],
+                    description:
+                      "How to combine conditions: 'AND' means all must be true, 'OR' means any can be true",
                   },
                   action: {
                     type: "string",
@@ -1267,8 +843,13 @@ export const TOOL_SCHEMAS = {
                       "delay",
                       "modify",
                     ],
+                    description:
+                      "What to do: 'allow' forgetting, 'deny' forgetting, 'require_consent' to ask permission",
                   },
-                  action_parameters: { type: "object" },
+                  action_parameters: {
+                    type: "object",
+                    description: "Additional settings for the action",
+                  },
                 },
                 required: [
                   "rule_name",
@@ -1277,53 +858,58 @@ export const TOOL_SCHEMAS = {
                   "action",
                 ],
               },
+              description: "Rules that make up this policy",
             },
             user_preferences: {
               type: "object",
               properties: {
-                consent_required_by_default: { type: "boolean" },
+                consent_required_by_default: {
+                  type: "boolean",
+                  description: "Ask permission before forgetting by default",
+                },
                 protected_categories: {
                   type: "array",
                   items: { type: "string" },
+                  description: "Categories of memories to always protect",
                 },
-                max_auto_forget_importance: { type: "number" },
-                retention_period_days: { type: "number" },
+                max_auto_forget_importance: {
+                  type: "number",
+                  description:
+                    "Never auto-forget memories above this importance level",
+                },
+                retention_period_days: {
+                  type: "number",
+                  description: "Default number of days to keep memories",
+                },
               },
+              description: "Your general preferences for memory management",
             },
           },
         },
         evaluation_context: {
           type: "object",
           description:
-            "Context for policy evaluation (required for evaluate action)",
+            "Context for testing a policy (needed for 'evaluate' action)",
           properties: {
-            memory_id: { type: "string" },
+            memory_id: {
+              type: "string",
+              description: "Memory to test the policy against",
+            },
             memory_type: {
               type: "string",
               enum: ["episodic", "semantic"],
+              description: "Type of memory to test",
             },
-            decision: { type: "object" },
-            evaluation: { type: "object" },
-            memory_metadata: { type: "object" },
+            decision: { type: "object", description: "Decision context" },
+            evaluation: { type: "object", description: "Evaluation context" },
+            memory_metadata: { type: "object", description: "Memory details" },
           },
         },
         active_only: {
           type: "boolean",
-          description: "Whether to list only active policies (for list action)",
+          description:
+            "For 'list' action: show only active policies (true) or all policies (false)",
           default: false,
-        },
-        verbosity: {
-          type: "string",
-          enum: ["summary", "standard", "detailed", "technical"],
-          description:
-            "Response detail level: 'summary' for key points only, 'standard' for balanced output, 'detailed' for comprehensive analysis, 'technical' for full diagnostic info",
-          default: "standard",
-        },
-        include_executive_summary: {
-          type: "boolean",
-          description:
-            "Include a brief executive summary with key findings and recommendations",
-          default: true,
         },
       },
       required: ["action"],

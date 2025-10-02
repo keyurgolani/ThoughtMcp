@@ -420,50 +420,302 @@ export class SystematicThinkingOrchestrator
     step: FrameworkStep,
     problem: Problem
   ): string[] {
-    // Generate contextual insights based on the step and problem
+    // Generate contextual, actionable insights based on the step and problem
     const insights: string[] = [];
+    const stepName = step.name.toLowerCase();
+    const description = problem.description.toLowerCase();
 
-    if (step.name.toLowerCase().includes("define")) {
-      insights.push(`Problem domain identified as: ${problem.domain}`);
+    // Define/Clarify steps
+    if (stepName.includes("define") || stepName.includes("clarify")) {
       insights.push(
-        `Complexity level: ${(problem.complexity * 100).toFixed(0)}%`
+        `This is a ${problem.domain} problem with ${(
+          problem.complexity * 100
+        ).toFixed(0)}% complexity`
+      );
+
+      if (problem.constraints.length > 0) {
+        insights.push(
+          `Key constraints to work within: ${problem.constraints.join(", ")}`
+        );
+      }
+
+      if (problem.time_sensitivity > 0.7) {
+        insights.push(
+          "Time pressure detected - consider rapid iteration approaches"
+        );
+      }
+
+      if (problem.stakeholders.length > 2) {
+        insights.push(
+          "Multiple stakeholders involved - alignment and communication will be critical"
+        );
+      }
+    }
+
+    // Observe/Gather/Research steps
+    if (
+      stepName.includes("observe") ||
+      stepName.includes("gather") ||
+      stepName.includes("research")
+    ) {
+      if (
+        description.includes("performance") ||
+        description.includes("slow") ||
+        description.includes("issue")
+      ) {
+        insights.push(
+          "Focus data collection on performance metrics, user behavior patterns, and system bottlenecks"
+        );
+      }
+
+      if (description.includes("user") || description.includes("customer")) {
+        insights.push(
+          "Prioritize direct user feedback, usage analytics, and behavioral data"
+        );
+      }
+
+      if (problem.uncertainty > 0.6) {
+        insights.push(
+          "High uncertainty detected - gather data from multiple sources to reduce risk"
+        );
+      }
+    }
+
+    // Analyze/Evaluate steps
+    if (stepName.includes("analyze") || stepName.includes("evaluate")) {
+      if (problem.complexity > 0.7) {
+        insights.push(
+          "Complex problem - break analysis into smaller, manageable components"
+        );
+      }
+
+      if (
+        description.includes("team") ||
+        description.includes("organization")
+      ) {
+        insights.push(
+          "Consider both technical and human factors in your analysis"
+        );
+      }
+
+      if (problem.constraints.includes("budget_constraint")) {
+        insights.push(
+          "Budget constraints identified - prioritize cost-effective solutions"
+        );
+      }
+    }
+
+    // Solution/Design/Create steps
+    if (
+      stepName.includes("solution") ||
+      stepName.includes("design") ||
+      stepName.includes("create") ||
+      stepName.includes("ideate")
+    ) {
+      if (problem.time_sensitivity > 0.6) {
+        insights.push(
+          "Time-sensitive situation - consider MVP approach and iterative improvements"
+        );
+      }
+
+      if (description.includes("scale") || description.includes("growth")) {
+        insights.push(
+          "Scalability is important - design solutions that can grow with demand"
+        );
+      }
+
+      if (problem.stakeholders.length > 1) {
+        insights.push(
+          "Multiple stakeholders - ensure solutions address different user needs"
+        );
+      }
+
+      insights.push(
+        "Consider both immediate fixes and long-term strategic improvements"
       );
     }
 
-    if (step.name.toLowerCase().includes("analyze")) {
-      insights.push(`Key constraints: ${problem.constraints.join(", ")}`);
+    // Test/Validate/Implement steps
+    if (
+      stepName.includes("test") ||
+      stepName.includes("validate") ||
+      stepName.includes("implement")
+    ) {
+      if (description.includes("production") || description.includes("live")) {
+        insights.push(
+          "Production environment - plan for gradual rollout and rollback procedures"
+        );
+      }
+
+      if (problem.uncertainty > 0.5) {
+        insights.push(
+          "Uncertainty present - start with small-scale tests before full implementation"
+        );
+      }
+
       insights.push(
-        `Stakeholders involved: ${problem.stakeholders.join(", ")}`
+        "Define clear success metrics and monitoring before implementation"
       );
     }
 
-    if (step.name.toLowerCase().includes("solution")) {
-      insights.push("Multiple solution paths identified");
-      insights.push("Trade-offs between speed and quality considered");
+    // Add domain-specific insights
+    if (problem.domain === "technology") {
+      insights.push(
+        "Technical solution - consider maintainability, security, and performance implications"
+      );
+    } else if (problem.domain === "business") {
+      insights.push(
+        "Business solution - evaluate ROI, market impact, and competitive advantages"
+      );
     }
 
-    return insights;
+    return insights.length > 0
+      ? insights
+      : ["Systematic approach will provide structured analysis for this step"];
   }
 
   private generateStepRecommendations(
-    _step: FrameworkStep,
+    step: FrameworkStep,
     problem: Problem
   ): string[] {
     const recommendations: string[] = [];
+    const stepName = step.name.toLowerCase();
+    const description = problem.description.toLowerCase();
 
+    // Time-sensitive recommendations
     if (problem.time_sensitivity > 0.7) {
-      recommendations.push("Consider rapid prototyping approach");
-      recommendations.push("Focus on minimum viable solution first");
+      if (stepName.includes("solution") || stepName.includes("design")) {
+        recommendations.push(
+          "Time pressure: Start with the simplest solution that addresses the core problem"
+        );
+        recommendations.push(
+          "Plan for quick wins first, then iterate with improvements"
+        );
+      } else if (stepName.includes("test") || stepName.includes("validate")) {
+        recommendations.push(
+          "Fast validation: Use A/B tests or user interviews for quick feedback"
+        );
+      } else {
+        recommendations.push(
+          "Time constraint: Focus on the most critical aspects of this step"
+        );
+      }
     }
 
+    // Complexity management recommendations
     if (problem.complexity > 0.7) {
-      recommendations.push("Break down into smaller sub-problems");
-      recommendations.push("Consider iterative approach");
+      if (stepName.includes("analyze") || stepName.includes("define")) {
+        recommendations.push(
+          "High complexity: Use visual tools like diagrams or flowcharts to map relationships"
+        );
+        recommendations.push(
+          "Break this complex problem into 3-5 smaller, manageable pieces"
+        );
+      } else if (stepName.includes("solution")) {
+        recommendations.push(
+          "Complex solution space: Consider modular approaches that can be implemented incrementally"
+        );
+      } else {
+        recommendations.push(
+          "Manage complexity: Focus on one aspect at a time to avoid overwhelm"
+        );
+      }
     }
 
+    // Uncertainty management recommendations
     if (problem.uncertainty > 0.7) {
-      recommendations.push("Gather additional information before proceeding");
-      recommendations.push("Plan for multiple scenarios");
+      if (stepName.includes("gather") || stepName.includes("research")) {
+        recommendations.push(
+          "High uncertainty: Prioritize gathering data that reduces the biggest unknowns"
+        );
+        recommendations.push(
+          "Look for leading indicators and early signals of trends"
+        );
+      } else if (stepName.includes("solution") || stepName.includes("plan")) {
+        recommendations.push(
+          "Uncertain environment: Design flexible solutions that can adapt to changing conditions"
+        );
+        recommendations.push(
+          "Create contingency plans for the most likely alternative scenarios"
+        );
+      } else {
+        recommendations.push(
+          "Handle uncertainty: Document assumptions and plan to validate them"
+        );
+      }
+    }
+
+    // Stakeholder-specific recommendations
+    if (problem.stakeholders.length > 2) {
+      if (stepName.includes("define") || stepName.includes("clarify")) {
+        recommendations.push(
+          "Multiple stakeholders: Ensure all parties agree on problem definition before proceeding"
+        );
+      } else if (stepName.includes("solution")) {
+        recommendations.push(
+          "Stakeholder alignment: Consider how each solution affects different user groups"
+        );
+      } else {
+        recommendations.push(
+          "Communication: Keep all stakeholders informed of progress and findings"
+        );
+      }
+    }
+
+    // Domain-specific recommendations
+    if (problem.domain === "technology") {
+      if (stepName.includes("solution") || stepName.includes("design")) {
+        recommendations.push(
+          "Technical solution: Consider scalability, maintainability, and security from the start"
+        );
+      } else if (stepName.includes("test")) {
+        recommendations.push(
+          "Technical validation: Include performance testing and edge case scenarios"
+        );
+      }
+    } else if (problem.domain === "business") {
+      if (stepName.includes("analyze")) {
+        recommendations.push(
+          "Business analysis: Include market research and competitive analysis"
+        );
+      } else if (stepName.includes("solution")) {
+        recommendations.push(
+          "Business solution: Evaluate ROI and alignment with strategic objectives"
+        );
+      }
+    }
+
+    // Constraint-specific recommendations
+    if (problem.constraints.includes("budget_constraint")) {
+      recommendations.push(
+        "Budget constraint: Prioritize high-impact, low-cost approaches"
+      );
+    }
+
+    if (problem.constraints.includes("resource_constraint")) {
+      recommendations.push(
+        "Resource limitation: Focus on solutions that leverage existing capabilities"
+      );
+    }
+
+    // Performance and quality recommendations
+    if (description.includes("performance") || description.includes("slow")) {
+      recommendations.push(
+        "Performance focus: Measure current baselines before implementing changes"
+      );
+    }
+
+    if (description.includes("quality") || description.includes("error")) {
+      recommendations.push(
+        "Quality improvement: Implement monitoring and feedback loops"
+      );
+    }
+
+    // Ensure we always have at least one recommendation
+    if (recommendations.length === 0) {
+      recommendations.push(
+        `Execute this ${step.name} step systematically, documenting findings for the next phase`
+      );
     }
 
     return recommendations;

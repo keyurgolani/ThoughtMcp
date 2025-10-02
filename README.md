@@ -117,6 +117,7 @@ ThoughtMCP works with popular AI development environments:
         "COGNITIVE_DEFAULT_MODE": "balanced",
         "COGNITIVE_ENABLE_EMOTION": "true",
         "COGNITIVE_ENABLE_METACOGNITION": "true",
+        "COGNITIVE_ENABLE_PREDICTION": "true",
         "COGNITIVE_WORKING_MEMORY_CAPACITY": "7",
         "COGNITIVE_EPISODIC_MEMORY_SIZE": "1000",
         "COGNITIVE_SEMANTIC_MEMORY_SIZE": "5000",
@@ -140,18 +141,27 @@ ThoughtMCP can be configured as an MCP server using environment variables. All c
 
 ### Environment Variables
 
-| Variable                            | Default    | Description                                                                              |
-| ----------------------------------- | ---------- | ---------------------------------------------------------------------------------------- |
-| `COGNITIVE_DEFAULT_MODE`            | `balanced` | Default thinking mode: `intuitive`, `deliberative`, `balanced`, `creative`, `analytical` |
-| `COGNITIVE_ENABLE_EMOTION`          | `true`     | Enable emotional processing and somatic markers                                          |
-| `COGNITIVE_ENABLE_METACOGNITION`    | `true`     | Enable self-monitoring and bias detection                                                |
-| `COGNITIVE_WORKING_MEMORY_CAPACITY` | `7`        | Working memory capacity (Miller's 7±2)                                                   |
-| `COGNITIVE_EPISODIC_MEMORY_SIZE`    | `1000`     | Maximum episodic memories to store                                                       |
-| `COGNITIVE_SEMANTIC_MEMORY_SIZE`    | `5000`     | Maximum semantic concepts to store                                                       |
-| `COGNITIVE_TEMPERATURE`             | `0.7`      | Randomness in neural processing (0.0-2.0)                                                |
-| `COGNITIVE_TIMEOUT_MS`              | `30000`    | Maximum processing time per request                                                      |
-| `COGNITIVE_BRAIN_DIR`               | `~/.brain` | Directory for persistent memory storage                                                  |
-| `LOG_LEVEL`                         | `INFO`     | Logging level: `DEBUG`, `INFO`, `WARN`, `ERROR`                                          |
+| Variable                                 | Default    | Description                                                                              |
+| ---------------------------------------- | ---------- | ---------------------------------------------------------------------------------------- |
+| `COGNITIVE_DEFAULT_MODE`                 | `balanced` | Default thinking mode: `intuitive`, `deliberative`, `balanced`, `creative`, `analytical` |
+| `COGNITIVE_ENABLE_EMOTION`               | `true`     | Enable emotional processing and somatic markers                                          |
+| `COGNITIVE_ENABLE_METACOGNITION`         | `true`     | Enable self-monitoring and bias detection                                                |
+| `COGNITIVE_ENABLE_PREDICTION`            | `true`     | Enable predictive processing and future state modeling                                   |
+| `COGNITIVE_WORKING_MEMORY_CAPACITY`      | `7`        | Working memory capacity (Miller's 7±2)                                                   |
+| `COGNITIVE_EPISODIC_MEMORY_SIZE`         | `1000`     | Maximum episodic memories to store                                                       |
+| `COGNITIVE_SEMANTIC_MEMORY_SIZE`         | `5000`     | Maximum semantic concepts to store                                                       |
+| `COGNITIVE_CONSOLIDATION_INTERVAL`       | `300000`   | Memory consolidation interval in milliseconds (5 minutes)                                |
+| `COGNITIVE_NOISE_LEVEL`                  | `0.1`      | Neural noise level for stochastic processing (0.0-1.0)                                   |
+| `COGNITIVE_TEMPERATURE`                  | `0.7`      | Randomness in neural processing (0.0-2.0)                                                |
+| `COGNITIVE_ATTENTION_THRESHOLD`          | `0.3`      | Attention threshold for sensory processing (0.0-1.0)                                     |
+| `COGNITIVE_MAX_REASONING_DEPTH`          | `10`       | Maximum depth for reasoning chains (1-50)                                                |
+| `COGNITIVE_TIMEOUT_MS`                   | `30000`    | Maximum processing time per request (1000-300000ms)                                      |
+| `COGNITIVE_MAX_CONCURRENT_SESSIONS`      | `100`      | Maximum concurrent cognitive sessions                                                    |
+| `COGNITIVE_CONFIDENCE_THRESHOLD`         | `0.6`      | Confidence threshold for decision making (0.0-1.0)                                       |
+| `COGNITIVE_SYSTEM2_ACTIVATION_THRESHOLD` | `0.4`      | Threshold for activating deliberative processing (0.0-1.0)                               |
+| `COGNITIVE_MEMORY_RETRIEVAL_THRESHOLD`   | `0.3`      | Similarity threshold for memory retrieval (0.0-1.0)                                      |
+| `COGNITIVE_BRAIN_DIR`                    | `~/.brain` | Directory for persistent memory storage                                                  |
+| `LOG_LEVEL`                              | `INFO`     | Logging level: `DEBUG`, `INFO`, `WARN`, `ERROR`                                          |
 
 ### Example Configurations
 

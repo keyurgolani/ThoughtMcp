@@ -20,3 +20,9 @@ export { ForgettingAuditSystem } from "./ForgettingAuditSystem.js";
 export { ForgettingControlSystem } from "./ForgettingControlSystem.js";
 export { ForgettingPolicyManager } from "./ForgettingPolicyManager.js";
 export { SecureDeletionManager } from "./SecureDeletionManager.js";
+
+// Simplified user interface components
+export { AuditSummaryFormatter } from "./AuditSummaryFormatter.js";
+export { PolicyPresets } from "./PolicyPresets.js";
+export { RiskAssessmentEngine } from "./RiskAssessment.js";
+export { SimpleCleanupManager } from "./SimpleCleanup.js";

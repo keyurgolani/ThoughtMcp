@@ -89,6 +89,21 @@ COGNITIVE_ENABLE_METACOGNITION=true
 COGNITIVE_ENABLE_METACOGNITION=false
 ```
 
+#### `COGNITIVE_ENABLE_PREDICTION`
+
+**Default**: `true`
+**Options**: `true`, `false`
+
+Whether to enable predictive processing and future state modeling.
+
+```bash
+# Enable for enhanced reasoning with predictions
+COGNITIVE_ENABLE_PREDICTION=true
+
+# Disable for simpler processing
+COGNITIVE_ENABLE_PREDICTION=false
+```
+
 #### `COGNITIVE_WORKING_MEMORY_CAPACITY`
 
 **Default**: `7`
@@ -132,6 +147,126 @@ COGNITIVE_TIMEOUT_MS=10000
 
 # For complex reasoning
 COGNITIVE_TIMEOUT_MS=60000
+```
+
+#### `COGNITIVE_NOISE_LEVEL`
+
+**Default**: `0.1`
+**Range**: `0.0-1.0`
+
+Neural noise level for stochastic processing.
+
+```bash
+# For deterministic processing
+COGNITIVE_NOISE_LEVEL=0.0
+
+# For enhanced creativity
+COGNITIVE_NOISE_LEVEL=0.2
+```
+
+#### `COGNITIVE_ATTENTION_THRESHOLD`
+
+**Default**: `0.3`
+**Range**: `0.0-1.0`
+
+Attention threshold for sensory processing.
+
+```bash
+# For focused attention
+COGNITIVE_ATTENTION_THRESHOLD=0.5
+
+# For broad attention
+COGNITIVE_ATTENTION_THRESHOLD=0.2
+```
+
+#### `COGNITIVE_MAX_REASONING_DEPTH`
+
+**Default**: `10`
+**Range**: `1-50`
+
+Maximum depth for reasoning chains.
+
+```bash
+# For simple reasoning
+COGNITIVE_MAX_REASONING_DEPTH=5
+
+# For deep analysis
+COGNITIVE_MAX_REASONING_DEPTH=20
+```
+
+#### `COGNITIVE_MAX_CONCURRENT_SESSIONS`
+
+**Default**: `100`
+**Range**: `1-1000`
+
+Maximum concurrent cognitive sessions.
+
+```bash
+# For single-user applications
+COGNITIVE_MAX_CONCURRENT_SESSIONS=10
+
+# For high-traffic applications
+COGNITIVE_MAX_CONCURRENT_SESSIONS=500
+```
+
+#### `COGNITIVE_CONFIDENCE_THRESHOLD`
+
+**Default**: `0.6`
+**Range**: `0.0-1.0`
+
+Confidence threshold for decision making.
+
+```bash
+# For cautious decision making
+COGNITIVE_CONFIDENCE_THRESHOLD=0.8
+
+# For more permissive decisions
+COGNITIVE_CONFIDENCE_THRESHOLD=0.4
+```
+
+#### `COGNITIVE_SYSTEM2_ACTIVATION_THRESHOLD`
+
+**Default**: `0.4`
+**Range**: `0.0-1.0`
+
+Threshold for activating deliberative processing (System 2).
+
+```bash
+# For more deliberative processing
+COGNITIVE_SYSTEM2_ACTIVATION_THRESHOLD=0.2
+
+# For more intuitive processing
+COGNITIVE_SYSTEM2_ACTIVATION_THRESHOLD=0.8
+```
+
+#### `COGNITIVE_MEMORY_RETRIEVAL_THRESHOLD`
+
+**Default**: `0.3`
+**Range**: `0.0-1.0`
+
+Similarity threshold for memory retrieval.
+
+```bash
+# For strict memory matching
+COGNITIVE_MEMORY_RETRIEVAL_THRESHOLD=0.7
+
+# For loose memory associations
+COGNITIVE_MEMORY_RETRIEVAL_THRESHOLD=0.1
+```
+
+#### `COGNITIVE_CONSOLIDATION_INTERVAL`
+
+**Default**: `300000`
+**Range**: `60000-3600000`
+
+Memory consolidation interval in milliseconds.
+
+```bash
+# For frequent consolidation
+COGNITIVE_CONSOLIDATION_INTERVAL=60000
+
+# For less frequent consolidation
+COGNITIVE_CONSOLIDATION_INTERVAL=1800000
 ```
 
 ### Memory System Settings
@@ -278,11 +413,22 @@ Optimized for experimentation and debugging:
 COGNITIVE_DEFAULT_MODE=balanced
 COGNITIVE_ENABLE_EMOTION=true
 COGNITIVE_ENABLE_METACOGNITION=true
+COGNITIVE_ENABLE_PREDICTION=true
+COGNITIVE_WORKING_MEMORY_CAPACITY=7
+COGNITIVE_EPISODIC_MEMORY_SIZE=1000
+COGNITIVE_SEMANTIC_MEMORY_SIZE=5000
+COGNITIVE_CONSOLIDATION_INTERVAL=300000
+COGNITIVE_NOISE_LEVEL=0.1
 COGNITIVE_TEMPERATURE=0.7
+COGNITIVE_ATTENTION_THRESHOLD=0.3
+COGNITIVE_MAX_REASONING_DEPTH=10
 COGNITIVE_TIMEOUT_MS=30000
+COGNITIVE_MAX_CONCURRENT_SESSIONS=100
+COGNITIVE_CONFIDENCE_THRESHOLD=0.6
+COGNITIVE_SYSTEM2_ACTIVATION_THRESHOLD=0.4
+COGNITIVE_MEMORY_RETRIEVAL_THRESHOLD=0.3
 COGNITIVE_BRAIN_DIR="./brain"
 LOG_LEVEL=DEBUG
-COGNITIVE_ENABLE_MONITORING=true
 ```
 
 ### Production Profile
@@ -294,11 +440,22 @@ Optimized for performance and reliability:
 COGNITIVE_DEFAULT_MODE=balanced
 COGNITIVE_ENABLE_EMOTION=true
 COGNITIVE_ENABLE_METACOGNITION=false  # Disable for speed
+COGNITIVE_ENABLE_PREDICTION=true
+COGNITIVE_WORKING_MEMORY_CAPACITY=7
+COGNITIVE_EPISODIC_MEMORY_SIZE=5000
+COGNITIVE_SEMANTIC_MEMORY_SIZE=10000
+COGNITIVE_CONSOLIDATION_INTERVAL=600000  # 10 minutes
+COGNITIVE_NOISE_LEVEL=0.05
 COGNITIVE_TEMPERATURE=0.5
+COGNITIVE_ATTENTION_THRESHOLD=0.4
+COGNITIVE_MAX_REASONING_DEPTH=8
 COGNITIVE_TIMEOUT_MS=15000
+COGNITIVE_MAX_CONCURRENT_SESSIONS=200
+COGNITIVE_CONFIDENCE_THRESHOLD=0.7
+COGNITIVE_SYSTEM2_ACTIVATION_THRESHOLD=0.5
+COGNITIVE_MEMORY_RETRIEVAL_THRESHOLD=0.4
 COGNITIVE_BRAIN_DIR="~/.brain"
 LOG_LEVEL=INFO
-COGNITIVE_ENABLE_MONITORING=true
 ```
 
 ### Speed-Optimized Profile

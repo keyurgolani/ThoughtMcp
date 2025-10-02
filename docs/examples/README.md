@@ -11,6 +11,7 @@ Perfect for learning the fundamentals:
 - **[Simple Question Answering](basic/simple-qa.md)** - Basic think tool usage
 - **[Building Knowledge](basic/building-knowledge.md)** - Using remember and recall
 - **[Quality Checking](basic/quality-checking.md)** - Using analyze_reasoning
+- **[Advanced Cognitive Tools](basic/advanced-tools.md)** - Systematic analysis, parallel reasoning, and memory management
 - **[Complete Workflow](basic/complete-workflow.md)** - All tools together
 
 ### 🏢 Real-World Scenarios
