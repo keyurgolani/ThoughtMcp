@@ -158,7 +158,7 @@ export class GradualDegradationManager implements IGradualDegradationManager {
 
     // Log the initiation
     if (this.config.enable_degradation_logging) {
-      console.log(
+      console.error(
         `Initiated gradual degradation for memory ${memoryId} with ${filteredStages.length} stages`
       );
     }
@@ -223,7 +223,7 @@ export class GradualDegradationManager implements IGradualDegradationManager {
 
     // Log the stage execution
     if (this.config.enable_degradation_logging) {
-      console.log(
+      console.error(
         `Executed degradation stage ${currentStage.stage_id} for memory ${process.memory_id}. ` +
           `Degradation level: ${process.status.degradation_level.toFixed(2)}`
       );
@@ -242,7 +242,7 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     process.last_updated_timestamp = Date.now();
 
     if (this.config.enable_degradation_logging) {
-      console.log(`Paused degradation process ${process_id}`);
+      console.error(`Paused degradation process ${process_id}`);
     }
   }
 
@@ -265,7 +265,7 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     }
 
     if (this.config.enable_degradation_logging) {
-      console.log(`Resumed degradation process ${process_id}`);
+      console.error(`Resumed degradation process ${process_id}`);
     }
   }
 
@@ -285,7 +285,7 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     this.activeProcesses.delete(process_id);
 
     if (this.config.enable_degradation_logging) {
-      console.log(
+      console.error(
         `Cancelled degradation process ${process_id}. Recovery success: ${recoveryResult.success}`
       );
     }
@@ -319,7 +319,7 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     }, this.config.execution_interval_ms);
 
     if (this.config.enable_degradation_logging) {
-      console.log(
+      console.error(
         `Scheduled automatic degradation execution every ${this.config.execution_interval_ms}ms`
       );
     }
@@ -426,7 +426,7 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     // Simplified recovery attempt - in a real implementation, this would
     // use the recovery cues and association fingerprint to reconstruct the memory
     // The memoryId parameter would be used to identify the memory to recover
-    console.log(`Attempting recovery for memory: ${memoryId}`);
+    console.error(`Attempting recovery for memory: ${memoryId}`);
 
     const recoveryConfidence =
       this.calculateRecoveryConfidence(recoveryMetadata);
@@ -658,7 +658,7 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     }
 
     if (this.config.enable_degradation_logging) {
-      console.log("Gradual degradation manager cleanup completed");
+      console.error("Gradual degradation manager cleanup completed");
     }
   }
 }
