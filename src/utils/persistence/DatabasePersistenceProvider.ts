@@ -381,7 +381,7 @@ export class DatabasePersistenceProvider implements IPersistenceProvider {
     databaseUrl: string
   ): Promise<DatabaseConnection> {
     // Mock implementation - in production, use actual database driver
-    console.log(`Connecting to database: ${databaseUrl}`);
+    console.error(`Connecting to database: ${databaseUrl}`);
 
     // Return mock connection for demonstration
     return {
