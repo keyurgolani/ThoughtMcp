@@ -69,10 +69,10 @@ export class DualProcessController {
     };
 
     await this.system1.initialize(
-      config.system1 || ({} as Record<string, unknown>)
+      config.system1 ?? ({} as Record<string, unknown>)
     );
     await this.system2.initialize(
-      config.system2 || ({} as Record<string, unknown>)
+      config.system2 ?? ({} as Record<string, unknown>)
     );
 
     this.initialized = true;
@@ -121,7 +121,7 @@ export class DualProcessController {
           reasoning: decision.reasoning,
         },
         system1_confidence: system1Result.confidence,
-        system2_confidence: system2Result?.confidence || null,
+        system2_confidence: system2Result?.confidence ?? null,
         conflict_resolution: system2Result ? this.getLastResolution() : null,
         total_processing_time: processingTime,
         conflict_detected: decision.conflict_expected,
@@ -255,7 +255,7 @@ export class DualProcessController {
     complexity += complexWordCount * 0.1;
 
     // Multiple questions or topics
-    const questionMarks = (input.match(/\?/g) || []).length;
+    const questionMarks = (input.match(/\?/g) ?? []).length;
     if (questionMarks > 1) {
       complexity += 0.2;
     }
@@ -278,7 +278,7 @@ export class DualProcessController {
 
   private isComplexQuestion(input: string): boolean {
     // Multi-part questions
-    if ((input.match(/\?/g) || []).length > 1) return true;
+    if ((input.match(/\?/g) ?? []).length > 1) return true;
 
     // Questions with multiple clauses
     const complexQuestionPatterns = [
@@ -602,7 +602,7 @@ export class DualProcessController {
         system2Status.initialized,
       active: Date.now() - this.lastActivity < 30000,
       last_activity: this.lastActivity,
-      error: system1Status.error || system2Status.error || "",
+      error: system1Status.error ?? system2Status.error ?? "",
     };
   }
 

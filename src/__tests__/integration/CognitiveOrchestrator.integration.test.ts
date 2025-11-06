@@ -298,6 +298,7 @@ describe("CognitiveOrchestrator Integration Tests", () => {
           consolidation_interval: 60000,
           noise_level: 0.1,
           temperature: 1.0,
+          brain_dir: "~/.brain",
           attention_threshold: 0.3,
           max_reasoning_depth: 10,
           timeout_ms: 30000,

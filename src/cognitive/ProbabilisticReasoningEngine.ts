@@ -334,7 +334,7 @@ export class ProbabilisticReasoningEngine
       evidence.push({
         id: "e2",
         content: `Contextual information: domain=${
-          context.domain || "unknown"
+          context.domain ?? "unknown"
         }`,
         type: "testimonial",
         reliability: 0.6,
@@ -727,7 +727,7 @@ export class ProbabilisticReasoningEngine
     let count = 0;
 
     for (const [nodeId, initialUncertainty] of initial) {
-      const finalUncertainty = final.get(nodeId) || initialUncertainty;
+      const finalUncertainty = final.get(nodeId) ?? initialUncertainty;
       totalAmplification += finalUncertainty / initialUncertainty;
       count++;
     }

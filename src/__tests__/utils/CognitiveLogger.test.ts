@@ -18,6 +18,7 @@ describe("CognitiveLogger", () => {
     // Reset singleton instance
     (CognitiveLogger as any).instance = undefined;
     logger = CognitiveLogger.getInstance();
+    logger.setLogLevel(LogLevel.DEBUG); // Allow all log levels
     consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
@@ -168,7 +169,7 @@ describe("CognitiveLogger", () => {
     });
 
     it("should include trace IDs in log entries", () => {
-      const traceId = logger.startTrace("custom-trace");
+      logger.startTrace("custom-trace");
       logger.info("TestComponent", "Traced message");
       logger.endTrace();
 
@@ -219,6 +220,7 @@ describe("CognitiveLogger", () => {
       // Create logger with small max logs for testing
       const smallLogger = new (CognitiveLogger as any)();
       smallLogger.maxLogs = 3;
+      smallLogger.setLogLevel(LogLevel.DEBUG); // Allow all log levels
 
       for (let i = 0; i < 5; i++) {
         smallLogger.info("TestComponent", `Message ${i}`);
@@ -241,7 +243,7 @@ describe("CognitiveLogger", () => {
   describe("Console Output Formatting", () => {
     it("should format log output correctly", () => {
       logger.setDebugMode(DebugMode.BASIC);
-      logger.info(
+      logger.warn(
         "TestComponent",
         "Test message",
         { key: "value" },
@@ -262,7 +264,7 @@ describe("CognitiveLogger", () => {
 
     it("should include cognitive context in debug mode", () => {
       logger.setDebugMode(DebugMode.DETAILED);
-      logger.info(
+      logger.warn(
         "TestComponent",
         "Test message",
         {},

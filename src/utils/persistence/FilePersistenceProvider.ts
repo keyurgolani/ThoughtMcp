@@ -52,26 +52,44 @@ export class FilePersistenceProvider implements IPersistenceProvider {
     try {
       await fs.mkdir(dir, { recursive: true });
 
-      // Test write permissions by creating a temporary file
+      // Test write permissions by creating a temporary file with unique name
       const testFile = join(
         dir,
-        `.write-test-${Date.now()}-${Math.random().toString(36).substring(7)}`
+        `.write-test-${Date.now()}-${Math.random().toString(36).substring(7)}-${
+          process.pid
+        }`
       );
       await fs.writeFile(testFile, "test");
       await fs.unlink(testFile);
     } catch (error) {
-      // Retry once after a small delay to handle race conditions
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        await fs.mkdir(dir, { recursive: true });
-        const testFile = join(
-          dir,
-          `.write-test-${Date.now()}-${Math.random().toString(36).substring(7)}`
-        );
-        await fs.writeFile(testFile, "test");
-        await fs.unlink(testFile);
-      } catch (retryError) {
-        throw new Error(`Cannot create or write to directory: ${dir}`);
+      // Retry with exponential backoff to handle race conditions
+      const maxRetries = 3;
+      let retryCount = 0;
+
+      while (retryCount < maxRetries) {
+        try {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 100 * Math.pow(2, retryCount))
+          );
+          await fs.mkdir(dir, { recursive: true });
+
+          const testFile = join(
+            dir,
+            `.write-test-${Date.now()}-${Math.random()
+              .toString(36)
+              .substring(7)}-${process.pid}-retry${retryCount}`
+          );
+          await fs.writeFile(testFile, "test");
+          await fs.unlink(testFile);
+          break; // Success, exit retry loop
+        } catch (retryError) {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            throw new Error(
+              `Cannot create or write to directory: ${dir} (after ${maxRetries} retries)`
+            );
+          }
+        }
       }
     }
 
@@ -80,12 +98,25 @@ export class FilePersistenceProvider implements IPersistenceProvider {
     try {
       await fs.mkdir(backupDir, { recursive: true });
     } catch (error) {
-      // Retry once after a small delay to handle race conditions
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        await fs.mkdir(backupDir, { recursive: true });
-      } catch (retryError) {
-        throw new Error(`Cannot create backup directory: ${backupDir}`);
+      // Retry with exponential backoff to handle race conditions
+      const maxRetries = 3;
+      let retryCount = 0;
+
+      while (retryCount < maxRetries) {
+        try {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 50 * Math.pow(2, retryCount))
+          );
+          await fs.mkdir(backupDir, { recursive: true });
+          break; // Success, exit retry loop
+        } catch (retryError) {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            throw new Error(
+              `Cannot create backup directory: ${backupDir} (after ${maxRetries} retries)`
+            );
+          }
+        }
       }
     }
 

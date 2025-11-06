@@ -74,9 +74,9 @@ export class ErrorHandler {
     component: string,
     options?: Partial<GracefulDegradationOptions>
   ): Promise<{ success: boolean; data?: T; error?: Error }> {
-    const maxRetries = options?.maxRetries || 3;
-    const retryDelay = options?.retryDelayMs || 1000;
-    const timeout = options?.timeoutMs || 30000;
+    const maxRetries = options?.maxRetries ?? 3;
+    const retryDelay = options?.retryDelayMs ?? 1000;
+    const timeout = options?.timeoutMs ?? 30000;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -130,7 +130,7 @@ export class ErrorHandler {
     }
 
     // Check if component is marked as critical
-    const criticalComponents = options?.criticalComponents || [
+    const criticalComponents = options?.criticalComponents ?? [
       "CognitiveOrchestrator",
       "MemorySystem",
     ];
@@ -255,13 +255,13 @@ export class ErrorHandler {
     context?: Record<string, unknown>
   ) {
     // Return input unchanged when stochastic processing fails
-    return context?.input || null;
+    return context?.input ?? null;
   }
 
   private static dualProcessFallback(context?: Record<string, unknown>) {
     return {
       system1_response: {
-        content: String(context?.input || ""),
+        content: String(context?.input ?? ""),
         confidence: 0.5,
         processing_time: 0,
         heuristics_used: ["fallback"],
@@ -381,13 +381,16 @@ export class ErrorHandler {
       this.componentErrors.set(component, []);
     }
 
-    const errors = this.componentErrors.get(component)!;
+    const errors = this.componentErrors.get(component);
+    if (!errors) {
+      throw new Error(`Component errors not found for: ${component}`);
+    }
     errors.push({
       component,
       error,
       severity,
       timestamp: Date.now(),
-      context: context || {},
+      context: context ?? {},
     });
 
     // Keep only recent errors to prevent memory leaks
@@ -403,7 +406,7 @@ export class ErrorHandler {
     component: string,
     timeWindowMs: number
   ): ComponentError[] {
-    const errors = this.componentErrors.get(component) || [];
+    const errors = this.componentErrors.get(component) ?? [];
     const cutoff = Date.now() - timeWindowMs;
     return errors.filter((error) => error.timestamp > cutoff);
   }

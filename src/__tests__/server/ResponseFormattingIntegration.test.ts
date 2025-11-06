@@ -4,7 +4,11 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CognitiveMCPServer } from "../../server/CognitiveMCPServer.js";
-import { ProcessingMode, ReasoningType } from "../../types/core.js";
+import {
+  ProcessingMode,
+  ReasoningType,
+  ReasoningTypeValue,
+} from "../../types/core.js";
 import { ErrorHandler } from "../../utils/ErrorHandler.js";
 import { ResponseFormatter } from "../../utils/ResponseFormatter.js";
 
@@ -245,7 +249,7 @@ describe("Response Formatting Integration", () => {
         server.handleAnalyzeReasoning({
           reasoning_steps: [
             {
-              type: "",
+              type: null as unknown as ReasoningTypeValue, // Invalid type
               content: "test",
               confidence: 0.5,
               alternatives: [],
@@ -265,7 +269,7 @@ describe("Response Formatting Integration", () => {
         });
       } catch (error) {
         expect(error).toBeInstanceOf(Error);
-        expect(error.message).toContain(
+        expect((error as Error).message).toContain(
           "❌ Parameter validation failed for 'think' tool"
         );
       }
@@ -285,7 +289,7 @@ describe("Response Formatting Integration", () => {
         });
       } catch (error) {
         expect(error).toBeInstanceOf(Error);
-        expect(error.message).toContain("Think processing failed");
+        expect((error as Error).message).toContain("Think processing failed");
       }
 
       // Restore original method
@@ -313,7 +317,7 @@ describe("Response Formatting Integration", () => {
           await server.handleThink(testCase.input as any);
           expect.fail("Should have thrown an error");
         } catch (error) {
-          expect(error.message.toLowerCase()).toContain(
+          expect((error as Error).message.toLowerCase()).toContain(
             testCase.expectedError.toLowerCase()
           );
         }

@@ -44,8 +44,12 @@ export class SystematicThinkingOrchestrator
     }
 
     // Initialize components
-    await this.frameworkSelector.initialize();
-    await this.problemAnalyzer.initialize();
+    if (this.frameworkSelector?.initialize) {
+      await this.frameworkSelector.initialize();
+    }
+    if (this.problemAnalyzer?.initialize) {
+      await this.problemAnalyzer.initialize();
+    }
 
     this.initialized = true;
   }
@@ -73,7 +77,7 @@ export class SystematicThinkingOrchestrator
     const frameworkRecommendation =
       await this.frameworkSelector.selectFramework(
         problem,
-        context || { session_id: "default", domain: problem.domain }
+        context ?? { session_id: "default", domain: problem.domain }
       );
 
     // Step 4: Execute systematic analysis
@@ -136,7 +140,7 @@ export class SystematicThinkingOrchestrator
       };
       return this.analyzeSystematically(
         inputObj.input,
-        inputObj.mode || "auto",
+        inputObj.mode ?? "auto",
         inputObj.context
       );
     }
@@ -229,7 +233,7 @@ export class SystematicThinkingOrchestrator
   private identifyDomain(input: string, context?: Context): string {
     // Check context first
     if (context?.domain) {
-      return context.domain as string;
+      return context.domain;
     }
 
     // Domain keywords mapping
@@ -426,7 +430,7 @@ export class SystematicThinkingOrchestrator
     const description = problem.description.toLowerCase();
 
     // Define/Clarify steps
-    if (stepName.includes("define") || stepName.includes("clarify")) {
+    if (stepName.includes("define") ?? stepName.includes("clarify")) {
       insights.push(
         `This is a ${problem.domain} problem with ${(
           problem.complexity * 100
@@ -454,21 +458,17 @@ export class SystematicThinkingOrchestrator
 
     // Observe/Gather/Research steps
     if (
-      stepName.includes("observe") ||
-      stepName.includes("gather") ||
-      stepName.includes("research")
+      stepName.includes("observe") ?? stepName.includes("gather") ?? stepName.includes("research")
     ) {
       if (
-        description.includes("performance") ||
-        description.includes("slow") ||
-        description.includes("issue")
+        description.includes("performance") ?? description.includes("slow") ?? description.includes("issue")
       ) {
         insights.push(
           "Focus data collection on performance metrics, user behavior patterns, and system bottlenecks"
         );
       }
 
-      if (description.includes("user") || description.includes("customer")) {
+      if (description.includes("user") ?? description.includes("customer")) {
         insights.push(
           "Prioritize direct user feedback, usage analytics, and behavioral data"
         );
@@ -482,7 +482,7 @@ export class SystematicThinkingOrchestrator
     }
 
     // Analyze/Evaluate steps
-    if (stepName.includes("analyze") || stepName.includes("evaluate")) {
+    if (stepName.includes("analyze") ?? stepName.includes("evaluate")) {
       if (problem.complexity > 0.7) {
         insights.push(
           "Complex problem - break analysis into smaller, manageable components"
@@ -490,8 +490,7 @@ export class SystematicThinkingOrchestrator
       }
 
       if (
-        description.includes("team") ||
-        description.includes("organization")
+        description.includes("team") ?? description.includes("organization")
       ) {
         insights.push(
           "Consider both technical and human factors in your analysis"
@@ -507,10 +506,7 @@ export class SystematicThinkingOrchestrator
 
     // Solution/Design/Create steps
     if (
-      stepName.includes("solution") ||
-      stepName.includes("design") ||
-      stepName.includes("create") ||
-      stepName.includes("ideate")
+      stepName.includes("solution") ?? stepName.includes("design") ?? stepName.includes("create") ?? stepName.includes("ideate")
     ) {
       if (problem.time_sensitivity > 0.6) {
         insights.push(
@@ -518,7 +514,7 @@ export class SystematicThinkingOrchestrator
         );
       }
 
-      if (description.includes("scale") || description.includes("growth")) {
+      if (description.includes("scale") ?? description.includes("growth")) {
         insights.push(
           "Scalability is important - design solutions that can grow with demand"
         );
@@ -537,11 +533,9 @@ export class SystematicThinkingOrchestrator
 
     // Test/Validate/Implement steps
     if (
-      stepName.includes("test") ||
-      stepName.includes("validate") ||
-      stepName.includes("implement")
+      stepName.includes("test") ?? stepName.includes("validate") ?? stepName.includes("implement")
     ) {
-      if (description.includes("production") || description.includes("live")) {
+      if (description.includes("production") ?? description.includes("live")) {
         insights.push(
           "Production environment - plan for gradual rollout and rollback procedures"
         );
@@ -584,14 +578,14 @@ export class SystematicThinkingOrchestrator
 
     // Time-sensitive recommendations
     if (problem.time_sensitivity > 0.7) {
-      if (stepName.includes("solution") || stepName.includes("design")) {
+      if (stepName.includes("solution") ?? stepName.includes("design")) {
         recommendations.push(
           "Time pressure: Start with the simplest solution that addresses the core problem"
         );
         recommendations.push(
           "Plan for quick wins first, then iterate with improvements"
         );
-      } else if (stepName.includes("test") || stepName.includes("validate")) {
+      } else if (stepName.includes("test") ?? stepName.includes("validate")) {
         recommendations.push(
           "Fast validation: Use A/B tests or user interviews for quick feedback"
         );
@@ -604,7 +598,7 @@ export class SystematicThinkingOrchestrator
 
     // Complexity management recommendations
     if (problem.complexity > 0.7) {
-      if (stepName.includes("analyze") || stepName.includes("define")) {
+      if (stepName.includes("analyze") ?? stepName.includes("define")) {
         recommendations.push(
           "High complexity: Use visual tools like diagrams or flowcharts to map relationships"
         );
@@ -624,14 +618,14 @@ export class SystematicThinkingOrchestrator
 
     // Uncertainty management recommendations
     if (problem.uncertainty > 0.7) {
-      if (stepName.includes("gather") || stepName.includes("research")) {
+      if (stepName.includes("gather") ?? stepName.includes("research")) {
         recommendations.push(
           "High uncertainty: Prioritize gathering data that reduces the biggest unknowns"
         );
         recommendations.push(
           "Look for leading indicators and early signals of trends"
         );
-      } else if (stepName.includes("solution") || stepName.includes("plan")) {
+      } else if (stepName.includes("solution") ?? stepName.includes("plan")) {
         recommendations.push(
           "Uncertain environment: Design flexible solutions that can adapt to changing conditions"
         );
@@ -647,7 +641,7 @@ export class SystematicThinkingOrchestrator
 
     // Stakeholder-specific recommendations
     if (problem.stakeholders.length > 2) {
-      if (stepName.includes("define") || stepName.includes("clarify")) {
+      if (stepName.includes("define") ?? stepName.includes("clarify")) {
         recommendations.push(
           "Multiple stakeholders: Ensure all parties agree on problem definition before proceeding"
         );
@@ -664,7 +658,7 @@ export class SystematicThinkingOrchestrator
 
     // Domain-specific recommendations
     if (problem.domain === "technology") {
-      if (stepName.includes("solution") || stepName.includes("design")) {
+      if (stepName.includes("solution") ?? stepName.includes("design")) {
         recommendations.push(
           "Technical solution: Consider scalability, maintainability, and security from the start"
         );
@@ -699,13 +693,13 @@ export class SystematicThinkingOrchestrator
     }
 
     // Performance and quality recommendations
-    if (description.includes("performance") || description.includes("slow")) {
+    if (description.includes("performance") ?? description.includes("slow")) {
       recommendations.push(
         "Performance focus: Measure current baselines before implementing changes"
       );
     }
 
-    if (description.includes("quality") || description.includes("error")) {
+    if (description.includes("quality") ?? description.includes("error")) {
       recommendations.push(
         "Quality improvement: Implement monitoring and feedback loops"
       );

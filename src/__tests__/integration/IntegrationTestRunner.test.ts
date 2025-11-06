@@ -426,7 +426,7 @@ describe("Integration Test Runner - Comprehensive System Validation", () => {
           expect(true).toBe(false);
         } catch (error) {
           expect(error).toBeInstanceOf(Error);
-          expect(error.message).toBeDefined();
+          expect((error as Error).message).toBeDefined();
         }
       }
     });
@@ -481,8 +481,8 @@ describe("Integration Test Runner - Comprehensive System Validation", () => {
           .join(" ");
 
         const hasMLConcepts =
-          consolidatedContent.includes("machine learning") ||
-          consolidatedContent.includes("neural network") ||
+          consolidatedContent.includes("machine learning") ??
+          consolidatedContent.includes("neural network") ??
           consolidatedContent.includes("deep learning");
 
         expect(hasMLConcepts).toBe(true);
@@ -539,7 +539,7 @@ describe("Integration Test Runner - Comprehensive System Validation", () => {
       const hasBlockchain = foundContent.includes("blockchain");
       const hasCryptocurrency = foundContent.includes("cryptocurrency");
 
-      expect(hasBlockchain || hasCryptocurrency).toBe(true);
+      expect(hasBlockchain ?? hasCryptocurrency).toBe(true);
     });
 
     it("should test memory persistence across server restarts", async () => {
@@ -569,7 +569,7 @@ describe("Integration Test Runner - Comprehensive System Validation", () => {
       });
 
       const foundBefore = beforeRecall.memories.some((m) =>
-        m.content.includes("Critical information")
+        (m.content as string).includes("Critical information")
       );
       expect(foundBefore).toBe(true);
 
@@ -590,7 +590,7 @@ describe("Integration Test Runner - Comprehensive System Validation", () => {
 
         // Memory persistence verification
         const foundAfter = afterRecall.memories.some((m) =>
-          m.content.includes("Critical information")
+          (m.content as string).includes("Critical information")
         );
 
         // Update persistence verification status

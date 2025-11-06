@@ -235,7 +235,7 @@ export class ParallelReasoningProcessor implements IParallelReasoningProcessor {
     processingTime?: number
   ): ParallelReasoningResult {
     // Use original problem if provided, otherwise extract from results
-    const problem = originalProblem || this.extractProblemFromResults(results);
+    const problem = originalProblem ?? this.extractProblemFromResults(results);
 
     // Synthesize conclusion from all streams
     const synthesized_conclusion = this.synthesizeConclusion(
@@ -375,7 +375,7 @@ export class ParallelReasoningProcessor implements IParallelReasoningProcessor {
     // Check for conflicting assumptions
     const allAssumptions = results.flatMap((r) => r.assumptions);
     const assumptionCounts = allAssumptions.reduce((counts, assumption) => {
-      counts[assumption] = (counts[assumption] || 0) + 1;
+      counts[assumption] = (counts[assumption] ?? 0) + 1;
       return counts;
     }, {} as Record<string, number>);
 
@@ -448,7 +448,7 @@ export class ParallelReasoningProcessor implements IParallelReasoningProcessor {
     // Find common insights
     const allInsights = results.flatMap((r) => r.insights);
     const insightCounts = allInsights.reduce((counts, insight) => {
-      counts[insight] = (counts[insight] || 0) + 1;
+      counts[insight] = (counts[insight] ?? 0) + 1;
       return counts;
     }, {} as Record<string, number>);
 
@@ -489,9 +489,9 @@ export class ParallelReasoningProcessor implements IParallelReasoningProcessor {
       streamTypes.includes("creative")
     ) {
       const analyticalConclusions =
-        results.find((r) => r.stream_type === "analytical")?.conclusions || [];
+        results.find((r) => r.stream_type === "analytical")?.conclusions ?? [];
       const creativeConclusions =
-        results.find((r) => r.stream_type === "creative")?.conclusions || [];
+        results.find((r) => r.stream_type === "creative")?.conclusions ?? [];
 
       if (
         analyticalConclusions.some((c) => c.includes("systematic")) &&

@@ -123,14 +123,14 @@ class ThoughtMCPClient {
         // Parse the JSON response from MCP format
         const responseData = JSON.parse(result.content[0].text);
 
-        const data = responseData.data || responseData;
+        const data = responseData.data ?? responseData;
 
         console.log("🧠 Thought Result:");
         console.log(
-          `  Content: ${data.content || data.response || "No content"}`
+          `  Content: ${data.content ?? data.response ?? "No content"}`
         );
-        console.log(`  Confidence: ${data.confidence || "N/A"}`);
-        console.log(`  Reasoning Steps: ${data.reasoning_path?.length || 0}`);
+        console.log(`  Confidence: ${data.confidence ?? "N/A"}`);
+        console.log(`  Reasoning Steps: ${data.reasoning_path?.length ?? 0}`);
 
         if (data.emotional_context) {
           console.log(
@@ -251,7 +251,7 @@ class ThoughtMCPClient {
 
         // Parse the JSON response from MCP format
         const responseData = JSON.parse(result.content[0].text);
-        const data = responseData.data || responseData;
+        const data = responseData.data ?? responseData;
 
         console.log(`\n🎯 Recall for "${query}":`);
         if (data.memories && data.memories.length > 0) {
@@ -310,12 +310,12 @@ class ThoughtMCPClient {
 
       // Parse the JSON response from MCP format
       const responseData = JSON.parse(result.content[0].text);
-      const data = responseData.data || responseData;
+      const data = responseData.data ?? responseData;
 
       console.log("📊 Reasoning Analysis Results:");
-      console.log(`  Overall Quality: ${data.overall_quality || "N/A"}`);
-      console.log(`  Coherence Score: ${data.coherence_score || "N/A"}`);
-      console.log(`  Detected Biases: ${data.biases?.length || 0}`);
+      console.log(`  Overall Quality: ${data.overall_quality ?? "N/A"}`);
+      console.log(`  Coherence Score: ${data.coherence_score ?? "N/A"}`);
+      console.log(`  Detected Biases: ${data.biases?.length ?? 0}`);
 
       if (data.suggestions && data.suggestions.length > 0) {
         console.log("  Suggestions:");
@@ -339,7 +339,7 @@ class ThoughtMCPClient {
       await this.demonstrateMemory();
       await this.demonstrateReasoningAnalysis();
 
-      console.log("\n" + "=".repeat(60));
+      console.log(`\n${"=".repeat(60)}`);
       console.log("🎉 Demo completed successfully!");
     } catch (error) {
       console.error(`❌ Demo failed: ${error}`);

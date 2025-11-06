@@ -76,10 +76,10 @@ export class StochasticNeuralProcessor implements IStochasticNeuralProcessor {
     try {
       this.noise_level = Math.min(
         this.max_noise_level,
-        (config?.noise_level as number) || 0.1
+        (config?.noise_level as number) ?? 0.1
       );
-      this.temperature = (config?.temperature as number) || 1.0;
-      this.resonance_threshold = (config?.resonance_threshold as number) || 0.3;
+      this.temperature = (config?.temperature as number) ?? 1.0;
+      this.resonance_threshold = (config?.resonance_threshold as number) ?? 0.3;
 
       // Set up random number generator if provided (for testing)
       if (config?.rng && typeof config.rng === "function") {

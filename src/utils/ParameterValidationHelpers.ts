@@ -4,8 +4,8 @@
  * Provides real-time parameter validation with helpful suggestions,
  * auto-completion, and interactive feedback for tool parameters.
  *
- * Note: This file uses 'any' types for dynamic parameter validation.
- * TODO: Refactor to use proper generic types in future iteration.
+ * Note: This file uses 'any' types for dynamic parameter validation across different tool types.
+ * The validation system needs to handle diverse parameter structures dynamically.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -446,7 +446,7 @@ export class ParameterValidationHelper {
     parameterName: string
   ): ParameterInfo | null {
     const toolParams = this.parameterInfo.get(toolName);
-    return toolParams?.get(parameterName) || null;
+    return toolParams?.get(parameterName) ?? null;
   }
 
   getAutoComplete(

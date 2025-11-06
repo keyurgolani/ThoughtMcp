@@ -5,7 +5,7 @@
  * architecture components, focusing on configuration validation and path resolution.
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MemorySystem } from "../../cognitive/MemorySystem.js";
 import { ConfigManager } from "../../utils/config.js";
 
@@ -202,7 +202,8 @@ describe("Brain Directory Integration", () => {
 
         expect(config.brain_dir).toBe(brainDir);
         expect(typeof config.brain_dir).toBe("string");
-        expect(config.brain_dir.length).toBeGreaterThan(0);
+        expect(config.brain_dir).toBeDefined();
+        expect(config.brain_dir!.length).toBeGreaterThan(0);
       }
     });
 

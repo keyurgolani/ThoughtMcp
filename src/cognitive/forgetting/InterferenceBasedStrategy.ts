@@ -205,7 +205,7 @@ export class InterferenceBasedStrategyImpl
   private calculateConfidence(factors: ForgettingFactor[]): number {
     // Confidence based on the strength of interference signals
     const interferenceFactors = factors.filter(
-      (f) => f.name.includes("interference") || f.name.includes("similarity")
+      (f) => f.name.includes("interference") ?? f.name.includes("similarity")
     );
 
     if (interferenceFactors.length === 0) {

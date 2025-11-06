@@ -135,12 +135,12 @@ describe('SemanticMemory', () => {
 
     it('should update activation on retrieval', () => {
       const concept = semanticMemory.getConcept('ml-concept');
-      const initialActivation = concept?.activation || 0;
+      const initialActivation = concept?.activation ?? 0;
       
       semanticMemory.retrieve('machine learning', 0.1);
       
       const updatedConcept = semanticMemory.getConcept('ml-concept');
-      const updatedActivation = updatedConcept?.activation || 0;
+      const updatedActivation = updatedConcept?.activation ?? 0;
       
       expect(updatedActivation).toBeGreaterThanOrEqual(initialActivation);
     });
@@ -350,11 +350,11 @@ describe('SemanticMemory', () => {
         storedConcept.last_accessed = pastTime;
       }
       
-      const initialActivation = semanticMemory.getConcept('decay-test')?.activation || 0;
+      const initialActivation = semanticMemory.getConcept('decay-test')?.activation ?? 0;
       
       semanticMemory.applyDecay();
       
-      const decayedActivation = semanticMemory.getConcept('decay-test')?.activation || 0;
+      const decayedActivation = semanticMemory.getConcept('decay-test')?.activation ?? 0;
       
       expect(decayedActivation).toBeLessThan(initialActivation);
     });

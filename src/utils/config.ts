@@ -5,6 +5,7 @@
 import { existsSync, readFileSync } from "fs";
 import { join, posix } from "path";
 import { CognitiveConfig, ProcessingMode } from "../types/core.js";
+import { getLogger } from "./logger.js";
 
 // Default configuration values
 export const DEFAULT_CONFIG: CognitiveConfig = {
@@ -99,7 +100,7 @@ export class ConfigManager {
     for (const file_path of this.config_file_paths) {
       try {
         const resolved_path = file_path.startsWith("~")
-          ? join(process.env.HOME || "", file_path.slice(1))
+          ? join(process.env.HOME ?? "", file_path.slice(1))
           : file_path;
 
         if (existsSync(resolved_path)) {
@@ -226,10 +227,7 @@ export class ConfigManager {
     }
 
     // Brain directory configuration
-    if (
-      process.env.COGNITIVE_BRAIN_DIR &&
-      process.env.COGNITIVE_BRAIN_DIR.trim()
-    ) {
+    if (process.env.COGNITIVE_BRAIN_DIR?.trim()) {
       envConfig.brain_dir = process.env.COGNITIVE_BRAIN_DIR;
     }
 
@@ -332,9 +330,9 @@ export class ConfigManager {
    * Get resolved brain directory path with home directory expansion
    */
   getBrainDirectoryPath(): string {
-    const brainDir = this.config.brain_dir;
+    const brainDir = this.config.brain_dir ?? "~/.brain";
     const resolved = brainDir.startsWith("~")
-      ? posix.join(process.env.HOME || "", brainDir.slice(1))
+      ? posix.join(process.env.HOME ?? "", brainDir.slice(1))
       : brainDir;
 
     // Ensure consistent forward slashes for cross-platform compatibility
@@ -483,7 +481,11 @@ export class ConfigManager {
 
     // Log warnings
     if (warnings.length > 0) {
-      console.warn("Configuration warnings:", warnings.join(", "));
+      const logger = getLogger();
+      logger.warn(
+        "ConfigManager",
+        `Configuration warnings: ${warnings.join(", ")}`
+      );
     }
 
     return {

@@ -30,7 +30,7 @@ describe("DynamicFrameworkSelector", () => {
         resource_requirements: ["data", "analysis_tools"],
       };
 
-      const recommendation = await selector.selectFramework(problem, {});
+      const recommendation = await selector.selectFramework(problem, { session_id: "test-session" });
 
       expect(recommendation.framework.type).toBe("scientific_method");
       expect(recommendation.confidence).toBeGreaterThan(0.5);
@@ -49,7 +49,7 @@ describe("DynamicFrameworkSelector", () => {
         resource_requirements: ["creative_resources"],
       };
 
-      const recommendation = await selector.selectFramework(problem, {});
+      const recommendation = await selector.selectFramework(problem, { session_id: "test-session" });
 
       expect(recommendation.framework.type).toBe("design_thinking");
       expect(recommendation.confidence).toBeGreaterThan(0.5);
@@ -68,7 +68,7 @@ describe("DynamicFrameworkSelector", () => {
         resource_requirements: ["system_resources"],
       };
 
-      const recommendation = await selector.selectFramework(problem, {});
+      const recommendation = await selector.selectFramework(problem, { session_id: "test-session" });
 
       expect(recommendation.framework.type).toBe("systems_thinking");
       expect(recommendation.confidence).toBeGreaterThan(0.5);
@@ -86,7 +86,7 @@ describe("DynamicFrameworkSelector", () => {
         resource_requirements: ["technical_resources"],
       };
 
-      const recommendation = await selector.selectFramework(problem, {});
+      const recommendation = await selector.selectFramework(problem, { session_id: "test-session" });
 
       expect(recommendation.framework.type).toBe("root_cause_analysis");
       expect(recommendation.confidence).toBeGreaterThan(0.5);
@@ -353,7 +353,7 @@ describe("DynamicFrameworkSelector", () => {
         resource_requirements: [],
       };
 
-      const recommendation = await selector.selectFramework(problem, {});
+      const recommendation = await selector.selectFramework(problem, { session_id: "test-session" });
 
       expect(recommendation).toBeDefined();
       expect(recommendation.framework).toBeDefined();
@@ -373,7 +373,7 @@ describe("DynamicFrameworkSelector", () => {
         resource_requirements: ["all_resources"],
       };
 
-      const recommendation = await selector.selectFramework(problem, {});
+      const recommendation = await selector.selectFramework(problem, { session_id: "test-session" });
 
       expect(recommendation).toBeDefined();
       expect(recommendation.alternative_frameworks.length).toBeGreaterThan(0);

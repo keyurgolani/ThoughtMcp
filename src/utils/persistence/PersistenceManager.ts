@@ -127,7 +127,7 @@ export class PersistenceManager {
       throw new Error("Persistence manager not initialized");
     }
 
-    const id = backupId || `manual_${Date.now()}`;
+    const id = backupId ?? `manual_${Date.now()}`;
     await this.provider.backup(id);
     return id;
   }

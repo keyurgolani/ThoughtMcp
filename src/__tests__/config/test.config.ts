@@ -252,7 +252,7 @@ export const PROD_TEST_CONFIG: TestConfig = {
  * Get test configuration based on environment
  */
 export function getTestConfig(): TestConfig {
-  const env = process.env.NODE_ENV || "development";
+  const env = process.env.NODE_ENV ?? "development";
 
   switch (env) {
     case "production":

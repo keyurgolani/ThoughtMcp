@@ -120,7 +120,7 @@ describe("EmotionalProcessor", () => {
     });
 
     it("should maintain emotional history", () => {
-      const initialState = processor.getCurrentEmotionalState();
+      // const initialState = processor.getCurrentEmotionalState(); // Unused for now
 
       processor.updateEmotionalState({ valence: 0.5 });
       processor.updateEmotionalState({ valence: -0.3 });

@@ -58,19 +58,19 @@ describe("Systematic Thinking Integration", () => {
       expect(result.metadata.systematic_thinking_result).toBeDefined();
       expect(result.metadata.systematic_thinking_result).not.toBeNull();
       expect(
-        result.metadata.systematic_thinking_result.framework_used
+        (result.metadata.systematic_thinking_result as any).framework_used
       ).toBeDefined();
       expect(
-        result.metadata.systematic_thinking_result.framework_type
+        (result.metadata.systematic_thinking_result as any).framework_type
       ).toBeDefined();
       expect(
-        result.metadata.systematic_thinking_result.confidence
+        (result.metadata.systematic_thinking_result as any).confidence
       ).toBeGreaterThan(0);
       expect(
-        result.metadata.systematic_thinking_result.processing_time_ms
+        (result.metadata.systematic_thinking_result as any).processing_time_ms
       ).toBeGreaterThan(0);
       expect(
-        result.metadata.systematic_thinking_result.analysis_steps_count
+        (result.metadata.systematic_thinking_result as any).analysis_steps_count
       ).toBeGreaterThan(0);
 
       // Verify components were used
@@ -332,16 +332,16 @@ describe("Systematic Thinking Integration", () => {
 
       if (result.metadata.systematic_thinking_result) {
         expect(
-          result.metadata.systematic_thinking_result.processing_time_ms
+          (result.metadata.systematic_thinking_result as any).processing_time_ms
         ).toBeGreaterThan(0);
         expect(
-          result.metadata.systematic_thinking_result.processing_time_ms
+          (result.metadata.systematic_thinking_result as any).processing_time_ms
         ).toBeLessThanOrEqual(result.metadata.processing_time_ms);
         expect(
-          result.metadata.systematic_thinking_result.confidence
+          (result.metadata.systematic_thinking_result as any).confidence
         ).toBeGreaterThan(0);
         expect(
-          result.metadata.systematic_thinking_result.confidence
+          (result.metadata.systematic_thinking_result as any).confidence
         ).toBeLessThanOrEqual(1);
       }
     });
@@ -399,7 +399,7 @@ describe("Systematic Thinking Integration", () => {
       expect(totalTime).toBeLessThan(60000); // Total should be under 1 minute
 
       // Verify all results are valid
-      results.forEach((result, index) => {
+      results.forEach((result) => {
         expect(result.content).toBeDefined();
         expect(result.confidence).toBeGreaterThan(0);
         expect(result.metadata.processing_time_ms).toBeLessThan(30000);

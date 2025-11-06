@@ -79,8 +79,8 @@ export class SensoryProcessor implements ISensoryProcessor {
    */
   async initialize(config: Record<string, unknown>): Promise<void> {
     try {
-      this.attention_threshold = (config?.attention_threshold as number) || 0.3;
-      this.buffer_size = (config?.buffer_size as number) || 10;
+      this.attention_threshold = (config?.attention_threshold as number) ?? 0.3;
+      this.buffer_size = (config?.buffer_size as number) ?? 10;
 
       // Initialize pattern recognition models
       await this.initializePatternModels();
@@ -209,8 +209,9 @@ export class SensoryProcessor implements ISensoryProcessor {
 
     // Check cache first
     const cache_key = tokens.map((t) => t.text).join("_");
-    if (this.pattern_cache.has(cache_key)) {
-      return this.pattern_cache.get(cache_key)!;
+    const cachedPatterns = this.pattern_cache.get(cache_key);
+    if (cachedPatterns) {
+      return cachedPatterns;
     }
 
     // Sequential patterns (n-grams)
@@ -392,7 +393,10 @@ export class SensoryProcessor implements ISensoryProcessor {
       token.context_tags.forEach((tag) => {
         if (this.semantic_categories.includes(tag)) {
           if (!categories.has(tag)) categories.set(tag, []);
-          categories.get(tag)!.push(token);
+          const categoryTokens = categories.get(tag);
+          if (categoryTokens) {
+            categoryTokens.push(token);
+          }
         }
       });
     });
@@ -486,7 +490,7 @@ export class SensoryProcessor implements ISensoryProcessor {
 
     // Count word frequencies
     tokens.forEach((token) => {
-      const count = word_counts.get(token.text) || 0;
+      const count = word_counts.get(token.text) ?? 0;
       word_counts.set(token.text, count + 1);
     });
 
@@ -618,7 +622,7 @@ export class SensoryProcessor implements ISensoryProcessor {
       process: ["processing", "procedure", "method", "system"],
     };
 
-    return associations[word] || [];
+    return associations[word] ?? [];
   }
 
   private isContentWord(word: string): boolean {

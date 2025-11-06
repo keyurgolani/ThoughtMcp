@@ -2,6 +2,8 @@
  * Performance monitoring and metrics collection for cognitive architecture
  */
 
+import { getLogger } from "./logger.js";
+
 export interface PerformanceMetrics {
   responseTime: number;
   memoryUsage: MemoryUsage;
@@ -134,7 +136,7 @@ export class PerformanceMonitor {
         (c) => c < this.thresholds.confidenceThreshold
       ).length,
       toolUsageStats: this.calculateToolUsageStats(relevantMetrics),
-      timeWindow: timeWindow || now - relevantMetrics[0].timestamp,
+      timeWindow: timeWindow ?? now - relevantMetrics[0].timestamp,
     };
   }
 
@@ -244,7 +246,11 @@ export class PerformanceMonitor {
     }
 
     // Log alert
-    console.warn(`[PerformanceAlert] ${type.toUpperCase()}: ${message}`);
+    const logger = getLogger();
+    logger.warn(
+      "PerformanceMonitor",
+      `[PerformanceAlert] ${type.toUpperCase()}: ${message}`
+    );
   }
 
   private calculateAverage(values: number[]): number {
@@ -367,12 +373,12 @@ export class PerformanceMeasurement {
       responseTime: endTime - this.startTime,
       memoryUsage: endMemory,
       cognitiveMetrics: {
-        confidenceScore: this.cognitiveMetrics.confidenceScore || 0,
-        reasoningDepth: this.cognitiveMetrics.reasoningDepth || 0,
-        memoryRetrievals: this.cognitiveMetrics.memoryRetrievals || 0,
+        confidenceScore: this.cognitiveMetrics.confidenceScore ?? 0,
+        reasoningDepth: this.cognitiveMetrics.reasoningDepth ?? 0,
+        memoryRetrievals: this.cognitiveMetrics.memoryRetrievals ?? 0,
         emotionalProcessingTime: this.cognitiveMetrics.emotionalProcessingTime,
         metacognitionTime: this.cognitiveMetrics.metacognitionTime,
-        workingMemoryLoad: this.cognitiveMetrics.workingMemoryLoad || 0,
+        workingMemoryLoad: this.cognitiveMetrics.workingMemoryLoad ?? 0,
       },
       timestamp: endTime,
       requestId: this.requestId,

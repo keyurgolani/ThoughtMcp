@@ -18,6 +18,8 @@ import {
   ForgettingDecision,
   ForgettingEvaluation,
 } from "../../interfaces/forgetting.js";
+import { getLogger } from "../../utils/logger.js";
+
 export class ForgettingPolicyManager implements IForgettingPolicyManager {
   private policies: Map<string, ForgettingPolicy> = new Map();
   private nextPolicyId: number = 1;
@@ -117,7 +119,11 @@ export class ForgettingPolicyManager implements IForgettingPolicyManager {
     };
 
     this.policies.set(defaultPolicy.policy_id, defaultPolicy);
-    console.error("Initialized default conservative policy");
+    const logger = getLogger();
+    logger.info(
+      "ForgettingPolicyManager",
+      "Initialized default conservative policy"
+    );
   }
 
   async createPolicy(
@@ -196,7 +202,7 @@ export class ForgettingPolicyManager implements IForgettingPolicyManager {
   }
 
   async getPolicy(policy_id: string): Promise<ForgettingPolicy | null> {
-    return this.policies.get(policy_id) || null;
+    return this.policies.get(policy_id) ?? null;
   }
 
   async listPolicies(
@@ -296,7 +302,7 @@ export class ForgettingPolicyManager implements IForgettingPolicyManager {
               final_decision = "delay";
               delay_until =
                 Date.now() +
-                ((rule.action_parameters?.delay_hours as number) || 24) *
+                ((rule.action_parameters?.delay_hours as number) ?? 24) *
                   60 *
                   60 *
                   1000;
@@ -399,29 +405,29 @@ export class ForgettingPolicyManager implements IForgettingPolicyManager {
         break;
 
       case "importance_threshold":
-        actual_value = evaluation.combined_score || 0;
+        actual_value = evaluation.combined_score ?? 0;
         break;
 
       case "age_days":
         const memory_timestamp =
-          (memory_metadata.timestamp as number) || Date.now();
+          (memory_metadata.timestamp as number) ?? Date.now();
         actual_value = (Date.now() - memory_timestamp) / (24 * 60 * 60 * 1000);
         break;
 
       case "access_frequency":
-        actual_value = memory_metadata.access_frequency || 0;
+        actual_value = memory_metadata.access_frequency ?? 0;
         break;
 
       case "content_category":
-        actual_value = memory_metadata.category || "unknown";
+        actual_value = memory_metadata.category ?? "unknown";
         break;
 
       case "privacy_level":
-        actual_value = memory_metadata.privacy_level || "public";
+        actual_value = memory_metadata.privacy_level ?? "public";
         break;
 
       case "user_tag":
-        actual_value = memory_metadata.user_tags || [];
+        actual_value = memory_metadata.user_tags ?? [];
         break;
 
       default:

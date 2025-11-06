@@ -11,6 +11,7 @@ import type {
   RecallArgs,
   RememberArgs,
   ThinkArgs,
+  ThinkProbabilisticArgs,
 } from "../../types/mcp.js";
 
 describe("CognitiveMCPServer Tool Handlers", () => {
@@ -222,7 +223,7 @@ describe("CognitiveMCPServer Tool Handlers", () => {
       const args = {
         content: "Some content",
         type: "invalid_type", // Invalid type
-      } as RememberArgs;
+      } as unknown as RememberArgs;
 
       await expect(server.handleRemember(args)).rejects.toThrow();
     });

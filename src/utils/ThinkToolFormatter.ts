@@ -2,8 +2,8 @@
  * Enhanced formatting utilities specifically for the think tool output
  * Provides improved reasoning presentation, metacognitive advice, and emotional integration
  *
- * Note: This file uses 'any' types for flexible formatting.
- * TODO: Refactor to use proper generic types in future iteration.
+ * Note: This file uses 'any' types for flexible formatting across different tool response types.
+ * The dynamic nature of tool responses requires flexible typing for proper formatting.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -12,6 +12,7 @@ import {
   EmotionalState,
   ReasoningStep,
   ReasoningType,
+  ReasoningTypeValue,
   ThoughtResult,
 } from "../types/core.js";
 
@@ -214,14 +215,17 @@ export class ThinkToolFormatter {
    */
   private static groupStepsByType(
     steps: ReasoningStep[]
-  ): Map<ReasoningType, ReasoningStep[]> {
-    const groups = new Map<ReasoningType, ReasoningStep[]>();
+  ): Map<ReasoningTypeValue, ReasoningStep[]> {
+    const groups = new Map<ReasoningTypeValue, ReasoningStep[]>();
 
     for (const step of steps) {
       if (!groups.has(step.type)) {
         groups.set(step.type, []);
       }
-      groups.get(step.type)!.push(step);
+      const group = groups.get(step.type);
+      if (group) {
+        group.push(step);
+      }
     }
 
     return groups;
@@ -230,7 +234,7 @@ export class ThinkToolFormatter {
   /**
    * Get narrative description for reasoning type
    */
-  private static getReasoningTypeNarrative(type: ReasoningType): string {
+  private static getReasoningTypeNarrative(type: ReasoningTypeValue): string {
     const narratives: Record<ReasoningType, string> = {
       [ReasoningType.PATTERN_MATCH]: "Pattern Recognition",
       [ReasoningType.LOGICAL_INFERENCE]: "Logical Analysis",
@@ -245,7 +249,7 @@ export class ThinkToolFormatter {
       [ReasoningType.CONTEXTUAL]: "Contextual Considerations",
     };
 
-    return narratives[type] || "General Reasoning";
+    return narratives[type] ?? "General Reasoning";
   }
 
   /**
@@ -297,7 +301,7 @@ export class ThinkToolFormatter {
     };
 
     return (
-      biasDescriptions[bias] || `Potential ${bias.replace(/_/g, " ")} detected`
+      biasDescriptions[bias] ?? `Potential ${bias.replace(/_/g, " ")} detected`
     );
   }
 

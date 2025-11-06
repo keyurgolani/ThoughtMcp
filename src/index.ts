@@ -30,8 +30,8 @@ async function main(): Promise<void> {
 // Check multiple conditions to handle different execution contexts (direct, npx, etc.)
 const isMainModule =
   import.meta.url === `file://${process.argv[1]}` ||
-  process.argv[1]?.endsWith("index.js") ||
-  process.argv[1]?.includes("thoughtmcp");
+  (process.argv[1]?.endsWith("index.js") ?? false) ||
+  (process.argv[1]?.includes("thoughtmcp") ?? false);
 
 if (isMainModule) {
   // Handle unhandled promise rejections

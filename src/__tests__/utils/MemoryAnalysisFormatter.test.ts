@@ -108,8 +108,10 @@ describe("MemoryAnalysisFormatter", () => {
 
       expect(result.detailed_analysis).toBeDefined();
       expect(result.trends).toBeDefined();
-      expect(result.trends.growth_rate).toMatch(/increasing|stable|decreasing/);
-      expect(result.trends.access_patterns).toMatch(
+      expect(result.trends!.growth_rate).toMatch(
+        /increasing|stable|decreasing/
+      );
+      expect(result.trends!.access_patterns).toMatch(
         /healthy|declining|irregular/
       );
     });
@@ -158,7 +160,7 @@ describe("MemoryAnalysisFormatter", () => {
       expect(
         result.health_score.primary_concerns.some(
           (concern) =>
-            concern.includes("pressure") || concern.includes("fragmentation")
+            concern.includes("pressure") ?? concern.includes("fragmentation")
         )
       ).toBe(true);
     });

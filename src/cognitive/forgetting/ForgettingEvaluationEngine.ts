@@ -384,8 +384,7 @@ export class ForgettingEvaluationEngine implements IForgettingEvaluationEngine {
 
     // Consider strategy consensus on difficulty
     const temporalScore =
-      strategyScores.find((s) => s.strategy_name === "temporal_decay")?.score ||
-      0;
+      strategyScores.find((s) => s.strategy_name === "temporal_decay")?.score ?? 0;
     difficulty += temporalScore * 0.2; // Temporal decay increases recovery difficulty
 
     return Math.max(0.1, Math.min(1, difficulty));

@@ -85,7 +85,7 @@ export class EpisodicMemory implements IEpisodicMemory {
     // Store the episode first
     this.episodes.set(episodeId, {
       ...episode,
-      timestamp: episode.timestamp || Date.now(),
+      timestamp: episode.timestamp ?? Date.now(),
       decay_factor: 1.0,
     });
 
@@ -93,7 +93,7 @@ export class EpisodicMemory implements IEpisodicMemory {
     this.updateContextIndex(episodeId, episode);
 
     // Update temporal index
-    this.updateTemporalIndex(episodeId, episode.timestamp || Date.now());
+    this.updateTemporalIndex(episodeId, episode.timestamp ?? Date.now());
 
     // Apply capacity management after storing
     if (this.episodes.size > this.config.capacity) {
@@ -220,7 +220,7 @@ export class EpisodicMemory implements IEpisodicMemory {
   // Private helper methods
 
   private generateEpisodeId(episode: Episode): string {
-    const timestamp = episode.timestamp || Date.now();
+    const timestamp = episode.timestamp ?? Date.now();
     const contentHash = this.hashContent(episode.content);
     return `episode_${timestamp}_${contentHash}`;
   }
@@ -280,7 +280,10 @@ export class EpisodicMemory implements IEpisodicMemory {
     if (!index.has(key)) {
       index.set(key, new Set());
     }
-    index.get(key)!.add(episodeId);
+    const keySet = index.get(key);
+    if (keySet) {
+      keySet.add(episodeId);
+    }
   }
 
   private computeRetrievalScore(episode: Episode, cue: string): number {

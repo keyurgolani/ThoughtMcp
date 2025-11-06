@@ -2,8 +2,8 @@
  * Progress indicator utilities for long-running operations
  * Provides user feedback during processing
  *
- * Note: This file uses 'any' types for flexible progress tracking.
- * TODO: Refactor to use proper generic types in future iteration.
+ * Note: This file uses 'any' types for flexible progress tracking across different operations.
+ * The progress tracking system needs to handle diverse operation types dynamically.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -68,9 +68,15 @@ export class ProgressIndicator {
       } [${elapsed}ms elapsed]`;
 
       if (this.options.logLevel === "debug") {
-        ProgressIndicator.logger.debug(this.options.component!, logMessage);
+        ProgressIndicator.logger.debug(
+          this.options.component ?? "ProgressIndicator",
+          logMessage
+        );
       } else {
-        ProgressIndicator.logger.info(this.options.component!, logMessage);
+        ProgressIndicator.logger.info(
+          this.options.component ?? "ProgressIndicator",
+          logMessage
+        );
       }
     }
   }
@@ -112,8 +118,8 @@ export class ProgressIndicator {
 
     return {
       totalStages: this.updates.length,
-      currentStage: current?.stage || "Not started",
-      overallProgress: current?.progress || 0,
+      currentStage: current?.stage ?? "Not started",
+      overallProgress: current?.progress ?? 0,
       elapsedTime: elapsed,
       estimatedTimeRemaining,
     };
@@ -219,7 +225,7 @@ export class ProgressIndicator {
     });
 
     const totalWeight = operations.reduce(
-      (sum, op) => sum + (op.weight || 1),
+      (sum, op) => sum + (op.weight ?? 1),
       0
     );
     const results: T[] = [];
@@ -227,7 +233,7 @@ export class ProgressIndicator {
 
     for (let i = 0; i < operations.length; i++) {
       const op = operations[i];
-      const weight = op.weight || 1;
+      const weight = op.weight ?? 1;
 
       indicator.updateProgress(
         `Operation ${i + 1}/${operations.length}`,
@@ -236,7 +242,10 @@ export class ProgressIndicator {
       );
 
       if (onProgress) {
-        onProgress(indicator.getCurrentProgress()!);
+        const progress = indicator.getCurrentProgress();
+        if (progress) {
+          onProgress(progress);
+        }
       }
 
       try {
@@ -251,7 +260,10 @@ export class ProgressIndicator {
         );
 
         if (onProgress) {
-          onProgress(indicator.getCurrentProgress()!);
+          const progress = indicator.getCurrentProgress();
+          if (progress) {
+            onProgress(progress);
+          }
         }
       } catch (error) {
         indicator.updateProgress(
@@ -262,7 +274,10 @@ export class ProgressIndicator {
         );
 
         if (onProgress) {
-          onProgress(indicator.getCurrentProgress()!);
+          const progress = indicator.getCurrentProgress();
+          if (progress) {
+            onProgress(progress);
+          }
         }
         throw error;
       }
@@ -270,7 +285,10 @@ export class ProgressIndicator {
 
     indicator.complete("All operations completed successfully");
     if (onProgress) {
-      onProgress(indicator.getCurrentProgress()!);
+      const progress = indicator.getCurrentProgress();
+      if (progress) {
+        onProgress(progress);
+      }
     }
 
     return results;
@@ -290,7 +308,7 @@ export function withProgress(stageName: string, component?: string) {
 
     descriptor.value = async function (...args: any[]) {
       const indicator = new ProgressIndicator({
-        component: component || target.constructor.name,
+        component: component ?? target.constructor.name,
       });
 
       indicator.updateProgress(stageName, 0, "Starting operation");

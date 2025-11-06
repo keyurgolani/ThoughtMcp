@@ -133,7 +133,7 @@ export class CognitiveVisualizer {
     // Add nodes
     flow.nodes.forEach((node) => {
       const label = `${node.component}\\n${node.message.substring(0, 30)}...`;
-      const confidence = node.cognitive_context?.confidence || 0;
+      const confidence = node.cognitive_context?.confidence ?? 0;
       const style =
         confidence > 0.8
           ? "fill:#90EE90"
@@ -176,7 +176,7 @@ export class CognitiveVisualizer {
         timeline.push({
           component,
           timestamp: log.timestamp,
-          state: log.context || {},
+          state: log.context ?? {},
           performance_metrics: {
             ...(log.cognitive_context.processing_time !== undefined && {
               processing_time: log.cognitive_context.processing_time,
@@ -230,7 +230,10 @@ export class CognitiveVisualizer {
         });
       }
 
-      const stats = componentStats.get(component)!;
+      const stats = componentStats.get(component);
+      if (!stats) {
+        return; // Skip if stats not found
+      }
       stats.total++;
 
       if (entry.level === 3) {
@@ -250,7 +253,10 @@ export class CognitiveVisualizer {
 
     const components = Array.from(componentStats.keys());
     const metrics = components.map((component) => {
-      const stats = componentStats.get(component)!;
+      const stats = componentStats.get(component);
+      if (!stats) {
+        throw new Error(`Stats not found for component: ${component}`);
+      }
       return {
         component,
         avg_processing_time:
@@ -346,7 +352,7 @@ export class CognitiveVisualizer {
 
     timeline.forEach((entry) => {
       // Count component usage
-      const count = componentUsage.get(entry.component) || 0;
+      const count = componentUsage.get(entry.component) ?? 0;
       componentUsage.set(entry.component, count + 1);
 
       if (entry.cognitive_context) {

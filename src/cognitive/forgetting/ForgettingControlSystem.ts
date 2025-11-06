@@ -15,6 +15,7 @@ import {
   ForgettingDecision,
   ForgettingEvaluation,
 } from "../../interfaces/forgetting.js";
+import { getLogger } from "../../utils/logger.js";
 import { ForgettingAuditSystem } from "./ForgettingAuditSystem.js";
 import { ForgettingPolicyManager } from "./ForgettingPolicyManager.js";
 import { SecureDeletionManager } from "./SecureDeletionManager.js";
@@ -31,9 +32,18 @@ export class ForgettingControlSystem implements IForgettingControlSystem {
     this.policy_manager = new ForgettingPolicyManager();
     this.secure_deletion_manager = new SecureDeletionManager();
 
-    console.error("Forgetting control system initialized", {
-      components: ["audit_system", "policy_manager", "secure_deletion_manager"],
-    });
+    const logger = getLogger();
+    logger.info(
+      "ForgettingControlSystem",
+      "Forgetting control system initialized",
+      {
+        components: [
+          "audit_system",
+          "policy_manager",
+          "secure_deletion_manager",
+        ],
+      }
+    );
   }
 
   async processForgettingRequest(

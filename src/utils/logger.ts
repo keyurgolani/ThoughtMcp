@@ -178,7 +178,7 @@ export class CognitiveLogger {
       level,
       component,
       message,
-      context: context || {},
+      context: context ?? {},
       ...(cognitiveContext && { cognitive_context: cognitiveContext }),
       trace_id: traceId,
       ...(parentTraceId && { parent_trace_id: parentTraceId }),
@@ -191,7 +191,12 @@ export class CognitiveLogger {
     }
 
     // Output to console (stderr for MCP compatibility)
+    // Respect test environment - suppress output below WARN level during tests
     const formattedOutput = this.formatLogOutput(entry);
+    if (process.env.NODE_ENV === "test" && level < LogLevel.WARN) {
+      // Suppress INFO and DEBUG logs during tests for clean output
+      return;
+    }
     console.error(formattedOutput);
 
     // Generate visualization data if enabled
@@ -330,7 +335,7 @@ export class CognitiveLogger {
 
   // Trace management for debugging complex cognitive flows
   startTrace(traceId?: string): string {
-    const id = traceId || this.generateTraceId();
+    const id = traceId ?? this.generateTraceId();
     this.traceStack.push(id);
     return id;
   }

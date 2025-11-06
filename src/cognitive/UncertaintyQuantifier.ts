@@ -325,7 +325,7 @@ export class UncertaintyQuantifier implements IUncertaintyQuantifier {
     const avgReliability =
       step.evidence_basis.reduce((sum, evidence) => {
         // Assuming evidence has a reliability property (simplified)
-        return sum + (evidence.reliability || 0.5);
+        return sum + (evidence.reliability ?? 0.5);
       }, 0) / step.evidence_basis.length;
 
     // Evidence impact is proportional to reliability and quantity

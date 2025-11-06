@@ -289,6 +289,7 @@ describe("Forgetting Audit and Control System Integration Tests", () => {
         active: true,
         rules: [
           {
+            rule_id: "rule_protect_recent",
             rule_name: "Protect Recent Memories",
             description: "Don't forget memories less than 1 day old",
             priority: 100,
@@ -312,7 +313,7 @@ describe("Forgetting Audit and Control System Integration Tests", () => {
             notify_before_forgetting: true,
             notification_delay_hours: 12,
             notify_after_forgetting: false,
-            notification_methods: ["in_app"],
+            notification_methods: ["in_app" as const],
           },
           privacy_preferences: {
             default_privacy_level: "private" as const,
@@ -400,6 +401,7 @@ describe("Forgetting Audit and Control System Integration Tests", () => {
         active: true,
         rules: [
           {
+            rule_id: "rule_allow_old",
             rule_name: "Allow Old",
             description: "Allow forgetting memories older than 7 days",
             priority: 50,
@@ -448,6 +450,7 @@ describe("Forgetting Audit and Control System Integration Tests", () => {
         active: true,
         rules: [
           {
+            rule_id: "rule_deny_important",
             rule_name: "Deny Important",
             description: "Deny forgetting important memories",
             priority: 80, // Higher priority than allow policy
@@ -471,7 +474,7 @@ describe("Forgetting Audit and Control System Integration Tests", () => {
             notify_before_forgetting: true,
             notification_delay_hours: 48,
             notify_after_forgetting: true,
-            notification_methods: ["email", "in_app"],
+            notification_methods: ["email" as const, "in_app" as const],
           },
           privacy_preferences: {
             default_privacy_level: "confidential" as const,

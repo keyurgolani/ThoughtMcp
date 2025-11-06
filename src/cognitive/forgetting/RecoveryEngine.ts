@@ -193,7 +193,7 @@ export class RecoveryEngine implements IRecoveryEngine {
     }
 
     // Determine overall recovery result
-    const success = bestAttempt?.success || false;
+    const success = bestAttempt?.success ?? false;
     const recoveredMemory = bestAttempt?.recovered_content;
     const combinedConfidence = this.calculateCombinedConfidence(attempts);
     const partialRecovery = attempts.some((a) => a.partial_recovery);
@@ -213,13 +213,13 @@ export class RecoveryEngine implements IRecoveryEngine {
       success,
       recovered_memory: recoveredMemory as Episode | Concept | undefined,
       recovery_confidence: combinedConfidence,
-      recovery_method: bestAttempt?.strategy_name || "none",
+      recovery_method: bestAttempt?.strategy_name ?? "none",
       partial_recovery: partialRecovery,
-      missing_elements: bestAttempt?.missing_elements || [],
+      missing_elements: bestAttempt?.missing_elements ?? [],
       recovery_metadata_used:
-        recovery_metadata || this.createEmptyRecoveryMetadata(memory_id),
+        recovery_metadata ?? this.createEmptyRecoveryMetadata(memory_id),
       recovery_attempts: attempts,
-      best_attempt: bestAttempt || attempts[0],
+      best_attempt: bestAttempt ?? attempts[0],
       combined_confidence: combinedConfidence,
       recovery_strategies_used: attempts.map((a) => a.strategy_name),
       recovery_time_ms: Date.now() - startTime,
@@ -356,7 +356,7 @@ export class RecoveryEngine implements IRecoveryEngine {
   ): Promise<void> {
     // Store user validation if provided
     if (user_validation) {
-      const validations = this.validationHistory.get(memory_id) || [];
+      const validations = this.validationHistory.get(memory_id) ?? [];
       validations.push(user_validation);
       this.validationHistory.set(memory_id, validations);
 
@@ -617,7 +617,7 @@ export class RecoveryEngine implements IRecoveryEngine {
       const currentRate =
         this.recoveryStatistics.strategy_success_rates.get(
           attempt.strategy_name
-        ) || 0;
+        ) ?? 0;
       const newRate = attempt.success
         ? currentRate + 0.1
         : Math.max(0, currentRate - 0.05);
@@ -646,7 +646,7 @@ export class RecoveryEngine implements IRecoveryEngine {
     if (strategy && user_validation.user_confirms_accuracy) {
       // Positive feedback - increase strategy success rate
       const currentRate =
-        this.recoveryStatistics.strategy_success_rates.get(strategyName) || 0;
+        this.recoveryStatistics.strategy_success_rates.get(strategyName) ?? 0;
       const adjustment = user_validation.accuracy_rating * 0.1;
       this.recoveryStatistics.strategy_success_rates.set(
         strategyName,
@@ -716,12 +716,12 @@ export class RecoveryEngine implements IRecoveryEngine {
 // Implementation classes for recovery strategies
 
 class AssociativeRecoveryStrategyImpl implements AssociativeRecoveryStrategy {
-  name: string;
-  description: string;
-  confidence_threshold: number;
-  association_weight: number;
-  spreading_activation_depth: number;
-  similarity_threshold: number;
+  name!: string;
+  description!: string;
+  confidence_threshold!: number;
+  association_weight!: number;
+  spreading_activation_depth!: number;
+  similarity_threshold!: number;
 
   constructor(config: {
     name: string;
@@ -807,12 +807,12 @@ class AssociativeRecoveryStrategyImpl implements AssociativeRecoveryStrategy {
 }
 
 class SchemaBasedRecoveryStrategyImpl implements SchemaBasedRecoveryStrategy {
-  name: string;
-  description: string;
-  confidence_threshold: number;
-  schema_matching_threshold: number;
-  pattern_completion_enabled: boolean;
-  contextual_inference_weight: number;
+  name!: string;
+  description!: string;
+  confidence_threshold!: number;
+  schema_matching_threshold!: number;
+  pattern_completion_enabled!: boolean;
+  contextual_inference_weight!: number;
 
   constructor(config: {
     name: string;
@@ -894,12 +894,12 @@ class SchemaBasedRecoveryStrategyImpl implements SchemaBasedRecoveryStrategy {
 }
 
 class PartialCueRecoveryStrategyImpl implements PartialCueRecoveryStrategy {
-  name: string;
-  description: string;
-  confidence_threshold: number;
-  minimum_cue_strength: number;
-  cue_combination_method: "weighted_sum" | "max_activation" | "consensus";
-  temporal_decay_compensation: boolean;
+  name!: string;
+  description!: string;
+  confidence_threshold!: number;
+  minimum_cue_strength!: number;
+  cue_combination_method!: "weighted_sum" | "max_activation" | "consensus";
+  temporal_decay_compensation!: boolean;
 
   constructor(config: {
     name: string;

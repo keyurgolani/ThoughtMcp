@@ -209,7 +209,7 @@ export class CognitiveTestFramework {
    * Execute a test case with proper error handling and timeout
    */
   private async executeTest(testCase: TestCase): Promise<any> {
-    const timeout = testCase.timeout || 30000; // 30 second default
+    const timeout = testCase.timeout ?? 30000; // 30 second default
 
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -347,36 +347,36 @@ export class CognitiveTestFramework {
 
   private measureConfidenceBias(result: any): number {
     // Measure overconfidence by comparing confidence to actual accuracy
-    const confidence = result?.confidence || 0.5;
+    const confidence = result?.confidence ?? 0.5;
     const accuracy = this.estimateAccuracy(result);
     return Math.max(0, confidence - accuracy);
   }
 
   private measureAvailabilityBias(result: any): number {
     // Measure tendency to rely on easily recalled information
-    const memoryRetrievals = result?.metadata?.memory_retrievals || 0;
-    const reasoningSteps = result?.reasoning_path?.length || 1;
+    const memoryRetrievals = result?.metadata?.memory_retrievals ?? 0;
+    const reasoningSteps = result?.reasoning_path?.length ?? 1;
     return Math.min(1, memoryRetrievals / reasoningSteps);
   }
 
   private measureConfirmationBias(result: any): number {
     // Measure tendency to seek confirming evidence
     const alternatives =
-      result?.reasoning_path?.flatMap((step: any) => step.alternatives || []) ||
+      result?.reasoning_path?.flatMap((step: any) => step.alternatives ?? []) ||
       [];
-    const mainPath = result?.reasoning_path || [];
+    const mainPath = result?.reasoning_path ?? [];
     return mainPath.length > 0 ? 1 - alternatives.length / mainPath.length : 0;
   }
 
   private measureAnchoringBias(result: any): number {
     // Measure tendency to rely heavily on first information
-    const reasoningPath = result?.reasoning_path || [];
+    const reasoningPath = result?.reasoning_path ?? [];
     if (reasoningPath.length === 0) return 0;
 
-    const firstStepConfidence = reasoningPath[0]?.confidence || 0.5;
+    const firstStepConfidence = reasoningPath[0]?.confidence ?? 0.5;
     const avgConfidence =
       reasoningPath.reduce(
-        (sum: number, step: any) => sum + (step.confidence || 0.5),
+        (sum: number, step: any) => sum + (step.confidence ?? 0.5),
         0
       ) / reasoningPath.length;
 

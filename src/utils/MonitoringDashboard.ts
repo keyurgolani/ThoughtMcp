@@ -132,7 +132,7 @@ export class MonitoringDashboard {
 
     return {
       timestamp: Date.now(),
-      timeWindow: timeWindow || 0,
+      timeWindow: timeWindow ?? 0,
       statistics: stats,
       alerts: alerts,
       currentMemoryUsage: currentMemory,

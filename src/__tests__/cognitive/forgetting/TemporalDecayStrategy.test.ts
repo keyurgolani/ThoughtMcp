@@ -36,7 +36,7 @@ describe("TemporalDecayStrategy", () => {
     it("should return higher forgetting score for old memories", async () => {
       const oldEpisode: Episode = {
         content: "Old memory content",
-        context: { domain: "test" },
+        context: { domain: "test", session_id: "test-session" },
         timestamp: Date.now() - 365 * 24 * 60 * 60 * 1000, // 1 year ago
         emotional_tags: [],
         importance: 0.5,
@@ -45,7 +45,7 @@ describe("TemporalDecayStrategy", () => {
 
       const newEpisode: Episode = {
         content: "New memory content",
-        context: { domain: "test" },
+        context: { domain: "test", session_id: "test-session" },
         timestamp: Date.now() - 24 * 60 * 60 * 1000, // 1 day ago
         emotional_tags: [],
         importance: 0.5,
@@ -116,7 +116,7 @@ describe("TemporalDecayStrategy", () => {
     it("should apply exponential decay correctly", async () => {
       const veryOldEpisode: Episode = {
         content: "Very old memory",
-        context: { domain: "test" },
+        context: { domain: "test", session_id: "test-session" },
         timestamp: Date.now() - 2 * 365 * 24 * 60 * 60 * 1000, // 2 years ago
         emotional_tags: [],
         importance: 0.5,
@@ -142,7 +142,7 @@ describe("TemporalDecayStrategy", () => {
     it("should include all expected factors in evaluation", async () => {
       const episode: Episode = {
         content: "Test memory",
-        context: { domain: "test" },
+        context: { domain: "test", session_id: "test-session" },
         timestamp: Date.now() - 7 * 24 * 60 * 60 * 1000, // 1 week ago
         emotional_tags: [],
         importance: 0.5,
@@ -161,7 +161,7 @@ describe("TemporalDecayStrategy", () => {
     it("should provide meaningful reasoning", async () => {
       const episode: Episode = {
         content: "Test memory",
-        context: { domain: "test" },
+        context: { domain: "test", session_id: "test-session" },
         timestamp: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days ago
         emotional_tags: [],
         importance: 0.5,
@@ -202,7 +202,7 @@ describe("TemporalDecayStrategy", () => {
 
       const episode: Episode = {
         content: "Test memory",
-        context: { domain: "test" },
+        context: { domain: "test", session_id: "test-session" },
         timestamp: Date.now() - 7 * 24 * 60 * 60 * 1000, // 1 week ago
         emotional_tags: [],
         importance: 0.5,

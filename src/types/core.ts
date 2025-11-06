@@ -20,6 +20,9 @@ export enum ProcessingMode {
   ANALYTICAL = "analytical",
 }
 
+// Type alias for processing mode values
+export type ProcessingModeValue = `${ProcessingMode}` | ProcessingMode;
+
 // Types of reasoning steps
 export enum ReasoningType {
   PATTERN_MATCH = "pattern_match",
@@ -34,6 +37,9 @@ export enum ReasoningType {
   HEURISTIC = "heuristic",
   CONTEXTUAL = "contextual",
 }
+
+// Type alias for reasoning type values
+export type ReasoningTypeValue = `${ReasoningType}` | ReasoningType;
 
 // Context information for cognitive processing
 export interface Context {
@@ -59,7 +65,7 @@ export interface Alternative {
 
 // Individual reasoning steps in the thought process
 export interface ReasoningStep {
-  type: ReasoningType;
+  type: ReasoningTypeValue;
   content: string;
   confidence: number;
   alternatives: Alternative[];
@@ -115,7 +121,7 @@ export interface ThoughtMetadata {
   processing_time_ms: number;
   components_used: string[];
   memory_retrievals: number;
-  system_mode: ProcessingMode;
+  system_mode: ProcessingModeValue;
   temperature: number;
   dual_process_info?: DualProcessInfo;
   metacognitive_assessment?: unknown;
@@ -136,7 +142,7 @@ export interface ThoughtResult {
 export interface CognitiveInput {
   input: string;
   context: Context;
-  mode: ProcessingMode;
+  mode: ProcessingModeValue;
   configuration: CognitiveConfig;
 }
 
@@ -182,7 +188,7 @@ export interface Relation {
 // Configuration for cognitive processing
 export interface CognitiveConfig {
   // Processing modes
-  default_mode: ProcessingMode;
+  default_mode: ProcessingModeValue;
   enable_emotion: boolean;
   enable_metacognition: boolean;
   enable_prediction: boolean;
@@ -213,5 +219,5 @@ export interface CognitiveConfig {
   systematic_thinking_mode?: "auto" | "hybrid" | "manual";
 
   // Brain directory configuration
-  brain_dir: string;
+  brain_dir?: string;
 }

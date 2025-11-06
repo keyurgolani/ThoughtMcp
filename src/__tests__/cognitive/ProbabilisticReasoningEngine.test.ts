@@ -36,6 +36,7 @@ describe("ProbabilisticReasoningEngine", () => {
         domain: "economics",
         urgency: 0.8,
         complexity: 0.9,
+        session_id: "test-session",
       };
 
       const result = await engine.processWithUncertainty(input, context);

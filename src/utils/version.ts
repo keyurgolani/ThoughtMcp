@@ -19,7 +19,7 @@ let cachedVersion: string | null = null;
  * @returns The version string from package.json
  */
 export function getVersion(): string {
-  if (cachedVersion) {
+  if (cachedVersion !== null) {
     return cachedVersion;
   }
 
@@ -33,7 +33,7 @@ export function getVersion(): string {
     }
 
     cachedVersion = packageJson.version;
-    return cachedVersion;
+    return cachedVersion as string;
   } catch (error) {
     console.error("Failed to read version from package.json:", error);
     // Fallback version - should never be used in production
@@ -57,10 +57,10 @@ export function getVersionInfo(): {
 
   return {
     version,
-    major: parseInt(parts[0] || "0", 10),
-    minor: parseInt(parts[1] || "0", 10),
-    patch: parseInt(parts[2] || "0", 10),
-    isPrerelease: version.includes("-") || version.includes("+"),
+    major: parseInt(parts[0] ?? "0", 10),
+    minor: parseInt(parts[1] ?? "0", 10),
+    patch: parseInt(parts[2] ?? "0", 10),
+    isPrerelease: version.includes("-") ?? version.includes("+"),
   };
 }
 

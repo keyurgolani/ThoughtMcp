@@ -88,7 +88,7 @@ export class AuditSummaryFormatter {
 
   static formatAuditEntryForUser(entry: any): DetailedAuditEntry {
     return {
-      id: entry.id || "unknown",
+      id: entry.audit_id || entry.id || "unknown",
       timestamp: this.formatTimestamp(entry.timestamp || Date.now()),
       operation_type: this.formatOperationType(
         entry.operation_type || "unknown"

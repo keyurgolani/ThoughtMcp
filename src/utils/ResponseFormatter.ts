@@ -3,12 +3,16 @@
  * Provides consistent, structured responses with proper error handling
  *
  * Note: This file uses 'any' types for flexible response formatting across different tool types.
- * TODO: Refactor to use proper generic types in future iteration.
+ * The response formatting system needs to handle diverse response structures dynamically.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { ReasoningStep, ReasoningType, ThoughtResult } from "../types/core.js";
+import {
+  ReasoningStep,
+  ReasoningTypeValue,
+  ThoughtResult,
+} from "../types/core.js";
 import { AnalysisResult, MemoryResult, RecallResult } from "../types/mcp.js";
 import {
   ParameterValidator,
@@ -237,7 +241,7 @@ export class ResponseFormatter {
       error: {
         code: errorCode,
         message: errorMessage,
-        details: additionalDetails || {},
+        details: additionalDetails ?? {},
         suggestions: this.generateErrorSuggestions(errorCode, errorMessage),
       },
       metadata: {
@@ -270,7 +274,7 @@ export class ResponseFormatter {
     // Get progressive disclosure guidance for the tool
     const toolGuide = ProgressiveDisclosure.getGuide(toolName);
     const userGuidance: UserGuidance = {
-      complexity_level: toolGuide?.complexity.level || "moderate",
+      complexity_level: toolGuide?.complexity.level ?? "moderate",
       suggested_next_steps: [
         "Start with the basic example shown above",
         "Add one parameter at a time to build complexity",
@@ -367,7 +371,7 @@ export class ResponseFormatter {
       content: step.content,
       confidence: step.confidence,
       alternatives: step.alternatives,
-      metadata: step.metadata || {},
+      metadata: step.metadata ?? {},
     };
 
     // Add enhanced presentation for better readability
@@ -389,7 +393,7 @@ export class ResponseFormatter {
    */
   private static formatReasoningContent(
     content: string,
-    type: ReasoningType
+    type: ReasoningTypeValue
   ): string {
     const prefix = this.getReasoningPrefix(type);
 
@@ -421,7 +425,7 @@ export class ResponseFormatter {
   /**
    * Get reasoning type explanation
    */
-  private static getReasoningTypeExplanation(type: ReasoningType): string {
+  private static getReasoningTypeExplanation(type: ReasoningTypeValue): string {
     const explanations: Record<string, string> = {
       pattern_match: "Recognizing familiar patterns from past experience",
       logical_inference: "Drawing logical conclusions from premises",
@@ -435,13 +439,13 @@ export class ResponseFormatter {
       heuristic: "Using mental shortcuts and rules of thumb",
       contextual: "Considering situational factors and context",
     };
-    return explanations[type] || "Applying reasoning strategy";
+    return explanations[type] ?? "Applying reasoning strategy";
   }
 
   /**
    * Get visual indicator for reasoning type
    */
-  private static getReasoningVisualIndicator(type: ReasoningType): string {
+  private static getReasoningVisualIndicator(type: ReasoningTypeValue): string {
     const indicators: Record<string, string> = {
       pattern_match: "🔍",
       logical_inference: "⚡",
@@ -455,13 +459,13 @@ export class ResponseFormatter {
       heuristic: "⚡",
       contextual: "🌍",
     };
-    return indicators[type] || "💭";
+    return indicators[type] ?? "💭";
   }
 
   /**
    * Get prefix for reasoning content
    */
-  private static getReasoningPrefix(type: ReasoningType): string {
+  private static getReasoningPrefix(type: ReasoningTypeValue): string {
     const prefixes: Record<string, string> = {
       pattern_match: "I recognize that ",
       logical_inference: "Therefore, ",
@@ -475,7 +479,7 @@ export class ResponseFormatter {
       heuristic: "My intuition suggests ",
       contextual: "Considering the situation, ",
     };
-    return prefixes[type] || "";
+    return prefixes[type] ?? "";
   }
 
   /**
@@ -780,7 +784,7 @@ export class ResponseFormatter {
     this.ensureInitialized();
     const toolGuide = ProgressiveDisclosure.getGuide(toolName);
     const userGuidance: UserGuidance = {
-      complexity_level: toolGuide?.complexity.level || "moderate",
+      complexity_level: toolGuide?.complexity.level ?? "moderate",
       suggested_next_steps: this.getSuggestedNextSteps(toolName, userLevel),
       related_tools: this.getRelatedTools(toolName),
       learning_resources: this.getLearningResources(toolName),
@@ -877,7 +881,7 @@ export class ResponseFormatter {
       forgetting_audit: ["forgetting_policy", "optimize_memory"],
     };
 
-    return toolCategories[toolName] || [];
+    return toolCategories[toolName] ?? [];
   }
 
   /**
@@ -952,7 +956,7 @@ export class ResponseFormatter {
       userLevel?: "beginner" | "intermediate" | "advanced";
     } = {}
   ): StandardizedResponse<T> {
-    const verbosity = options.verbosityLevel || "standard";
+    const verbosity = options.verbosityLevel ?? "standard";
     const shouldIncludeSummary = options.includeExecutiveSummary !== false;
 
     // Apply filtering if specified
@@ -987,8 +991,8 @@ export class ResponseFormatter {
     };
 
     // Add confidence interpretation if provided
-    if (options.confidence !== undefined) {
-      response.metadata.response_format!.confidence_interpretation =
+    if (options.confidence !== undefined && response.metadata.response_format) {
+      response.metadata.response_format.confidence_interpretation =
         this.interpretConfidence(options.confidence, toolName);
     }
 
@@ -1043,7 +1047,7 @@ export class ResponseFormatter {
     ) as EnhancedThinkResponse;
 
     // Add enhanced presentation for think tool
-    const verbosity = options.verbosityLevel || "standard";
+    const verbosity = options.verbosityLevel ?? "standard";
 
     // Only add enhanced presentation for standard, detailed, or technical verbosity
     if (verbosity !== "summary") {
@@ -1103,10 +1107,11 @@ export class ResponseFormatter {
       if (options?.priorityThreshold !== undefined) {
         const originalLength = filtered.length;
         filtered = filtered.filter((item: any) => {
+          const threshold = options.priorityThreshold ?? 0;
           return (
-            item.priority >= options.priorityThreshold! ||
-            item.importance >= options.priorityThreshold! ||
-            item.confidence >= options.priorityThreshold!
+            item.priority >= threshold ||
+            item.importance >= threshold ||
+            item.confidence >= threshold
           );
         });
         if (filtered.length < originalLength) {
@@ -1120,11 +1125,13 @@ export class ResponseFormatter {
       if (options?.categories && options.categories.length > 0) {
         const originalLength = filtered.length;
         filtered = filtered.filter((item: any) => {
-          return options.categories!.some(
-            (cat) =>
-              item.category === cat ||
-              item.type === cat ||
-              (item.tags && item.tags.includes(cat))
+          return (
+            options.categories?.some(
+              (cat) =>
+                item.category === cat ||
+                item.type === cat ||
+                item.tags?.includes(cat)
+            ) ?? false
           );
         });
         if (filtered.length < originalLength) {
@@ -1251,7 +1258,7 @@ export class ResponseFormatter {
       very_low: ["Use this as a starting point but verify independently"],
     };
 
-    return advice[level] || [];
+    return advice[level] ?? [];
   }
 
   private static getReliabilityFactors(
@@ -1330,9 +1337,9 @@ export class ResponseFormatter {
               thought.content.length > 80 ? "..." : ""
             }`,
             `Reasoning confidence: ${Math.round(
-              (thought.confidence || 0) * 100
+              (thought.confidence ?? 0) * 100
             )}%`,
-            `${thought.reasoning_path?.length || 0} reasoning steps completed`,
+            `${thought.reasoning_path?.length ?? 0} reasoning steps completed`,
           ];
 
           // Add emotional context if significant
@@ -1354,10 +1361,10 @@ export class ResponseFormatter {
               analysis.coherence_score * 100
             )}%`,
             `${
-              analysis.detected_biases?.length || 0
+              analysis.detected_biases?.length ?? 0
             } potential biases identified`,
             `${
-              analysis.improvement_suggestions?.length || 0
+              analysis.improvement_suggestions?.length ?? 0
             } improvement suggestions provided`,
           ];
         }
@@ -1367,8 +1374,8 @@ export class ResponseFormatter {
           const analysis = data as any;
           return [
             `Framework used: ${analysis.selected_framework}`,
-            `${analysis.analysis_steps?.length || 0} analysis steps completed`,
-            `Confidence: ${Math.round((analysis.confidence || 0) * 100)}%`,
+            `${analysis.analysis_steps?.length ?? 0} analysis steps completed`,
+            `Confidence: ${Math.round((analysis.confidence ?? 0) * 100)}%`,
           ];
         }
         break;
@@ -1377,13 +1384,13 @@ export class ResponseFormatter {
           const parallel = data as any;
           return [
             `${
-              parallel.stream_results?.length || 0
+              parallel.stream_results?.length ?? 0
             } reasoning streams processed`,
             `Synthesis confidence: ${Math.round(
-              (parallel.confidence || 0) * 100
+              (parallel.confidence ?? 0) * 100
             )}%`,
             `${
-              parallel.conflicts_resolved || 0
+              parallel.conflicts_resolved ?? 0
             } conflicts resolved between streams`,
           ];
         }
@@ -1392,10 +1399,10 @@ export class ResponseFormatter {
         if (data && typeof data === "object" && "confidence" in data) {
           const prob = data as any;
           return [
-            `Overall confidence: ${Math.round((prob.confidence || 0) * 100)}%`,
-            `${prob.hypotheses?.length || 0} hypotheses evaluated`,
+            `Overall confidence: ${Math.round((prob.confidence ?? 0) * 100)}%`,
+            `${prob.hypotheses?.length ?? 0} hypotheses evaluated`,
             `Uncertainty level: ${Math.round(
-              (prob.uncertainty_level || 0) * 100
+              (prob.uncertainty_level ?? 0) * 100
             )}%`,
           ];
         }
@@ -1409,11 +1416,11 @@ export class ResponseFormatter {
           const decomp = data as any;
           return [
             `Problem broken into ${
-              decomp.hierarchical_structure?.length || 0
+              decomp.hierarchical_structure?.length ?? 0
             } main components`,
-            `${decomp.total_subproblems || 0} total sub-problems identified`,
+            `${decomp.total_subproblems ?? 0} total sub-problems identified`,
             `Critical path contains ${
-              decomp.critical_path?.length || 0
+              decomp.critical_path?.length ?? 0
             } dependencies`,
           ];
         }
@@ -1441,7 +1448,7 @@ export class ResponseFormatter {
             `${opt.optimization_summary.memories_processed} memories processed`,
             `${opt.optimization_summary.memories_optimized} memories optimized`,
             `${Math.round(
-              opt.optimization_summary.space_freed_mb || 0
+              opt.optimization_summary.space_freed_mb ?? 0
             )}MB space freed`,
           ];
         }
@@ -1451,9 +1458,9 @@ export class ResponseFormatter {
           const recovery = data as any;
           return [
             `Recovery confidence: ${Math.round(
-              (recovery.recovery_confidence || 0) * 100
+              (recovery.recovery_confidence ?? 0) * 100
             )}%`,
-            `${recovery.recovery_attempts?.length || 0} recovery attempts made`,
+            `${recovery.recovery_attempts?.length ?? 0} recovery attempts made`,
             recovery.recovered_content
               ? "Memory successfully recovered"
               : "Memory recovery incomplete",
@@ -1467,7 +1474,7 @@ export class ResponseFormatter {
             `${audit.audit_entries.length} audit entries found`,
             `Query completed in ${audit.query_time_ms}ms`,
             `${
-              audit.summary?.total_forgotten || 0
+              audit.summary?.total_forgotten ?? 0
             } memories forgotten in period`,
           ];
         }
@@ -1476,7 +1483,7 @@ export class ResponseFormatter {
         if (data && typeof data === "object" && "policies" in data) {
           const policy = data as any;
           return [
-            `${policy.policies?.length || 0} policies managed`,
+            `${policy.policies?.length ?? 0} policies managed`,
             policy.evaluation_result
               ? `Policy evaluation: ${policy.evaluation_result.decision}`
               : "Policy operation completed",
@@ -1506,7 +1513,7 @@ export class ResponseFormatter {
       case "think":
         if (data && typeof data === "object" && "confidence" in data) {
           const thought = data as any;
-          const confidence = thought.confidence || 0;
+          const confidence = thought.confidence ?? 0;
 
           if (confidence < 0.5) {
             return "Low confidence detected - consider exploring alternative approaches or gathering more information";

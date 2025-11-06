@@ -78,6 +78,7 @@ describe("SystematicThinkingOrchestrator", () => {
         domain: "technology",
         urgency: 0.8,
         complexity: 0.7,
+        session_id: "test-session",
       };
 
       const result = await orchestrator.analyzeSystematically(
@@ -209,9 +210,8 @@ describe("SystematicThinkingOrchestrator", () => {
 
     it("should handle invalid mode gracefully", async () => {
       const input = "Test problem";
-      // @ts-expect-error Testing invalid mode
       await expect(
-        orchestrator.analyzeSystematically(input, "invalid_mode")
+        orchestrator.analyzeSystematically(input, "invalid_mode" as any)
       ).resolves.toBeDefined();
     });
   });

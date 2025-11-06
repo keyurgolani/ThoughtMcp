@@ -83,11 +83,16 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
       // Wait for consolidation to potentially occur
       await new Promise((resolve) => setTimeout(resolve, 200));
 
-      // Manuallrigger consolidation if available
+      // Manually trigger consolidation if available
       if (consolidationEngine && consolidationEngine.consolidate) {
-        await consolidationEngine.consolidate();
-      } else if (memorySystem.triggerConsolidation) {
-        await memorySystem.triggerConsolidation();
+        // Get recent episodes for consolidation
+        const recentEpisodes = memorySystem.getEpisodesByTimeRange(
+          Date.now() - 60000,
+          Date.now()
+        );
+        await consolidationEngine.consolidate(recentEpisodes);
+      } else if (memorySystem.runConsolidation) {
+        await memorySystem.runConsolidation();
       }
 
       // Query for semantic knowledge that should have been extracted
@@ -110,15 +115,15 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
       // Should contain consolidated knowledge about neural networks
       const hasNeuralNetworks = consolidatedContent.includes("neural network");
       const hasBackpropagation =
-        consolidatedContent.includes("backpropagation") ||
+        consolidatedContent.includes("backpropagation") ??
         consolidatedContent.includes("training");
       const hasOverfitting =
-        consolidatedContent.includes("overfitting") ||
+        consolidatedContent.includes("overfitting") ??
         consolidatedContent.includes("regularization");
 
-      expect(hasNeuralNetworks || hasBackpropagation || hasOverfitting).toBe(
-        true
-      );
+      expect(
+        (hasNeuralNetworks ?? false) || hasBackpropagation || hasOverfitting
+      ).toBe(true);
     });
 
     it("should preserve important episodic memories during consolidation", async () => {
@@ -150,7 +155,11 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
 
       // Trigger consolidation
       if (consolidationEngine && consolidationEngine.consolidate) {
-        await consolidationEngine.consolidate();
+        const recentEpisodes = memorySystem.getEpisodesByTimeRange(
+          Date.now() - 60000,
+          Date.now()
+        );
+        await consolidationEngine.consolidate(recentEpisodes);
       }
 
       // High importance memory should still be retrievable
@@ -162,7 +171,7 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
       });
 
       const foundHighImportance = highImportanceRecall.memories.some((m) =>
-        m.content.includes("Critical breakthrough")
+        (m.content as string).includes("Critical breakthrough")
       );
 
       expect(foundHighImportance).toBe(true);
@@ -191,7 +200,11 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
 
       // Trigger consolidation
       if (consolidationEngine && consolidationEngine.consolidate) {
-        await consolidationEngine.consolidate();
+        const recentEpisodes = memorySystem.getEpisodesByTimeRange(
+          Date.now() - 60000,
+          Date.now()
+        );
+        await consolidationEngine.consolidate(recentEpisodes);
       }
 
       // Query for one concept should retrieve associated concepts
@@ -215,9 +228,12 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
         const hasScikitLearn = allContent.includes("scikit");
 
         // At least one association should be found
-        expect(hasTensorFlow || hasKeras || hasPyTorch || hasScikitLearn).toBe(
-          true
-        );
+        expect(
+          (hasTensorFlow ?? false) ||
+            hasKeras ||
+            hasPyTorch ||
+            (hasScikitLearn ?? false)
+        ).toBe(true);
       }
     });
   });
@@ -239,7 +255,7 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
       });
 
       expect(memoryResult.success).toBe(true);
-      const originalMemoryId = memoryResult.memory_id;
+      // const originalMemoryId = memoryResult.memory_id; // Unused for now
 
       // Verify memory is accessible
       const beforeRestartRecall = await server.handleRecall({
@@ -250,7 +266,7 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
 
       expect(beforeRestartRecall.memories.length).toBeGreaterThan(0);
       const foundBefore = beforeRestartRecall.memories.some((m) =>
-        m.content.includes("survive server restart")
+        (m.content as string).includes("survive server restart")
       );
       expect(foundBefore).toBe(true);
 
@@ -279,7 +295,7 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
 
         if (afterRestartRecall.memories.length > 0) {
           const foundAfter = afterRestartRecall.memories.some((m) =>
-            m.content.includes("survive server restart")
+            (m.content as string).includes("survive server restart")
           );
           expect(foundAfter).toBe(true);
         }
@@ -348,7 +364,7 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
       const hasAI = conversationContent.includes("artificial intelligence");
       const hasML = conversationContent.includes("machine learning");
 
-      expect(hasAI || hasML).toBe(true);
+      expect(hasAI ?? hasML).toBe(true);
     });
 
     it("should handle memory retrieval across different sessions", async () => {
@@ -402,7 +418,9 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
       const hasAlgorithms = allContent.includes("algorithms");
 
       // Should find at least some cross-session knowledge
-      expect(hasQubits || hasEntanglement || hasAlgorithms).toBe(true);
+      expect((hasQubits ?? false) || hasEntanglement || hasAlgorithms).toBe(
+        true
+      );
     });
   });
 
@@ -438,8 +456,8 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
       }
 
       // Simulate time passage and decay
-      if (memorySystem.simulateDecay) {
-        await memorySystem.simulateDecay(5000); // 5 seconds of decay
+      if (memorySystem.simulateTimePassage) {
+        await memorySystem.simulateTimePassage(5000); // 5 seconds of decay
       }
 
       // Recall both memories
@@ -457,14 +475,14 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
 
       // Frequently accessed memory should be more likely to be retained
       const frequentFound = frequentRecall.memories.some((m) =>
-        m.content.includes("Frequently accessed")
+        (m.content as string).includes("Frequently accessed")
       );
       const rareFound = rareRecall.memories.some((m) =>
-        m.content.includes("Rarely accessed")
+        (m.content as string).includes("Rarely accessed")
       );
 
       // At least one should be found, and frequent should be more likely
-      if (frequentFound || rareFound) {
+      if (frequentFound ?? rareFound) {
         // If only one is found, it should more likely be the frequent one
         if (frequentFound && !rareFound) {
           expect(true).toBe(true); // Frequent memory survived, rare didn't
@@ -503,8 +521,8 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
       });
 
       // Simulate significant time passage
-      if (memorySystem.simulateDecay) {
-        await memorySystem.simulateDecay(10000); // 10 seconds of decay
+      if (memorySystem.simulateTimePassage) {
+        await memorySystem.simulateTimePassage(10000); // 10 seconds of decay
       }
 
       // Try to recall both memories
@@ -522,14 +540,14 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
 
       // Critical memory should be more likely to survive
       const criticalFound = criticalRecall.memories.some((m) =>
-        m.content.includes("Critical system information")
+        (m.content as string).includes("Critical system information")
       );
       const trivialFound = trivialRecall.memories.some((m) =>
-        m.content.includes("Trivial information")
+        (m.content as string).includes("Trivial information")
       );
 
       // High importance memory should be more resilient to decay
-      if (criticalFound || trivialFound) {
+      if (criticalFound ?? trivialFound) {
         // If only one survives, it should be the critical one
         if (criticalFound && !trivialFound) {
           expect(true).toBe(true); // Expected outcome
@@ -566,7 +584,11 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
       // Trigger consolidation
       const consolidationStart = Date.now();
       if (consolidationEngine && consolidationEngine.consolidate) {
-        await consolidationEngine.consolidate();
+        const recentEpisodes = memorySystem.getEpisodesByTimeRange(
+          Date.now() - 60000,
+          Date.now()
+        );
+        await consolidationEngine.consolidate(recentEpisodes);
       }
       const consolidationTime = Date.now() - consolidationStart;
 
@@ -623,7 +645,13 @@ describe("Memory Consolidation and Cross-Session Persistence", () => {
 
       // Trigger consolidation concurrently
       if (consolidationEngine && consolidationEngine.consolidate) {
-        concurrentOperations.push(consolidationEngine.consolidate());
+        const recentEpisodes = memorySystem.getEpisodesByTimeRange(
+          Date.now() - 60000,
+          Date.now()
+        );
+        concurrentOperations.push(
+          consolidationEngine.consolidate(recentEpisodes)
+        );
       }
 
       const startTime = Date.now();

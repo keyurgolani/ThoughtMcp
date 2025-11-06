@@ -130,7 +130,7 @@ export function validateReasoningStep(step: ReasoningStep): void {
     );
   }
 
-  if (!Object.values(ReasoningType).includes(step.type)) {
+  if (!Object.values(ReasoningType).includes(step.type as ReasoningType)) {
     throw new ValidationError(
       "ReasoningStep type must be a valid ReasoningType",
       "reasoningStep.type"
@@ -258,7 +258,11 @@ export function validateThoughtMetadata(metadata: ThoughtMetadata): void {
     );
   }
 
-  if (!Object.values(ProcessingMode).includes(metadata.system_mode)) {
+  if (
+    !Object.values(ProcessingMode).includes(
+      metadata.system_mode as ProcessingMode
+    )
+  ) {
     throw new ValidationError(
       "ThoughtMetadata system_mode must be a valid ProcessingMode",
       "thoughtMetadata.system_mode"
@@ -423,7 +427,7 @@ export function validateCognitiveInput(input: CognitiveInput): void {
     );
   }
 
-  if (!Object.values(ProcessingMode).includes(input.mode)) {
+  if (!Object.values(ProcessingMode).includes(input.mode as ProcessingMode)) {
     throw new ValidationError(
       "CognitiveInput mode must be a valid ProcessingMode",
       "cognitiveInput.mode"
@@ -451,7 +455,11 @@ export function validateCognitiveConfig(config: CognitiveConfig): void {
     );
   }
 
-  if (!Object.values(ProcessingMode).includes(config.default_mode)) {
+  if (
+    !Object.values(ProcessingMode).includes(
+      config.default_mode as ProcessingMode
+    )
+  ) {
     throw new ValidationError(
       "CognitiveConfig default_mode must be a valid ProcessingMode",
       "cognitiveConfig.default_mode"

@@ -4,8 +4,8 @@
  * Provides step-by-step guided setup for complex cognitive tools
  * with interactive parameter selection and validation.
  *
- * Note: This file uses 'any' types for flexible wizard configurations.
- * TODO: Refactor to use proper generic types in future iteration.
+ * Note: This file uses 'any' types for flexible wizard configurations across different scenarios.
+ * The wizard system needs to handle diverse configuration structures dynamically.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -650,7 +650,7 @@ export class UsageWizardManager {
   }
 
   getWizard(wizardId: string): Wizard | null {
-    return this.wizards.get(wizardId) || null;
+    return this.wizards.get(wizardId) ?? null;
   }
 
   startWizardSession(wizardId: string): WizardSession | null {
@@ -729,15 +729,13 @@ export class UsageWizardManager {
     if (!wizard) return session;
 
     const step = wizard.steps.find((s) => s.id === stepId);
-    if (!step || !step.parameter) return session;
+    if (!step?.parameter) return session;
 
     // Update parameter value
     if (step.parameter.includes(".")) {
       // Handle nested parameters like "context.domain"
       const parts = step.parameter.split(".");
-      if (!session.parameters[parts[0]]) {
-        session.parameters[parts[0]] = {};
-      }
+      session.parameters[parts[0]] ??= {};
       session.parameters[parts[0]][parts[1]] = value;
     } else {
       session.parameters[step.parameter] = value;

@@ -4,8 +4,8 @@
  * Provides intelligent suggestions for chaining cognitive tools together
  * to create powerful workflows and solve complex problems step by step.
  *
- * Note: This file uses 'any' types for flexible tool chaining.
- * TODO: Refactor to use proper generic types in future iteration.
+ * Note: This file uses 'any' types for flexible tool chaining across different tool combinations.
+ * The chaining system needs to handle diverse tool interfaces dynamically.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -556,7 +556,7 @@ export class ToolChainingSuggestionEngine {
     }> = [];
 
     // Get tools that work well with current tool
-    const relatedTools = this.toolRelationships.get(context.current_tool) || [];
+    const relatedTools = this.toolRelationships.get(context.current_tool) ?? [];
 
     for (const toolName of relatedTools) {
       // Skip if already used recently
@@ -572,7 +572,7 @@ export class ToolChainingSuggestionEngine {
   }
 
   getChainById(chainId: string): ToolChain | null {
-    return this.toolChains.get(chainId) || null;
+    return this.toolChains.get(chainId) ?? null;
   }
 
   getAvailableChains(): Array<{
@@ -612,7 +612,7 @@ export class ToolChainingSuggestionEngine {
 
       const keywords =
         domainKeywords[context.domain as keyof typeof domainKeywords] || [];
-      const chainText = (chain.name + " " + chain.description).toLowerCase();
+      const chainText = `${chain.name} ${chain.description}`.toLowerCase();
 
       for (const keyword of keywords) {
         if (chainText.includes(keyword)) {
@@ -634,13 +634,9 @@ export class ToolChainingSuggestionEngine {
     // Check goal alignment
     if (context.user_goal) {
       const goalLower = context.user_goal.toLowerCase();
-      const chainText = (
-        chain.name +
-        " " +
-        chain.description +
-        " " +
-        chain.use_cases.join(" ")
-      ).toLowerCase();
+      const chainText = `${chain.name} ${
+        chain.description
+      } ${chain.use_cases.join(" ")}`.toLowerCase();
 
       if (goalLower.includes("decision") && chainText.includes("decision"))
         score += 0.3;

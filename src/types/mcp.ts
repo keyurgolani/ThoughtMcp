@@ -3,13 +3,18 @@
  */
 
 import { SystematicThinkingMode } from "../interfaces/systematic-thinking.js";
-import { Context, MemoryChunk, ProcessingMode, ReasoningStep } from "./core.js";
+import {
+  Context,
+  MemoryChunk,
+  ProcessingModeValue,
+  ReasoningStep,
+} from "./core.js";
 
 // Tool argument types for MCP interface
 
 export interface ThinkArgs {
   input: string;
-  mode?: ProcessingMode;
+  mode?: ProcessingModeValue;
   context?: Partial<Context>;
   enable_emotion?: boolean;
   enable_metacognition?: boolean;

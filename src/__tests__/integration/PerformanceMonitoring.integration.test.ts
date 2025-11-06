@@ -46,7 +46,7 @@ describe("Performance Monitoring Integration", () => {
       };
 
       // Execute think operation
-      const result = await server.handleThink(thinkArgs);
+      await server.handleThink(thinkArgs);
 
       // Check that metrics were collected
       const stats = server.getPerformanceStatistics();
@@ -70,7 +70,7 @@ describe("Performance Monitoring Integration", () => {
       };
 
       // Execute remember operation
-      const result = await server.handleRemember(rememberArgs);
+      await server.handleRemember(rememberArgs);
 
       // Check that metrics were collected
       const stats = server.getPerformanceStatistics();
@@ -99,7 +99,7 @@ describe("Performance Monitoring Integration", () => {
       };
 
       // Execute recall operation
-      const result = await server.handleRecall(recallArgs);
+      await server.handleRecall(recallArgs);
 
       // Check that metrics were collected
       const stats = server.getPerformanceStatistics();
@@ -134,7 +134,7 @@ describe("Performance Monitoring Integration", () => {
       };
 
       // Execute analyze_reasoning operation
-      const result = await server.handleAnalyzeReasoning(analyzeArgs);
+      await server.handleAnalyzeReasoning(analyzeArgs);
 
       // Check that metrics were collected
       const stats = server.getPerformanceStatistics();

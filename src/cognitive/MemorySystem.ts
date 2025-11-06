@@ -184,7 +184,7 @@ export class MemorySystem implements CognitiveComponent {
         this.initialized &&
         episodicStatus.initialized &&
         semanticStatus.initialized,
-      active: episodicStatus.active || semanticStatus.active,
+      active: episodicStatus.active ?? semanticStatus.active,
       last_activity: Math.max(
         this.lastActivity,
         Math.max(episodicStatus.last_activity, semanticStatus.last_activity)
@@ -210,7 +210,7 @@ export class MemorySystem implements CognitiveComponent {
         content: experience.content,
         context: experience.context,
         timestamp: startTime,
-        emotional_tags: experience.emotional_tags || [],
+        emotional_tags: experience.emotional_tags ?? [],
         importance: experience.importance,
         decay_factor: 1.0,
       };
@@ -367,7 +367,7 @@ export class MemorySystem implements CognitiveComponent {
     this.semanticMemory.applyDecay();
 
     return (
-      this.consolidationEngine.getLastConsolidationResult() || {
+      this.consolidationEngine.getLastConsolidationResult() ?? {
         patterns_extracted: 0,
         concepts_created: newConcepts.length,
         relations_strengthened: 0,
@@ -407,7 +407,7 @@ export class MemorySystem implements CognitiveComponent {
     const relations = Array.from(this.semanticMemory["relations"].values());
     const lastConsolidation =
       this.consolidationEngine.getLastConsolidationResult()
-        ?.patterns_extracted || 0;
+        ?.patterns_extracted ?? 0;
 
     await this.persistenceManager.saveMemorySystem(
       episodes,

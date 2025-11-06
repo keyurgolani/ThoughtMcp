@@ -94,9 +94,9 @@ export class EmotionalProcessor implements IEmotionalProcessor {
    */
   async initialize(config: Record<string, unknown>): Promise<void> {
     try {
-      this.decay_rate = (config?.decay_rate as number) || 0.05;
-      this.history_size = (config?.history_size as number) || 50;
-      this.modulation_strength = (config?.modulation_strength as number) || 0.3;
+      this.decay_rate = (config?.decay_rate as number) ?? 0.05;
+      this.history_size = (config?.history_size as number) ?? 50;
+      this.modulation_strength = (config?.modulation_strength as number) ?? 0.3;
 
       // Initialize emotional lexicon
       await this.initializeEmotionalLexicon();
@@ -170,7 +170,7 @@ export class EmotionalProcessor implements IEmotionalProcessor {
 
         // Update specific emotions
         emotional_info.specific_emotions.forEach((intensity, emotion) => {
-          const current = specific_emotions.get(emotion) || 0;
+          const current = specific_emotions.get(emotion) ?? 0;
           specific_emotions.set(emotion, Math.max(current, intensity));
         });
       }
@@ -319,14 +319,14 @@ export class EmotionalProcessor implements IEmotionalProcessor {
       valence: this.clampEmotion(
         this.integrateEmotionalDimension(
           this.current_emotional_state.valence,
-          newState.valence || 0,
+          newState.valence ?? 0,
           momentum_factor
         )
       ),
       arousal: this.clampEmotion(
         this.integrateEmotionalDimension(
           this.current_emotional_state.arousal,
-          newState.arousal || 0.5,
+          newState.arousal ?? 0.5,
           momentum_factor
         ),
         0,
@@ -335,7 +335,7 @@ export class EmotionalProcessor implements IEmotionalProcessor {
       dominance: this.clampEmotion(
         this.integrateEmotionalDimension(
           this.current_emotional_state.dominance,
-          newState.dominance || 0.5,
+          newState.dominance ?? 0.5,
           momentum_factor
         ),
         0,
@@ -343,7 +343,7 @@ export class EmotionalProcessor implements IEmotionalProcessor {
       ),
       specific_emotions: this.integrateSpecificEmotions(
         this.current_emotional_state.specific_emotions,
-        newState.specific_emotions || new Map()
+        newState.specific_emotions ?? new Map()
       ),
     };
 
@@ -620,7 +620,7 @@ export class EmotionalProcessor implements IEmotionalProcessor {
   }
 
   private getEmotionalInfo(word: string): EmotionalAssessment | null {
-    return this.emotional_lexicon.get(word) || null;
+    return this.emotional_lexicon.get(word) ?? null;
   }
 
   private computeContextualModifiers(
@@ -686,13 +686,13 @@ export class EmotionalProcessor implements IEmotionalProcessor {
     if (typeof option === "string") {
       // Simple pattern extraction based on keywords
       const text = option.toLowerCase();
-      if (text.includes("risk") || text.includes("danger"))
+      if (text.includes("risk") ?? text.includes("danger"))
         return "risk_taking";
-      if (text.includes("safe") || text.includes("secure"))
+      if (text.includes("safe") ?? text.includes("secure"))
         return "safe_choice";
-      if (text.includes("creative") || text.includes("innovative"))
+      if (text.includes("creative") ?? text.includes("innovative"))
         return "creative_solution";
-      if (text.includes("traditional") || text.includes("conventional"))
+      if (text.includes("traditional") ?? text.includes("conventional"))
         return "traditional_approach";
       // Check for exact pattern match for test cases
       if (text === "test_decision") return "test_decision";
@@ -703,7 +703,7 @@ export class EmotionalProcessor implements IEmotionalProcessor {
   }
 
   private retrieveEmotionalMemory(pattern: string): EmotionalMemory | null {
-    return this.somatic_memory.get(pattern) || null;
+    return this.somatic_memory.get(pattern) ?? null;
   }
 
   private computeEmotionalValue(memory: EmotionalMemory): number {
@@ -779,7 +779,7 @@ export class EmotionalProcessor implements IEmotionalProcessor {
 
     // Add new emotions
     new_emotions.forEach((intensity, emotion) => {
-      const current_intensity = integrated.get(emotion) || 0;
+      const current_intensity = integrated.get(emotion) ?? 0;
       integrated.set(emotion, Math.max(current_intensity, intensity));
     });
 

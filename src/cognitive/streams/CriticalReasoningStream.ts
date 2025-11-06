@@ -397,8 +397,7 @@ export class CriticalReasoningStream
 
     // Check for hasty generalization
     if (
-      problem.description.includes("always") ||
-      problem.description.includes("never")
+      problem.description.includes("always") ?? problem.description.includes("never")
     ) {
       fallacies.push("Potential hasty generalization (absolute statements)");
     }
@@ -413,8 +412,7 @@ export class CriticalReasoningStream
 
     // Check for appeal to authority
     if (
-      problem.description.includes("expert") ||
-      problem.description.includes("authority")
+      problem.description.includes("expert") ?? problem.description.includes("authority")
     ) {
       fallacies.push(
         "Potential appeal to authority (expert opinion without evidence)"
@@ -514,7 +512,7 @@ export class CriticalReasoningStream
       )
     );
 
-    if (hasRecentBias || hasMemorableBias) {
+    if (hasRecentBias ?? hasMemorableBias) {
       return {
         bias_type: "availability_heuristic",
         description:

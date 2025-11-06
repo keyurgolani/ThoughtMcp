@@ -300,7 +300,7 @@ export class DebugController {
     }
 
     // Check custom condition
-    if (condition.custom_condition && condition.custom_condition(context)) {
+    if (condition.custom_condition?.(context)) {
       return true;
     }
 

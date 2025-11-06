@@ -387,7 +387,7 @@ describe("MetacognitionModule", () => {
       expect(suggestions.length).toBeGreaterThan(0);
       expect(
         suggestions.some(
-          (s) => s.includes("evidence") || s.includes("information")
+          (s) => s.includes("evidence") ?? s.includes("information")
         )
       ).toBe(true);
     });
@@ -465,7 +465,7 @@ describe("MetacognitionModule", () => {
       expect(suggestions.length).toBeGreaterThan(0);
       expect(
         suggestions.some(
-          (s) => s.includes("devil's_advocate") || s.includes("pre_mortem")
+          (s) => s.includes("devil's_advocate") ?? s.includes("pre_mortem")
         )
       ).toBe(true);
     });

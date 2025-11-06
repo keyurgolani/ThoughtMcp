@@ -11,7 +11,6 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { CognitiveOrchestrator } from "../../cognitive/CognitiveOrchestrator.js";
 import { MemorySystem } from "../../cognitive/MemorySystem.js";
 import { CognitiveMCPServer } from "../../server/CognitiveMCPServer.js";
 import { ProcessingMode, ReasoningType } from "../../types/core.js";
@@ -23,7 +22,7 @@ import {
 
 describe("Comprehensive Integration Tests", () => {
   let server: CognitiveMCPServer;
-  let orchestrator: CognitiveOrchestrator;
+  // let orchestrator: CognitiveOrchestrator; // Unused for now
   let memorySystem: MemorySystem;
   let originalEnv: NodeJS.ProcessEnv;
 
@@ -45,7 +44,7 @@ describe("Comprehensive Integration Tests", () => {
     await server.initialize(true);
 
     // Get references to internal components for direct testing
-    orchestrator = (server as any).cognitiveOrchestrator;
+    // orchestrator = (server as any).cognitiveOrchestrator; // Unused for now
     memorySystem = (server as any).memorySystem;
   });
 
@@ -73,6 +72,9 @@ describe("Comprehensive Integration Tests", () => {
   });
 
   // Helper function to wait for memory system to be ready
+  // Utility function for future use
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-ignore - Utility function for future use
   const waitForMemorySystemReady = async (
     server: CognitiveMCPServer,
     maxWaitMs = 10000
@@ -179,7 +181,7 @@ describe("Comprehensive Integration Tests", () => {
       // Should have creative reasoning steps
       const creativeSteps = result.reasoning_path.filter(
         (step) =>
-          step.type === ReasoningType.CREATIVE ||
+          step.type === ReasoningType.HEURISTIC ||
           step.type === ReasoningType.ANALOGICAL
       );
       expect(creativeSteps.length).toBeGreaterThan(0);
@@ -476,10 +478,10 @@ describe("Comprehensive Integration Tests", () => {
       const { TOOL_SCHEMAS } = await import("../../types/mcp.js");
 
       expectedTools.forEach((toolName) => {
-        expect(TOOL_SCHEMAS[toolName]).toBeDefined();
-        expect(TOOL_SCHEMAS[toolName].name).toBe(toolName);
-        expect(TOOL_SCHEMAS[toolName].description).toBeDefined();
-        expect(TOOL_SCHEMAS[toolName].inputSchema).toBeDefined();
+        expect((TOOL_SCHEMAS as any)[toolName]).toBeDefined();
+        expect((TOOL_SCHEMAS as any)[toolName].name).toBe(toolName);
+        expect((TOOL_SCHEMAS as any)[toolName].description).toBeDefined();
+        expect((TOOL_SCHEMAS as any)[toolName].inputSchema).toBeDefined();
       });
     });
 
@@ -598,7 +600,7 @@ describe("Comprehensive Integration Tests", () => {
           expect(true).toBe(false);
         } catch (error) {
           expect(error).toBeInstanceOf(Error);
-          expect(error.message.toLowerCase()).toContain(
+          expect((error as Error).message.toLowerCase()).toContain(
             errorCase.expectedError
           );
         }
@@ -617,7 +619,7 @@ describe("Comprehensive Integration Tests", () => {
       const results = await Promise.all(requests);
 
       // All responses should maintain proper structure
-      results.forEach((result, index) => {
+      results.forEach((result) => {
         expect(result).toBeDefined();
         expect(result.content).toBeDefined();
         expect(typeof result.confidence).toBe("number");
@@ -658,8 +660,8 @@ describe("Comprehensive Integration Tests", () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Trigger consolidation manually if available
-      if (memorySystem.triggerConsolidation) {
-        await memorySystem.triggerConsolidation();
+      if (memorySystem.runConsolidation) {
+        await memorySystem.runConsolidation();
       }
 
       // Query for semantic knowledge that should have been extracted
@@ -696,7 +698,7 @@ describe("Comprehensive Integration Tests", () => {
       });
 
       expect(memoryResult.success).toBe(true);
-      const originalMemoryId = memoryResult.memory_id;
+      // const originalMemoryId = memoryResult.memory_id; // Unused for now
 
       // Wait a bit to ensure memory is stored
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -732,7 +734,7 @@ describe("Comprehensive Integration Tests", () => {
         expect(recallResult.memories.length).toBeGreaterThan(0);
 
         const foundMemory = recallResult.memories.find((m) =>
-          m.content.includes("New memory after restart")
+          (m.content as any).includes("New memory after restart")
         );
         expect(foundMemory).toBeDefined();
       } finally {
@@ -770,8 +772,12 @@ describe("Comprehensive Integration Tests", () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
 
       // Trigger memory decay if available
-      if (memorySystem.simulateDecay) {
-        await memorySystem.simulateDecay(1000); // Simulate 1 second of decay
+      // Simulate decay if method exists
+      if (
+        "simulateDecay" in memorySystem &&
+        typeof memorySystem.simulateDecay === "function"
+      ) {
+        await (memorySystem as any).simulateDecay(1000); // Simulate 1 second of decay
       }
 
       // Recall memories and check retention based on importance
@@ -785,15 +791,15 @@ describe("Comprehensive Integration Tests", () => {
 
       // Higher importance memories should be more likely to be retained
       const highImportanceFound = recallResult.memories.some((m) =>
-        m.content.includes("Very important")
+        (m.content as any).includes("Very important")
       );
       const lowImportanceFound = recallResult.memories.some((m) =>
-        m.content.includes("Less important")
+        (m.content as any).includes("Less important")
       );
 
       // High importance should be more likely to be found than low importance
       if (recallResult.memories.length > 0) {
-        expect(highImportanceFound || lowImportanceFound).toBe(true);
+        expect(highImportanceFound ?? lowImportanceFound).toBe(true);
       }
     });
 
@@ -830,13 +836,13 @@ describe("Comprehensive Integration Tests", () => {
       // Should find memories from both sessions due to semantic similarity
       const foundContents = crossSessionRecall.memories.map((m) => m.content);
       const hasSession1Content = foundContents.some((content) =>
-        content.includes("quantum computing principles")
+        (content as any).includes("quantum computing principles")
       );
       const hasSession2Content = foundContents.some((content) =>
-        content.includes("entanglement applications")
+        (content as any).includes("entanglement applications")
       );
 
-      expect(hasSession1Content || hasSession2Content).toBe(true);
+      expect(hasSession1Content ?? hasSession2Content).toBe(true);
     });
 
     it("should maintain memory associations and context links", async () => {
@@ -886,7 +892,7 @@ describe("Comprehensive Integration Tests", () => {
       const hasDL = contents.some((c) => c.includes("deep learning"));
 
       expect(hasAI).toBe(true);
-      expect(hasML || hasDL).toBe(true); // At least one related concept
+      expect(hasML ?? hasDL).toBe(true); // At least one related concept
     });
   });
 

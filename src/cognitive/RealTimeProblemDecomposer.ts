@@ -426,7 +426,7 @@ export class RealTimeProblemDecomposer {
     // Build adjacency list and calculate in-degrees
     for (const dep of dependencies) {
       adjList.get(dep.from)?.push(dep.to);
-      inDegree.set(dep.to, (inDegree.get(dep.to) || 0) + 1);
+      inDegree.set(dep.to, (inDegree.get(dep.to) ?? 0) + 1);
     }
 
     // Find nodes with no incoming edges (starting points)
@@ -441,13 +441,14 @@ export class RealTimeProblemDecomposer {
 
     // Process nodes in topological order
     while (queue.length > 0) {
-      const current = queue.shift()!;
+      const current = queue.shift();
+      if (!current) break; // Safety check, though this should never happen
       criticalPath.push(current);
 
       // Process neighbors
-      const neighbors = adjList.get(current) || [];
+      const neighbors = adjList.get(current) ?? [];
       for (const neighbor of neighbors) {
-        const newDegree = (inDegree.get(neighbor) || 0) - 1;
+        const newDegree = (inDegree.get(neighbor) ?? 0) - 1;
         inDegree.set(neighbor, newDegree);
 
         if (newDegree === 0) {

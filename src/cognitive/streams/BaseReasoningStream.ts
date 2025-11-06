@@ -31,7 +31,7 @@ export abstract class BaseReasoningStream implements ReasoningStream {
     id?: string
   ) {
     this.id =
-      id || `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      id ?? `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     this.type = type;
     this.name = name;
     this.description = description;
@@ -164,7 +164,7 @@ export abstract class BaseReasoningStream implements ReasoningStream {
   }
 
   protected assessComplexity(problem: Problem): number {
-    let complexity = problem.complexity || 0.5;
+    let complexity = problem.complexity ?? 0.5;
 
     // Adjust based on problem characteristics
     if (problem.constraints.length > 3) complexity += 0.1;

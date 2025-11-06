@@ -787,8 +787,7 @@ export class DeliberativeProcessor implements ISystem2Processor {
 
     const evidenceSection = hasEvidence
       ? `\nEvidence considered: ${
-          (option.option as { evidence?: string[] }).evidence?.join(", ") ||
-          "Limited evidence available"
+          (option.option as { evidence?: string[] }).evidence?.join(", ") ?? "Limited evidence available"
         }`
       : "\nEvidence considered: Analysis based on available information";
 
@@ -799,12 +798,10 @@ export class DeliberativeProcessor implements ISystem2Processor {
       "pros" in option.option &&
       "cons" in option.option
         ? `\nStrengths: ${
-            (option.option as { pros?: string[] }).pros?.join(", ") ||
-            "None identified"
+            (option.option as { pros?: string[] }).pros?.join(", ") ?? "None identified"
           }
 Considerations: ${
-            (option.option as { cons?: string[] }).cons?.join(", ") ||
-            "None identified"
+            (option.option as { cons?: string[] }).cons?.join(", ") ?? "None identified"
           }`
         : "\nStrengths: Systematic approach applied\nConsiderations: Limited by available information";
 

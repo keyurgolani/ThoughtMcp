@@ -85,20 +85,23 @@ export class SemanticMemory implements ISemanticMemory {
     this.lastActivity = Date.now();
 
     // Generate ID if not provided
-    const conceptId = concept.id || this.generateConceptId(concept.content);
+    const conceptId =
+      concept.id && concept.id.length > 0
+        ? concept.id
+        : this.generateConceptId(concept.content);
 
     // Generate embedding if not provided
     const embedding =
-      concept.embedding || this.generateEmbedding(concept.content);
+      concept.embedding ?? this.generateEmbedding(concept.content);
 
     // Store the concept
     const storedConcept: Concept = {
       ...concept,
       id: conceptId,
       embedding,
-      activation: concept.activation || 1.0,
+      activation: concept.activation ?? 1.0,
       last_accessed: Date.now(),
-      relations: concept.relations || [],
+      relations: concept.relations ?? [],
     };
 
     this.concepts.set(conceptId, storedConcept);

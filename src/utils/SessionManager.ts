@@ -104,7 +104,7 @@ export class SessionManager {
       session_id,
       created_at: now,
       last_accessed: now,
-      client_info: client_info || {},
+      client_info: client_info ?? {},
       cognitive_config: this.config_manager.getConfig(),
       context_history: [],
       memory_context: {

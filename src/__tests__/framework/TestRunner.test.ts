@@ -26,7 +26,7 @@ export class ThoughtMCPTestRunner {
   private performanceFramework: PerformanceTestFramework;
   private memoryFramework: MemoryTestFramework;
   private server: CognitiveMCPServer;
-  private logger: Logger;
+  private logger: ReturnType<typeof Logger.getInstance>;
 
   constructor() {
     this.cognitiveFramework = new CognitiveTestFramework();
@@ -268,8 +268,11 @@ export class ThoughtMCPTestRunner {
     });
 
     // Check if we get a valid response (simplified compliance check)
-    const hasValidResponse =
-      result && result.content && result.content.length > 0;
+    const hasValidResponse: boolean = !!(
+      result &&
+      result.content &&
+      result.content.length > 0
+    );
 
     this.logger.debug(
       "TestRunner",
@@ -295,11 +298,12 @@ export class ThoughtMCPTestRunner {
     });
 
     // Simplified check - just verify both modes work
-    const bothWork =
+    const bothWork: boolean = !!(
       system1Result &&
       system1Result.content &&
       system2Result &&
-      system2Result.content;
+      system2Result.content
+    );
 
     this.logger.debug(
       "TestRunner",
@@ -326,8 +330,11 @@ export class ThoughtMCPTestRunner {
     });
 
     // Simplified check - just verify we get a response
-    const hasValidResponse =
-      result && result.content && result.content.length > 0;
+    const hasValidResponse: boolean = !!(
+      result &&
+      result.content &&
+      result.content.length > 0
+    );
 
     this.logger.debug(
       "TestRunner",
@@ -347,8 +354,11 @@ export class ThoughtMCPTestRunner {
     });
 
     // Simplified check - just verify we get a response
-    const hasValidResponse =
-      result && result.content && result.content.length > 0;
+    const hasValidResponse: boolean = !!(
+      result &&
+      result.content &&
+      result.content.length > 0
+    );
 
     this.logger.debug(
       "TestRunner",
@@ -368,8 +378,11 @@ export class ThoughtMCPTestRunner {
     });
 
     // Simplified check - just verify we get a response
-    const hasValidResponse =
-      result && result.content && result.content.length > 0;
+    const hasValidResponse: boolean = !!(
+      result &&
+      result.content &&
+      result.content.length > 0
+    );
 
     this.logger.debug(
       "TestRunner",
@@ -388,8 +401,11 @@ export class ThoughtMCPTestRunner {
     });
 
     // Simplified check - just verify we get a response
-    const hasValidResponse =
-      result && result.content && result.content.length > 0;
+    const hasValidResponse: boolean = !!(
+      result &&
+      result.content &&
+      result.content.length > 0
+    );
 
     this.logger.debug(
       "TestRunner",
@@ -410,8 +426,11 @@ export class ThoughtMCPTestRunner {
     });
 
     // Check if we get a valid response
-    const hasValidResponse =
-      result && result.content && result.content.length > 0;
+    const hasValidResponse: boolean = !!(
+      result &&
+      result.content &&
+      result.content.length > 0
+    );
 
     this.logger.debug(
       "TestRunner",
@@ -423,7 +442,10 @@ export class ThoughtMCPTestRunner {
   /**
    * Generate a custom test report
    */
-  private generateCustomReport(
+  // Utility function for future use
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-ignore - Utility function for future use
+  private _generateCustomReport(
     results: Map<string, CognitiveTestResult[]>
   ): TestReport {
     const allResults = Array.from(results.values()).flat();

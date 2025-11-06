@@ -145,7 +145,7 @@ describe("Brain Directory Validation", () => {
 
       expect(config.brain_dir).toBeDefined();
       expect(typeof config.brain_dir).toBe("string");
-      expect(config.brain_dir.length).toBeGreaterThan(0);
+      expect(config.brain_dir!.length).toBeGreaterThan(0);
       expect(() => validateCognitiveConfig(config)).not.toThrow();
     });
 
@@ -154,7 +154,7 @@ describe("Brain Directory Validation", () => {
 
       expect(config.brain_dir).toBeDefined();
       expect(typeof config.brain_dir).toBe("string");
-      expect(config.brain_dir.length).toBeGreaterThan(0);
+      expect(config.brain_dir!.length).toBeGreaterThan(0);
       expect(() => validateCognitiveConfig(config)).not.toThrow();
     });
 

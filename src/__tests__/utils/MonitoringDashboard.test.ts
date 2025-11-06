@@ -20,13 +20,19 @@ const mockConsole = {
   warn: vi.fn(),
 };
 
-vi.stubGlobal("console", mockConsole);
+// Store original console methods
+const originalConsole = { ...console };
 
 describe("MonitoringDashboard", () => {
   let monitor: PerformanceMonitor;
   let dashboard: MonitoringDashboard;
 
   beforeEach(() => {
+    // Override the global test setup console suppression for this test file
+    // since we need to test console output
+    console.log = mockConsole.log;
+    console.clear = mockConsole.clear;
+    console.warn = mockConsole.warn;
     monitor = new PerformanceMonitor({
       responseTimeWarning: 100,
       responseTimeCritical: 500,
@@ -49,6 +55,9 @@ describe("MonitoringDashboard", () => {
   afterEach(() => {
     dashboard.stop();
     monitor.clearMetrics();
+    // Restore original console methods
+    Object.assign(console, originalConsole);
+    vi.clearAllMocks();
   });
 
   describe("Dashboard Creation", () => {
@@ -255,13 +264,15 @@ describe("MonitoringDashboard", () => {
       // Should have at least one recommendation about performance or confidence
       const hasPerformanceRec = report.recommendations.some(
         (r) =>
-          r.includes("cognitive processing pipeline") ||
+          r.includes("cognitive processing pipeline") ??
           r.includes("response time")
       );
       const hasConfidenceRec = report.recommendations.some(
         (r) => r.includes("confidence") || r.includes("model")
       );
-      expect(hasPerformanceRec || hasConfidenceRec).toBe(true);
+      expect((hasPerformanceRec ?? false) || (hasConfidenceRec ?? false)).toBe(
+        true
+      );
     });
   });
 

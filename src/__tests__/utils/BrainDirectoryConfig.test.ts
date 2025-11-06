@@ -5,7 +5,7 @@
  * and integration with the cognitive configuration system.
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CognitiveConfig, ProcessingMode } from "../../types/core.js";
 import { ConfigManager } from "../../utils/config.js";
 
@@ -39,7 +39,8 @@ describe("Brain Directory Configuration", () => {
       const config = configManager.getConfig();
       expect(config).toHaveProperty("brain_dir");
       expect(typeof config.brain_dir).toBe("string");
-      expect(config.brain_dir.length).toBeGreaterThan(0);
+      expect(config.brain_dir).toBeDefined();
+      expect(config.brain_dir!.length).toBeGreaterThan(0);
     });
   });
 

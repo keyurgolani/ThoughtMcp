@@ -78,7 +78,7 @@ export class AnalyticalReasoningStream
     // Step 3: Build argument chain
     const argumentChain = await this.buildArgumentChain(
       logicalAnalysis.premises,
-      logicalAnalysis.conclusions[0] || "No clear conclusion"
+      logicalAnalysis.conclusions[0] ?? "No clear conclusion"
     );
     reasoningSteps.push(
       this.createReasoningStep(

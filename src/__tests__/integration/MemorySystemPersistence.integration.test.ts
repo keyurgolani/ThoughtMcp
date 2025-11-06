@@ -222,7 +222,9 @@ describe("MemorySystem Persistence Integration", () => {
       await memorySystem.saveToStorage();
 
       const updatedStatus = memorySystem.getPersistenceStatus();
-      expect(updatedStatus.last_save).toBeGreaterThan(initialStatus.last_save);
+      expect(updatedStatus.last_save).toBeGreaterThan(
+        initialStatus.last_save as number
+      );
     });
   });
 
@@ -347,7 +349,7 @@ describe("MemorySystem Persistence Integration", () => {
       memorySystem.storeEpisode(episode);
 
       // Run save and backup concurrently
-      const [saveResult, backupId] = await Promise.all([
+      const [, backupId] = await Promise.all([
         memorySystem.saveToStorage(),
         memorySystem.createBackup("concurrent-backup"),
       ]);

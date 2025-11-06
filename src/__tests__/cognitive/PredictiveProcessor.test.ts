@@ -55,7 +55,7 @@ describe("PredictiveProcessor", () => {
     it("should handle initialization errors gracefully", async () => {
       const newProcessor = new PredictiveProcessor();
       // Mock a failure in initialization
-      const originalInitialize = newProcessor.initialize;
+
       newProcessor.initialize = async () => {
         throw new Error("Mock initialization error");
       };

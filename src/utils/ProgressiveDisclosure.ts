@@ -57,7 +57,7 @@ export class ProgressiveDisclosure {
    * Get progressive guide for a tool
    */
   static getGuide(toolName: string): ProgressiveGuide | null {
-    return this.guides.get(toolName) || null;
+    return this.guides.get(toolName) ?? null;
   }
 
   /**
@@ -77,7 +77,7 @@ export class ProgressiveDisclosure {
         ? Math.min(1, guide.levels.length - 1)
         : guide.levels.length - 1;
 
-    return guide.levels[levelIndex] || null;
+    return guide.levels[levelIndex] ?? null;
   }
 
   /**

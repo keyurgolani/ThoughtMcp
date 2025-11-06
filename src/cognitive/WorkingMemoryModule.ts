@@ -84,9 +84,9 @@ export class WorkingMemoryModule implements IWorkingMemory {
       }
 
       // Configure capacity and parameters from config
-      this.capacity = (config.working_memory_capacity as number) || 7;
-      this.decay_rate = (config.noise_level as number) || 0.1;
-      this.rehearsal_threshold = (config.confidence_threshold as number) || 0.5;
+      this.capacity = (config.working_memory_capacity as number) ?? 7;
+      this.decay_rate = (config.noise_level as number) ?? 0.1;
+      this.rehearsal_threshold = (config.confidence_threshold as number) ?? 0.5;
 
       // Initialize buffers with configuration
       this.initializeBuffers();
@@ -163,7 +163,7 @@ export class WorkingMemoryModule implements IWorkingMemory {
 
   addChunk(chunk: MemoryChunk): boolean {
     // Validate chunk
-    if (!chunk || !chunk.content) {
+    if (!chunk?.content) {
       return false;
     }
 
@@ -188,7 +188,7 @@ export class WorkingMemoryModule implements IWorkingMemory {
     buffer.chunks.push({
       ...chunk,
       timestamp: Date.now(),
-      activation: Math.max(0.1, chunk.activation || 1.0), // Ensure minimum activation
+      activation: Math.max(0.1, chunk.activation ?? 1.0), // Ensure minimum activation
     });
 
     return true;
@@ -281,7 +281,7 @@ export class WorkingMemoryModule implements IWorkingMemory {
       initialized: this.initialized,
       active: this.active,
       last_activity: this.last_activity,
-      error: this.error || "",
+      error: this.error ?? "",
     };
   }
 
@@ -376,19 +376,18 @@ export class WorkingMemoryModule implements IWorkingMemory {
 
   private selectBuffer(chunk: MemoryChunk): WorkingMemoryBuffer {
     // Select appropriate buffer based on content type and context tags
-    const contextTags = chunk.context_tags || [];
+    const contextTags = chunk.context_tags ?? [];
 
     if (
-      contextTags.includes("phonological") ||
-      contextTags.includes("text") ||
-      typeof chunk.content === "string"
+      contextTags.includes("phonological") ??
+      (contextTags.includes("text") || typeof chunk.content === "string")
     ) {
       return this.phonological_buffer;
     }
 
     if (
-      contextTags.includes("visuospatial") ||
-      contextTags.includes("spatial") ||
+      contextTags.includes("visuospatial") ??
+      contextTags.includes("spatial") ??
       contextTags.includes("visual")
     ) {
       return this.visuospatial_buffer;

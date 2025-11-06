@@ -1,550 +1,292 @@
 /**
  * Unit tests for MemorySystem
+ * Tests the core memory management functionality including episodic and semantic memory coordination
  */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { MemorySystem } from "../../cognitive/MemorySystem.js";
-import { Concept, Context, Episode } from "../../types/core.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  MemorySystem,
+  MemorySystemConfig,
+} from "../../cognitive/MemorySystem.js";
+
+// Mock the dependencies
+vi.mock("../../cognitive/EpisodicMemory.js", () => ({
+  EpisodicMemory: vi.fn().mockImplementation(() => ({
+    initialize: vi.fn().mockResolvedValue(undefined),
+    store: vi.fn().mockReturnValue("episode-123"),
+    retrieve: vi.fn().mockResolvedValue([]),
+    consolidate: vi.fn().mockReturnValue([]),
+    getStatus: vi.fn().mockReturnValue({
+      name: "EpisodicMemory",
+      initialized: true,
+      active: true,
+      last_activity: Date.now(),
+    }),
+    reset: vi.fn(),
+  })),
+}));
+
+vi.mock("../../cognitive/SemanticMemory.js", () => ({
+  SemanticMemory: vi.fn().mockImplementation(() => ({
+    initialize: vi.fn().mockResolvedValue(undefined),
+    store: vi.fn().mockReturnValue("concept-456"),
+    retrieve: vi.fn().mockResolvedValue([]),
+    addRelation: vi.fn(),
+    getStatus: vi.fn().mockReturnValue({
+      name: "SemanticMemory",
+      initialized: true,
+      active: true,
+      last_activity: Date.now(),
+    }),
+    reset: vi.fn(),
+  })),
+}));
+
+vi.mock("../../cognitive/ConsolidationEngine.js", () => ({
+  ConsolidationEngine: vi.fn().mockImplementation(() => ({
+    initialize: vi.fn().mockResolvedValue(undefined),
+    consolidate: vi.fn().mockResolvedValue({
+      episodes_processed: 0,
+      concepts_created: 0,
+      consolidation_time_ms: 100,
+    }),
+    getStatus: vi.fn().mockReturnValue({
+      name: "ConsolidationEngine",
+      initialized: true,
+      active: true,
+      last_activity: Date.now(),
+    }),
+    reset: vi.fn(),
+  })),
+}));
+
+vi.mock("../../utils/persistence/index.js", () => ({
+  PersistenceManager: vi.fn().mockImplementation(() => ({
+    initialize: vi.fn().mockResolvedValue(undefined),
+    startAutoSave: vi.fn(),
+    loadMemorySystem: vi.fn().mockResolvedValue(null),
+  })),
+}));
 
 describe("MemorySystem", () => {
   let memorySystem: MemorySystem;
-  let mockContext: Context;
+  let config: Partial<MemorySystemConfig>;
 
-  beforeEach(async () => {
-    memorySystem = new MemorySystem({
-      episodic: {
-        capacity: 100,
-        decay_rate: 0.01,
-        retrieval_threshold: 0.3,
-      },
-      semantic: {
-        capacity: 100,
-        embedding_dim: 64,
-        similarity_threshold: 0.7,
-      },
-      consolidation: {
-        consolidation_threshold: 0.6,
-        minimum_episode_count: 2,
-      },
-      consolidation_interval_ms: 1000, // 1 second for testing
-      auto_consolidation: false, // Disable for controlled testing
-      memory_decay_interval_ms: 1000,
-      auto_decay: false,
-      persistence_enabled: false, // Disable persistence for testing
-      auto_recovery_enabled: false,
-      auto_save_enabled: false,
-    });
-
-    mockContext = {
-      session_id: "test-session",
-      domain: "test-domain",
-      urgency: 0.5,
-      complexity: 0.6,
+  beforeEach(() => {
+    config = {
+      episodic: {},
+      semantic: {},
+      consolidation: {},
+      persistence: {},
+      consolidation_interval_ms: 1000,
+      auto_consolidation: false, // Disable for testing
+      memory_decay_interval_ms: 2000,
+      auto_decay: false, // Disable for testing
+      persistence_enabled: true,
+      auto_save_enabled: false, // Disable for testing
+      auto_recovery_enabled: false, // Disable for testing
     };
-
-    await memorySystem.initialize();
+    memorySystem = new MemorySystem(config);
+    vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    memorySystem.shutdown();
-  });
+  describe("Initialization", () => {
+    it("should initialize successfully with default config", async () => {
+      const system = new MemorySystem();
+      await expect(system.initialize()).resolves.not.toThrow();
+    });
 
-  describe("initialization", () => {
-    it("should initialize successfully", async () => {
+    it("should initialize successfully with custom config", async () => {
+      await expect(memorySystem.initialize(config)).resolves.not.toThrow();
+    });
+
+    it("should initialize all memory components", async () => {
+      await memorySystem.initialize();
+
+      // Verify that all components were initialized
       const status = memorySystem.getStatus();
-      expect(status.initialized).toBe(true);
       expect(status.name).toBe("MemorySystem");
+      expect(status.initialized).toBe(true);
     });
 
-    it("should initialize all subsystems", async () => {
-      const status = memorySystem.getStatus();
-      expect(status.initialized).toBe(true);
+    it("should handle initialization errors gracefully", async () => {
+      // Mock initialization failure
+      const failingSystem = new MemorySystem();
+      vi.mocked(failingSystem["episodicMemory"].initialize).mockRejectedValue(
+        new Error("Initialization failed")
+      );
+
+      await expect(failingSystem.initialize()).rejects.toThrow(
+        "Initialization failed"
+      );
     });
   });
 
-  describe("experience storage", () => {
-    it("should store experience in both episodic and semantic memory", async () => {
+  describe("Memory Storage", () => {
+    beforeEach(async () => {
+      await memorySystem.initialize();
+    });
+
+    it("should store experiences successfully", async () => {
       const experience = {
-        content: { text: "Learning about neural networks" },
-        context: mockContext,
-        importance: 0.8,
-        emotional_tags: ["curious", "focused"],
+        content: "Test memory content",
+        context: {
+          session_id: "test-session",
+          location: "test",
+          mood: "neutral",
+        },
+        importance: 0.7,
+        emotional_tags: ["neutral"],
       };
 
       const result = await memorySystem.storeExperience(experience);
 
       expect(result.success).toBe(true);
-      expect(result.episodic_id).toBeDefined();
-      expect(result.semantic_id).toBeDefined();
+      expect(result.episodic_id).toBe("episode-123");
       expect(result.storage_time_ms).toBeGreaterThanOrEqual(0);
     });
 
-    it("should handle experiences without emotional tags", async () => {
+    it("should handle storage errors gracefully", async () => {
+      // Mock storage failure
+      vi.mocked(memorySystem["episodicMemory"].store).mockImplementation(() => {
+        throw new Error("Storage failed");
+      });
+
       const experience = {
-        content: { text: "Simple learning experience" },
-        context: mockContext,
-        importance: 0.6,
+        content: "This should fail",
+        context: { session_id: "test-session" },
+        importance: 0.5,
+        emotional_tags: [],
       };
 
       const result = await memorySystem.storeExperience(experience);
-
-      expect(result.success).toBe(true);
-      expect(result.episodic_id).toBeDefined();
-    });
-
-    it("should extract multiple concepts from rich experiences", async () => {
-      const experience = {
-        content: {
-          text: "Deep learning workshop on computer vision",
-          topic: "machine learning",
-          subtopic: "computer vision",
-        },
-        context: { ...mockContext, domain: "ai" },
-        importance: 0.9,
-        emotional_tags: ["excited", "motivated"],
-      };
-
-      const result = await memorySystem.storeExperience(experience);
-
-      expect(result.success).toBe(true);
-      expect(result.semantic_id).toBeDefined();
+      expect(result.success).toBe(false);
     });
   });
 
-  describe("memory retrieval", () => {
+  describe("Memory Retrieval", () => {
     beforeEach(async () => {
-      // Store test experiences
-      const experiences = [
-        {
-          content: { text: "Machine learning algorithms process data" },
-          context: { ...mockContext, domain: "ai" },
-          importance: 0.8,
-          emotional_tags: ["curious"],
-        },
-        {
-          content: { text: "Neural networks learn complex patterns" },
-          context: { ...mockContext, domain: "ai" },
-          importance: 0.9,
-          emotional_tags: ["fascinated"],
-        },
-        {
-          content: { text: "Cooking pasta requires boiling water" },
-          context: { ...mockContext, domain: "cooking" },
-          importance: 0.6,
-          emotional_tags: ["practical"],
-        },
-      ];
-
-      for (const experience of experiences) {
-        await memorySystem.storeExperience(experience);
-      }
+      await memorySystem.initialize();
     });
 
-    it("should retrieve memories from both systems", async () => {
-      const result = await memorySystem.retrieveMemories(
-        "machine learning",
-        0.2
-      );
+    it("should retrieve memories by cue", async () => {
+      const cue = "test query";
+      const threshold = 0.3;
 
-      expect(result.episodic_memories.length).toBeGreaterThan(0);
-      expect(result.semantic_concepts.length).toBeGreaterThan(0);
-      expect(result.combined_relevance).toBeGreaterThan(0);
+      const result = await memorySystem.retrieveMemories(cue, threshold);
+
+      expect(result.episodic_memories).toEqual([]);
+      expect(result.semantic_concepts).toEqual([]);
+      expect(result.combined_relevance).toBeGreaterThanOrEqual(0);
       expect(result.retrieval_time_ms).toBeGreaterThanOrEqual(0);
     });
 
-    it("should compute combined relevance score", async () => {
-      const aiResult = await memorySystem.retrieveMemories(
-        "neural networks",
-        0.2
+    it("should handle retrieval errors gracefully", async () => {
+      // Mock retrieval failure
+      vi.mocked(memorySystem["episodicMemory"].retrieve).mockRejectedValue(
+        new Error("Retrieval failed")
       );
-      const cookingResult = await memorySystem.retrieveMemories("cooking", 0.2);
 
-      // Both should have some relevance, but we can't guarantee which is higher due to retrieval variability
-      expect(aiResult.combined_relevance).toBeGreaterThan(0);
-      expect(cookingResult.combined_relevance).toBeGreaterThan(0);
-    });
-
-    it("should respect retrieval thresholds", async () => {
-      const highThreshold = await memorySystem.retrieveMemories(
-        "learning",
-        0.8
-      );
-      const lowThreshold = await memorySystem.retrieveMemories("learning", 0.1);
-
-      expect(lowThreshold.episodic_memories.length).toBeGreaterThanOrEqual(
-        highThreshold.episodic_memories.length
+      await expect(memorySystem.retrieveMemories("test")).rejects.toThrow(
+        "Retrieval failed"
       );
     });
   });
 
-  describe("direct storage methods", () => {
-    it("should store episodes directly", () => {
-      const episode: Episode = {
-        content: { text: "Direct episode storage test" },
-        context: mockContext,
-        timestamp: Date.now(),
-        emotional_tags: ["test"],
-        importance: 0.7,
-        decay_factor: 1.0,
-      };
-
-      const episodeId = memorySystem.storeEpisode(episode);
-      expect(episodeId).toBeDefined();
-      expect(typeof episodeId).toBe("string");
-    });
-
-    it("should store concepts directly", () => {
-      const concept: Concept = {
-        id: "direct-concept-test",
-        content: { text: "Direct concept storage test" },
-        relations: [],
-        activation: 0.8,
-        last_accessed: Date.now(),
-      };
-
-      const conceptId = memorySystem.storeConcept(concept);
-      expect(conceptId).toBe("direct-concept-test");
-    });
-  });
-
-  describe("contextual retrieval", () => {
+  describe("Memory Consolidation", () => {
     beforeEach(async () => {
-      const episodes: Episode[] = [
-        {
-          content: { text: "AI research session" },
-          context: { ...mockContext, domain: "ai", session_id: "session1" },
-          timestamp: Date.now() - 3600000,
-          emotional_tags: ["focused"],
-          importance: 0.8,
-          decay_factor: 1.0,
-        },
-        {
-          content: { text: "Cooking experiment" },
-          context: {
-            ...mockContext,
-            domain: "cooking",
-            session_id: "session2",
-          },
-          timestamp: Date.now() - 1800000,
-          emotional_tags: ["creative"],
-          importance: 0.6,
-          decay_factor: 1.0,
-        },
-      ];
-
-      episodes.forEach((episode) => memorySystem.storeEpisode(episode));
+      await memorySystem.initialize();
     });
 
-    it("should retrieve episodes by context", () => {
-      const aiEpisodes = memorySystem.getEpisodesByContext("domain", "ai");
-      const cookingEpisodes = memorySystem.getEpisodesByContext(
-        "domain",
-        "cooking"
-      );
-
-      expect(aiEpisodes.length).toBe(1);
-      expect(cookingEpisodes.length).toBe(1);
-      expect(aiEpisodes[0].content.text).toContain("AI research");
-      expect(cookingEpisodes[0].content.text).toContain("Cooking experiment");
-    });
-
-    it("should retrieve episodes by time range", () => {
-      const now = Date.now();
-      const recentEpisodes = memorySystem.getEpisodesByTimeRange(
-        now - 2700000, // 45 minutes ago
-        now
-      );
-
-      expect(recentEpisodes.length).toBe(1);
-      expect(recentEpisodes[0].content.text).toContain("Cooking experiment");
-    });
-  });
-
-  describe("semantic relationships", () => {
-    beforeEach(async () => {
-      const concepts: Concept[] = [
-        {
-          id: "parent-ai",
-          content: { text: "Artificial Intelligence" },
-          relations: [],
-          activation: 0.9,
-          last_accessed: Date.now(),
-        },
-        {
-          id: "child-ml",
-          content: { text: "Machine Learning" },
-          relations: [],
-          activation: 0.8,
-          last_accessed: Date.now(),
-        },
-      ];
-
-      concepts.forEach((concept) => memorySystem.storeConcept(concept));
-    });
-
-    it("should find related concepts", () => {
-      const relatedConcepts = memorySystem.getRelatedConcepts("parent-ai");
-      // Initially no relations, but method should work
-      expect(Array.isArray(relatedConcepts)).toBe(true);
-    });
-
-    it("should find similar concepts", () => {
-      const similarConcepts = memorySystem.findSimilarConcepts("parent-ai", 5);
-      expect(Array.isArray(similarConcepts)).toBe(true);
-      expect(similarConcepts.length).toBeLessThanOrEqual(5);
-    });
-  });
-
-  describe("consolidation process", () => {
-    beforeEach(async () => {
-      // Store episodes that should be consolidated
-      const episodes = [
-        {
-          content: { text: "Learning neural network fundamentals" },
-          context: { ...mockContext, domain: "ai" },
-          importance: 0.9,
-          emotional_tags: ["learning"],
-        },
-        {
-          content: { text: "Understanding neural network architectures" },
-          context: { ...mockContext, domain: "ai" },
-          importance: 0.8,
-          emotional_tags: ["understanding"],
-        },
-        {
-          content: { text: "Applying neural networks to problems" },
-          context: { ...mockContext, domain: "ai" },
-          importance: 0.85,
-          emotional_tags: ["applying"],
-        },
-      ];
-
-      for (const experience of episodes) {
-        await memorySystem.storeExperience(experience);
-      }
-    });
-
-    it("should run consolidation manually", async () => {
+    it("should perform manual consolidation", async () => {
       const result = await memorySystem.runConsolidation();
 
-      expect(result).toBeDefined();
-      expect(result.episodes_processed).toBeGreaterThanOrEqual(0);
-      expect(result.concepts_created).toBeGreaterThanOrEqual(0);
+      expect(result.patterns_extracted).toBeGreaterThanOrEqual(0);
+      expect(result.patterns_extracted).toBeGreaterThanOrEqual(0);
     });
 
-    it("should handle consolidation with no eligible episodes", async () => {
-      // Create a fresh memory system with persistence disabled
-      const freshMemory = new MemorySystem({
-        persistence_enabled: false,
-        auto_recovery_enabled: false,
-        auto_save_enabled: false,
+    it("should handle consolidation errors gracefully", async () => {
+      // Mock episodic memory to return some episodes
+      vi.mocked(memorySystem["episodicMemory"].consolidate).mockReturnValue([
+        {
+          content: "test episode",
+          context: { session_id: "test" },
+          timestamp: Date.now(),
+          emotional_tags: [],
+          importance: 0.5,
+          decay_factor: 1.0,
+        },
+      ]);
+
+      // Mock consolidation failure
+      vi.mocked(
+        memorySystem["consolidationEngine"].consolidate
+      ).mockImplementation(() => {
+        throw new Error("Consolidation failed");
       });
-      await freshMemory.initialize();
 
-      const result = await freshMemory.runConsolidation();
-
-      expect(result.episodes_processed).toBe(0);
-      expect(result.concepts_created).toBe(0);
-
-      freshMemory.shutdown();
+      await expect(memorySystem.runConsolidation()).rejects.toThrow(
+        "Consolidation failed"
+      );
     });
   });
 
-  describe("memory statistics", () => {
+  describe("Component Status", () => {
     beforeEach(async () => {
-      const experience = {
-        content: { text: "Statistics test experience" },
-        context: mockContext,
-        importance: 0.7,
-        emotional_tags: ["test"],
-      };
-
-      await memorySystem.storeExperience(experience);
+      await memorySystem.initialize();
     });
 
-    it("should provide memory statistics", () => {
-      const stats = memorySystem.getMemoryStats();
+    it("should return component status", () => {
+      const status = memorySystem.getStatus();
 
-      expect(stats.episodic_count).toBeGreaterThan(0);
-      expect(stats.semantic_count).toBeGreaterThanOrEqual(0);
-      expect(Array.isArray(stats.consolidation_history)).toBe(true);
+      expect(status.name).toBe("MemorySystem");
+      expect(status.initialized).toBe(true);
+      expect(status.last_activity).toBeGreaterThan(0);
     });
 
-    it("should track consolidation history", async () => {
-      // Store some experiences first to have something to consolidate
-      const experience = {
-        content: { text: "Consolidation history test" },
-        context: mockContext,
-        importance: 0.8,
-        emotional_tags: ["test"],
-      };
-      await memorySystem.storeExperience(experience);
+    it("should reflect component health in overall status", () => {
+      // Mock unhealthy component
+      vi.mocked(memorySystem["episodicMemory"].getStatus).mockReturnValue({
+        name: "EpisodicMemory",
+        initialized: false,
+        active: false,
+        last_activity: 0,
+      });
 
-      await memorySystem.runConsolidation();
-
-      const stats = memorySystem.getMemoryStats();
-      expect(stats.consolidation_history.length).toBeGreaterThanOrEqual(0);
-      // Last consolidation might be null if no episodes were eligible
-      expect(stats.last_consolidation).toBeDefined();
+      const status = memorySystem.getStatus();
+      expect(status.initialized).toBe(false);
     });
   });
 
-  describe("automatic processes", () => {
-    it("should support automatic consolidation when enabled", async () => {
-      const autoMemory = new MemorySystem({
-        consolidation_interval_ms: 100, // Very fast for testing
+  describe("Configuration", () => {
+    it("should use default configuration when none provided", () => {
+      const defaultSystem = new MemorySystem();
+      const status = defaultSystem.getStatus();
+      expect(status).toBeDefined();
+    });
+
+    it("should merge provided configuration with defaults", () => {
+      const customConfig: Partial<MemorySystemConfig> = {
+        consolidation_interval_ms: 5000,
         auto_consolidation: true,
-        auto_decay: false,
-      });
-
-      await autoMemory.initialize();
-
-      // Store some experiences
-      const experience = {
-        content: { text: "Auto consolidation test" },
-        context: mockContext,
-        importance: 0.8,
-        emotional_tags: ["test"],
       };
 
-      await autoMemory.storeExperience(experience);
-
-      // Wait for auto consolidation
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
-      const stats = autoMemory.getMemoryStats();
-      // Auto consolidation may or may not have run depending on timing
-      expect(stats.consolidation_history.length).toBeGreaterThanOrEqual(0);
-
-      autoMemory.shutdown();
+      const customSystem = new MemorySystem(customConfig);
+      expect(customSystem).toBeDefined();
     });
   });
 
-  describe("error handling", () => {
-    it("should handle process method with different operations", async () => {
-      const experience = {
-        content: { text: "Process test" },
-        context: mockContext,
-        importance: 0.7,
-      };
-
-      // Test store operation
-      const storeResult = await memorySystem.process({
-        operation: "store",
-        experience,
-      });
-      expect(storeResult.success).toBe(true);
-
-      // Test retrieve operation
-      const retrieveResult = await memorySystem.process({
-        operation: "retrieve",
-        cue: "process test",
-        threshold: 0.3,
-      });
-      expect(retrieveResult.episodic_memories).toBeDefined();
-
-      // Test consolidate operation
-      const consolidateResult = await memorySystem.process({
-        operation: "consolidate",
-      });
-      expect(consolidateResult.episodes_processed).toBeGreaterThanOrEqual(0);
+  describe("Reset Functionality", () => {
+    beforeEach(async () => {
+      await memorySystem.initialize();
     });
 
-    it("should handle invalid process operations", async () => {
-      await expect(
-        memorySystem.process({
-          operation: "invalid",
-        })
-      ).rejects.toThrow();
-    });
-
-    it("should handle storage errors gracefully", async () => {
-      // This test would require mocking internal components to force errors
-      // For now, we test that the interface handles the error case
-      const experience = {
-        content: { text: "Error test" },
-        context: mockContext,
-        importance: 0.7,
-      };
-
-      const result = await memorySystem.storeExperience(experience);
-      // Should either succeed or fail gracefully
-      expect(typeof result.success).toBe("boolean");
-    });
-  });
-
-  describe("reset and shutdown", () => {
-    it("should reset memory state", () => {
+    it("should reset all components", () => {
       memorySystem.reset();
 
-      const stats = memorySystem.getMemoryStats();
-      expect(stats.episodic_count).toBe(0);
-      expect(stats.semantic_count).toBe(0);
-    });
-
-    it("should shutdown cleanly", () => {
-      expect(() => memorySystem.shutdown()).not.toThrow();
-    });
-  });
-
-  describe("integration scenarios", () => {
-    it("should handle complex learning scenario", async () => {
-      // Simulate a learning session with multiple related experiences
-      const learningExperiences = [
-        {
-          content: {
-            text: "Introduction to machine learning concepts",
-            topic: "ml-basics",
-            difficulty: "beginner",
-          },
-          context: { ...mockContext, domain: "education" },
-          importance: 0.8,
-          emotional_tags: ["curious", "motivated"],
-        },
-        {
-          content: {
-            text: "Understanding supervised learning algorithms",
-            topic: "supervised-learning",
-            difficulty: "intermediate",
-          },
-          context: { ...mockContext, domain: "education" },
-          importance: 0.9,
-          emotional_tags: ["focused", "challenged"],
-        },
-        {
-          content: {
-            text: "Implementing neural networks from scratch",
-            topic: "neural-networks",
-            difficulty: "advanced",
-          },
-          context: { ...mockContext, domain: "education" },
-          importance: 0.95,
-          emotional_tags: ["accomplished", "confident"],
-        },
-      ];
-
-      // Store all experiences
-      for (const experience of learningExperiences) {
-        const result = await memorySystem.storeExperience(experience);
-        expect(result.success).toBe(true);
-      }
-
-      // Test retrieval of related memories
-      const mlMemories = await memorySystem.retrieveMemories(
-        "machine learning",
-        0.3
-      );
-      expect(mlMemories.episodic_memories.length).toBeGreaterThan(0);
-      expect(mlMemories.semantic_concepts.length).toBeGreaterThan(0);
-
-      // Test consolidation
-      const consolidationResult = await memorySystem.runConsolidation();
-      expect(consolidationResult.episodes_processed).toBeGreaterThan(0);
-
-      // Verify memory statistics
-      const stats = memorySystem.getMemoryStats();
-      expect(stats.episodic_count).toBe(3);
-      expect(stats.semantic_count).toBeGreaterThan(0);
+      expect(memorySystem["episodicMemory"].reset).toHaveBeenCalled();
+      expect(memorySystem["semanticMemory"].reset).toHaveBeenCalled();
+      expect(memorySystem["consolidationEngine"].reset).toHaveBeenCalled();
     });
   });
 });

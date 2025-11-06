@@ -45,7 +45,7 @@ describe("MCP Protocol Compliance Integration Tests", () => {
       ];
 
       requiredTools.forEach((toolName) => {
-        const schema = TOOL_SCHEMAS[toolName];
+        const schema = TOOL_SCHEMAS[toolName as keyof typeof TOOL_SCHEMAS];
 
         // Verify schema structure
         expect(schema).toBeDefined();
@@ -55,8 +55,8 @@ describe("MCP Protocol Compliance Integration Tests", () => {
         expect(schema.inputSchema).toBeDefined();
         expect(schema.inputSchema.type).toBe("object");
         expect(schema.inputSchema.properties).toBeDefined();
-        expect(schema.inputSchema.required).toBeDefined();
-        expect(Array.isArray(schema.inputSchema.required)).toBe(true);
+        expect((schema.inputSchema as any).required).toBeDefined();
+        expect(Array.isArray((schema.inputSchema as any).required)).toBe(true);
       });
     });
 
@@ -386,9 +386,9 @@ describe("MCP Protocol Compliance Integration Tests", () => {
         expect(true).toBe(false); // Should not reach here
       } catch (error) {
         expect(error).toBeInstanceOf(Error);
-        expect(error.message).toBeDefined();
-        expect(typeof error.message).toBe("string");
-        expect(error.message.length).toBeGreaterThan(0);
+        expect((error as Error).message).toBeDefined();
+        expect(typeof (error as Error).message).toBe("string");
+        expect((error as Error).message.length).toBeGreaterThan(0);
       }
     });
 
@@ -496,7 +496,6 @@ describe("MCP Protocol Compliance Integration Tests", () => {
       expect(results.length).toBe(requestCount);
 
       // Verify each response is properly structured and unique
-      const contents = new Set();
       results.forEach((result, index) => {
         expect(result).toBeDefined();
         expect(result.content).toBeDefined();

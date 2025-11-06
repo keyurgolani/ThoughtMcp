@@ -250,7 +250,7 @@ export class CreativeReasoningStream
     if (
       insights.some(
         (insight) =>
-          insight.includes("technology") || insight.includes("digital")
+          insight.includes("technology") ?? insight.includes("digital")
       )
     ) {
       solutions.push({

@@ -92,6 +92,10 @@ async function validateMCPConfig() {
     console.log("   npx thoughtmcp@latest");
     console.log("\nOr in your MCP configuration:");
     console.log('   "command": "npx", "args": ["thoughtmcp@latest"]');
+
+    // Properly shutdown the server
+    await server.shutdown();
+    process.exit(0);
   } catch (error) {
     console.error("\n❌ Configuration validation failed:");
     console.error(`   Error: ${error.message}`);

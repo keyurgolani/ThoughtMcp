@@ -91,7 +91,7 @@ export class IntuitiveProcessor implements ISystem1Processor {
           type: "anchoring",
           confidence: firstPattern ? firstPattern.confidence * 0.9 : 0.2,
           result: `Anchored on first impression: ${
-            firstPattern?.content.join(" ") || "none"
+            firstPattern?.content.join(" ") ?? "none"
           }`,
           processing_time: 1,
         };
@@ -103,7 +103,7 @@ export class IntuitiveProcessor implements ISystem1Processor {
       const emotionalPatterns = patterns.filter((p) => p.type === "emotional");
       const avgSalience =
         emotionalPatterns.reduce((sum, p) => sum + p.salience, 0) /
-          emotionalPatterns.length || 0;
+        (emotionalPatterns.length || 1);
       return {
         name: "affect",
         type: "affect",
@@ -166,8 +166,9 @@ export class IntuitiveProcessor implements ISystem1Processor {
 
   matchPatterns(input: string): Pattern[] {
     // Check cache first
-    if (this.patternCache.has(input)) {
-      return this.patternCache.get(input)!;
+    const cachedPatterns = this.patternCache.get(input);
+    if (cachedPatterns) {
+      return cachedPatterns;
     }
 
     const patterns: Pattern[] = [];
@@ -598,7 +599,7 @@ export class IntuitiveProcessor implements ISystem1Processor {
         steps.push({
           type: ReasoningType.PROBABILISTIC,
           content: `Availability heuristic suggests high probability based on ease of recall`,
-          confidence: heuristicResults.availability?.confidence || 0.5,
+          confidence: heuristicResults.availability?.confidence ?? 0.5,
           alternatives: [],
         });
       }
@@ -607,7 +608,7 @@ export class IntuitiveProcessor implements ISystem1Processor {
         steps.push({
           type: ReasoningType.ANALOGICAL,
           content: `Representativeness suggests similarity to known prototypes`,
-          confidence: heuristicResults.representativeness?.confidence || 0.5,
+          confidence: heuristicResults.representativeness?.confidence ?? 0.5,
           alternatives: [],
         });
       }

@@ -4,8 +4,8 @@
  * Provides ready-to-use configurations for common cognitive tasks
  * and scenarios, making it easy for users to get started quickly.
  *
- * Note: This file uses 'any' types for flexible preset configurations.
- * TODO: Refactor to use proper generic types in future iteration.
+ * Note: This file uses 'any' types for flexible preset configurations across different use cases.
+ * The preset system needs to handle diverse configuration structures dynamically.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -491,19 +491,30 @@ export class PresetConfigurationManager {
     });
 
     // Update category preset lists
-    this.categories.get("decision_making")!.presets = [
-      "career_decision",
-      "investment_choice",
-    ];
-    this.categories.get("problem_solving")!.presets = [
-      "technical_problem",
-      "business_challenge",
-    ];
-    this.categories.get("creativity")!.presets = ["brainstorming"];
-    this.categories.get("learning")!.presets = ["learn_technology"];
-    this.categories.get("memory_management")!.presets = [
-      "performance_optimization",
-    ];
+    const decisionMaking = this.categories.get("decision_making");
+    if (decisionMaking) {
+      decisionMaking.presets = ["career_decision", "investment_choice"];
+    }
+
+    const problemSolving = this.categories.get("problem_solving");
+    if (problemSolving) {
+      problemSolving.presets = ["technical_problem", "business_challenge"];
+    }
+
+    const creativity = this.categories.get("creativity");
+    if (creativity) {
+      creativity.presets = ["brainstorming"];
+    }
+
+    const learning = this.categories.get("learning");
+    if (learning) {
+      learning.presets = ["learn_technology"];
+    }
+
+    const memoryManagement = this.categories.get("memory_management");
+    if (memoryManagement) {
+      memoryManagement.presets = ["performance_optimization"];
+    }
   }
 
   getAvailableCategories(): PresetCategory[] {
@@ -516,11 +527,11 @@ export class PresetConfigurationManager {
 
     return category.presets
       .map((presetId) => this.presets.get(presetId))
-      .filter((preset) => preset !== undefined) as PresetConfiguration[];
+      .filter((preset) => preset !== undefined);
   }
 
   getPreset(presetId: string): PresetConfiguration | null {
-    return this.presets.get(presetId) || null;
+    return this.presets.get(presetId) ?? null;
   }
 
   getAllPresets(): PresetConfiguration[] {
@@ -531,8 +542,8 @@ export class PresetConfigurationManager {
     const queryLower = query.toLowerCase();
     return Array.from(this.presets.values()).filter(
       (preset) =>
-        preset.name.toLowerCase().includes(queryLower) ||
-        preset.description.toLowerCase().includes(queryLower) ||
+        preset.name.toLowerCase().includes(queryLower) ??
+        preset.description.toLowerCase().includes(queryLower) ??
         preset.use_cases.some((useCase) =>
           useCase.toLowerCase().includes(queryLower)
         )

@@ -144,7 +144,7 @@ export class TestCleanup {
    * Clean up specific brain directory
    */
   static async cleanupBrainDir(brainDir?: string): Promise<void> {
-    const targetDir = brainDir || process.env.COGNITIVE_BRAIN_DIR;
+    const targetDir = brainDir ?? process.env.COGNITIVE_BRAIN_DIR;
     if (targetDir) {
       try {
         await fs.rm(targetDir, { recursive: true, force: true });

@@ -18,6 +18,7 @@ import {
   RecoveryResult,
 } from "../../interfaces/forgetting.js";
 import { Concept, Episode } from "../../types/core.js";
+import { CognitiveLogger } from "../../utils/logger.js";
 
 export interface GradualDegradationManagerConfig {
   default_stages: DegradationStage[];
@@ -34,6 +35,7 @@ export class GradualDegradationManager implements IGradualDegradationManager {
   private recoveryMetadataStore: Map<string, RecoveryMetadata> = new Map();
   private executionTimer?: NodeJS.Timeout;
   private processCounter: number = 0;
+  private logger = CognitiveLogger.getInstance();
 
   constructor(config?: Partial<GradualDegradationManagerConfig>) {
     this.config = {
@@ -111,7 +113,7 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     const memoryId = this.getMemoryId(memory);
 
     // Use provided stages or default stages
-    const degradationStages = stages || this.config.default_stages;
+    const degradationStages = stages ?? this.config.default_stages;
 
     // Filter stages to reach target degradation level
     const filteredStages = this.filterStagesToTarget(
@@ -130,12 +132,12 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     // Create initial degradation status
     const status: DegradationStatus = {
       memory_id: memoryId,
-      current_stage: filteredStages[0]?.stage_id || "none",
+      current_stage: filteredStages[0]?.stage_id ?? "none",
       degradation_level: 0,
       stages_completed: [],
       next_stage: filteredStages[0]?.stage_id,
       next_stage_scheduled_time:
-        Date.now() + (filteredStages[0]?.duration_ms || 0),
+        Date.now() + (filteredStages[0]?.duration_ms ?? 0),
       is_paused: false,
       is_reversible: true,
       recovery_metadata: recoveryMetadata,
@@ -158,7 +160,8 @@ export class GradualDegradationManager implements IGradualDegradationManager {
 
     // Log the initiation
     if (this.config.enable_degradation_logging) {
-      console.log(
+      this.logger.info(
+        "GradualDegradationManager",
         `Initiated gradual degradation for memory ${memoryId} with ${filteredStages.length} stages`
       );
     }
@@ -215,7 +218,7 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     process.status.is_reversible = process.status.stages_completed.every(
       (stageId) => {
         const stage = process.stages.find((s) => s.stage_id === stageId);
-        return stage?.reversible || false;
+        return stage?.reversible ?? false;
       }
     );
 
@@ -223,7 +226,8 @@ export class GradualDegradationManager implements IGradualDegradationManager {
 
     // Log the stage execution
     if (this.config.enable_degradation_logging) {
-      console.log(
+      this.logger.info(
+        "GradualDegradationManager",
         `Executed degradation stage ${currentStage.stage_id} for memory ${process.memory_id}. ` +
           `Degradation level: ${process.status.degradation_level.toFixed(2)}`
       );
@@ -242,7 +246,10 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     process.last_updated_timestamp = Date.now();
 
     if (this.config.enable_degradation_logging) {
-      console.log(`Paused degradation process ${process_id}`);
+      this.logger.info(
+        "GradualDegradationManager",
+        `Paused degradation process ${process_id}`
+      );
     }
   }
 
@@ -265,7 +272,10 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     }
 
     if (this.config.enable_degradation_logging) {
-      console.log(`Resumed degradation process ${process_id}`);
+      this.logger.info(
+        "GradualDegradationManager",
+        `Resumed degradation process ${process_id}`
+      );
     }
   }
 
@@ -285,7 +295,8 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     this.activeProcesses.delete(process_id);
 
     if (this.config.enable_degradation_logging) {
-      console.log(
+      this.logger.info(
+        "GradualDegradationManager",
         `Cancelled degradation process ${process_id}. Recovery success: ${recoveryResult.success}`
       );
     }
@@ -319,7 +330,8 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     }, this.config.execution_interval_ms);
 
     if (this.config.enable_degradation_logging) {
-      console.log(
+      this.logger.info(
+        "GradualDegradationManager",
         `Scheduled automatic degradation execution every ${this.config.execution_interval_ms}ms`
       );
     }
@@ -330,7 +342,7 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     degradation_level: number,
     memoryId?: string
   ): Promise<RecoveryMetadata> {
-    const finalMemoryId = memoryId || this.getMemoryId(memory);
+    const finalMemoryId = memoryId ?? this.getMemoryId(memory);
     const contentHash = this.generateContentHash(memory);
 
     // Extract recovery cues
@@ -362,7 +374,7 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     };
 
     // Store recovery metadata
-    this.recoveryMetadataStore.set(memoryId, recoveryMetadata);
+    this.recoveryMetadataStore.set(finalMemoryId, recoveryMetadata);
 
     return recoveryMetadata;
   }
@@ -381,9 +393,11 @@ export class GradualDegradationManager implements IGradualDegradationManager {
         try {
           await this.executeNextStage(process.process_id);
         } catch (error) {
-          console.error(
-            `Error executing scheduled degradation stage for process ${process.process_id}:`,
-            error
+          this.logger.error(
+            "GradualDegradationManager",
+            `Error executing scheduled degradation stage for process ${
+              process.process_id
+            }: ${error instanceof Error ? error.message : String(error)}`
           );
         }
       }
@@ -426,7 +440,10 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     // Simplified recovery attempt - in a real implementation, this would
     // use the recovery cues and association fingerprint to reconstruct the memory
     // The memoryId parameter would be used to identify the memory to recover
-    console.log(`Attempting recovery for memory: ${memoryId}`);
+    this.logger.info(
+      "GradualDegradationManager",
+      `Attempting recovery for memory: ${memoryId}`
+    );
 
     const recoveryConfidence =
       this.calculateRecoveryConfidence(recoveryMetadata);
@@ -658,7 +675,10 @@ export class GradualDegradationManager implements IGradualDegradationManager {
     }
 
     if (this.config.enable_degradation_logging) {
-      console.log("Gradual degradation manager cleanup completed");
+      this.logger.info(
+        "GradualDegradationManager",
+        "Gradual degradation manager cleanup completed"
+      );
     }
   }
 }

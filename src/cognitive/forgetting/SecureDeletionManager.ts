@@ -43,7 +43,7 @@ export class SecureDeletionManager implements ISecureDeletionManager {
         case "overwrite":
           verification_passed = await this.performOverwriteDeletion(
             content,
-            options.overwrite_passes || 3
+            options.overwrite_passes ?? 3
           );
           break;
 
@@ -426,7 +426,7 @@ export class SecureDeletionManager implements ISecureDeletionManager {
       // Count compliance standards
       for (const standard of record.compliance_attestation.standards_met) {
         compliance_standards_coverage[standard] =
-          (compliance_standards_coverage[standard] || 0) + 1;
+          (compliance_standards_coverage[standard] ?? 0) + 1;
       }
     }
 

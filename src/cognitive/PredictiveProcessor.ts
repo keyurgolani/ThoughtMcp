@@ -80,10 +80,10 @@ export class PredictiveProcessor implements IPredictiveProcessor {
   async initialize(config: Record<string, unknown>): Promise<void> {
     try {
       this.prediction_error_threshold =
-        (config?.prediction_error_threshold as number) || 0.3;
-      this.learning_rate = (config?.learning_rate as number) || 0.1;
-      this.confidence_decay = (config?.confidence_decay as number) || 0.95;
-      this.max_history_size = (config?.max_history_size as number) || 1000;
+        (config?.prediction_error_threshold as number) ?? 0.3;
+      this.learning_rate = (config?.learning_rate as number) ?? 0.1;
+      this.confidence_decay = (config?.confidence_decay as number) ?? 0.95;
+      this.max_history_size = (config?.max_history_size as number) ?? 1000;
 
       // Initialize hierarchical levels
       await this.initializeHierarchicalLevels();
@@ -227,7 +227,7 @@ export class PredictiveProcessor implements IPredictiveProcessor {
 
     // Bayesian update of model parameters
     const context_key = this.getContextKey(prediction.context);
-    const current_belief = model.prior_beliefs.get(context_key) || 0.5;
+    const current_belief = model.prior_beliefs.get(context_key) ?? 0.5;
 
     // Compute likelihood based on error
     const likelihood = 1 - error; // Lower error = higher likelihood
@@ -406,7 +406,7 @@ export class PredictiveProcessor implements IPredictiveProcessor {
     const model = level.model;
     const context_key = this.getContextKey(context);
     // Get prior belief for this context (currently unused but available for future enhancements)
-    model.prior_beliefs.get(context_key) || 0.5;
+    model.prior_beliefs.get(context_key) ?? 0.5;
 
     // Generate different types of predictions based on level
     switch (level.level) {
@@ -433,7 +433,7 @@ export class PredictiveProcessor implements IPredictiveProcessor {
   ): Prediction[] {
     const predictions: Prediction[] = [];
     const context_key = this.getContextKey(context);
-    const prior_belief = model.prior_beliefs.get(context_key) || 0.5;
+    const prior_belief = model.prior_beliefs.get(context_key) ?? 0.5;
 
     // Generate predictions based on model type
     switch (model.id) {
@@ -566,8 +566,8 @@ export class PredictiveProcessor implements IPredictiveProcessor {
     ]);
 
     all_features.forEach((feature) => {
-      const pred_value = predicted.get(feature) || 0;
-      const actual_value = actual.get(feature) || 0;
+      const pred_value = predicted.get(feature) ?? 0;
+      const actual_value = actual.get(feature) ?? 0;
       const error = Math.abs(pred_value - actual_value);
       errors.set(feature, error);
     });
@@ -595,7 +595,7 @@ export class PredictiveProcessor implements IPredictiveProcessor {
   }
 
   private getContextKey(context: Context): string {
-    return `${context.domain || "general"}_${context.complexity || 0.5}`;
+    return `${context.domain ?? "general"}_${context.complexity ?? 0.5}`;
   }
 
   private updateModelParameters(
@@ -607,7 +607,7 @@ export class PredictiveProcessor implements IPredictiveProcessor {
     const learning_rate = this.learning_rate * (1 - model.confidence);
 
     // Update sensitivity based on error
-    const current_sensitivity = model.parameters.get("sensitivity") || 0.5;
+    const current_sensitivity = model.parameters.get("sensitivity") ?? 0.5;
     const sensitivity_update = current_sensitivity - learning_rate * error;
     model.parameters.set(
       "sensitivity",
@@ -616,7 +616,7 @@ export class PredictiveProcessor implements IPredictiveProcessor {
 
     // Update context weight based on prediction confidence
     const current_context_weight =
-      model.parameters.get("context_weight") || 0.4;
+      model.parameters.get("context_weight") ?? 0.4;
     const context_update =
       current_context_weight + learning_rate * (prediction.confidence - 0.5);
     model.parameters.set(
@@ -711,7 +711,7 @@ export class PredictiveProcessor implements IPredictiveProcessor {
         ["of", 0.1],
         ["to", 0.08],
       ]),
-      semantic_category: context.domain || "general",
+      semantic_category: context.domain ?? "general",
     };
   }
 

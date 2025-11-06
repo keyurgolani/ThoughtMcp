@@ -18,6 +18,7 @@ import {
   Context,
   EmotionalState,
   ProcessingMode,
+  ProcessingModeValue,
   ReasoningStep,
   ReasoningType,
   ThoughtMetadata,
@@ -147,7 +148,7 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
     this.systematicThinkingOrchestrator = new SystematicThinkingOrchestrator();
 
     this.currentProcessingMode =
-      this.config.default_processing_mode || ProcessingMode.BALANCED;
+      this.config.default_processing_mode ?? ProcessingMode.BALANCED;
   }
 
   /**
@@ -172,15 +173,15 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
    */
   async initializeComponents(): Promise<void> {
     const componentConfigs = {
-      sensoryProcessor: this.config.sensory_processor || {},
-      workingMemory: this.config.working_memory || {},
-      memorySystem: this.config.memory_system || {},
-      emotionalProcessor: this.config.emotional_processor || {},
-      predictiveProcessor: this.config.predictive_processor || {},
-      stochasticProcessor: this.config.stochastic_processor || {},
-      systematicThinkingOrchestrator: this.config.systematic_thinking || {},
-      metacognitionModule: this.config.metacognition || {},
-      dualProcessController: this.config.dual_process || {},
+      sensoryProcessor: this.config.sensory_processor ?? {},
+      workingMemory: this.config.working_memory ?? {},
+      memorySystem: this.config.memory_system ?? {},
+      emotionalProcessor: this.config.emotional_processor ?? {},
+      predictiveProcessor: this.config.predictive_processor ?? {},
+      stochasticProcessor: this.config.stochastic_processor ?? {},
+      systematicThinkingOrchestrator: this.config.systematic_thinking ?? {},
+      metacognitionModule: this.config.metacognition ?? {},
+      dualProcessController: this.config.dual_process ?? {},
     };
 
     // Initialize components in dependency order
@@ -299,7 +300,7 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
       const memoryStartTime = Date.now();
       const memoryRetrievalResult = await this.memorySystem.retrieveMemories(
         input.input,
-        input.configuration.memory_retrieval_threshold || 0.3
+        input.configuration.memory_retrieval_threshold ?? 0.3
       );
       const memoryProcessingTime = Date.now() - memoryStartTime;
 
@@ -343,7 +344,7 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
       // Calculate working memory load (simplified)
       const wmLoad = Math.min(
         1.0,
-        (workingMemoryState.active_chunks?.length || 0) / 7
+        (workingMemoryState.active_chunks?.length ?? 0) / 7
       );
 
       this.logger.logThoughtProcess(
@@ -393,7 +394,8 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
       );
 
       // Phase 5: Systematic Thinking (if enabled and appropriate)
-      let systematicThinkingResult = null;
+      let systematicThinkingResult: SystematicAnalysisResult | undefined =
+        undefined;
       if (
         input.configuration.enable_systematic_thinking &&
         this.shouldUseSystematicThinking(input, workingMemoryState)
@@ -413,7 +415,7 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
         systematicThinkingResult =
           await this.systematicThinkingOrchestrator.analyzeSystematically(
             input.input,
-            input.configuration.systematic_thinking_mode || "auto",
+            input.configuration.systematic_thinking_mode ?? "auto",
             input.context
           );
         const systematicProcessingTime = Date.now() - systematicStartTime;
@@ -782,7 +784,7 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
 
   private cleanupExpiredSessions(): void {
     const now = Date.now();
-    const timeout = this.config.session_timeout_ms || 3600000;
+    const timeout = this.config.session_timeout_ms ?? 3600000;
 
     for (const [sessionId, session] of this.sessions.entries()) {
       if (now - session.last_activity > timeout) {
@@ -818,7 +820,7 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
           0.1,
           Math.min(
             1.0,
-            stochasticOutput.processed_signal[index] || step.confidence
+            stochasticOutput.processed_signal[index] ?? step.confidence
           )
         ),
         metadata: {
@@ -979,7 +981,7 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
     result: ThoughtResult,
     processingTime: number,
     memoryRetrievals: number,
-    inputMode?: ProcessingMode,
+    inputMode?: ProcessingModeValue,
     systematicThinkingResult?: SystematicAnalysisResult
   ): ThoughtResult {
     const metadata: ThoughtMetadata = {
@@ -998,7 +1000,7 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
         "CognitiveOrchestrator",
       ],
       memory_retrievals: memoryRetrievals,
-      system_mode: inputMode || this.currentProcessingMode,
+      system_mode: inputMode ?? this.currentProcessingMode,
       systematic_thinking_result: systematicThinkingResult
         ? {
             framework_used:
@@ -1116,7 +1118,8 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
       input.input
     );
     const isAnalyticalMode = input.mode === ProcessingMode.ANALYTICAL;
-    const highWorkingMemoryLoad = workingMemoryState?.active_chunks?.length > 5;
+    const highWorkingMemoryLoad =
+      (workingMemoryState?.active_chunks?.length ?? 0) > 5;
 
     return (
       isAnalyticalMode ||
@@ -1124,7 +1127,7 @@ export class CognitiveOrchestrator implements ICognitiveOrchestrator {
       hasMultipleSteps ||
       inputLength > 200 ||
       highWorkingMemoryLoad ||
-      (input.context.complexity && input.context.complexity > 0.6)
+      (input.context.complexity ?? 0) > 0.6
     );
   }
 }

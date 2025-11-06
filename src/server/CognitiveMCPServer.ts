@@ -37,17 +37,17 @@ import {
   Problem,
   SystematicThinkingMode,
 } from "../interfaces/systematic-thinking.js";
-import type {
-  CognitiveConfig,
-  CognitiveInput,
-  Concept,
-  Context,
-  Episode,
-  MemoryChunk,
-  ReasoningStep,
-  ThoughtResult,
+import {
+  ProcessingMode,
+  type CognitiveConfig,
+  type CognitiveInput,
+  type Concept,
+  type Context,
+  type Episode,
+  type MemoryChunk,
+  type ReasoningStep,
+  type ThoughtResult,
 } from "../types/core.js";
-import { ProcessingMode } from "../types/core.js";
 import {
   AnalysisResult,
   AnalyzeMemoryUsageArgs,
@@ -75,6 +75,7 @@ import {
 } from "../types/mcp.js";
 import { ConfigManager } from "../utils/config.js";
 import { ErrorHandler } from "../utils/ErrorHandler.js";
+import { CognitiveLogger } from "../utils/logger.js";
 import { ParameterValidator } from "../utils/ParameterValidator.js";
 import {
   PerformanceMonitor,
@@ -89,6 +90,7 @@ import { getVersion } from "../utils/version.js";
 export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   private server: Server;
   private initialized: boolean = false;
+  private logger: CognitiveLogger;
   private cognitiveOrchestrator: CognitiveOrchestrator;
   private memorySystem: MemorySystem;
   private performanceMonitor: PerformanceMonitor;
@@ -104,6 +106,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   private configManager: ConfigManager;
 
   constructor(performanceThresholds?: Partial<PerformanceThresholds>) {
+    this.logger = CognitiveLogger.getInstance();
     this.server = new Server(
       {
         name: "thoughtmcp",
@@ -172,7 +175,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     }
 
     this.initialized = true;
-    console.error("Cognitive MCP Server initialized successfully");
+    this.logger.info(
+      "CognitiveMCPServer",
+      "Cognitive MCP Server initialized successfully"
+    );
   }
 
   registerTools(): void {
@@ -185,7 +191,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
           inputSchema: schema.inputSchema,
         }));
 
-        console.error(
+        this.logger.info(
+          "CognitiveMCPServer",
           `Registered ${tools.length} cognitive tools: ${tools
             .map((t) => t.name)
             .join(", ")}`
@@ -269,10 +276,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               result = await this.handleThink(this.validateThinkArgs(args));
               measurement.recordCognitiveMetrics({
                 confidenceScore: result.confidence,
-                reasoningDepth: result.reasoning_path?.length || 0,
-                memoryRetrievals: result.metadata?.memory_retrievals || 0,
+                reasoningDepth: result.reasoning_path?.length ?? 0,
+                memoryRetrievals: result.metadata?.memory_retrievals ?? 0,
                 workingMemoryLoad:
-                  (result.metadata?.working_memory_load as number) || 0,
+                  (result.metadata?.working_memory_load as number) ?? 0,
                 emotionalProcessingTime: result.metadata
                   ?.emotional_processing_time as number | undefined,
                 metacognitionTime: result.metadata?.metacognition_time as
@@ -287,7 +294,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 thinkMetrics.responseTime,
                 {
                   requestId,
-                  verbosityLevel: thinkArgs.verbosity || "standard",
+                  verbosityLevel: thinkArgs.verbosity ?? "standard",
                   includeExecutiveSummary: thinkArgs.include_executive_summary,
                 }
               );
@@ -316,7 +323,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               measurement.recordCognitiveMetrics({
                 confidenceScore: result.memories?.length > 0 ? 0.8 : 0.3,
                 reasoningDepth: 1,
-                memoryRetrievals: result.memories?.length || 0,
+                memoryRetrievals: result.memories?.length ?? 0,
                 workingMemoryLoad: 0.3,
               });
               measurement.complete();
@@ -331,10 +338,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 this.validateAnalyzeReasoningArgs(args)
               );
               measurement.recordCognitiveMetrics({
-                confidenceScore:
-                  (result as AnalysisResult).coherence_score || 0.5,
-                reasoningDepth:
-                  (result as AnalysisResult).detected_biases?.length || 0,
+                confidenceScore: result.coherence_score ?? 0.5,
+                reasoningDepth: result.detected_biases?.length ?? 0,
                 memoryRetrievals: 0,
                 workingMemoryLoad: 0.7,
                 metacognitionTime: 100,
@@ -347,8 +352,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 analyzeMetrics.responseTime,
                 {
                   requestId,
-                  verbosityLevel: analyzeArgs.verbosity || "standard",
-                  confidence: (result as AnalysisResult).coherence_score,
+                  verbosityLevel: analyzeArgs.verbosity ?? "standard",
+                  confidence: result.coherence_score,
                   includeExecutiveSummary:
                     analyzeArgs.include_executive_summary !== false,
                   filteringOptions: {
@@ -367,10 +372,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               result = await this.handleAnalyzeSystematically(
                 this.validateAnalyzeSystematicallyArgs(args)
               );
-              const systematicResult = result as SystematicAnalysisResult;
+              const systematicResult = result;
               measurement.recordCognitiveMetrics({
-                confidenceScore: systematicResult.confidence || 0.7,
-                reasoningDepth: systematicResult.analysis_steps?.length || 0,
+                confidenceScore: systematicResult.confidence ?? 0.7,
+                reasoningDepth: systematicResult.analysis_steps?.length ?? 0,
                 memoryRetrievals: 0,
                 workingMemoryLoad: 0.8,
                 metacognitionTime: systematicResult.processing_time_ms ?? 0,
@@ -384,7 +389,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 systematicMetrics.responseTime,
                 {
                   requestId,
-                  verbosityLevel: systematicArgs.verbosity || "standard",
+                  verbosityLevel: systematicArgs.verbosity ?? "standard",
                   confidence: systematicResult.confidence,
                   includeExecutiveSummary:
                     systematicArgs.include_executive_summary !== false,
@@ -404,10 +409,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               result = await this.handleThinkParallel(
                 this.validateThinkParallelArgs(args)
               );
-              const parallelResult = result as ParallelReasoningResult;
+              const parallelResult = result;
               measurement.recordCognitiveMetrics({
-                confidenceScore: parallelResult.confidence || 0.7,
-                reasoningDepth: parallelResult.stream_results?.length || 0,
+                confidenceScore: parallelResult.confidence ?? 0.7,
+                reasoningDepth: parallelResult.stream_results?.length ?? 0,
                 memoryRetrievals: 0,
                 workingMemoryLoad: 0.9,
                 metacognitionTime: parallelResult.processing_time_ms ?? 0,
@@ -420,7 +425,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 parallelMetrics.responseTime,
                 {
                   requestId,
-                  verbosityLevel: parallelArgs.verbosity || "standard",
+                  verbosityLevel: parallelArgs.verbosity ?? "standard",
                   confidence: parallelResult.confidence,
                   includeExecutiveSummary:
                     parallelArgs.include_executive_summary !== false,
@@ -440,12 +445,11 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               result = await this.handleThinkProbabilistic(
                 this.validateThinkProbabilisticArgs(args)
               );
-              const probabilisticResult =
-                result as ProbabilisticReasoningResult;
+              const probabilisticResult = result;
               measurement.recordCognitiveMetrics({
-                confidenceScore: probabilisticResult.confidence || 0.5,
+                confidenceScore: probabilisticResult.confidence ?? 0.5,
                 reasoningDepth:
-                  probabilisticResult.reasoning_chain?.steps?.length || 0,
+                  probabilisticResult.reasoning_chain?.steps?.length ?? 0,
                 memoryRetrievals: 0,
                 workingMemoryLoad: 0.8,
                 metacognitionTime: probabilisticResult.processing_time_ms ?? 0,
@@ -459,7 +463,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 probabilisticMetrics.responseTime,
                 {
                   requestId,
-                  verbosityLevel: probabilisticArgs.verbosity || "standard",
+                  verbosityLevel: probabilisticArgs.verbosity ?? "standard",
                   confidence: probabilisticResult.confidence,
                   includeExecutiveSummary:
                     probabilisticArgs.include_executive_summary !== false,
@@ -479,11 +483,11 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               result = await this.handleDecomposeProblem(
                 this.validateDecomposeProblemArgs(args)
               );
-              const decompositionResult = result as DecompositionResult;
+              const decompositionResult = result;
               measurement.recordCognitiveMetrics({
-                confidenceScore: decompositionResult.confidence || 0.7,
+                confidenceScore: decompositionResult.confidence ?? 0.7,
                 reasoningDepth:
-                  decompositionResult.hierarchical_structure?.length || 0,
+                  decompositionResult.hierarchical_structure?.length ?? 0,
                 memoryRetrievals: 0,
                 workingMemoryLoad: 0.8,
                 metacognitionTime: decompositionResult.processing_time_ms ?? 0,
@@ -496,7 +500,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 decompositionMetrics.responseTime,
                 {
                   requestId,
-                  verbosityLevel: decompositionArgs.verbosity || "standard",
+                  verbosityLevel: decompositionArgs.verbosity ?? "standard",
                   confidence: decompositionResult.confidence,
                   includeExecutiveSummary:
                     decompositionArgs.include_executive_summary !== false,
@@ -516,7 +520,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               result = await this.handleAnalyzeMemoryUsage(
                 this.validateAnalyzeMemoryUsageArgs(args)
               );
-              const memoryAnalysisResult = result as MemoryUsageAnalysisResult;
+              const memoryAnalysisResult = result;
               measurement.recordCognitiveMetrics({
                 confidenceScore: 0.9, // High confidence for memory analysis
                 reasoningDepth: 1,
@@ -533,7 +537,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 memoryAnalysisMetrics.responseTime,
                 {
                   requestId,
-                  verbosityLevel: memoryAnalysisArgs.verbosity || "standard",
+                  verbosityLevel: memoryAnalysisArgs.verbosity ?? "standard",
                   confidence: 0.9,
                   includeExecutiveSummary:
                     memoryAnalysisArgs.include_executive_summary !== false,
@@ -555,8 +559,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               result = await this.handleOptimizeMemory(
                 this.validateOptimizeMemoryArgs(args)
               );
-              const memoryOptimizationResult =
-                result as MemoryOptimizationResult;
+              const memoryOptimizationResult = result;
               measurement.recordCognitiveMetrics({
                 confidenceScore: memoryOptimizationResult.success ? 0.8 : 0.3,
                 reasoningDepth: 2, // Memory optimization involves decision-making
@@ -577,7 +580,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 {
                   requestId,
                   verbosityLevel:
-                    memoryOptimizationArgs.verbosity || "standard",
+                    memoryOptimizationArgs.verbosity ?? "standard",
                   confidence: memoryOptimizationResult.success ? 0.8 : 0.3,
                   includeExecutiveSummary:
                     memoryOptimizationArgs.include_executive_summary !== false,
@@ -597,7 +600,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               result = await this.handleRecoverMemory(
                 this.validateRecoverMemoryArgs(args)
               );
-              const memoryRecoveryResult = result as MemoryRecoveryResult;
+              const memoryRecoveryResult = result;
               measurement.recordCognitiveMetrics({
                 confidenceScore: memoryRecoveryResult.recovery_confidence,
                 reasoningDepth: 3, // Memory recovery involves complex reasoning
@@ -613,7 +616,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 memoryRecoveryMetrics.responseTime,
                 {
                   requestId,
-                  verbosityLevel: memoryRecoveryArgs.verbosity || "standard",
+                  verbosityLevel: memoryRecoveryArgs.verbosity ?? "standard",
                   confidence: memoryRecoveryResult.recovery_confidence,
                   includeExecutiveSummary:
                     memoryRecoveryArgs.include_executive_summary !== false,
@@ -633,7 +636,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               result = await this.handleForgettingAudit(
                 this.validateForgettingAuditArgs(args)
               );
-              const forgettingAuditResult = result as ForgettingAuditResult;
+              const forgettingAuditResult = result;
               measurement.recordCognitiveMetrics({
                 confidenceScore: 0.9, // High confidence for audit operations
                 reasoningDepth: 1,
@@ -650,7 +653,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 forgettingAuditMetrics.responseTime,
                 {
                   requestId,
-                  verbosityLevel: forgettingAuditArgs.verbosity || "standard",
+                  verbosityLevel: forgettingAuditArgs.verbosity ?? "standard",
                   confidence: 0.9,
                   includeExecutiveSummary:
                     forgettingAuditArgs.include_executive_summary !== false,
@@ -670,7 +673,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               result = await this.handleForgettingPolicy(
                 this.validateForgettingPolicyArgs(args)
               );
-              const forgettingPolicyResult = result as ForgettingPolicyResult;
+              const forgettingPolicyResult = result;
               measurement.recordCognitiveMetrics({
                 confidenceScore: 0.8, // High confidence for policy operations
                 reasoningDepth: 2, // Policy evaluation involves reasoning
@@ -687,7 +690,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
                 forgettingPolicyMetrics.responseTime,
                 {
                   requestId,
-                  verbosityLevel: forgettingPolicyArgs.verbosity || "standard",
+                  verbosityLevel: forgettingPolicyArgs.verbosity ?? "standard",
                   confidence: 0.8,
                   includeExecutiveSummary:
                     forgettingPolicyArgs.include_executive_summary !== false,
@@ -759,7 +762,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         }
       });
 
-      console.error("Tool registration completed successfully");
+      this.logger.info(
+        "CognitiveMCPServer",
+        "Tool registration completed successfully"
+      );
     } catch (error) {
       console.error("Failed to register tools:", error);
       throw new Error(
@@ -841,7 +847,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     if (validationResult.warnings.length > 0) {
       const warningMessage =
         ParameterValidator.formatValidationWarnings(validationResult);
-      console.warn(`Think tool parameter warnings:\n${warningMessage}`);
+      this.logger.warn(
+        "CognitiveMCPServer",
+        `Think tool parameter warnings:\n${warningMessage}`
+      );
     }
 
     return {
@@ -877,7 +886,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     if (validationResult.warnings.length > 0) {
       const warningMessage =
         ParameterValidator.formatValidationWarnings(validationResult);
-      console.warn(`Remember tool parameter warnings:\n${warningMessage}`);
+      this.logger.warn(
+        "CognitiveMCPServer",
+        `Remember tool parameter warnings:\n${warningMessage}`
+      );
     }
 
     return {
@@ -905,7 +917,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     if (validationResult.warnings.length > 0) {
       const warningMessage =
         ParameterValidator.formatValidationWarnings(validationResult);
-      console.warn(`Recall tool parameter warnings:\n${warningMessage}`);
+      this.logger.warn(
+        "CognitiveMCPServer",
+        `Recall tool parameter warnings:\n${warningMessage}`
+      );
     }
 
     return {
@@ -976,7 +991,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     }
 
     return {
-      input: args.input as string,
+      input: args.input,
       mode: args.mode as SystematicThinkingMode,
       context: args.context as Record<string, unknown>,
     };
@@ -1001,7 +1016,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     }
 
     return {
-      input: args.input as string,
+      input: args.input,
       context: args.context as Record<string, unknown>,
       enable_coordination: args.enable_coordination as boolean,
       synchronization_interval: args.synchronization_interval as number,
@@ -1045,7 +1060,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     }
 
     return {
-      input: args.input as string,
+      input: args.input,
       context: args.context as Record<string, unknown>,
       enable_bayesian_updating: args.enable_bayesian_updating as boolean,
       uncertainty_threshold: args.uncertainty_threshold as number,
@@ -1089,7 +1104,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     ];
 
     if (args.strategies) {
-      for (const strategy of args.strategies as string[]) {
+      for (const strategy of args.strategies) {
         if (!validStrategies.includes(strategy)) {
           throw new Error(
             `Invalid strategy: ${strategy}. Valid strategies: ${validStrategies.join(
@@ -1101,7 +1116,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     }
 
     return {
-      input: args.input as string,
+      input: args.input,
       context: args.context as Record<string, unknown>,
       strategies: args.strategies as string[],
       max_depth: args.max_depth as number,
@@ -1295,7 +1310,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     }
 
     return {
-      memory_id: args.memory_id as string,
+      memory_id: args.memory_id,
       recovery_cues: args.recovery_cues as Array<{
         type:
           | "semantic"
@@ -1435,7 +1450,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     };
 
     // Validate policy_id for actions that require it
-    if (["get", "update", "delete", "export"].includes(args.action as string)) {
+    if (["get", "update", "delete", "export"].includes(args.action)) {
       if (!args.policy_id || typeof args.policy_id !== "string") {
         throw new Error(`Policy ID is required for ${args.action} action`);
       }
@@ -1443,10 +1458,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     }
 
     // Validate policy_data for create/update actions
-    if (
-      ["create", "update"].includes(args.action as string) &&
-      args.policy_data
-    ) {
+    if (["create", "update"].includes(args.action) && args.policy_data) {
       if (typeof args.policy_data !== "object") {
         throw new Error("Policy data must be an object");
       }
@@ -1472,7 +1484,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         throw new Error("Valid memory type is required in evaluation context");
       }
       result.evaluation_context = {
-        memory_id: ctx.memory_id as string,
+        memory_id: ctx.memory_id,
         memory_type: ctx.memory_type as "episodic" | "semantic",
         decision: ctx.decision as Record<string, unknown>,
         evaluation: ctx.evaluation as Record<string, unknown>,
@@ -1495,11 +1507,17 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     const startTime = Date.now();
     const requestId = this.generateRequestId();
 
-    // Start performance measurement
-    const measurement = this.performanceMonitor.startMeasurement(
-      requestId,
-      "think"
-    );
+    // Start performance measurement with error handling
+    let measurement;
+    try {
+      measurement = this.performanceMonitor.startMeasurement(
+        requestId,
+        "think"
+      );
+    } catch (error) {
+      console.error("Performance monitoring failed:", error);
+      measurement = null; // Continue without performance monitoring
+    }
 
     try {
       // Validate arguments first
@@ -1507,7 +1525,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         args as unknown as Record<string, unknown>
       );
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Processing think request: ${validatedArgs.input.substring(0, 100)}${
           validatedArgs.input.length > 100 ? "..." : ""
         }`
@@ -1517,7 +1536,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       const cognitiveInput: CognitiveInput = {
         input: validatedArgs.input,
         context: this.createContext(validatedArgs.context),
-        mode: validatedArgs.mode || ProcessingMode.BALANCED,
+        mode: validatedArgs.mode ?? ProcessingMode.BALANCED,
         configuration: this.createCognitiveConfig(validatedArgs),
       };
 
@@ -1537,34 +1556,44 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       if (!operationResult.success) {
         // Handle graceful degradation
         if (operationResult.data) {
-          console.error("Think request completed with degraded functionality");
-          return operationResult.data as ThoughtResult;
+          this.logger.warn(
+            "CognitiveMCPServer",
+            "Think request completed with degraded functionality"
+          );
+          return operationResult.data;
         }
-        throw operationResult.error || new Error("Think processing failed");
+        throw operationResult.error ?? new Error("Think processing failed");
       }
 
-      const result = operationResult.data!;
+      const result = operationResult.data;
+      if (!result) {
+        throw new Error("Think processing returned no data");
+      }
       const processingTime = Date.now() - startTime;
 
-      // Record cognitive metrics
-      measurement.recordCognitiveMetrics({
-        confidenceScore: result.confidence,
-        reasoningDepth: result.reasoning_path?.length || 0,
-        memoryRetrievals: result.metadata?.memory_retrievals || 0,
-        workingMemoryLoad:
-          (result.metadata?.working_memory_load as number) || 0,
-        emotionalProcessingTime: result.metadata?.emotional_processing_time as
-          | number
-          | undefined,
-        metacognitionTime: result.metadata?.metacognition_time as
-          | number
-          | undefined,
-      });
+      // Record cognitive metrics if measurement is available
+      if (measurement) {
+        measurement.recordCognitiveMetrics({
+          confidenceScore: result.confidence,
+          reasoningDepth: result.reasoning_path?.length ?? 0,
+          memoryRetrievals: result.metadata?.memory_retrievals ?? 0,
+          workingMemoryLoad:
+            (result.metadata?.working_memory_load as number) ?? 0,
+          emotionalProcessingTime: result.metadata
+            ?.emotional_processing_time as number | undefined,
+          metacognitionTime: result.metadata?.metacognition_time as
+            | number
+            | undefined,
+        });
 
-      // Complete measurement
-      measurement.complete();
+        // Complete measurement
+        measurement.complete();
+      }
 
-      console.error(`Think request completed in ${processingTime}ms`);
+      this.logger.info(
+        "CognitiveMCPServer",
+        `Think request completed in ${processingTime}ms`
+      );
       return result;
     } catch (error) {
       const processingTime = Date.now() - startTime;
@@ -1606,7 +1635,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         args as unknown as Record<string, unknown>
       );
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Storing ${
           validatedArgs.type
         } memory: ${validatedArgs.content.substring(0, 50)}${
@@ -1622,8 +1652,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               content: validatedArgs.content,
               context: this.createContext(validatedArgs.context),
               timestamp: Date.now(),
-              emotional_tags: validatedArgs.emotional_tags || [],
-              importance: validatedArgs.importance || 0.5,
+              emotional_tags: validatedArgs.emotional_tags ?? [],
+              importance: validatedArgs.importance ?? 0.5,
               decay_factor: 1.0,
             };
 
@@ -1640,7 +1670,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
 
         if (!operationResult.success) {
           throw (
-            operationResult.error || new Error("Episodic memory storage failed")
+            operationResult.error ?? new Error("Episodic memory storage failed")
           );
         }
 
@@ -1657,8 +1687,14 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         // Complete measurement
         measurement.complete();
 
-        console.error(`Episodic memory stored in ${processingTime}ms`);
-        return operationResult.data!;
+        this.logger.info(
+          "CognitiveMCPServer",
+          `Episodic memory stored in ${processingTime}ms`
+        );
+        if (!operationResult.data) {
+          throw new Error("Episodic memory storage returned no data");
+        }
+        return operationResult.data;
       } else {
         // Store as semantic memory through experience storage with error handling
         const operationResult = await ErrorHandler.withErrorHandling(
@@ -1666,8 +1702,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
             const experience = {
               content: validatedArgs.content,
               context: this.createContext(validatedArgs.context),
-              importance: validatedArgs.importance || 0.5,
-              emotional_tags: validatedArgs.emotional_tags || [],
+              importance: validatedArgs.importance ?? 0.5,
+              emotional_tags: validatedArgs.emotional_tags ?? [],
             };
 
             const storageResult = await this.memorySystem.storeExperience(
@@ -1675,7 +1711,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
             );
             return {
               success: storageResult.success,
-              memory_id: storageResult.semantic_id || storageResult.episodic_id,
+              memory_id: storageResult.semantic_id ?? storageResult.episodic_id,
               message: `Successfully stored semantic memory`,
             };
           },
@@ -1685,7 +1721,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
 
         if (!operationResult.success) {
           throw (
-            operationResult.error || new Error("Semantic memory storage failed")
+            operationResult.error ?? new Error("Semantic memory storage failed")
           );
         }
 
@@ -1702,8 +1738,14 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         // Complete measurement
         measurement.complete();
 
-        console.error(`Semantic memory stored in ${processingTime}ms`);
-        return operationResult.data!;
+        this.logger.info(
+          "CognitiveMCPServer",
+          `Semantic memory stored in ${processingTime}ms`
+        );
+        if (!operationResult.data) {
+          throw new Error("Semantic memory storage returned no data");
+        }
+        return operationResult.data;
       }
     } catch (error) {
       const processingTime = Date.now() - startTime;
@@ -1744,10 +1786,13 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     );
 
     try {
-      console.error(`Recalling memories for cue: ${validatedArgs.cue}`);
+      this.logger.info(
+        "CognitiveMCPServer",
+        `Recalling memories for cue: ${validatedArgs.cue}`
+      );
 
-      const threshold = validatedArgs.threshold || 0.3;
-      const maxResults = validatedArgs.max_results || 10;
+      const threshold = validatedArgs.threshold ?? 0.3;
+      const maxResults = validatedArgs.max_results ?? 10;
 
       // Retrieve memories from the memory system with error handling
       const operationResult = await ErrorHandler.withErrorHandling(
@@ -1759,7 +1804,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       if (!operationResult.success) {
         // Provide fallback empty result
         const searchTime = Date.now() - startTime;
-        console.error("Memory recall failed, returning empty result");
+        this.logger.warn(
+          "CognitiveMCPServer",
+          "Memory recall failed, returning empty result"
+        );
         return {
           memories: [],
           total_found: 0,
@@ -1767,7 +1815,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         };
       }
 
-      const retrievalResult = operationResult.data!;
+      const retrievalResult = operationResult.data;
+      if (!retrievalResult) {
+        throw new Error("Memory recall returned no data");
+      }
 
       // Format memories for response
       const memories: MemoryChunk[] = [];
@@ -1819,14 +1870,15 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       measurement.recordCognitiveMetrics({
         confidenceScore: result.memories?.length > 0 ? 0.8 : 0.3,
         reasoningDepth: 1,
-        memoryRetrievals: result.memories?.length || 0,
+        memoryRetrievals: result.memories?.length ?? 0,
         workingMemoryLoad: 0.3,
       });
 
       // Complete measurement
       measurement.complete();
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Memory recall completed in ${searchTime}ms, found ${result.total_found} memories`
       );
       return result;
@@ -1886,22 +1938,22 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       );
 
       const result = {
-        coherence_score: assessment.coherence || 0.5,
+        coherence_score: assessment.coherence ?? 0.5,
         confidence_assessment: `Confidence: ${(
-          assessment.confidence || 0.5
-        ).toFixed(2)} - ${assessment.reasoning || "No reasoning provided"}`,
-        detected_biases: assessment.biases_detected || [],
-        suggested_improvements: assessment.suggestions || [],
+          assessment.confidence ?? 0.5
+        ).toFixed(2)} - ${assessment.reasoning ?? "No reasoning provided"}`,
+        detected_biases: assessment.biases_detected ?? [],
+        suggested_improvements: assessment.suggestions ?? [],
         reasoning_quality: {
-          logical_consistency: assessment.coherence || 0.5,
-          evidence_support: assessment.confidence || 0.5,
-          completeness: assessment.completeness || 0.5,
+          logical_consistency: assessment.coherence ?? 0.5,
+          evidence_support: assessment.confidence ?? 0.5,
+          completeness: assessment.completeness ?? 0.5,
         },
       };
 
       // Record cognitive metrics
       measurement.recordCognitiveMetrics({
-        confidenceScore: assessment.confidence || 0.5,
+        confidenceScore: assessment.confidence ?? 0.5,
         reasoningDepth: validatedArgs.reasoning_steps.length,
         memoryRetrievals: 0,
         workingMemoryLoad: 0,
@@ -1911,7 +1963,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       measurement.complete();
 
       const processingTime = Date.now() - startTime;
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Analyze reasoning request completed in ${processingTime}ms`
       );
 
@@ -1965,7 +2018,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         args as unknown as Record<string, unknown>
       );
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Processing systematic analysis request: ${validatedArgs.input.substring(
           0,
           100
@@ -1977,7 +2031,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         () =>
           this.systematicThinkingOrchestrator.analyzeSystematically(
             validatedArgs.input,
-            validatedArgs.mode || "auto",
+            validatedArgs.mode ?? "auto",
             validatedArgs.context
               ? this.createContext(validatedArgs.context)
               : undefined
@@ -1995,21 +2049,25 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       if (!operationResult.success) {
         // Handle graceful degradation
         if (operationResult.data) {
-          console.error(
+          this.logger.warn(
+            "CognitiveMCPServer",
             "Systematic analysis completed with degraded functionality"
           );
-          return operationResult.data as SystematicAnalysisResult;
+          return operationResult.data;
         }
-        throw operationResult.error || new Error("Systematic analysis failed");
+        throw operationResult.error ?? new Error("Systematic analysis failed");
       }
 
-      const result = operationResult.data!;
+      const result = operationResult.data;
+      if (!result) {
+        throw new Error("Systematic analysis returned no data");
+      }
       const processingTime = Date.now() - startTime;
 
       // Record cognitive metrics
       measurement.recordCognitiveMetrics({
         confidenceScore: result.confidence,
-        reasoningDepth: result.analysis_steps?.length || 0,
+        reasoningDepth: result.analysis_steps?.length ?? 0,
         memoryRetrievals: 0, // Systematic thinking is memory-independent
         workingMemoryLoad: 0.8,
         metacognitionTime: result.processing_time_ms,
@@ -2018,7 +2076,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       // Complete measurement
       measurement.complete();
 
-      console.error(`Systematic analysis completed in ${processingTime}ms`);
+      this.logger.info(
+        "CognitiveMCPServer",
+        `Systematic analysis completed in ${processingTime}ms`
+      );
       return result;
     } catch (error) {
       const processingTime = Date.now() - startTime;
@@ -2065,7 +2126,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         args as unknown as Record<string, unknown>
       );
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Processing parallel reasoning request: ${validatedArgs.input.substring(
           0,
           100
@@ -2098,24 +2160,28 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       if (!operationResult.success) {
         // Handle graceful degradation
         if (operationResult.data) {
-          console.error(
+          this.logger.warn(
+            "CognitiveMCPServer",
             "Parallel reasoning completed with degraded functionality"
           );
-          return operationResult.data as ParallelReasoningResult;
+          return operationResult.data;
         }
         throw (
-          operationResult.error ||
+          operationResult.error ??
           new Error("Parallel reasoning processing failed")
         );
       }
 
-      const result = operationResult.data! as ParallelReasoningResult;
+      const result = operationResult.data;
+      if (!result) {
+        throw new Error("Parallel reasoning returned no data");
+      }
       const processingTime = Date.now() - startTime;
 
       // Record cognitive metrics
       measurement.recordCognitiveMetrics({
         confidenceScore: result.confidence,
-        reasoningDepth: result.stream_results?.length || 0,
+        reasoningDepth: result.stream_results?.length ?? 0,
         memoryRetrievals: 0,
         workingMemoryLoad: 0.9, // Higher load for parallel processing
         metacognitionTime: result.processing_time_ms,
@@ -2124,7 +2190,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       // Complete measurement
       measurement.complete();
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Parallel reasoning completed in ${processingTime}ms with confidence ${result.confidence} across ${result.stream_results.length} streams`
       );
       return result;
@@ -2168,7 +2235,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     );
 
     try {
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Processing probabilistic reasoning request: ${args.input.substring(
           0,
           100
@@ -2201,7 +2269,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
           console.error(
             `Probabilistic reasoning completed with warnings: ${operationResult.error}`
           );
-          return operationResult.data as ProbabilisticReasoningResult;
+          return operationResult.data;
         }
 
         // Create fallback response
@@ -2261,13 +2329,14 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       // Record cognitive metrics
       measurement.recordCognitiveMetrics({
         confidenceScore: result.confidence,
-        reasoningDepth: result.reasoning_chain?.steps?.length || 0,
+        reasoningDepth: result.reasoning_chain?.steps?.length ?? 0,
         memoryRetrievals: 0,
         workingMemoryLoad: 0.8,
         metacognitionTime: result.processing_time_ms,
       });
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Probabilistic reasoning completed successfully in ${result.processing_time_ms}ms with confidence ${result.confidence}`
       );
 
@@ -2353,7 +2422,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         args as unknown as Record<string, unknown>
       );
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Processing problem decomposition request: ${validatedArgs.input.substring(
           0,
           100
@@ -2389,21 +2459,24 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
           console.error(
             "Problem decomposition completed with degraded functionality"
           );
-          return operationResult.data as DecompositionResult;
+          return operationResult.data;
         }
         throw (
-          operationResult.error ||
+          operationResult.error ??
           new Error("Problem decomposition processing failed")
         );
       }
 
-      const result = operationResult.data! as DecompositionResult;
+      const result = operationResult.data;
+      if (!result) {
+        throw new Error("Problem decomposition returned no data");
+      }
       const processingTime = Date.now() - startTime;
 
       // Record cognitive metrics
       measurement.recordCognitiveMetrics({
         confidenceScore: result.confidence,
-        reasoningDepth: result.hierarchical_structure?.length || 0,
+        reasoningDepth: result.hierarchical_structure?.length ?? 0,
         memoryRetrievals: 0,
         workingMemoryLoad: 0.8, // High load for decomposition processing
         metacognitionTime: result.processing_time_ms,
@@ -2412,7 +2485,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       // Complete measurement
       measurement.complete();
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Problem decomposition completed in ${processingTime}ms with confidence ${result.confidence} and ${result.hierarchical_structure.length} nodes`
       );
       return result;
@@ -2456,7 +2530,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     );
 
     try {
-      console.error("Processing memory usage analysis request");
+      this.logger.info(
+        "CognitiveMCPServer",
+        "Processing memory usage analysis request"
+      );
 
       // Perform memory usage analysis
       const analysis = await this.memoryUsageAnalyzer.analyzeMemoryUsage();
@@ -2497,7 +2574,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
 
       const formattedAnalysis = MemoryAnalysisFormatter.formatAnalysis(
         analysis,
-        recommendations || [],
+        recommendations ?? [],
         summaryLevel
       );
 
@@ -2507,7 +2584,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         analysis_time_ms: processingTime,
       };
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Memory usage analysis completed in ${processingTime}ms. Health score: ${formattedAnalysis.health_score.overall_score}/100 (${formattedAnalysis.health_score.health_status})`
       );
 
@@ -2540,11 +2618,14 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     );
 
     try {
-      console.error("Processing memory optimization request");
+      this.logger.info(
+        "CognitiveMCPServer",
+        "Processing memory optimization request"
+      );
 
       // Set default values
-      const optimizationMode = args.optimization_mode || "moderate";
-      const targetReduction = args.target_memory_reduction || 0.1;
+      const optimizationMode = args.optimization_mode ?? "moderate";
+      const targetReduction = args.target_memory_reduction ?? 0.1;
       const enableGradualDegradation =
         args.enable_gradual_degradation !== false;
       const requireUserConsent = args.require_user_consent !== false;
@@ -2588,7 +2669,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         filteredRecommendations.length
       );
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Optimizing ${memoriesToProcess} memories out of ${
           analysis.total_memories
         } total (${(targetReduction * 100).toFixed(1)}% target reduction)`
@@ -2602,14 +2684,14 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         try {
           // Check if user consent is required
           const needsConsent =
-            requireUserConsent || recommendation.requires_user_consent;
+            requireUserConsent ?? recommendation.requires_user_consent;
 
           if (needsConsent) {
             // Add to consent requests (in a real implementation, this would prompt the user)
             result.user_consent_requests.push({
-              memory_id: recommendation.target_memories[0] || `memory_${i}`,
+              memory_id: recommendation.target_memories[0] ?? `memory_${i}`,
               action: recommendation.type as string,
-              reason: recommendation.description as string,
+              reason: recommendation.description,
               consent_required: true,
             });
 
@@ -2629,7 +2711,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               if (enableGradualDegradation) {
                 // Use gradual degradation instead of immediate forgetting
                 const processId = await this.initiateGradualDegradation(
-                  recommendation.target_memories[0] || `memory_${i}`,
+                  recommendation.target_memories[0] ?? `memory_${i}`,
                   0.9 // High degradation level for forgetting
                 );
                 result.degradation_processes_started.push(processId);
@@ -2644,7 +2726,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
               // Compression through gradual degradation
               if (enableGradualDegradation) {
                 const processId = await this.initiateGradualDegradation(
-                  recommendation.target_memories[0] || `memory_${i}`,
+                  recommendation.target_memories[0] ?? `memory_${i}`,
                   0.5 // Moderate degradation for compression
                 );
                 result.degradation_processes_started.push(processId);
@@ -2665,9 +2747,9 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
 
           // Estimate space freed and performance improvement
           result.optimization_summary.total_space_freed_bytes +=
-            recommendation.estimated_benefit.memory_space_freed || 0;
+            recommendation.estimated_benefit.memory_space_freed ?? 0;
           result.optimization_summary.performance_improvement_estimate +=
-            recommendation.estimated_benefit.processing_speed_improvement || 0;
+            recommendation.estimated_benefit.processing_speed_improvement ?? 0;
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Unknown error";
@@ -2696,7 +2778,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       // Complete measurement
       measurement.complete();
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Memory optimization completed in ${processingTime}ms. ` +
           `Processed: ${result.optimization_summary.memories_processed}, ` +
           `Degraded: ${result.optimization_summary.memories_degraded}, ` +
@@ -2734,7 +2817,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     );
 
     try {
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Processing memory recovery request for memory: ${args.memory_id}`
       );
 
@@ -2742,7 +2826,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       const recoveryCues = args.recovery_cues.map((cue) => ({
         type: cue.type,
         value: cue.value,
-        strength: cue.strength || 0.5,
+        strength: cue.strength ?? 0.5,
         source: "user_provided",
       }));
 
@@ -2756,11 +2840,15 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
           (p) => p.memory_id === args.memory_id
         );
 
-        if (memoryProcess && memoryProcess.status.recovery_metadata) {
+        if (memoryProcess?.status.recovery_metadata) {
           recoveryMetadata = memoryProcess.status.recovery_metadata;
-          console.error(`Found recovery metadata for memory ${args.memory_id}`);
+          this.logger.info(
+            "CognitiveMCPServer",
+            `Found recovery metadata for memory ${args.memory_id}`
+          );
         } else {
-          console.error(
+          this.logger.warn(
+            "CognitiveMCPServer",
             `No recovery metadata found for memory ${args.memory_id}, using cues only`
           );
         }
@@ -2841,7 +2929,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       // Complete measurement
       measurement.complete();
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Memory recovery completed in ${processingTime}ms. ` +
           `Success: ${result.success}, ` +
           `Confidence: ${result.recovery_confidence.toFixed(2)}, ` +
@@ -2871,12 +2960,15 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     const startTime = Date.now();
 
     try {
-      console.error("Processing forgetting audit request");
+      this.logger.info(
+        "CognitiveMCPServer",
+        "Processing forgetting audit request"
+      );
 
       // Query audit entries
       const auditEntries =
         await this.forgettingControlSystem.audit_system.queryAuditEntries(
-          args.query || {}
+          args.query ?? {}
         );
 
       // Get summary if requested
@@ -2894,7 +2986,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       if (args.export_format) {
         exported_data =
           await this.forgettingControlSystem.audit_system.exportAuditData(
-            args.query || {},
+            args.query ?? {},
             args.export_format
           );
       }
@@ -2921,7 +3013,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         query_time_ms: processingTime,
       };
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Forgetting audit completed in ${processingTime}ms. ` +
           `Entries: ${result.audit_entries.length}, ` +
           `Summary included: ${!!summary}`
@@ -2949,7 +3042,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     const startTime = Date.now();
 
     try {
-      console.error(`Processing forgetting policy request: ${args.action}`);
+      this.logger.info(
+        "CognitiveMCPServer",
+        `Processing forgetting policy request: ${args.action}`
+      );
 
       const result: ForgettingPolicyResult = {
         success: true,
@@ -3109,7 +3205,8 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       const processingTime = Date.now() - startTime;
       result.processing_time_ms = processingTime;
 
-      console.error(
+      this.logger.info(
+        "CognitiveMCPServer",
         `Forgetting policy ${args.action} completed in ${processingTime}ms`
       );
 
@@ -3157,15 +3254,15 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         (r) =>
           !r.target_memories.some(
             (memId: string) =>
-              memId.includes("important") || memId.includes("critical")
+              memId.includes("important") ?? memId.includes("critical")
           )
       );
     }
 
     // Sort by estimated benefit (highest first)
     filtered.sort((a, b) => {
-      const benefitA = a.estimated_benefit.processing_speed_improvement || 0;
-      const benefitB = b.estimated_benefit.processing_speed_improvement || 0;
+      const benefitA = a.estimated_benefit.processing_speed_improvement ?? 0;
+      const benefitB = b.estimated_benefit.processing_speed_improvement ?? 0;
       return benefitB - benefitA;
     });
 
@@ -3195,7 +3292,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
 
     // Adjust based on estimated benefit
     const benefit =
-      recommendation.estimated_benefit.processing_speed_improvement || 0;
+      recommendation.estimated_benefit.processing_speed_improvement ?? 0;
     consentProbability += benefit * 0.5;
 
     // Add some randomness
@@ -3234,7 +3331,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
 
   async shutdown(): Promise<void> {
     if (this.initialized) {
-      console.error("Shutting down Cognitive MCP Server...");
+      this.logger.info(
+        "CognitiveMCPServer",
+        "Shutting down Cognitive MCP Server..."
+      );
 
       try {
         // Cleanup cognitive components
@@ -3243,7 +3343,10 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
         this.metacognitionModule.reset();
 
         this.initialized = false;
-        console.error("Cognitive MCP Server shutdown completed");
+        this.logger.info(
+          "CognitiveMCPServer",
+          "Cognitive MCP Server shutdown completed"
+        );
       } catch (error) {
         console.error("Error during server shutdown:", error);
         throw error;
@@ -3270,12 +3373,13 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
   // Helper methods for creating cognitive inputs
   private createContext(contextArgs?: Record<string, unknown>): Context {
     return {
-      session_id: (contextArgs?.session_id as string) || "default",
+      session_id: (contextArgs?.session_id as string) ?? "default",
       domain: contextArgs?.domain as string,
-      urgency: (contextArgs?.urgency as number) || 0.5,
-      complexity: (contextArgs?.complexity as number) || 0.5,
-      previous_thoughts: (contextArgs?.previous_thoughts as string[]) || [],
+      urgency: (contextArgs?.urgency as number) ?? 0.5,
+      complexity: (contextArgs?.complexity as number) ?? 0.5,
+      previous_thoughts: (contextArgs?.previous_thoughts as string[]) ?? [],
       timestamp: Date.now(),
+      user_id: (contextArgs?.user_id as string) ?? "anonymous",
       ...contextArgs,
     };
   }
@@ -3284,11 +3388,11 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
     // Simple problem creation from input - in a real implementation this would be more sophisticated
     const complexity = this.estimateComplexity(input);
     const uncertainty = this.estimateUncertainty(input);
-    const domain = context.domain || this.identifyDomain(input);
+    const domain = context.domain ?? this.identifyDomain(input);
     const constraints = this.extractConstraints(input);
     const stakeholders = this.identifyStakeholders(input);
     const timeSensitivity =
-      context.urgency || this.assessTimeSensitivity(input);
+      context.urgency ?? this.assessTimeSensitivity(input);
     const resourceRequirements = this.identifyResourceRequirements(input);
 
     return {
@@ -3429,7 +3533,7 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
 
   private createCognitiveConfig(args: ThinkArgs): CognitiveConfig {
     return {
-      default_mode: args.mode || ProcessingMode.BALANCED,
+      default_mode: args.mode ?? ProcessingMode.BALANCED,
       enable_emotion: args.enable_emotion !== false, // Default to true
       enable_metacognition: args.enable_metacognition !== false, // Default to true
       enable_prediction: true,
@@ -3438,16 +3542,16 @@ export class CognitiveMCPServer implements IMCPServer, IToolHandler {
       semantic_memory_size: 5000,
       consolidation_interval: 60000,
       noise_level: 0.3, // Increased for more variability
-      temperature: args.temperature || 0.7, // Default temperature
+      temperature: args.temperature ?? 0.7, // Default temperature
       attention_threshold: 0.3,
-      max_reasoning_depth: args.max_depth || 10,
+      max_reasoning_depth: args.max_depth ?? 10,
       timeout_ms: 30000,
       max_concurrent_sessions: 100,
       confidence_threshold: 0.6,
       system2_activation_threshold: 0.7,
       memory_retrieval_threshold: 0.3,
       enable_systematic_thinking: args.enable_systematic_thinking !== false, // Default to true
-      systematic_thinking_mode: args.systematic_thinking_mode || "auto",
+      systematic_thinking_mode: args.systematic_thinking_mode ?? "auto",
       brain_dir: "~/.brain",
     };
   }

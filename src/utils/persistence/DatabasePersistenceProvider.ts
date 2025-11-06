@@ -13,6 +13,7 @@ import {
   PersistenceStatus,
 } from "../../interfaces/persistence.js";
 import { Concept, Episode, Relation } from "../../types/core.js";
+import { CognitiveLogger } from "../logger.js";
 
 // Mock database interface for demonstration
 // In production, this would use a real database driver like pg, mysql2, etc.
@@ -31,13 +32,14 @@ export class DatabasePersistenceProvider implements IPersistenceProvider {
   private lastSave: number = 0;
   private lastLoad: number = 0;
   private errorCount: number = 0;
+  private logger = CognitiveLogger.getInstance();
 
   async initialize(config: PersistenceConfig): Promise<void> {
     this.config = {
       ...config,
       storage_type: "database",
       database_url:
-        config.database_url || "postgresql://localhost:5432/thoughtmcp",
+        config.database_url ?? "postgresql://localhost:5432/thoughtmcp",
       backup_interval_ms: config.backup_interval_ms ?? 600000, // 10 minutes
       max_backups: config.max_backups ?? 20,
       compression_enabled: config.compression_enabled ?? false,
@@ -381,7 +383,10 @@ export class DatabasePersistenceProvider implements IPersistenceProvider {
     databaseUrl: string
   ): Promise<DatabaseConnection> {
     // Mock implementation - in production, use actual database driver
-    console.log(`Connecting to database: ${databaseUrl}`);
+    this.logger.info(
+      "DatabasePersistenceProvider",
+      `Connecting to database: ${databaseUrl}`
+    );
 
     // Return mock connection for demonstration
     return {

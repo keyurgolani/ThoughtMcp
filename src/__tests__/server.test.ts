@@ -5,20 +5,24 @@
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CognitiveMCPServer } from "../server/CognitiveMCPServer.js";
-import { ProcessingMode, ReasoningStep, ReasoningType } from "../types/core.js";
+import {
+  ProcessingMode,
+  ReasoningStep,
+  ReasoningType,
+  ReasoningTypeValue,
+} from "../types/core.js";
 import { getVersion } from "../utils/version.js";
-import { CognitiveTestFramework } from "./framework/TestFramework.js";
 import { TestCleanup } from "./utils/testCleanup.js";
 import { createTestServer, standardTestCleanup } from "./utils/testHelpers.js";
 
 describe("CognitiveMCPServer", () => {
   let server: CognitiveMCPServer;
-  let _testFramework: CognitiveTestFramework;
+  // let _testFramework: CognitiveTestFramework; // Unused for now
 
   beforeEach(async () => {
     TestCleanup.initialize();
     server = await createTestServer();
-    _testFramework = new CognitiveTestFramework();
+    // _testFramework = new CognitiveTestFramework(); // Unused for now
   });
 
   afterEach(async () => {
@@ -309,20 +313,39 @@ describe("CognitiveMCPServer", () => {
       it("should reject invalid reasoning step structure", async () => {
         await expect(
           server.handleAnalyzeReasoning({
-            reasoning_steps: [{ type: "", content: "test", confidence: 0.5 }],
+            reasoning_steps: [
+              {
+                type: null as unknown as ReasoningTypeValue, // Invalid type
+                content: "test",
+                confidence: 0.5,
+                alternatives: [],
+              },
+            ],
           })
         ).rejects.toThrow("Reasoning step 0 requires a valid type string");
 
         await expect(
           server.handleAnalyzeReasoning({
-            reasoning_steps: [{ type: "test", content: "", confidence: 0.5 }],
+            reasoning_steps: [
+              {
+                type: "pattern_match",
+                content: "",
+                confidence: 0.5,
+                alternatives: [],
+              },
+            ],
           })
         ).rejects.toThrow("Reasoning step 0 requires a valid content string");
 
         await expect(
           server.handleAnalyzeReasoning({
             reasoning_steps: [
-              { type: "test", content: "test", confidence: -1 },
+              {
+                type: "pattern_match",
+                content: "test",
+                confidence: -1,
+                alternatives: [],
+              },
             ],
           })
         ).rejects.toThrow(

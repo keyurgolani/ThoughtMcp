@@ -52,7 +52,7 @@ export class ForgettingAuditSystem implements IForgettingAuditSystem {
       evaluation,
       execution_status: "pending",
       execution_method,
-      user_consent_requested: decision.user_consent_required || false,
+      user_consent_requested: decision.user_consent_required ?? false,
       privacy_level,
       secure_deletion_applied: false,
       audit_trail_encrypted:
@@ -219,8 +219,8 @@ export class ForgettingAuditSystem implements IForgettingAuditSystem {
     entries.sort((a, b) => b.timestamp - a.timestamp);
 
     // Apply pagination
-    const offset = query.offset || 0;
-    const limit = query.limit || 100;
+    const offset = query.offset ?? 0;
+    const limit = query.limit ?? 100;
     entries = entries.slice(offset, offset + limit);
 
     console.error(`Query returned ${entries.length} audit entries`, {
@@ -271,7 +271,7 @@ export class ForgettingAuditSystem implements IForgettingAuditSystem {
       // Aggregate impact metrics
       if (entry.actual_impact) {
         total_memory_freed_bytes +=
-          entry.actual_impact.memory_space_freed_bytes || 0;
+          entry.actual_impact.memory_space_freed_bytes ?? 0;
         if (entry.actual_impact.processing_speed_improvement_ms) {
           total_processing_improvement_ms +=
             entry.actual_impact.processing_speed_improvement_ms;
@@ -390,7 +390,7 @@ export class ForgettingAuditSystem implements IForgettingAuditSystem {
         entry.execution_status,
         entry.execution_method,
         entry.user_consent_requested.toString(),
-        entry.user_consent_granted?.toString() || "",
+        entry.user_consent_granted?.toString() ?? "",
         entry.privacy_level,
         entry.secure_deletion_applied.toString(),
       ];
@@ -439,7 +439,7 @@ export class ForgettingAuditSystem implements IForgettingAuditSystem {
             entry.privacy_level === "confidential" ||
             entry.privacy_level === "restricted" ||
             entry.user_override ||
-            entry.recovery_attempts?.length > 0;
+            (entry.recovery_attempts?.length ?? 0) > 0;
 
           if (is_important) {
             continue;
@@ -466,7 +466,7 @@ export class ForgettingAuditSystem implements IForgettingAuditSystem {
    * Get audit entry by ID
    */
   async getAuditEntry(audit_id: string): Promise<ForgettingAuditEntry | null> {
-    return this.auditEntries.get(audit_id) || null;
+    return this.auditEntries.get(audit_id) ?? null;
   }
 
   /**

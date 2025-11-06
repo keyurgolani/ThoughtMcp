@@ -248,8 +248,14 @@ describe("PersistenceManager", () => {
 
       // Switch to file provider
       const testId = Math.random().toString(36).substring(7);
+      const testDir = `./tmp/test-data-${testId}`;
+
+      // Ensure test directory exists before switching
+      const fs = await import("fs/promises");
+      await fs.mkdir(testDir, { recursive: true });
+
       await manager.switchProvider("file", {
-        file_path: `./tmp/test-data-${testId}/switched-memory.json`,
+        file_path: `${testDir}/switched-memory.json`,
       });
 
       const status = manager.getStatus();

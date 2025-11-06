@@ -46,7 +46,7 @@ describe("ForgettingEvaluationEngine", () => {
       const memories = [
         {
           content: "High importance memory",
-          context: { domain: "important" },
+          context: { session_id: "test-session", domain: "important" },
           timestamp: Date.now() - 24 * 60 * 60 * 1000, // 1 day ago
           emotional_tags: [],
           importance: 0.9,
@@ -54,7 +54,7 @@ describe("ForgettingEvaluationEngine", () => {
         } as Episode,
         {
           content: "Low importance memory",
-          context: { domain: "unimportant" },
+          context: { session_id: "test-session", domain: "unimportant" },
           timestamp: Date.now() - 365 * 24 * 60 * 60 * 1000, // 1 year ago
           emotional_tags: [],
           importance: 0.1,
@@ -88,7 +88,7 @@ describe("ForgettingEvaluationEngine", () => {
     it("should include strategy scores for each memory", async () => {
       const memory: Episode = {
         content: "Test memory",
-        context: { domain: "test" },
+        context: { session_id: "test-session", domain: "test" },
         timestamp: Date.now() - 7 * 24 * 60 * 60 * 1000, // 1 week ago
         emotional_tags: [],
         importance: 0.5,
@@ -110,7 +110,7 @@ describe("ForgettingEvaluationEngine", () => {
     it("should generate appropriate recommendations", async () => {
       const highForgettingMemory: Episode = {
         content: "Should be forgotten",
-        context: { domain: "unimportant" },
+        context: { session_id: "test-session", domain: "unimportant" },
         timestamp: Date.now() - 365 * 24 * 60 * 60 * 1000, // 1 year ago
         emotional_tags: [],
         importance: 0.1,
@@ -119,7 +119,7 @@ describe("ForgettingEvaluationEngine", () => {
 
       const lowForgettingMemory: Episode = {
         content: "Should be retained",
-        context: { domain: "important" },
+        context: { session_id: "test-session", domain: "important" },
         timestamp: Date.now() - 24 * 60 * 60 * 1000, // 1 day ago
         emotional_tags: ["important"],
         importance: 0.9,
@@ -147,7 +147,7 @@ describe("ForgettingEvaluationEngine", () => {
     it("should assess forgetting impact", async () => {
       const memory: Episode = {
         content: "Test memory with impact",
-        context: { domain: "test" },
+        context: { session_id: "test-session", domain: "test" },
         timestamp: Date.now() - 7 * 24 * 60 * 60 * 1000,
         emotional_tags: [],
         importance: 0.8,
@@ -179,7 +179,7 @@ describe("ForgettingEvaluationEngine", () => {
       // High importance memory should require consent
       const highImportanceMemory: Episode = {
         content: "Very important memory",
-        context: { domain: "critical" },
+        context: { session_id: "test-session", domain: "critical" },
         timestamp: Date.now() - 7 * 24 * 60 * 60 * 1000,
         emotional_tags: [],
         importance: 0.95,
@@ -245,7 +245,7 @@ describe("ForgettingEvaluationEngine", () => {
 
       const memory: Episode = {
         content: "Test memory",
-        context: { domain: "test" },
+        context: { session_id: "test-session", domain: "test" },
         timestamp: Date.now(),
         emotional_tags: [],
         importance: 0.5,
@@ -275,7 +275,7 @@ describe("ForgettingEvaluationEngine", () => {
 
       const memory: Episode = {
         content: "Test memory",
-        context: { domain: "test" },
+        context: { session_id: "test-session", domain: "test" },
         timestamp: Date.now() - 365 * 24 * 60 * 60 * 1000, // Old memory (high temporal decay)
         emotional_tags: [],
         importance: 0.9, // High importance (low importance-based forgetting)
@@ -306,7 +306,7 @@ describe("ForgettingEvaluationEngine", () => {
 
       const memory: Episode = {
         content: "Moderate forgetting candidate",
-        context: { domain: "test" },
+        context: { session_id: "test-session", domain: "test" },
         timestamp: Date.now() - 30 * 24 * 60 * 60 * 1000,
         emotional_tags: [],
         importance: 0.4,

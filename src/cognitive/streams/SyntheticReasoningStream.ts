@@ -490,7 +490,7 @@ export class SyntheticReasoningStream
     );
 
     const wordCounts = allWords.reduce((counts, word) => {
-      counts[word] = (counts[word] || 0) + 1;
+      counts[word] = (counts[word] ?? 0) + 1;
       return counts;
     }, {} as Record<string, number>);
 
@@ -575,25 +575,24 @@ export class SyntheticReasoningStream
     const aspects: string[] = [];
 
     partialSolutions.forEach((solution) => {
-      if (solution.includes("systematic") || solution.includes("modular")) {
+      if (solution.includes("systematic") ?? solution.includes("modular")) {
         aspects.push("technical_architecture");
       }
-      if (solution.includes("creative") || solution.includes("innovative")) {
+      if (solution.includes("creative") ?? solution.includes("innovative")) {
         aspects.push("innovation");
       }
-      if (solution.includes("adaptive") || solution.includes("uncertainty")) {
+      if (solution.includes("adaptive") ?? solution.includes("uncertainty")) {
         aspects.push("risk_management");
       }
       if (
-        solution.includes("collaborative") ||
-        solution.includes("stakeholder")
+        solution.includes("collaborative") ?? solution.includes("stakeholder")
       ) {
         aspects.push("stakeholder_engagement");
       }
-      if (solution.includes("resource") || solution.includes("optimization")) {
+      if (solution.includes("resource") ?? solution.includes("optimization")) {
         aspects.push("resource_efficiency");
       }
-      if (solution.includes("time") || solution.includes("priority")) {
+      if (solution.includes("time") ?? solution.includes("priority")) {
         aspects.push("time_management");
       }
     });

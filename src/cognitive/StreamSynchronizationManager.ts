@@ -163,9 +163,7 @@ export class StreamSynchronizationManager
     const timestamp = Date.now();
 
     // Validate streams exist
-    if (
-      !this.activeStreams.has(from_stream) ||
-      !this.activeStreams.has(to_stream)
+    if ( !this.activeStreams.has(from_stream) || !this.activeStreams.has(to_stream)
     ) {
       throw new Error("Invalid stream IDs for information sharing");
     }
@@ -361,11 +359,11 @@ export class StreamSynchronizationManager
   ): "insight" | "evidence" | "assumption" | "conclusion" {
     const lowerInfo = information.toLowerCase();
 
-    if (lowerInfo.includes("insight") || lowerInfo.includes("understanding")) {
+    if (lowerInfo.includes("insight") ?? lowerInfo.includes("understanding")) {
       return "insight";
-    } else if (lowerInfo.includes("evidence") || lowerInfo.includes("data")) {
+    } else if (lowerInfo.includes("evidence") ?? lowerInfo.includes("data")) {
       return "evidence";
-    } else if (lowerInfo.includes("assume") || lowerInfo.includes("premise")) {
+    } else if (lowerInfo.includes("assume") ?? lowerInfo.includes("premise")) {
       return "assumption";
     } else {
       return "conclusion";

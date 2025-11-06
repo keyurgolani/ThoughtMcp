@@ -252,8 +252,8 @@ describe("SessionManager", () => {
   describe("Session Metrics", () => {
     it("should calculate session metrics correctly", async () => {
       // Create some sessions with different activity
-      const session1 = sessionManager.getOrCreateSession("metrics-session-1");
-      const session2 = sessionManager.getOrCreateSession("metrics-session-2");
+      sessionManager.getOrCreateSession("metrics-session-1");
+      sessionManager.getOrCreateSession("metrics-session-2");
 
       // Wait a bit to ensure duration > 0
       await new Promise((resolve) => setTimeout(resolve, 10));

@@ -8,7 +8,11 @@ import {
   ComponentStatus,
   IMetacognitionModule,
 } from "../interfaces/cognitive.js";
-import { ReasoningStep, ReasoningType } from "../types/core.js";
+import {
+  ReasoningStep,
+  ReasoningType,
+  ReasoningTypeValue,
+} from "../types/core.js";
 
 interface BiasPattern {
   name: string;
@@ -173,14 +177,16 @@ export class MetacognitionModule implements IMetacognitionModule {
     const completeness = this.assessCompleteness(reasoning);
 
     // Confidence-based suggestions
-    if (confidence < this.config.confidence_threshold!) {
+    const confidenceThreshold = this.config.confidence_threshold ?? 0.6;
+    if (confidence < confidenceThreshold) {
       suggestions.push(
         ...this.generateConfidenceSuggestionsFromMetrics(confidence)
       );
     }
 
     // Coherence-based suggestions
-    if (coherence < this.config.coherence_threshold!) {
+    const coherenceThreshold = this.config.coherence_threshold ?? 0.7;
+    if (coherence < coherenceThreshold) {
       suggestions.push(
         ...this.generateCoherenceSuggestionsFromMetrics(coherence)
       );
@@ -225,9 +231,11 @@ export class MetacognitionModule implements IMetacognitionModule {
       reasoning
     );
 
+    const confidenceThreshold = this.config.confidence_threshold ?? 0.6;
+    const coherenceThreshold = this.config.coherence_threshold ?? 0.7;
     const shouldReconsider =
-      confidence < this.config.confidence_threshold! ||
-      coherence < this.config.coherence_threshold! ||
+      confidence < confidenceThreshold ||
+      coherence < coherenceThreshold ||
       biases.length > 3 ||
       completeness < 0.5;
 
@@ -389,7 +397,7 @@ export class MetacognitionModule implements IMetacognitionModule {
 
     reasoning.forEach((step) => {
       // Handle cases where alternatives might be undefined
-      const alternativesLength = step.alternatives?.length || 0;
+      const alternativesLength = step.alternatives?.length ?? 0;
       alternativeScore += alternativesLength * 0.4;
 
       const content = step.content.toLowerCase();
@@ -439,7 +447,7 @@ export class MetacognitionModule implements IMetacognitionModule {
 
   private detectBiasPattern(
     text: string,
-    _types: ReasoningType[],
+    _types: ReasoningTypeValue[],
     pattern: BiasPattern
   ): boolean {
     const indicatorCount = pattern.indicators.filter((indicator) =>
@@ -452,11 +460,11 @@ export class MetacognitionModule implements IMetacognitionModule {
     }
 
     // Use a minimum threshold of 1 indicator, or sensitivity-based threshold
+    const biasDetectionSensitivity =
+      this.config.bias_detection_sensitivity ?? 0.5;
     const threshold = Math.max(
       1,
-      Math.ceil(
-        pattern.indicators.length * this.config.bias_detection_sensitivity!
-      )
+      Math.ceil(pattern.indicators.length * biasDetectionSensitivity)
     );
 
     return indicatorCount >= threshold;
@@ -634,7 +642,7 @@ export class MetacognitionModule implements IMetacognitionModule {
 
     // Check for consideration of alternatives
     const totalAlternatives = reasoning.reduce(
-      (sum, step) => sum + (step.alternatives?.length || 0),
+      (sum, step) => sum + (step.alternatives?.length ?? 0),
       0
     );
     completenessScore +=
@@ -660,11 +668,19 @@ export class MetacognitionModule implements IMetacognitionModule {
   ): number {
     const biasScore = Math.max(0, 1 - biases.length * 0.2);
 
+    const qualityWeightConfidence =
+      this.config.quality_weight_confidence ?? 0.3;
+    const qualityWeightCoherence = this.config.quality_weight_coherence ?? 0.3;
+    const qualityWeightCompleteness =
+      this.config.quality_weight_completeness ?? 0.2;
+    const qualityWeightBiasAbsence =
+      this.config.quality_weight_bias_absence ?? 0.2;
+
     return (
-      confidence * this.config.quality_weight_confidence! +
-      coherence * this.config.quality_weight_coherence! +
-      completeness * this.config.quality_weight_completeness! +
-      biasScore * this.config.quality_weight_bias_absence!
+      confidence * qualityWeightConfidence +
+      coherence * qualityWeightCoherence +
+      completeness * qualityWeightCompleteness +
+      biasScore * qualityWeightBiasAbsence
     );
   }
 
@@ -792,14 +808,16 @@ export class MetacognitionModule implements IMetacognitionModule {
     const suggestions: string[] = [];
 
     // Confidence-based suggestions
-    if (confidence < this.config.confidence_threshold!) {
+    const confidenceThreshold = this.config.confidence_threshold ?? 0.6;
+    if (confidence < confidenceThreshold) {
       suggestions.push(
         ...this.generateConfidenceSuggestionsFromMetrics(confidence)
       );
     }
 
     // Coherence-based suggestions
-    if (coherence < this.config.coherence_threshold!) {
+    const coherenceThreshold = this.config.coherence_threshold ?? 0.7;
+    if (coherence < coherenceThreshold) {
       suggestions.push(
         ...this.generateCoherenceSuggestionsFromMetrics(coherence)
       );
@@ -890,7 +908,7 @@ export class MetacognitionModule implements IMetacognitionModule {
     // Keep history within configured size
     if (
       this.performanceHistory.length >
-      (this.config.performance_history_size || 100)
+      (this.config.performance_history_size ?? 100)
     ) {
       this.performanceHistory.shift();
     }
