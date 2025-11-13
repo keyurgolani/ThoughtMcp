@@ -730,13 +730,16 @@ describe("EmbeddingStorage - Edge Cases", () => {
     // We need to test the else branch where embeddingData is neither string nor array
     // This is tricky because PostgreSQL will always return data in a specific format
     // We'll test by mocking the database response
-    const originalQuery = dbManager.pool!.query.bind(dbManager.pool);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dbManager.pool!.query = async (sql: any, params?: any) => {
-      if (
-        typeof sql === "string" &&
-        sql.includes("SELECT sector, embedding FROM memory_embeddings")
-      ) {
+    if (!dbManager.pool) {
+      throw new Error("Database pool not initialized");
+    }
+
+    type QueryFunction = typeof dbManager.pool.query;
+    const originalQuery = dbManager.pool.query.bind(dbManager.pool) as QueryFunction;
+
+    dbManager.pool.query = (async (sql: string | { text: string }, params?: unknown[]) => {
+      const sqlText = typeof sql === "string" ? sql : sql.text;
+      if (sqlText.includes("SELECT sector, embedding FROM memory_embeddings")) {
         return {
           rows: [
             {
@@ -751,7 +754,7 @@ describe("EmbeddingStorage - Edge Cases", () => {
         };
       }
       return originalQuery(sql, params);
-    };
+    }) as QueryFunction;
 
     // Should throw error for invalid embedding format
     await expect(storage.retrieveEmbeddings(memoryId)).rejects.toThrow("Invalid embedding format");

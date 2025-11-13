@@ -621,14 +621,14 @@ describe("SchemaMigrationSystem", () => {
       await validMigrationSystem.runMigrations();
 
       const versionBefore = await validMigrationSystem.getCurrentVersion();
-      expect(versionBefore).toBe(2);
+      expect(versionBefore).toBe(3);
 
       // Try to rollback with invalid path (should fail)
       await expect(invalidMigrationSystem.rollbackMigration(1)).rejects.toThrow();
 
-      // Verify database is still at version 2 (transaction was rolled back)
+      // Verify database is still at version 3 (transaction was rolled back)
       const versionAfter = await validMigrationSystem.getCurrentVersion();
-      expect(versionAfter).toBe(2);
+      expect(versionAfter).toBe(3);
     });
 
     it("should support rollback functionality", async () => {
@@ -657,9 +657,9 @@ describe("SchemaMigrationSystem", () => {
       // Re-run migrations to restore
       await migrationSystem.runMigrations();
 
-      // Verify we're back to version 2
+      // Verify we're back to version 3 (latest)
       const finalVersion = await migrationSystem.getCurrentVersion();
-      expect(finalVersion).toBe(2);
+      expect(finalVersion).toBe(3);
     });
 
     it("should handle rollback when already at target version", async () => {
@@ -700,10 +700,10 @@ describe("SchemaMigrationSystem", () => {
     it("should handle rollback when target version is between migrations", async () => {
       const migrationSystem = new SchemaMigrationSystem(dbManager);
 
-      // Ensure we're at version 2
+      // Ensure we're at version 3 (latest)
       await migrationSystem.runMigrations();
       const currentVersion = await migrationSystem.getCurrentVersion();
-      expect(currentVersion).toBe(2);
+      expect(currentVersion).toBe(3);
 
       // Try to rollback to version 1.5 (between migrations 1 and 2)
       // This should rollback migration 2 but keep migration 1
@@ -729,7 +729,7 @@ describe("SchemaMigrationSystem", () => {
     it("should handle rollback with no matching migrations in range", async () => {
       const migrationSystem = new SchemaMigrationSystem(dbManager);
 
-      // Ensure we're at version 2
+      // Ensure we're at version 3 (latest)
       await migrationSystem.runMigrations();
 
       // Manually insert a fake migration version 5 to simulate a gap
@@ -741,10 +741,10 @@ describe("SchemaMigrationSystem", () => {
       const currentVersion = await migrationSystem.getCurrentVersion();
       expect(currentVersion).toBe(5);
 
-      // Try to rollback to version 3 (between 2 and 5)
+      // Try to rollback to version 4 (between 3 and 5)
       // This should trigger the "no migrations to rollback" path
-      // because there are no migrations defined between 3 and 5
-      await migrationSystem.rollbackMigration(3);
+      // because there are no migrations defined between 4 and 5
+      await migrationSystem.rollbackMigration(4);
 
       // Verify we're still at version 5 (no rollback occurred)
       const newVersion = await migrationSystem.getCurrentVersion();
@@ -753,9 +753,9 @@ describe("SchemaMigrationSystem", () => {
       // Clean up: remove fake migration
       await client.query("DELETE FROM schema_migrations WHERE version = 5");
 
-      // Verify we're back to version 2
+      // Verify we're back to version 3 (latest)
       const finalVersion = await migrationSystem.getCurrentVersion();
-      expect(finalVersion).toBe(2);
+      expect(finalVersion).toBe(3);
     });
 
     it("should be idempotent (safe to run multiple times)", async () => {
@@ -800,7 +800,7 @@ describe("SchemaMigrationSystem", () => {
 
       // Verify we're at latest version
       const version = await migrationSystem.getCurrentVersion();
-      expect(version).toBe(2);
+      expect(version).toBe(3);
     });
 
     it("should support convenience methods for table creation", async () => {

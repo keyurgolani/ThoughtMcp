@@ -49,6 +49,12 @@ export class SchemaMigrationSystem {
         upFile: "002_create_indexes.sql",
         downFile: "002_create_indexes_down.sql",
       },
+      {
+        version: 3,
+        name: "reinforcement_history",
+        upFile: "003_reinforcement_history.sql",
+        downFile: "003_reinforcement_history_down.sql",
+      },
     ];
   }
 
