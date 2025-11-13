@@ -1,114 +1,50 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 echo "🚀 Running pre-push validations..."
 
-# Get the remote and branch being pushed to
-remote="$1"
-url="$2"
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
-# Check if we're pushing to main/master (use strict validation)
+# Check for technical debt violations
+echo "🔍 Checking for technical debt violations..."
+
+# Check for 'any' types (forbidden)
+ANY_FOUND=$(find src -name "*.ts" -exec grep -l ": any\|as any\|any\[\]\|<any>" {} \; 2>/dev/null)
+if [ -n "$ANY_FOUND" ]; then
+  echo "❌ Forbidden 'any' types found in:"
+  echo "$ANY_FOUND"
+  exit 1
+fi
+
+# Check for suppression comments (forbidden)
+SUPPRESSIONS=$(find src -name "*.ts" -exec grep -l "@ts-ignore\|@ts-expect-error\|eslint-disable" {} \; 2>/dev/null)
+if [ -n "$SUPPRESSIONS" ]; then
+  echo "❌ Forbidden suppression comments found in:"
+  echo "$SUPPRESSIONS"
+  exit 1
+fi
+
+# Check for alternative file versions (forbidden)
+ALT_FILES=$(find src -name "*-v2.ts" -o -name "*-new.ts" -o -name "*-old.ts" -o -name "*-temp.ts" -o -name "*-backup.ts" -o -name "*-enhanced.ts" -o -name "*-improved.ts" 2>/dev/null)
+if [ -n "$ALT_FILES" ]; then
+  echo "❌ Forbidden alternative file versions found:"
+  echo "$ALT_FILES"
+  exit 1
+fi
+
+# Run full build with all quality gates
+echo "🏗️  Running full build with quality gates..."
+timeout 180s npm run build
+if [ $? -ne 0 ]; then
+  echo "❌ Build failed. Please fix the issues above."
+  exit 1
+fi
+
+# Additional checks for protected branches
 if [ "$current_branch" = "main" ] || [ "$current_branch" = "master" ]; then
-  echo "🔒 Pushing to protected branch: $current_branch"
-  echo "🔍 Running strict validation suite..."
-  
-  # Use strict validation for main branch
-  npm run validate:strict
-  if [ $? -ne 0 ]; then
-    echo "❌ Strict validation failed for main branch. Please fix all issues above."
-    exit 1
-  fi
-  
-  # Additional checks for main branch
-  echo "🧪 Running extended test suite with coverage..."
-  npm run test:coverage
-  if [ $? -ne 0 ]; then
-    echo "❌ Extended tests failed on main branch."
-    exit 1
-  fi
-  
-  # Check if version has been updated for main branch
+  echo "🔒 Protected branch: $current_branch"
   if git log --oneline -5 | grep -E "(bump|version|release|v[0-9])" > /dev/null; then
-    echo "✅ Version update detected in recent commits."
+    echo "✅ Version update detected."
   else
-    echo "⚠️  No version update detected. Consider bumping version for main branch."
+    echo "⚠️  No version update detected. Consider bumping version."
   fi
-  
-else
-  # Regular validation for feature branches
-  echo "🔍 Running standard validation suite..."
-  npm run validate
-  if [ $? -ne 0 ]; then
-    echo "❌ Validation suite failed. Please fix the issues above."
-    exit 1
-  fi
-fi
-
-# Security audit (always run)
-echo "🔒 Running security audit..."
-npm run security:check
-if [ $? -ne 0 ]; then
-  echo "❌ High severity security vulnerabilities detected."
-  echo "💡 Run 'npm audit' to see details and 'npm audit fix' to attempt fixes."
-  exit 1
-fi
-
-# Check for moderate security issues (warning only)
-echo "🔍 Checking for moderate security issues..."
-npm run security:audit > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-  echo "⚠️  Moderate security vulnerabilities detected. Run 'npm audit' for details."
-fi
-
-# Check for large files in the entire push
-echo "📦 Checking for large files..."
-large_files=$(git diff --name-only origin/$current_branch..$current_branch 2>/dev/null | xargs ls -la 2>/dev/null | awk '$5 > 1048576 {print $9 " (" $5 " bytes)"}')
-if [ -n "$large_files" ]; then
-  echo "⚠️  Large files detected (>1MB):"
-  echo "$large_files"
-  echo "💡 Consider using Git LFS for large files or compressing them."
-fi
-
-# Check for dependency changes
-echo "📦 Checking for dependency changes..."
-if git diff --name-only origin/$current_branch..$current_branch 2>/dev/null | grep -E "package\.json|package-lock\.json|yarn\.lock" > /dev/null; then
-  echo "📦 Dependency changes detected. Ensuring lockfile is up to date..."
-  if [ -f "package-lock.json" ]; then
-    npm ci > /dev/null 2>&1
-    if [ $? -ne 0 ]; then
-      echo "⚠️  package-lock.json might be out of sync. Run 'npm install' locally."
-    fi
-  fi
-fi
-
-# Check for TypeScript 'any' types in the entire codebase (warning for main branch)
-if [ "$current_branch" = "main" ] || [ "$current_branch" = "master" ]; then
-  echo "🔍 Checking for 'any' types in codebase..."
-  ANY_COUNT=$(find src -name "*.ts" -exec grep -l ": any\|as any\|any\[\]" {} \; 2>/dev/null | wc -l)
-  if [ $ANY_COUNT -gt 0 ]; then
-    echo "⚠️  Found 'any' types in $ANY_COUNT files. Consider improving type safety."
-    echo "💡 Run 'npm run lint:strict' to see specific locations."
-  fi
-fi
-
-# Performance check - ensure build time is reasonable
-echo "⏱️  Checking build performance..."
-BUILD_START=$(date +%s)
-npm run build > /dev/null 2>&1
-BUILD_END=$(date +%s)
-BUILD_TIME=$((BUILD_END - BUILD_START))
-
-if [ $BUILD_TIME -gt 30 ]; then
-  echo "⚠️  Build took ${BUILD_TIME}s (>30s). Consider optimizing build performance."
-elif [ $BUILD_TIME -gt 60 ]; then
-  echo "❌ Build took ${BUILD_TIME}s (>60s). Build performance needs attention."
-  exit 1
-else
-  echo "✅ Build completed in ${BUILD_TIME}s"
 fi
 
 echo "✅ Pre-push validations passed!"
-if [ "$current_branch" = "main" ] || [ "$current_branch" = "master" ]; then
-  echo "🔒 Strict validation completed for protected branch!"
-fi

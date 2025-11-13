@@ -1,0 +1,90 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$tsc"],
+      "label": "npm: build",
+      "detail": "Build TypeScript to dist/"
+    },
+    {
+      "type": "npm",
+      "script": "test",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "label": "npm: test",
+      "detail": "Run all tests"
+    },
+    {
+      "type": "npm",
+      "script": "test:coverage",
+      "problemMatcher": [],
+      "label": "npm: test:coverage",
+      "detail": "Run tests with coverage"
+    },
+    {
+      "type": "npm",
+      "script": "lint",
+      "problemMatcher": ["$eslint-stylish"],
+      "label": "npm: lint",
+      "detail": "Run ESLint"
+    },
+    {
+      "type": "npm",
+      "script": "lint:fix",
+      "problemMatcher": ["$eslint-stylish"],
+      "label": "npm: lint:fix",
+      "detail": "Fix ESLint issues"
+    },
+    {
+      "type": "npm",
+      "script": "type-check",
+      "problemMatcher": ["$tsc"],
+      "label": "npm: type-check",
+      "detail": "Run TypeScript type checking"
+    },
+    {
+      "type": "npm",
+      "script": "validate",
+      "problemMatcher": [],
+      "label": "npm: validate",
+      "detail": "Run all quality checks"
+    },
+    {
+      "type": "shell",
+      "command": "docker-compose up -d postgres",
+      "label": "Start PostgreSQL",
+      "detail": "Start PostgreSQL database with Docker Compose",
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "command": "docker-compose down",
+      "label": "Stop Docker Services",
+      "detail": "Stop all Docker Compose services",
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "command": "./scripts/db/migrate.sh status",
+      "label": "Database Migration Status",
+      "detail": "Check database migration status",
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "command": "./scripts/db/migrate.sh migrate",
+      "label": "Run Database Migrations",
+      "detail": "Apply pending database migrations",
+      "problemMatcher": []
+    }
+  ]
+}
