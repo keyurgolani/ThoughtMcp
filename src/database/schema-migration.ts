@@ -55,6 +55,12 @@ export class SchemaMigrationSystem {
         upFile: "003_reinforcement_history.sql",
         downFile: "003_reinforcement_history_down.sql",
       },
+      {
+        version: 4,
+        name: "full_text_search",
+        upFile: "004_full_text_search.sql",
+        downFile: "004_full_text_search_down.sql",
+      },
     ];
   }
 
