@@ -64,10 +64,10 @@ export default [
       "no-duplicate-imports": "error",
 
       // Cognitive architecture specific rules
-      "max-lines-per-function": ["warn", { max: 100, skipBlankLines: true, skipComments: true }],
+      "max-lines-per-function": ["error", { max: 100, skipBlankLines: true, skipComments: true }],
       "max-depth": ["error", 4],
-      complexity: ["warn", 15],
-      "max-params": ["warn", 5],
+      complexity: ["error", 15],
+      "max-params": ["error", 5],
     },
   },
   // Allow console statements in examples, tests, and utility files where appropriate
