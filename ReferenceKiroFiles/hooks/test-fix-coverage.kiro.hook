@@ -1,0 +1,15 @@
+{
+  "enabled": true,
+  "name": "Test & Fix",
+  "description": "Runs all tests with coverage, identifies and fixes the first test failure with a proper long-term solution, or improves coverage for the least covered file if no failures exist. Unskips any skipped tests and validates all changes by running tests again.",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Run all tests in the workspace with coverage using `timeout 180s npm run test:coverage`.\n\nAnalyze the results:\n\n1. If there are test failures:\n   - Identify the FIRST failing test\n   - Analyze the root cause of the failure\n   - Fix ONLY this first failure with a proper, long-term solution\n   - Do NOT skip the test, do NOT loosen validations, do NOT ignore it\n   - Ensure the fix validates the functionality correctly and is not flaky\n\n2. If there are skipped tests:\n   - Unskip ALL skipped tests\n   - Fix any issues that caused them to be skipped\n   - Ensure they pass with proper implementations\n\n3. If there are NO test failures and NO skipped tests:\n   - Review the coverage report to find files that don't meet the coverage threshold (95% line coverage, 90% branch coverage)\n   - Identify the LEAST covered file either in terms of line coverage or branch coverage\n   - Improve coverage for ONLY that file by adding meaningful tests\n   - Do NOT add trivial tests just to increase numbers - tests must validate real functionality\n\nAfter making changes:\n- Run `timeout 180s npm run test:coverage` again to validate the impact\n- Ensure at least one more test passes (or coverage improves for the target file)\n- Verify NO regressions - all previously passing tests must still pass\n- Ensure the build succeeds with `timeout 180s npm run build`\n\nGoal: One more test passing OR one file meeting coverage thresholds, with zero regressions and no skipped/ignored tests."
+  },
+  "workspaceFolderName": "ThoughtMcp",
+  "shortName": "test-fix-coverage"
+}

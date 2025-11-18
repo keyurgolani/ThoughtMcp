@@ -8,6 +8,7 @@
  */
 
 import type { DatabaseConnectionManager } from "../database/connection-manager";
+import { MemoryValidationError } from "../memory/types";
 import { QueryParser } from "./query-parser";
 import { ResultCache } from "./result-cache";
 import {
@@ -128,6 +129,11 @@ export class FullTextSearchEngine {
       return response;
     } catch (err) {
       if (err instanceof SearchValidationError) {
+        throw err;
+      }
+
+      // Re-throw MemoryValidationError as-is
+      if (err instanceof MemoryValidationError) {
         throw err;
       }
 

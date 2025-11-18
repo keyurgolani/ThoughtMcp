@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "thoughtmcp": {
+      "command": "/Users/golani/PersonalProjects/ThoughtMcp/dist/index.js",
+      "args": [],
+      "env": {
+        "DATABASE_URL": "postgresql://user:password@localhost:5432/thoughtmcp",
+        "DB_HOST": "localhost",
+        "DB_PORT": "5432",
+        "DB_NAME": "thoughtmcp",
+        "DB_USER": "user",
+        "DB_PASSWORD": "password",
+        "DB_POOL_SIZE": "20",
+        "EMBEDDING_MODEL": "ollama",
+        "EMBEDDING_DIMENSION": "1536",
+        "OLLAMA_HOST": "http://localhost:11434",
+        "LOG_LEVEL": "WARN",
+        "NODE_ENV": "production",
+        "CACHE_TTL": "300",
+        "MAX_PROCESSING_TIME": "30000",
+        "BUILD_VERSION": "20241116204500"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}

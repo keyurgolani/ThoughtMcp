@@ -7,10 +7,10 @@
  * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { VectorSearchEngine } from "../../../search/vector-search-engine";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DatabaseConnectionManager } from "../../../database/connection-manager";
 import { MemorySector } from "../../../embeddings/types";
+import { VectorSearchEngine } from "../../../search/vector-search-engine";
 
 describe("VectorSearchEngine", () => {
   let engine: VectorSearchEngine;
@@ -400,6 +400,114 @@ describe("VectorSearchEngine", () => {
 
       await expect(engine.searchByEmbedding(queryEmbedding, sector, 10)).rejects.toThrow(
         "Vector search failed: Connection timeout"
+      );
+    });
+
+    it("should handle non-Error objects in searchByMemoryId", async () => {
+      const memoryId = "mem123";
+      const sector = MemorySector.Semantic;
+
+      // Mock retrieving the memory's embedding
+      mockPool.query.mockResolvedValueOnce({
+        rows: [
+          {
+            embedding: JSON.stringify(new Array(1536).fill(0.2)),
+          },
+        ],
+      });
+
+      // Mock non-Error rejection
+      mockPool.query.mockRejectedValueOnce("string error");
+
+      await expect(engine.searchByMemoryId(memoryId, sector, 10)).rejects.toThrow(
+        "Vector search by memory ID failed: string error"
+      );
+    });
+  });
+
+  describe("parseEmbedding", () => {
+    it("should parse embedding from array format", async () => {
+      const memoryId = "mem123";
+      const sector = MemorySector.Semantic;
+      const embeddingArray = new Array(1536).fill(0.3);
+
+      // Mock retrieving the memory's embedding as array (not stringified)
+      mockPool.query.mockResolvedValueOnce({
+        rows: [
+          {
+            embedding: embeddingArray, // Array format, not string
+          },
+        ],
+      });
+
+      // Mock similarity search results
+      mockPool.query.mockResolvedValueOnce({
+        rows: [
+          {
+            memory_id: "mem456",
+            sector: "semantic",
+            similarity: 0.88,
+          },
+        ],
+      });
+
+      const results = await engine.searchByMemoryId(memoryId, sector, 10);
+
+      expect(results).toHaveLength(1);
+      expect(results[0].memoryId).toBe("mem456");
+    });
+
+    it("should throw error for invalid embedding format", async () => {
+      const memoryId = "mem123";
+      const sector = MemorySector.Semantic;
+
+      // Mock retrieving the memory's embedding with invalid format
+      mockPool.query.mockResolvedValueOnce({
+        rows: [
+          {
+            embedding: { invalid: "format" }, // Object format (invalid)
+          },
+        ],
+      });
+
+      await expect(engine.searchByMemoryId(memoryId, sector, 10)).rejects.toThrow(
+        "Invalid embedding format"
+      );
+    });
+
+    it("should throw error for null embedding", async () => {
+      const memoryId = "mem123";
+      const sector = MemorySector.Semantic;
+
+      // Mock retrieving the memory's embedding as null
+      mockPool.query.mockResolvedValueOnce({
+        rows: [
+          {
+            embedding: null, // Null format (invalid)
+          },
+        ],
+      });
+
+      await expect(engine.searchByMemoryId(memoryId, sector, 10)).rejects.toThrow(
+        "Invalid embedding format"
+      );
+    });
+
+    it("should throw error for number embedding", async () => {
+      const memoryId = "mem123";
+      const sector = MemorySector.Semantic;
+
+      // Mock retrieving the memory's embedding as number
+      mockPool.query.mockResolvedValueOnce({
+        rows: [
+          {
+            embedding: 12345, // Number format (invalid)
+          },
+        ],
+      });
+
+      await expect(engine.searchByMemoryId(memoryId, sector, 10)).rejects.toThrow(
+        "Invalid embedding format"
       );
     });
   });

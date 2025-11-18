@@ -463,14 +463,21 @@ describe("FullTextSearchEngine", () => {
 
   describe("Performance", () => {
     it("should search 100 memories in <50ms", async () => {
-      // Insert 100 test memories
-      const promises = [];
-      for (let i = 0; i < 100; i++) {
-        promises.push(
-          insertTestMemory(`Test memory ${i} with machine learning content`, "test-fts-perf-100")
-        );
+      // Insert 100 test memories in batches to avoid connection pool exhaustion
+      const batchSize = 10;
+      for (let batch = 0; batch < 10; batch++) {
+        const promises = [];
+        for (let i = 0; i < batchSize; i++) {
+          const index = batch * batchSize + i;
+          promises.push(
+            insertTestMemory(
+              `Test memory ${index} with machine learning content`,
+              "test-fts-perf-100"
+            )
+          );
+        }
+        await Promise.all(promises);
       }
-      await Promise.all(promises);
 
       const startTime = Date.now();
       const response = await performSearch({

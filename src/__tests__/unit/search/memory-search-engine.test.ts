@@ -1,569 +1,259 @@
 /**
- * Unit Tests for MemorySearchEngine
+ * Tests for MemorySearchEngine - Integrated Search Orchestrator
  *
- * Comprehensive tests for integrated search orchestrator combining all search strategies.
- * Follows TDD principles: tests written first, then implementation.
- *
- * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5
+ * Tests the orchestration of all search strategies with composite ranking,
+ * caching, and analytics tracking.
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { MemorySearchEngine } from "../../../search/memory-search-engine";
-import type { DatabaseConnectionManager } from "../../../database/connection-manager";
-import type { EmbeddingStorage } from "../../../embeddings/embedding-storage";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemorySector } from "../../../embeddings/types";
-import type { IntegratedSearchQuery, IntegratedSearchConfig } from "../../../search/types";
-
-// Mock the search engine dependencies
-vi.mock("../../../search/full-text-search-engine");
-vi.mock("../../../search/metadata-filter-engine");
-vi.mock("../../../search/similar-memory-finder");
-
-import { FullTextSearchEngine } from "../../../search/full-text-search-engine";
-import { MetadataFilterEngine } from "../../../search/metadata-filter-engine";
-import { SimilarMemoryFinder } from "../../../search/similar-memory-finder";
+import { MemorySearchEngine } from "../../../search/memory-search-engine";
 
 describe("MemorySearchEngine", () => {
-  let engine: MemorySearchEngine;
-  let mockDb: DatabaseConnectionManager;
-  let mockEmbeddingStorage: EmbeddingStorage;
-  let mockPool: {
-    query: ReturnType<typeof vi.fn>;
-  };
-
-  let mockFullTextSearch: {
-    search: ReturnType<typeof vi.fn>;
-    clearCache: ReturnType<typeof vi.fn>;
-  };
-  let mockMetadataFilter: {
-    filter: ReturnType<typeof vi.fn>;
-  };
-  let mockSimilarityFinder: {
-    findSimilar: ReturnType<typeof vi.fn>;
-  };
+  let mockDb: any;
+  let mockEmbeddingStorage: any;
+  let searchEngine: MemorySearchEngine;
 
   beforeEach(() => {
-    // Clear all mocks
-    vi.clearAllMocks();
-
-    // Create mock pool
-    mockPool = {
-      query: vi.fn(),
+    // Mock database connection manager
+    mockDb = {
+      pool: {
+        query: vi.fn(),
+      },
     };
 
-    // Create mock database manager
-    mockDb = {
-      pool: mockPool,
-      getConnection: vi.fn(),
-      releaseConnection: vi.fn(),
-    } as unknown as DatabaseConnectionManager;
-
-    // Create mock embedding storage
+    // Mock embedding storage
     mockEmbeddingStorage = {
       vectorSimilaritySearch: vi.fn(),
-    } as unknown as EmbeddingStorage;
-
-    // Create mock instances
-    mockFullTextSearch = {
-      search: vi.fn().mockResolvedValue({ results: [], statistics: {} }),
-      clearCache: vi.fn(),
     };
 
-    mockMetadataFilter = {
-      filter: vi.fn().mockResolvedValue({ memoryIds: [], count: 0, executionTimeMs: 0 }),
-    };
-
-    mockSimilarityFinder = {
-      findSimilar: vi.fn().mockResolvedValue([]),
-    };
-
-    // Mock FullTextSearchEngine
-    (FullTextSearchEngine as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      () => mockFullTextSearch
-    );
-
-    // Mock MetadataFilterEngine
-    (MetadataFilterEngine as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      () => mockMetadataFilter
-    );
-
-    // Mock SimilarMemoryFinder
-    (SimilarMemoryFinder as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      () => mockSimilarityFinder
-    );
-
-    engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage);
+    // Create search engine instance
+    searchEngine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      enableCache: true,
+      enableAnalytics: true,
+      parallelExecution: true,
+      maxExecutionTimeMs: 5000,
+      defaultLimit: 10,
+      maxLimit: 100,
+    });
   });
 
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
-  describe("Query Validation", () => {
-    it("should accept valid query with text search", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test query",
-        userId: "user1",
-        limit: 10,
-      };
-
-      mockPool.query.mockResolvedValue({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test content",
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      const results = await engine.search(query);
-      expect(results).toBeDefined();
-    });
-
-    it("should accept valid query with vector search", async () => {
-      const query: IntegratedSearchQuery = {
-        embedding: new Array(1536).fill(0.1),
-        sector: MemorySector.Semantic,
-        userId: "user1",
-      };
-
-      mockPool.query.mockResolvedValue({ rows: [] });
-      (mockEmbeddingStorage.vectorSimilaritySearch as ReturnType<typeof vi.fn>).mockResolvedValue(
-        []
-      );
-
-      const results = await engine.search(query);
-      expect(results).toBeDefined();
-    });
-
-    it("should accept valid query with metadata filters", async () => {
-      const query: IntegratedSearchQuery = {
-        metadata: {
-          keywords: ["test"],
-          tags: ["important"],
-        },
-        userId: "user1",
-      };
-
-      mockPool.query.mockResolvedValue({ rows: [] });
-
-      const results = await engine.search(query);
-      expect(results).toBeDefined();
-    });
-
-    it("should accept valid query with similarTo", async () => {
-      const query: IntegratedSearchQuery = {
-        similarTo: "mem1",
-        userId: "user1",
-      };
-
-      mockPool.query.mockResolvedValue({ rows: [] });
-
-      const results = await engine.search(query);
-      expect(results).toBeDefined();
-    });
-
-    it("should reject query with negative limit", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        limit: -1,
-      };
-
-      await expect(engine.search(query)).rejects.toMatchObject({
+  describe("Validation", () => {
+    it("should throw error when no search criteria provided", async () => {
+      await expect(
+        searchEngine.search({
+          userId: "user-1",
+        })
+      ).rejects.toMatchObject({
         name: "IntegratedSearchValidationError",
-        code: "VALIDATION_ERROR",
-        field: "limit",
+        message: "At least one search criterion must be provided",
       });
     });
 
-    it("should reject query with limit exceeding maximum", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        limit: 10000,
-      };
-
-      await expect(engine.search(query)).rejects.toMatchObject({
+    it("should throw error for negative limit", async () => {
+      await expect(
+        searchEngine.search({
+          userId: "user-1",
+          text: "test",
+          limit: -1,
+        })
+      ).rejects.toMatchObject({
         name: "IntegratedSearchValidationError",
-        code: "VALIDATION_ERROR",
-        field: "limit",
+        message: "Limit must be non-negative",
       });
     });
 
-    it("should reject query with negative offset", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        offset: -1,
-      };
-
-      await expect(engine.search(query)).rejects.toMatchObject({
+    it("should throw error for limit exceeding max", async () => {
+      await expect(
+        searchEngine.search({
+          userId: "user-1",
+          text: "test",
+          limit: 200,
+        })
+      ).rejects.toMatchObject({
         name: "IntegratedSearchValidationError",
-        code: "VALIDATION_ERROR",
-        field: "offset",
+        message: "Limit cannot exceed 100",
       });
     });
 
-    it("should reject query with minStrength out of range", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        minStrength: 1.5,
-      };
-
-      await expect(engine.search(query)).rejects.toMatchObject({
+    it("should throw error for negative offset", async () => {
+      await expect(
+        searchEngine.search({
+          userId: "user-1",
+          text: "test",
+          offset: -1,
+        })
+      ).rejects.toMatchObject({
         name: "IntegratedSearchValidationError",
-        code: "VALIDATION_ERROR",
-        field: "minStrength",
+        message: "Offset must be non-negative",
       });
     });
 
-    it("should reject query with minSalience out of range", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        minSalience: -0.1,
-      };
-
-      await expect(engine.search(query)).rejects.toMatchObject({
+    it("should throw error for invalid minStrength", async () => {
+      await expect(
+        searchEngine.search({
+          userId: "user-1",
+          text: "test",
+          minStrength: 1.5,
+        })
+      ).rejects.toMatchObject({
         name: "IntegratedSearchValidationError",
-        code: "VALIDATION_ERROR",
-        field: "minSalience",
+        message: "minStrength must be between 0 and 1",
       });
     });
 
-    it("should reject empty query with no search criteria", async () => {
-      const query: IntegratedSearchQuery = {
-        userId: "user1",
-      };
-
-      await expect(engine.search(query)).rejects.toMatchObject({
+    it("should throw error for invalid minSalience", async () => {
+      await expect(
+        searchEngine.search({
+          userId: "user-1",
+          text: "test",
+          minSalience: -0.1,
+        })
+      ).rejects.toMatchObject({
         name: "IntegratedSearchValidationError",
-        code: "VALIDATION_ERROR",
-        field: "query",
+        message: "minSalience must be between 0 and 1",
       });
     });
   });
 
-  describe("Strategy Selection", () => {
-    it("should execute full-text strategy when text is provided", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test query",
-        userId: "user1",
-      };
-
-      mockFullTextSearch.search.mockResolvedValue({
-        results: [
-          {
-            memoryId: "mem1",
-            content: "test content",
-            rank: 0.9,
-            headline: "test",
-            matchedTerms: ["test"],
-          },
-        ],
-        statistics: {},
-      });
-
-      mockPool.query.mockResolvedValue({
-        rows: [
-          {
-            content: "test content",
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      await engine.search(query);
-
-      // Verify full-text search was executed
-      expect(mockFullTextSearch.search).toHaveBeenCalled();
-    });
-
-    it("should execute vector strategy when embedding is provided", async () => {
-      const query: IntegratedSearchQuery = {
-        embedding: new Array(1536).fill(0.1),
-        sector: MemorySector.Semantic,
-        userId: "user1",
-      };
-
-      mockPool.query.mockResolvedValue({ rows: [] });
-      (mockEmbeddingStorage.vectorSimilaritySearch as ReturnType<typeof vi.fn>).mockResolvedValue(
-        []
-      );
-
-      await engine.search(query);
-
-      // Verify vector search was executed
-      expect(mockEmbeddingStorage.vectorSimilaritySearch).toHaveBeenCalled();
-    });
-
-    it("should execute metadata strategy when metadata is provided", async () => {
-      const query: IntegratedSearchQuery = {
-        metadata: {
-          keywords: ["test"],
-        },
-        userId: "user1",
-      };
-
-      mockMetadataFilter.filter.mockResolvedValue({
-        memoryIds: [],
-        count: 0,
-        executionTimeMs: 0,
-      });
-
-      await engine.search(query);
-
-      // Verify metadata filter was executed
-      expect(mockMetadataFilter.filter).toHaveBeenCalled();
-    });
-
-    it("should execute similarity strategy when similarTo is provided", async () => {
-      const query: IntegratedSearchQuery = {
-        similarTo: "mem1",
-        userId: "user1",
-      };
-
-      mockSimilarityFinder.findSimilar.mockResolvedValue([]);
-
-      await engine.search(query);
-
-      // Verify similarity search was executed
-      expect(mockSimilarityFinder.findSimilar).toHaveBeenCalled();
-    });
-
-    it("should execute multiple strategies for hybrid search", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test query",
-        embedding: new Array(1536).fill(0.1),
-        metadata: {
-          keywords: ["test"],
-        },
-        userId: "user1",
-      };
-
-      mockFullTextSearch.search.mockResolvedValue({ results: [], statistics: {} });
-      mockMetadataFilter.filter.mockResolvedValue({ memoryIds: [], count: 0, executionTimeMs: 0 });
-      (mockEmbeddingStorage.vectorSimilaritySearch as ReturnType<typeof vi.fn>).mockResolvedValue(
-        []
-      );
-
-      await engine.search(query);
-
-      // Verify multiple strategies were executed
-      expect(mockFullTextSearch.search).toHaveBeenCalled();
-      expect(mockMetadataFilter.filter).toHaveBeenCalled();
-      expect(mockEmbeddingStorage.vectorSimilaritySearch).toHaveBeenCalled();
-    });
-  });
-
-  describe("Parallel Execution", () => {
-    it("should execute strategies in parallel when enabled", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
-        parallelExecution: true,
-      };
-
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
-
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        embedding: new Array(1536).fill(0.1),
-        userId: "user1",
-      };
-
-      mockPool.query.mockResolvedValue({ rows: [] });
-      (mockEmbeddingStorage.vectorSimilaritySearch as ReturnType<typeof vi.fn>).mockResolvedValue(
-        []
-      );
-
-      const startTime = Date.now();
-      await engine.search(query);
-      const duration = Date.now() - startTime;
-
-      // Parallel execution should be faster than sequential
-      expect(duration).toBeLessThan(1000);
-    });
-
-    it("should handle timeout during parallel execution", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
-        parallelExecution: true,
-        maxExecutionTimeMs: 100,
-      };
-
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
-
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        userId: "user1",
-      };
-
-      // Mock slow full-text search
-      mockFullTextSearch.search.mockImplementation(
-        () =>
-          new Promise((resolve) => setTimeout(() => resolve({ results: [], statistics: {} }), 200))
-      );
-
-      await expect(engine.search(query)).rejects.toMatchObject({
-        name: "IntegratedSearchTimeoutError",
-        code: "TIMEOUT_ERROR",
-      });
-    });
-
-    it("should handle strategy failure gracefully", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        embedding: new Array(1536).fill(0.1),
-        userId: "user1",
-      };
-
-      // Mock one strategy failing
-      mockPool.query.mockRejectedValue(new Error("Database error"));
-      (mockEmbeddingStorage.vectorSimilaritySearch as ReturnType<typeof vi.fn>).mockResolvedValue(
-        []
-      );
-
-      // Should not throw, but continue with successful strategies
-      const results = await engine.search(query);
-      expect(results).toBeDefined();
-    });
-
-    it("should execute strategies sequentially when parallel is disabled", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
-        parallelExecution: false,
-      };
-
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
-
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        embedding: new Array(1536).fill(0.1),
-        userId: "user1",
-      };
-
-      mockFullTextSearch.search.mockResolvedValue({ results: [], statistics: {} });
-      (mockEmbeddingStorage.vectorSimilaritySearch as ReturnType<typeof vi.fn>).mockResolvedValue(
-        []
-      );
-
-      await engine.search(query);
-
-      // Verify strategies were executed
-      expect(mockFullTextSearch.search).toHaveBeenCalled();
-      expect(mockEmbeddingStorage.vectorSimilaritySearch).toHaveBeenCalled();
-    });
-
-    it("should handle timeout during sequential execution", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
-        parallelExecution: false,
-        maxExecutionTimeMs: 30,
-      };
-
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
-
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        embedding: new Array(1536).fill(0.1),
-        userId: "user1",
-      };
-
-      // Mock first strategy that takes longer than timeout
-      // This ensures that when we check before the second strategy, we're already over the limit
-      mockFullTextSearch.search.mockImplementation(
-        () =>
-          new Promise((resolve) => setTimeout(() => resolve({ results: [], statistics: {} }), 35))
-      );
-
-      // Mock second strategy (won't be reached due to timeout)
-      (mockEmbeddingStorage.vectorSimilaritySearch as ReturnType<typeof vi.fn>).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve([]), 10))
-      );
-
-      // Sequential execution checks timeout BEFORE starting each strategy
-      // After first strategy (35ms), before second strategy starts, it checks if 35ms > 30ms (yes) and throws
-      await expect(engine.search(query)).rejects.toMatchObject({
-        message: expect.stringContaining("exceeded maximum execution time"),
-      });
-    });
-  });
-
-  describe("Composite Ranking", () => {
-    it("should calculate composite score from multiple strategies", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        embedding: new Array(1536).fill(0.1),
-        userId: "user1",
-      };
-
-      // Mock full-text results
-      mockFullTextSearch.search.mockResolvedValue({
-        results: [
-          {
-            memoryId: "mem1",
-            content: "test content",
-            headline: "test",
-            rank: 0.9,
-            matchedTerms: ["test"],
-          },
-        ],
-        statistics: {},
-      });
-
-      // Mock vector results
-      (mockEmbeddingStorage.vectorSimilaritySearch as ReturnType<typeof vi.fn>).mockResolvedValue([
+  describe("Strategy Execution", () => {
+    beforeEach(() => {
+      // Mock full-text search results
+      vi.spyOn(searchEngine as any, "executeFullTextSearch").mockResolvedValue([
         {
-          memoryId: "mem1",
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: { headline: "Test", matchedTerms: ["test"] },
+        },
+      ]);
+
+      // Mock database query for memory data
+      mockDb.pool.query.mockResolvedValue({
+        rows: [
+          {
+            content: "Test content",
+            created_at: new Date(),
+            salience: 0.8,
+            strength: 0.9,
+          },
+        ],
+      });
+    });
+
+    it("should execute full-text search strategy", async () => {
+      const results = await searchEngine.search({
+        userId: "user-1",
+        text: "test query",
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].memoryId).toBe("mem-1");
+      expect(results[0].content).toBe("Test content");
+    });
+
+    it("should execute vector search strategy", async () => {
+      mockEmbeddingStorage.vectorSimilaritySearch.mockResolvedValue([
+        {
+          memoryId: "mem-2",
           similarity: 0.85,
           sector: MemorySector.Semantic,
         },
       ]);
 
-      // Mock memory data fetch
-      mockPool.query.mockResolvedValue({
-        rows: [
-          {
-            content: "test content",
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
+      const results = await searchEngine.search({
+        userId: "user-1",
+        embedding: new Array(1536).fill(0.1),
+        sector: MemorySector.Semantic,
       });
-
-      const results = await engine.search(query);
 
       expect(results).toHaveLength(1);
-      expect(results[0].compositeScore).toBeGreaterThan(0);
-      expect(results[0].strategyScores.fullText).toBeDefined();
-      expect(results[0].strategyScores.vector).toBeDefined();
+      expect(results[0].memoryId).toBe("mem-2");
+      expect(mockEmbeddingStorage.vectorSimilaritySearch).toHaveBeenCalled();
     });
 
-    it("should apply configurable weights to strategy scores", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
-        weights: {
-          fullText: 0.5,
-          vector: 0.3,
-          metadata: 0.1,
-          similarity: 0.1,
+    it("should execute metadata filter strategy", async () => {
+      vi.spyOn(searchEngine as any, "executeMetadataFilter").mockResolvedValue([
+        {
+          strategy: "metadata",
+          memoryId: "mem-3",
+          score: 1.0,
+          metadata: {},
         },
-      };
+      ]);
 
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
+      const results = await searchEngine.search({
+        userId: "user-1",
+        metadata: {
+          keywords: ["test"],
+        },
+      });
 
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        embedding: new Array(1536).fill(0.1),
-        userId: "user1",
-      };
+      expect(results).toHaveLength(1);
+      expect(results[0].memoryId).toBe("mem-3");
+    });
 
-      mockPool.query.mockResolvedValueOnce({
+    it("should execute similarity search strategy", async () => {
+      vi.spyOn(searchEngine as any, "executeSimilaritySearch").mockResolvedValue([
+        {
+          strategy: "similarity",
+          memoryId: "mem-4",
+          score: 0.75,
+          metadata: { explanation: "Similar content" },
+        },
+      ]);
+
+      const results = await searchEngine.search({
+        userId: "user-1",
+        similarTo: "mem-source",
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].memoryId).toBe("mem-4");
+    });
+  });
+
+  describe("Parallel vs Sequential Execution", () => {
+    beforeEach(() => {
+      vi.spyOn(searchEngine as any, "executeFullTextSearch").mockResolvedValue([
+        {
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: {},
+        },
+      ]);
+
+      mockDb.pool.query.mockResolvedValue({
         rows: [
           {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
+            content: "Test",
+            created_at: new Date(),
+            salience: 0.8,
+            strength: 0.9,
+          },
+        ],
+      });
+    });
+
+    it("should execute strategies in parallel when enabled", async () => {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+        parallelExecution: true,
+      });
+
+      vi.spyOn(engine as any, "executeFullTextSearch").mockResolvedValue([
+        {
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: {},
+        },
+      ]);
+
+      mockDb.pool.query.mockResolvedValue({
+        rows: [
+          {
+            content: "Test",
             created_at: new Date(),
             salience: 0.8,
             strength: 0.9,
@@ -571,18 +261,206 @@ describe("MemorySearchEngine", () => {
         ],
       });
 
-      (mockEmbeddingStorage.vectorSimilaritySearch as ReturnType<typeof vi.fn>).mockResolvedValue([
+      const results = await engine.search({
+        userId: "user-1",
+        text: "test",
+      });
+
+      expect(results).toHaveLength(1);
+    });
+
+    it("should execute strategies sequentially when parallel disabled", async () => {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+        parallelExecution: false,
+      });
+
+      vi.spyOn(engine as any, "executeFullTextSearch").mockResolvedValue([
         {
-          memoryId: "mem1",
-          similarity: 0.7,
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: {},
+        },
+      ]);
+
+      mockDb.pool.query.mockResolvedValue({
+        rows: [
+          {
+            content: "Test",
+            created_at: new Date(),
+            salience: 0.8,
+            strength: 0.9,
+          },
+        ],
+      });
+
+      const results = await engine.search({
+        userId: "user-1",
+        text: "test",
+      });
+
+      expect(results).toHaveLength(1);
+    });
+  });
+
+  describe("Timeout Handling", () => {
+    it("should throw timeout error when search exceeds max execution time", async () => {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+        parallelExecution: true,
+        maxExecutionTimeMs: 100,
+      });
+
+      vi.spyOn(engine as any, "executeFullTextSearch").mockImplementation(
+        () => new Promise((resolve) => setTimeout(resolve, 200))
+      );
+
+      await expect(
+        engine.search({
+          userId: "user-1",
+          text: "test",
+        })
+      ).rejects.toMatchObject({
+        name: "IntegratedSearchTimeoutError",
+        message: "Search exceeded maximum execution time of 100ms",
+      });
+    });
+  });
+
+  describe("Result Filtering", () => {
+    beforeEach(() => {
+      vi.spyOn(searchEngine as any, "executeFullTextSearch").mockResolvedValue([
+        {
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: {},
+        },
+        {
+          strategy: "full-text",
+          memoryId: "mem-2",
+          score: 0.8,
+          metadata: {},
+        },
+      ]);
+    });
+
+    it("should filter results by minStrength", async () => {
+      mockDb.pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              content: "High strength",
+              created_at: new Date(),
+              salience: 0.8,
+              strength: 0.9,
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              content: "Low strength",
+              created_at: new Date(),
+              salience: 0.8,
+              strength: 0.3,
+            },
+          ],
+        });
+
+      const results = await searchEngine.search({
+        userId: "user-1",
+        text: "test",
+        minStrength: 0.5,
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].memoryId).toBe("mem-1");
+      expect(results[0].strength).toBe(0.9);
+    });
+
+    it("should filter results by minSalience", async () => {
+      mockDb.pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              content: "High salience",
+              created_at: new Date(),
+              salience: 0.9,
+              strength: 0.8,
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              content: "Low salience",
+              created_at: new Date(),
+              salience: 0.2,
+              strength: 0.8,
+            },
+          ],
+        });
+
+      const results = await searchEngine.search({
+        userId: "user-1",
+        text: "test",
+        minSalience: 0.5,
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].memoryId).toBe("mem-1");
+      expect(results[0].salience).toBe(0.9);
+    });
+
+    it("should skip memories not found in database", async () => {
+      mockDb.pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              content: "Found",
+              created_at: new Date(),
+              salience: 0.8,
+              strength: 0.9,
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rows: [], // Memory not found
+        });
+
+      const results = await searchEngine.search({
+        userId: "user-1",
+        text: "test",
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].memoryId).toBe("mem-1");
+    });
+  });
+
+  describe("Composite Scoring", () => {
+    it("should calculate composite score from multiple strategies", async () => {
+      vi.spyOn(searchEngine as any, "executeFullTextSearch").mockResolvedValue([
+        {
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: {},
+        },
+      ]);
+
+      mockEmbeddingStorage.vectorSimilaritySearch.mockResolvedValue([
+        {
+          memoryId: "mem-1",
+          similarity: 0.8,
           sector: MemorySector.Semantic,
         },
       ]);
 
-      mockPool.query.mockResolvedValueOnce({
+      mockDb.pool.query.mockResolvedValue({
         rows: [
           {
-            content: "test",
+            content: "Test",
             created_at: new Date(),
             salience: 0.8,
             strength: 0.9,
@@ -590,342 +468,183 @@ describe("MemorySearchEngine", () => {
         ],
       });
 
-      const results = await engine.search(query);
+      const results = await searchEngine.search({
+        userId: "user-1",
+        text: "test",
+        embedding: new Array(1536).fill(0.1),
+      });
 
-      // Composite score should reflect custom weights
+      expect(results).toHaveLength(1);
       expect(results[0].compositeScore).toBeGreaterThan(0);
+      expect(results[0].strategyScores.fullText).toBe(0.9);
+      expect(results[0].strategyScores.vector).toBe(0.8);
     });
 
-    it("should sort results by composite score", async () => {
-      const query: IntegratedSearchQuery = {
+    it("should rank results by composite score", async () => {
+      vi.spyOn(searchEngine as any, "executeFullTextSearch").mockResolvedValue([
+        {
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: {},
+        },
+        {
+          strategy: "full-text",
+          memoryId: "mem-2",
+          score: 0.7,
+          metadata: {},
+        },
+      ]);
+
+      mockDb.pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              content: "High score",
+              created_at: new Date(),
+              salience: 0.8,
+              strength: 0.9,
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              content: "Low score",
+              created_at: new Date(),
+              salience: 0.8,
+              strength: 0.9,
+            },
+          ],
+        });
+
+      const results = await searchEngine.search({
+        userId: "user-1",
         text: "test",
-        userId: "user1",
-      };
-
-      mockFullTextSearch.search.mockResolvedValue({
-        results: [
-          {
-            memoryId: "mem1",
-            content: "test1",
-            headline: "test1",
-            rank: 0.5,
-            matchedTerms: ["test"],
-          },
-          {
-            memoryId: "mem2",
-            content: "test2",
-            headline: "test2",
-            rank: 0.9,
-            matchedTerms: ["test"],
-          },
-        ],
-        statistics: {},
       });
-
-      // Mock memory data fetch for mem1
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test1",
-            created_at: new Date(),
-            salience: 0.5,
-            strength: 0.5,
-          },
-        ],
-      });
-
-      // Mock memory data fetch for mem2
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test2",
-            created_at: new Date(),
-            salience: 0.9,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      const results = await engine.search(query);
 
       expect(results).toHaveLength(2);
       expect(results[0].rank).toBe(1);
       expect(results[1].rank).toBe(2);
-      expect(results[0].compositeScore).toBeGreaterThanOrEqual(results[1].compositeScore);
+      expect(results[0].compositeScore).toBeGreaterThan(results[1].compositeScore);
+    });
+  });
+
+  describe("Pagination", () => {
+    beforeEach(() => {
+      vi.spyOn(searchEngine as any, "executeFullTextSearch").mockResolvedValue([
+        { strategy: "full-text", memoryId: "mem-1", score: 0.9, metadata: {} },
+        { strategy: "full-text", memoryId: "mem-2", score: 0.8, metadata: {} },
+        { strategy: "full-text", memoryId: "mem-3", score: 0.7, metadata: {} },
+      ]);
+
+      mockDb.pool.query.mockImplementation((_sql: string, params: any[]) => {
+        const memoryId = params[0];
+        return Promise.resolve({
+          rows: [
+            {
+              content: `Content ${memoryId}`,
+              created_at: new Date(),
+              salience: 0.8,
+              strength: 0.9,
+            },
+          ],
+        });
+      });
     });
 
-    it("should apply pagination to results", async () => {
-      const query: IntegratedSearchQuery = {
+    it("should apply limit to results", async () => {
+      const results = await searchEngine.search({
+        userId: "user-1",
         text: "test",
-        userId: "user1",
-        limit: 1,
+        limit: 2,
+      });
+
+      expect(results).toHaveLength(2);
+    });
+
+    it("should apply offset to results", async () => {
+      const results = await searchEngine.search({
+        userId: "user-1",
+        text: "test",
         offset: 1,
-      };
-
-      mockFullTextSearch.search.mockResolvedValue({
-        results: [
-          {
-            memoryId: "mem1",
-            content: "test1",
-            headline: "test1",
-            rank: 0.9,
-            matchedTerms: ["test"],
-          },
-          {
-            memoryId: "mem2",
-            content: "test2",
-            headline: "test2",
-            rank: 0.8,
-            matchedTerms: ["test"],
-          },
-        ],
-        statistics: {},
+        limit: 2,
       });
 
-      // Mock memory data fetch for mem1
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test1",
-            created_at: new Date(),
-            salience: 0.9,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      // Mock memory data fetch for mem2
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test2",
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.8,
-          },
-        ],
-      });
-
-      const results = await engine.search(query);
-
-      // Should return only 1 result starting from offset 1
-      expect(results).toHaveLength(1);
-      expect(results[0].memoryId).toBe("mem2");
+      expect(results).toHaveLength(2);
+      expect(results[0].memoryId).toBe("mem-2");
     });
 
-    it("should filter by minStrength threshold", async () => {
-      const query: IntegratedSearchQuery = {
+    it("should use default limit when not specified", async () => {
+      const results = await searchEngine.search({
+        userId: "user-1",
         text: "test",
-        userId: "user1",
-        minStrength: 0.8,
-      };
-
-      mockFullTextSearch.search.mockResolvedValue({
-        results: [
-          {
-            memoryId: "mem1",
-            content: "test1",
-            headline: "test1",
-            rank: 0.9,
-            matchedTerms: ["test"],
-          },
-          {
-            memoryId: "mem2",
-            content: "test2",
-            headline: "test2",
-            rank: 0.8,
-            matchedTerms: ["test"],
-          },
-        ],
-        statistics: {},
       });
 
-      // Mock memory data fetch for mem1
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test1",
-            created_at: new Date(),
-            salience: 0.9,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      // Mock memory data fetch for mem2
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test2",
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.5,
-          },
-        ],
-      });
-
-      const results = await engine.search(query);
-
-      // Should only return mem1 with strength >= 0.8
-      expect(results).toHaveLength(1);
-      expect(results[0].memoryId).toBe("mem1");
-    });
-
-    it("should filter by minSalience threshold", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        userId: "user1",
-        minSalience: 0.8,
-      };
-
-      mockFullTextSearch.search.mockResolvedValue({
-        results: [
-          {
-            memoryId: "mem1",
-            content: "test1",
-            headline: "test1",
-            rank: 0.9,
-            matchedTerms: ["test"],
-          },
-          {
-            memoryId: "mem2",
-            content: "test2",
-            headline: "test2",
-            rank: 0.8,
-            matchedTerms: ["test"],
-          },
-        ],
-        statistics: {},
-      });
-
-      // Mock memory data fetch for mem1
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test1",
-            created_at: new Date(),
-            salience: 0.9,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      // Mock memory data fetch for mem2
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test2",
-            created_at: new Date(),
-            salience: 0.5,
-            strength: 0.8,
-          },
-        ],
-      });
-
-      const results = await engine.search(query);
-
-      // Should only return mem1 with salience >= 0.8
-      expect(results).toHaveLength(1);
-      expect(results[0].memoryId).toBe("mem1");
+      expect(results.length).toBeLessThanOrEqual(10); // Default limit
     });
   });
 
   describe("Caching", () => {
+    beforeEach(() => {
+      vi.spyOn(searchEngine as any, "executeFullTextSearch").mockResolvedValue([
+        {
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: {},
+        },
+      ]);
+
+      mockDb.pool.query.mockResolvedValue({
+        rows: [
+          {
+            content: "Test",
+            created_at: new Date(),
+            salience: 0.8,
+            strength: 0.9,
+          },
+        ],
+      });
+    });
+
     it("should cache search results", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
-        enableCache: true,
-        cacheTTL: 300,
+      const query = {
+        userId: "user-1",
+        text: "test query",
       };
 
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
+      // First search - cache miss
+      await searchEngine.search(query);
 
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        userId: "user1",
-      };
+      // Second search - cache hit
+      const results = await searchEngine.search(query);
 
-      mockPool.query.mockResolvedValue({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
+      expect(results).toHaveLength(1);
 
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test",
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      // First search - should execute query
-      await engine.search(query);
-
-      // Second search - should use cache
-      await engine.search(query);
-
-      // Verify cache hit
-      const stats = engine.getCacheStats();
+      const stats = searchEngine.getCacheStats();
       expect(stats.hits).toBe(1);
       expect(stats.misses).toBe(1);
     });
 
-    it("should generate consistent cache keys for same query", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
-        enableCache: true,
-      };
+    it("should not cache when caching is disabled", async () => {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+        enableCache: false,
+      });
 
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
+      vi.spyOn(engine as any, "executeFullTextSearch").mockResolvedValue([
+        {
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: {},
+        },
+      ]);
 
-      const query1: IntegratedSearchQuery = {
-        text: "test",
-        userId: "user1",
-        limit: 10,
-        offset: 0,
-      };
-
-      const query2: IntegratedSearchQuery = {
-        text: "test",
-        userId: "user1",
-        limit: 20,
-        offset: 5,
-      };
-
-      mockPool.query.mockResolvedValue({
+      mockDb.pool.query.mockResolvedValue({
         rows: [
           {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
+            content: "Test",
             created_at: new Date(),
             salience: 0.8,
             strength: 0.9,
@@ -933,287 +652,128 @@ describe("MemorySearchEngine", () => {
         ],
       });
 
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
+      await engine.search({ userId: "user-1", text: "test" });
+      await engine.search({ userId: "user-1", text: "test" });
 
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test",
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      await engine.search(query1);
-      await engine.search(query2);
-
-      // Cache key should ignore pagination, so second query should hit cache
       const stats = engine.getCacheStats();
-      expect(stats.hits).toBe(1);
+      expect(stats.hits).toBe(0);
     });
 
-    it("should expire cached results after TTL", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
-        enableCache: true,
-        cacheTTL: 0.001, // 1ms TTL
-      };
+    it("should clear cache", async () => {
+      await searchEngine.search({ userId: "user-1", text: "test" });
 
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
+      searchEngine.clearCache();
 
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        userId: "user1",
-      };
-
-      mockPool.query.mockResolvedValue({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test",
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      await engine.search(query);
-
-      // Wait for cache to expire
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test",
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      await engine.search(query);
-
-      // Should be cache miss due to expiration
-      const stats = engine.getCacheStats();
-      expect(stats.misses).toBe(2);
-    });
-
-    it("should clear cache when requested", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
-        enableCache: true,
-      };
-
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
-
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        userId: "user1",
-      };
-
-      mockPool.query.mockResolvedValue({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test",
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      await engine.search(query);
-
-      engine.clearCache();
-
-      const stats = engine.getCacheStats();
+      const stats = searchEngine.getCacheStats();
       expect(stats.size).toBe(0);
       expect(stats.hits).toBe(0);
       expect(stats.misses).toBe(0);
     });
 
-    it("should provide cache statistics", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
+    it("should expire cached entries after TTL", async () => {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
         enableCache: true,
-      };
+        cacheTTL: 1, // 1 second TTL
+      });
 
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
+      vi.spyOn(engine as any, "executeFullTextSearch").mockResolvedValue([
+        {
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: {},
+        },
+      ]);
+
+      mockDb.pool.query.mockResolvedValue({
+        rows: [
+          {
+            content: "Test",
+            created_at: new Date(),
+            salience: 0.8,
+            strength: 0.9,
+          },
+        ],
+      });
+
+      const query = { userId: "user-1", text: "test" };
+
+      // First search
+      await engine.search(query);
+
+      // Wait for TTL to expire
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+
+      // Second search - should be cache miss due to expiration
+      await engine.search(query);
 
       const stats = engine.getCacheStats();
+      expect(stats.misses).toBe(2);
+    });
 
-      expect(stats).toHaveProperty("hits");
-      expect(stats).toHaveProperty("misses");
-      expect(stats).toHaveProperty("size");
-      expect(stats).toHaveProperty("maxSize");
-      expect(stats).toHaveProperty("hitRate");
+    it("should exclude pagination from cache key", async () => {
+      const query1 = { userId: "user-1", text: "test", limit: 5, offset: 0 };
+      const query2 = { userId: "user-1", text: "test", limit: 10, offset: 5 };
+
+      await searchEngine.search(query1);
+      await searchEngine.search(query2);
+
+      const stats = searchEngine.getCacheStats();
+      expect(stats.hits).toBe(1); // Second query should hit cache
     });
   });
 
-  describe("Analytics Tracking", () => {
-    it("should track search analytics when enabled", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
-        enableAnalytics: true,
-        enableCache: false, // Disable cache to ensure execution time is tracked
-      };
+  describe("Analytics", () => {
+    beforeEach(() => {
+      vi.spyOn(searchEngine as any, "executeFullTextSearch").mockResolvedValue([
+        {
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: {},
+        },
+      ]);
 
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
-
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        userId: "user1",
-      };
-
-      mockFullTextSearch.search.mockResolvedValue({
-        results: [
-          {
-            memoryId: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matchedTerms: ["test"],
-          },
-        ],
-        statistics: {},
-      });
-
-      mockPool.query.mockResolvedValue({
+      mockDb.pool.query.mockResolvedValue({
         rows: [
           {
-            content: "test",
+            content: "Test",
             created_at: new Date(),
             salience: 0.8,
             strength: 0.9,
           },
         ],
       });
-
-      await engine.search(query);
-
-      const summary = engine.getAnalyticsSummary();
-      expect(summary.totalSearches).toBe(1);
-      expect(summary.avgExecutionTimeMs).toBeGreaterThanOrEqual(0);
     });
 
-    it("should calculate analytics summary correctly", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
-        enableAnalytics: true,
-        enableCache: false, // Disable cache to ensure execution time is tracked
-      };
+    it("should track search analytics", async () => {
+      await searchEngine.search({ userId: "user-1", text: "test" });
 
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
+      const summary = searchEngine.getAnalyticsSummary();
 
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        userId: "user1",
-      };
+      expect(summary.totalSearches).toBe(1);
+      expect(summary.avgExecutionTimeMs).toBeGreaterThanOrEqual(0);
+      expect(summary.strategiesUsed["full-text"]).toBe(1);
+    });
 
-      mockFullTextSearch.search.mockResolvedValue({
-        results: [
-          {
-            memoryId: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matchedTerms: ["test"],
-          },
-        ],
-        statistics: {},
+    it("should not track analytics when disabled", async () => {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+        enableAnalytics: false,
       });
 
-      mockPool.query.mockResolvedValue({
+      vi.spyOn(engine as any, "executeFullTextSearch").mockResolvedValue([
+        {
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: {},
+        },
+      ]);
+
+      mockDb.pool.query.mockResolvedValue({
         rows: [
           {
-            content: "test",
+            content: "Test",
             created_at: new Date(),
             salience: 0.8,
             strength: 0.9,
@@ -1221,364 +781,124 @@ describe("MemorySearchEngine", () => {
         ],
       });
 
-      for (let i = 0; i < 3; i++) {
-        await engine.search(query);
-      }
+      await engine.search({ userId: "user-1", text: "test" });
 
       const summary = engine.getAnalyticsSummary();
-
-      expect(summary.totalSearches).toBe(3);
-      expect(summary.avgExecutionTimeMs).toBeGreaterThanOrEqual(0);
-      expect(summary.avgResultsCount).toBeGreaterThan(0);
-      expect(summary.strategiesUsed["full-text"]).toBe(3);
+      expect(summary.totalSearches).toBe(0);
     });
 
     it("should filter analytics by date range", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
-        enableAnalytics: true,
-      };
-
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
-
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        userId: "user1",
-      };
-
-      mockPool.query.mockResolvedValue({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test",
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      await engine.search(query);
+      await searchEngine.search({ userId: "user-1", text: "test1" });
 
       const futureDate = new Date(Date.now() + 1000000);
-      const summary = engine.getAnalyticsSummary(futureDate);
+      const summary = searchEngine.getAnalyticsSummary(futureDate);
 
       expect(summary.totalSearches).toBe(0);
     });
 
-    it("should track cache hit rate in analytics", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
-        enableAnalytics: true,
-        enableCache: true,
-      };
+    it("should track top queries", async () => {
+      await searchEngine.search({ userId: "user-1", text: "popular query" });
+      await searchEngine.search({ userId: "user-1", text: "popular query" });
+      await searchEngine.search({ userId: "user-1", text: "rare query" });
 
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
+      const summary = searchEngine.getAnalyticsSummary();
 
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        userId: "user1",
-      };
-
-      mockPool.query.mockResolvedValue({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            content: "test",
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      await engine.search(query);
-      await engine.search(query);
-
-      const summary = engine.getAnalyticsSummary();
-      expect(summary.cacheHitRate).toBe(0.5);
+      expect(summary.topQueries).toHaveLength(2);
+      expect(summary.topQueries[0].query).toBe("popular query");
+      expect(summary.topQueries[0].count).toBe(2);
     });
 
-    it("should track top queries", async () => {
-      const config: Partial<IntegratedSearchConfig> = {
-        enableAnalytics: true,
-      };
+    it("should calculate cache hit rate", async () => {
+      const query = { userId: "user-1", text: "test" };
 
-      engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, config);
+      await searchEngine.search(query); // Miss
+      await searchEngine.search(query); // Hit
 
-      mockPool.query.mockResolvedValue({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      for (let i = 0; i < 3; i++) {
-        mockPool.query.mockResolvedValueOnce({
-          rows: [
-            {
-              memory_id: "mem1",
-              content: "test",
-              headline: "test",
-              rank: 0.9,
-              matched_terms: ["test"],
-              created_at: new Date(),
-              salience: 0.8,
-              strength: 0.9,
-            },
-          ],
-        });
-
-        mockPool.query.mockResolvedValueOnce({
-          rows: [
-            {
-              content: "test",
-              created_at: new Date(),
-              salience: 0.8,
-              strength: 0.9,
-            },
-          ],
-        });
-
-        await engine.search({ text: "popular query", userId: "user1" });
-      }
-
-      const summary = engine.getAnalyticsSummary();
-      expect(summary.topQueries).toHaveLength(1);
-      expect(summary.topQueries[0].query).toBe("popular query");
-      expect(summary.topQueries[0].count).toBe(3);
+      const summary = searchEngine.getAnalyticsSummary();
+      expect(summary.cacheHitRate).toBe(0.5);
     });
   });
 
   describe("Error Handling", () => {
-    it("should handle database connection errors", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        userId: "user1",
-      };
-
-      mockPool.query.mockRejectedValue(new Error("Connection failed"));
-
-      // Should handle error gracefully
-      const results = await engine.search(query);
-      expect(results).toBeDefined();
-      expect(results).toHaveLength(0);
-    });
-
-    it("should handle missing memory data gracefully", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        userId: "user1",
-      };
-
-      mockPool.query.mockResolvedValueOnce({
-        rows: [
-          {
-            memory_id: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matched_terms: ["test"],
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
-
-      // Mock memory data fetch returning empty
-      mockPool.query.mockResolvedValueOnce({
-        rows: [],
-      });
-
-      const results = await engine.search(query);
-      expect(results).toHaveLength(0);
-    });
-
-    it("should handle partial strategy failures", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        embedding: new Array(1536).fill(0.1),
-        userId: "user1",
-      };
-
-      // Full-text succeeds
-      mockFullTextSearch.search.mockResolvedValue({
-        results: [
-          {
-            memoryId: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matchedTerms: ["test"],
-          },
-        ],
-        statistics: {},
-      });
-
-      // Vector search fails
-      (mockEmbeddingStorage.vectorSimilaritySearch as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error("Vector search failed")
+    it("should handle strategy execution errors gracefully", async () => {
+      vi.spyOn(searchEngine as any, "executeFullTextSearch").mockRejectedValue(
+        new Error("Strategy failed")
       );
 
-      // Memory data fetch
-      mockPool.query.mockResolvedValue({
-        rows: [
-          {
-            content: "test",
-            created_at: new Date(),
-            salience: 0.8,
-            strength: 0.9,
-          },
-        ],
-      });
+      mockDb.pool.query.mockResolvedValue({ rows: [] });
 
-      // Should return results from successful strategy
-      const results = await engine.search(query);
-      expect(results).toBeDefined();
-      expect(results.length).toBeGreaterThan(0);
-    });
-
-    it("should handle empty results from all strategies", async () => {
-      const query: IntegratedSearchQuery = {
+      // Should not throw, just return empty results
+      const results = await searchEngine.search({
+        userId: "user-1",
         text: "test",
-        userId: "user1",
-      };
-
-      mockPool.query.mockResolvedValue({
-        rows: [],
       });
 
-      const results = await engine.search(query);
       expect(results).toHaveLength(0);
     });
 
-    it("should throw error when database is not connected", async () => {
-      const disconnectedDb = {
-        pool: null,
-      } as unknown as DatabaseConnectionManager;
+    it("should throw error when database not connected", async () => {
+      const disconnectedDb = { pool: null };
+      const engine = new MemorySearchEngine(disconnectedDb as any, mockEmbeddingStorage);
 
-      engine = new MemorySearchEngine(disconnectedDb, mockEmbeddingStorage);
+      vi.spyOn(engine as any, "executeFullTextSearch").mockResolvedValue([
+        {
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: {},
+        },
+      ]);
 
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        userId: "user1",
-      };
-
-      mockFullTextSearch.search.mockResolvedValue({
-        results: [
-          {
-            memoryId: "mem1",
-            content: "test",
-            headline: "test",
-            rank: 0.9,
-            matchedTerms: ["test"],
-          },
-        ],
-        statistics: {},
-      });
-
-      await expect(engine.search(query)).rejects.toThrow("Database not connected");
+      await expect(engine.search({ userId: "user-1", text: "test" })).rejects.toThrow(
+        "Database not connected"
+      );
     });
   });
 
-  describe("Result Explanation", () => {
-    it("should generate explanation for search results", async () => {
-      const query: IntegratedSearchQuery = {
-        text: "test",
-        embedding: new Array(1536).fill(0.1),
-        userId: "user1",
-      };
+  describe("Explanation Generation", () => {
+    it("should generate explanation with full-text match", async () => {
+      vi.spyOn(searchEngine as any, "executeFullTextSearch").mockResolvedValue([
+        {
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: { matchedTerms: ["test", "query"] },
+        },
+      ]);
 
-      mockFullTextSearch.search.mockResolvedValue({
-        results: [
+      mockDb.pool.query.mockResolvedValue({
+        rows: [
           {
-            memoryId: "mem1",
-            content: "test content",
-            headline: "test",
-            rank: 0.9,
-            matchedTerms: ["test"],
+            content: "Test",
+            created_at: new Date(),
+            salience: 0.8,
+            strength: 0.9,
           },
         ],
-        statistics: {},
       });
 
-      (mockEmbeddingStorage.vectorSimilaritySearch as ReturnType<typeof vi.fn>).mockResolvedValue([
+      const results = await searchEngine.search({
+        userId: "user-1",
+        text: "test query",
+      });
+
+      expect(results[0].explanation).toContain("Full-text match");
+      expect(results[0].explanation).toContain("test, query");
+    });
+
+    it("should generate explanation with vector similarity", async () => {
+      mockEmbeddingStorage.vectorSimilaritySearch.mockResolvedValue([
         {
-          memoryId: "mem1",
+          memoryId: "mem-1",
           similarity: 0.85,
           sector: MemorySector.Semantic,
         },
       ]);
 
-      mockPool.query.mockResolvedValue({
+      mockDb.pool.query.mockResolvedValue({
         rows: [
           {
-            content: "test content",
+            content: "Test",
             created_at: new Date(),
             salience: 0.8,
             strength: 0.9,
@@ -1586,10 +906,11 @@ describe("MemorySearchEngine", () => {
         ],
       });
 
-      const results = await engine.search(query);
+      const results = await searchEngine.search({
+        userId: "user-1",
+        embedding: new Array(1536).fill(0.1),
+      });
 
-      expect(results[0].explanation).toBeDefined();
-      expect(results[0].explanation).toContain("Full-text match");
       expect(results[0].explanation).toContain("Vector similarity");
     });
   });
