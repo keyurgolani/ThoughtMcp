@@ -489,6 +489,31 @@ describe("ConflictResolutionEngine", () => {
         /immediate|urgent|critical|priority/
       );
     });
+
+    it("should generate default resolution framework for unknown conflict types", () => {
+      // Create a conflict with an unknown type by casting
+      const unknownConflict: Conflict = {
+        id: "unknown-conflict",
+        type: "UNKNOWN_TYPE" as ConflictType,
+        severity: ConflictSeverity.MEDIUM,
+        sourceStreams: ["analytical-stream", "creative-stream"],
+        description: "Unknown conflict type",
+        evidence: [],
+        detectedAt: new Date(),
+      };
+
+      const framework = engine.generateResolutionFramework(unknownConflict);
+
+      expect(framework).toBeDefined();
+      expect(framework.approach).toBe("Systematic analysis and evidence-based resolution");
+      expect(framework.steps).toBeInstanceOf(Array);
+      expect(framework.steps.length).toBeGreaterThan(0);
+      expect(framework.steps).toContain("Clearly define the conflict");
+      expect(framework.steps).toContain("Gather additional evidence");
+      expect(framework.considerations).toContain("Context and constraints");
+      expect(framework.considerations).toContain("Evidence quality");
+      expect(framework.recommendedAction).toBe("Conduct systematic analysis to resolve conflict");
+    });
   });
 
   describe("trackConflictPattern", () => {

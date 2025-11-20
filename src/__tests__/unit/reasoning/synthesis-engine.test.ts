@@ -612,6 +612,106 @@ describe("ResultSynthesisEngine", () => {
   });
 
   describe("Edge Cases", () => {
+    it("should handle empty conclusion in coherence assessment", () => {
+      const synthesis: SynthesizedResult = {
+        conclusion: "", // Empty conclusion
+        insights: [
+          {
+            content: "Insight 1",
+            sources: ["analytical" as StreamType],
+            confidence: 0.8,
+            importance: 0.7,
+            evidence: ["Evidence 1"],
+          },
+        ],
+        recommendations: [],
+        conflicts: [],
+        confidence: 0.8,
+        quality: {
+          overallScore: 0,
+          coherence: 0,
+          completeness: 0,
+          consistency: 0,
+          insightQuality: 0,
+          recommendationQuality: 0,
+        },
+        metadata: {
+          streamsUsed: ["analytical"] as StreamType[],
+          synthesisTime: 100,
+          timestamp: new Date(),
+        },
+      };
+
+      const quality = engine.assessSynthesisQuality(synthesis);
+
+      expect(quality.coherence).toBe(0); // Empty conclusion should result in 0 coherence
+    });
+
+    it("should handle very long conclusion in coherence assessment", () => {
+      const longConclusion = "a".repeat(200); // 200 characters
+      const synthesis: SynthesizedResult = {
+        conclusion: longConclusion,
+        insights: [
+          {
+            content: "Insight 1",
+            sources: ["analytical" as StreamType],
+            confidence: 0.8,
+            importance: 0.7,
+            evidence: ["Evidence 1"],
+          },
+          {
+            content: "Insight 2",
+            sources: ["creative" as StreamType],
+            confidence: 0.8,
+            importance: 0.7,
+            evidence: ["Evidence 2"],
+          },
+          {
+            content: "Insight 3",
+            sources: ["critical" as StreamType],
+            confidence: 0.8,
+            importance: 0.7,
+            evidence: ["Evidence 3"],
+          },
+          {
+            content: "Insight 4",
+            sources: ["synthetic" as StreamType],
+            confidence: 0.8,
+            importance: 0.7,
+            evidence: ["Evidence 4"],
+          },
+          {
+            content: "Insight 5",
+            sources: ["analytical" as StreamType],
+            confidence: 0.8,
+            importance: 0.7,
+            evidence: ["Evidence 5"],
+          },
+        ],
+        recommendations: [],
+        conflicts: [],
+        confidence: 0.8,
+        quality: {
+          overallScore: 0,
+          coherence: 0,
+          completeness: 0,
+          consistency: 0,
+          insightQuality: 0,
+          recommendationQuality: 0,
+        },
+        metadata: {
+          streamsUsed: ["analytical", "creative"] as StreamType[],
+          synthesisTime: 100,
+          timestamp: new Date(),
+        },
+      };
+
+      const quality = engine.assessSynthesisQuality(synthesis);
+
+      // Long conclusion with many insights should have high coherence
+      expect(quality.coherence).toBeGreaterThan(0.8);
+    });
+
     it("should handle identical conclusions (perfect convergence)", () => {
       const results: StreamResult[] = [
         createMockStreamResult("analytical" as StreamType, "Identical conclusion"),

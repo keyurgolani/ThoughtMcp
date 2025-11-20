@@ -539,4 +539,126 @@ describe("AnalyticalReasoningStream", () => {
       expect(result.insights.length).toBeGreaterThan(0);
     });
   });
+
+  describe("Edge Cases and Additional Coverage", () => {
+    it("should decompose problem without 'and' or 'multiple' keywords", async () => {
+      const problemWithoutKeywords: Problem = {
+        id: "test-4",
+        description: "Improve system performance",
+        context: "System is slow",
+        constraints: ["Limited resources"],
+        goals: ["Increase throughput", "Reduce latency"],
+        complexity: "moderate",
+        urgency: "medium",
+      };
+
+      const result = await stream.process(problemWithoutKeywords);
+
+      // Should still decompose and include goals
+      expect(result.reasoning).toBeDefined();
+      expect(result.reasoning.length).toBeGreaterThan(3);
+
+      // Should mention goals in reasoning
+      const mentionsGoals = result.reasoning.some(
+        (step) => step.toLowerCase().includes("solution") || step.toLowerCase().includes("goal")
+      );
+      expect(mentionsGoals).toBe(true);
+    });
+
+    it("should throw error when processing is already in progress", async () => {
+      // Start first process
+      const firstProcess = stream.process(testProblem);
+
+      // Try to start second process while first is running
+      await expect(stream.process(testProblem)).rejects.toThrow("Stream is already processing");
+
+      // Wait for first to complete
+      await firstProcess;
+    });
+
+    it("should handle processor errors during processing", async () => {
+      // Create a problem that will cause an error in the processor
+      const problematicProblem: Problem = {
+        id: "test-5",
+        description: "Test error handling",
+        context: "Test context",
+        complexity: "moderate",
+        urgency: "low",
+      };
+
+      // Mock the processor to throw an error during processing
+      const originalProcess = stream.processor.process.bind(stream.processor);
+      stream.processor.process = vi.fn().mockRejectedValue(new Error("Processing failed"));
+
+      // The error should propagate from processWithProgress
+      await expect(stream.process(problematicProblem)).rejects.toThrow("Processing failed");
+
+      // Restore original processor
+      stream.processor.process = originalProcess;
+    });
+
+    it("should handle complex problems with goals but no 'and' keyword", async () => {
+      const complexProblemNoAnd: Problem = {
+        id: "test-6",
+        description: "Optimize database queries for better performance",
+        context: "Queries are taking too long",
+        constraints: ["Cannot change schema"],
+        goals: ["Reduce query time", "Improve indexing"],
+        complexity: "complex",
+        urgency: "high",
+      };
+
+      const result = await stream.process(complexProblemNoAnd);
+
+      // Should decompose into root cause analysis and solution identification
+      expect(result.reasoning).toBeDefined();
+      const hasRootCause = result.reasoning.some((step) =>
+        step.toLowerCase().includes("root cause")
+      );
+      const hasSolution = result.reasoning.some((step) => step.toLowerCase().includes("solution"));
+
+      expect(hasRootCause || hasSolution).toBe(true);
+    });
+
+    it("should handle actual timeout scenario", async () => {
+      // Create a stream with very short timeout
+      const shortStream = new AnalyticalReasoningStream(50);
+
+      // Mock the processor to take longer than timeout
+      const originalProcess = shortStream.processor.process.bind(shortStream.processor);
+      shortStream.processor.process = vi.fn().mockImplementation(async () => {
+        // Simulate slow processing
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        return originalProcess(testProblem);
+      });
+
+      const result = await shortStream.process(testProblem);
+
+      // Should return timeout status
+      expect(result.status).toBe("timeout");
+      expect(result.conclusion).toContain("timeout");
+      expect(result.confidence).toBe(0.3);
+      expect(result.processingTime).toBe(50);
+    }, 1000);
+
+    it("should handle moderate problems without goals", async () => {
+      const problemNoGoals: Problem = {
+        id: "test-7",
+        description: "System experiencing intermittent failures",
+        context: "Failures occur randomly without clear pattern",
+        constraints: ["Must maintain uptime"],
+        complexity: "moderate",
+        urgency: "medium",
+      };
+
+      const result = await stream.process(problemNoGoals);
+
+      // Should still decompose and analyze
+      expect(result.reasoning).toBeDefined();
+      expect(result.reasoning.length).toBeGreaterThan(2);
+
+      // Should reference the problem description in conclusion
+      expect(result.conclusion.toLowerCase()).toContain("address");
+    });
+  });
 });

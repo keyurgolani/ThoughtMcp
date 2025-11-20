@@ -1070,6 +1070,43 @@ describe("MemorySearchEngine - Integrated Search", () => {
       expect(Array.isArray(results)).toBe(true);
     });
 
+    it("should skip metadata filter strategy when metadata is not provided", async () => {
+      const query: IntegratedSearchQuery = {
+        userId: "user-1",
+        text: "test query",
+      };
+
+      mockDb.pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              memory_id: "mem-1",
+              rank: 0.9,
+              headline: "Test",
+              matched_terms: '["test"]',
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ rows: [{ count: "1" }] })
+        .mockResolvedValueOnce({ rows: [{ index_used: true }] })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              content: "Text search content",
+              created_at: new Date(),
+              salience: 0.8,
+              strength: 0.9,
+            },
+          ],
+        });
+
+      const results = await searchEngine.search(query);
+
+      // Should execute without metadata filter
+      expect(results).toBeDefined();
+      expect(Array.isArray(results)).toBe(true);
+    });
+
     it("should execute similarity search strategy", async () => {
       const query: IntegratedSearchQuery = {
         userId: "user-1",
@@ -1117,6 +1154,43 @@ describe("MemorySearchEngine - Integrated Search", () => {
       const results = await searchEngine.search(query);
 
       expect(results).toBeDefined();
+    });
+
+    it("should skip similarity search strategy when similarTo is not provided", async () => {
+      const query: IntegratedSearchQuery = {
+        userId: "user-1",
+        text: "test query",
+      };
+
+      mockDb.pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              memory_id: "mem-1",
+              rank: 0.9,
+              headline: "Test",
+              matched_terms: '["test"]',
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ rows: [{ count: "1" }] })
+        .mockResolvedValueOnce({ rows: [{ index_used: true }] })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              content: "Text search content",
+              created_at: new Date(),
+              salience: 0.8,
+              strength: 0.9,
+            },
+          ],
+        });
+
+      const results = await searchEngine.search(query);
+
+      // Should execute without similarity search
+      expect(results).toBeDefined();
+      expect(Array.isArray(results)).toBe(true);
     });
 
     it("should combine results from multiple strategies", async () => {
@@ -1529,6 +1603,243 @@ describe("MemorySearchEngine - Integrated Search", () => {
 
       // Should filter out results below minSalience
       expect(results).toEqual([]);
+    });
+  });
+
+  describe("Similarity Search Strategy", () => {
+    it("should execute similarity search when similarTo is provided", async () => {
+      const query: IntegratedSearchQuery = {
+        userId: "user-1",
+        similarTo: "mem-source",
+        limit: 5,
+      };
+
+      // Mock the similarity finder to return results
+      const mockSimilarityFinder = {
+        findSimilar: vi.fn().mockResolvedValue([
+          {
+            memoryId: "mem-1",
+            similarity: {
+              overall: 0.85,
+              factors: {
+                keyword: 0.8,
+                tag: 0.9,
+                content: 0.85,
+                category: 1.0,
+                temporal: 0.7,
+              },
+            },
+            explanation: "High similarity due to keyword and tag overlap",
+          },
+          {
+            memoryId: "mem-2",
+            similarity: {
+              overall: 0.72,
+              factors: {
+                keyword: 0.7,
+                tag: 0.75,
+                content: 0.7,
+                category: 1.0,
+                temporal: 0.65,
+              },
+            },
+            explanation: "Moderate similarity with shared keywords",
+          },
+        ]),
+      };
+
+      // Replace the similarity finder in the search engine
+      (searchEngine as any).similarityFinder = mockSimilarityFinder;
+
+      // Mock database query for memory data
+      mockDb.pool.query.mockResolvedValue({
+        rows: [
+          {
+            content: "Similar content 1",
+            created_at: new Date(),
+            salience: 0.8,
+            strength: 0.9,
+          },
+          {
+            content: "Similar content 2",
+            created_at: new Date(),
+            salience: 0.75,
+            strength: 0.85,
+          },
+        ],
+      });
+
+      const results = await searchEngine.search(query);
+
+      expect(mockSimilarityFinder.findSimilar).toHaveBeenCalledWith("mem-source", {
+        limit: 5,
+        minSimilarity: 0.0,
+        includeExplanation: true,
+      });
+
+      expect(results.length).toBe(2);
+      expect(results[0].memoryId).toBe("mem-1");
+      expect(results[0].compositeScore).toBeGreaterThan(0);
+      expect(results[0].strategyScores.similarity).toBeDefined();
+      expect(results[0].explanation).toContain("Similar memory");
+    });
+
+    it("should skip similarity search when similarTo is not provided", async () => {
+      const query: IntegratedSearchQuery = {
+        userId: "user-1",
+        text: "test query",
+      };
+
+      const mockSimilarityFinder = {
+        findSimilar: vi.fn(),
+      };
+
+      (searchEngine as any).similarityFinder = mockSimilarityFinder;
+
+      // Mock full-text search
+      mockDb.pool.query.mockResolvedValue({
+        rows: [
+          {
+            id: "mem-1",
+            content: "Test content",
+            ts_rank: 0.8,
+            created_at: new Date(),
+            salience: 0.7,
+            strength: 0.8,
+          },
+        ],
+      });
+
+      await searchEngine.search(query);
+
+      // Similarity finder should not be called
+      expect(mockSimilarityFinder.findSimilar).not.toHaveBeenCalled();
+    });
+
+    it("should include similarity factors in result metadata", async () => {
+      const query: IntegratedSearchQuery = {
+        userId: "user-1",
+        similarTo: "mem-source",
+      };
+
+      const mockSimilarityFinder = {
+        findSimilar: vi.fn().mockResolvedValue([
+          {
+            memoryId: "mem-1",
+            similarity: {
+              overall: 0.88,
+              factors: {
+                keyword: 0.85,
+                tag: 0.9,
+                content: 0.87,
+                category: 1.0,
+                temporal: 0.8,
+              },
+            },
+            explanation: "Very high similarity across all factors",
+          },
+        ]),
+      };
+
+      (searchEngine as any).similarityFinder = mockSimilarityFinder;
+
+      mockDb.pool.query.mockResolvedValue({
+        rows: [
+          {
+            content: "Similar content",
+            created_at: new Date(),
+            salience: 0.85,
+            strength: 0.9,
+          },
+        ],
+      });
+
+      const results = await searchEngine.search(query);
+
+      expect(results.length).toBe(1);
+      expect(results[0].strategyScores.similarity).toBeDefined();
+      expect(results[0].explanation).toContain("Similar memory");
+    });
+
+    it("should handle empty similarity results", async () => {
+      const query: IntegratedSearchQuery = {
+        userId: "user-1",
+        similarTo: "mem-source",
+      };
+
+      const mockSimilarityFinder = {
+        findSimilar: vi.fn().mockResolvedValue([]),
+      };
+
+      (searchEngine as any).similarityFinder = mockSimilarityFinder;
+
+      const results = await searchEngine.search(query);
+
+      expect(results).toEqual([]);
+    });
+
+    it("should combine similarity search with other strategies", async () => {
+      const query: IntegratedSearchQuery = {
+        userId: "user-1",
+        text: "test query",
+        similarTo: "mem-source",
+      };
+
+      const mockSimilarityFinder = {
+        findSimilar: vi.fn().mockResolvedValue([
+          {
+            memoryId: "mem-1",
+            similarity: {
+              overall: 0.85,
+              factors: {
+                keyword: 0.8,
+                tag: 0.9,
+                content: 0.85,
+                category: 1.0,
+                temporal: 0.7,
+              },
+            },
+            explanation: "High similarity",
+          },
+        ]),
+      };
+
+      (searchEngine as any).similarityFinder = mockSimilarityFinder;
+
+      // Mock full-text search returning same memory
+      // First call: full-text search
+      // Second call: memory data retrieval
+      mockDb.pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: "mem-1",
+              content: "Test content",
+              ts_rank: 0.75,
+              created_at: new Date(),
+              salience: 0.8,
+              strength: 0.9,
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              content: "Test content",
+              created_at: new Date(),
+              salience: 0.8,
+              strength: 0.9,
+            },
+          ],
+        });
+
+      const results = await searchEngine.search(query);
+
+      expect(results.length).toBe(1);
+      expect(results[0].memoryId).toBe("mem-1");
+      // Should have combined score from both strategies
+      expect(results[0].strategyScores.similarity).toBeDefined();
+      expect(results[0].compositeScore).toBeGreaterThan(0);
     });
   });
 
