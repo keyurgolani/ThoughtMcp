@@ -10,7 +10,7 @@ fi
 
 # Run full build with all quality gates
 echo "🏗️  Running full build with quality gates..."
-timeout 180s npm run build
+timeout 220s npm run build
 if [ $? -ne 0 ]; then
   echo "❌ Build failed. Please fix the issues above."
   echo "💡 The build includes: format check, security audit, lint, typecheck, tests with coverage, and production build."

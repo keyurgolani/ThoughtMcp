@@ -685,6 +685,48 @@ describe("ProblemClassifier", () => {
       // Month deadline should be none or moderate
       expect(["none", "moderate"]).toContain(classification.timePressure);
     });
+
+    it("should calculate days until deadline for '7 days' explicit", () => {
+      const problem: Problem = {
+        id: "test-days-9",
+        description: "This is due in 7 days",
+        context: "One week timeline",
+        goals: ["Complete in one week"],
+      };
+
+      const classification = classifier.classifyProblem(problem);
+
+      // 7 days deadline should be moderate or none
+      expect(["none", "moderate"]).toContain(classification.timePressure);
+    });
+
+    it("should calculate days until deadline for '14 days' explicit", () => {
+      const problem: Problem = {
+        id: "test-days-10",
+        description: "Deadline is in 14 days",
+        context: "Two week period",
+        goals: ["Complete in two weeks"],
+      };
+
+      const classification = classifier.classifyProblem(problem);
+
+      // 14 days deadline should be moderate or none
+      expect(["none", "moderate"]).toContain(classification.timePressure);
+    });
+
+    it("should calculate days until deadline for '30 days' explicit", () => {
+      const problem: Problem = {
+        id: "test-days-11",
+        description: "This is due in 30 days",
+        context: "One month period",
+        goals: ["Complete in one month"],
+      };
+
+      const classification = classifier.classifyProblem(problem);
+
+      // 30 days deadline should be none or moderate
+      expect(["none", "moderate"]).toContain(classification.timePressure);
+    });
   });
 
   describe("Uncertainty Edge Cases", () => {
