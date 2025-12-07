@@ -2,11 +2,21 @@
  * Mock Embedding Utilities
  *
  * Provides utilities for generating mock embeddings for testing:
- * - Deterministic embedding generation
+ * - Deterministic embedding generation using cached Ollama embeddings when available
+ * - Fallback to hash-based generation when cache miss
  * - Similarity control
  * - Fast generation for tests
  * - No external API calls
+ *
+ * The mock embeddings system supports two modes:
+ * 1. Cached mode: Uses pre-computed embeddings from real Ollama server
+ * 2. Generated mode: Falls back to deterministic hash-based generation
+ *
+ * To capture real Ollama embeddings for the cache:
+ * npm run test:capture-embeddings
  */
+
+import { getCachedEmbedding, hasCachedEmbedding } from "./ollama-embeddings-cache.js";
 
 /**
  * Generate a deterministic mock embedding
@@ -280,7 +290,8 @@ export function createMockEmbeddingEngine(dimension: number = 1536): MockEmbeddi
  * Mock Ollama Embedding Model for testing
  *
  * Provides a drop-in replacement for OllamaEmbeddingModel that:
- * - Returns deterministic embeddings based on content hash
+ * - Uses cached real Ollama embeddings when available for consistency
+ * - Falls back to deterministic hash-based generation for cache misses
  * - Does not require external Ollama service
  * - Supports all OllamaEmbeddingModel configuration options
  * - Returns normalized unit vectors
@@ -288,7 +299,10 @@ export function createMockEmbeddingEngine(dimension: number = 1536): MockEmbeddi
 export class MockOllamaEmbeddingModel {
   private readonly modelName: string;
   private readonly dimension: number;
+  private readonly useCachedEmbeddings: boolean;
   private cache: Map<string, number[]>;
+  private cacheHits: number = 0;
+  private cacheMisses: number = 0;
 
   constructor(config: {
     host: string;
@@ -296,16 +310,18 @@ export class MockOllamaEmbeddingModel {
     dimension: number;
     timeout?: number;
     maxRetries?: number;
+    useCachedEmbeddings?: boolean;
   }) {
     // Accept all config options for compatibility, but only store what we need
     this.modelName = config.modelName;
     this.dimension = config.dimension;
+    this.useCachedEmbeddings = config.useCachedEmbeddings ?? true;
     this.cache = new Map();
   }
 
   /**
    * Generate embedding vector for text
-   * Returns deterministic embedding based on text content
+   * Uses cached Ollama embeddings when available, falls back to hash-based generation
    */
   async generate(text: string): Promise<number[]> {
     // Validate input (same as real implementation)
@@ -321,20 +337,44 @@ export class MockOllamaEmbeddingModel {
       throw new Error("Text exceeds maximum length of 100,000 characters");
     }
 
-    // Check cache
-    const cached = this.cache.get(text);
-    if (cached !== undefined) {
-      return cached;
+    // Check local cache first
+    const localCached = this.cache.get(text);
+    if (localCached !== undefined) {
+      return localCached;
     }
 
-    // Generate deterministic embedding based on text hash
-    const seed = this.hashString(text);
-    const embedding = generateMockEmbedding(this.dimension, seed);
+    let embedding: number[];
 
-    // Cache result
+    // Try to get from pre-computed Ollama cache
+    if (this.useCachedEmbeddings && hasCachedEmbedding(text)) {
+      const cachedEmbedding = getCachedEmbedding(text);
+      if (cachedEmbedding && cachedEmbedding.length === this.dimension) {
+        embedding = cachedEmbedding;
+        this.cacheHits++;
+      } else {
+        // Dimension mismatch or invalid cache, fall back to generated
+        embedding = this.generateDeterministicEmbedding(text);
+        this.cacheMisses++;
+      }
+    } else {
+      // No cached embedding, generate deterministically
+      embedding = this.generateDeterministicEmbedding(text);
+      this.cacheMisses++;
+    }
+
+    // Store in local cache
     this.cache.set(text, embedding);
 
     return embedding;
+  }
+
+  /**
+   * Generate deterministic embedding based on text hash
+   * Used as fallback when no cached Ollama embedding is available
+   */
+  private generateDeterministicEmbedding(text: string): number[] {
+    const seed = this.hashString(text);
+    return generateMockEmbedding(this.dimension, seed);
   }
 
   /**
@@ -356,6 +396,8 @@ export class MockOllamaEmbeddingModel {
    */
   clearCache(): void {
     this.cache.clear();
+    this.cacheHits = 0;
+    this.cacheMisses = 0;
   }
 
   /**
@@ -363,6 +405,18 @@ export class MockOllamaEmbeddingModel {
    */
   getCacheSize(): number {
     return this.cache.size;
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats(): { hits: number; misses: number; hitRate: number } {
+    const total = this.cacheHits + this.cacheMisses;
+    return {
+      hits: this.cacheHits,
+      misses: this.cacheMisses,
+      hitRate: total > 0 ? this.cacheHits / total : 0,
+    };
   }
 
   /**
@@ -392,6 +446,37 @@ export function createMockOllamaModel(config: {
   dimension: number;
   timeout?: number;
   maxRetries?: number;
+  useCachedEmbeddings?: boolean;
 }): MockOllamaEmbeddingModel {
   return new MockOllamaEmbeddingModel(config);
 }
+
+// Re-export utilities from related modules for convenience
+export {
+  COMMON_TEST_STRINGS,
+  getCachedEmbedding,
+  getCachedTexts,
+  getCacheMetadata,
+  hasCachedEmbedding,
+} from "./ollama-embeddings-cache";
+
+export {
+  checkOllamaAvailability,
+  clearOllamaStatusCache,
+  DEFAULT_OLLAMA_HOST,
+  getCachedOllamaStatus,
+  getEmbeddingModelConfig,
+  isModelAvailable,
+  shouldUseRealOllama,
+  type OllamaStatus,
+} from "./ollama-detector";
+
+export {
+  createHybridEmbeddingModel,
+  createTestEmbeddingModel,
+  getIntegrationTestModel,
+  getUnitTestModel,
+  type EmbeddingModel,
+  type HybridEmbeddingConfig,
+  type HybridModelResult,
+} from "./hybrid-embedding-model";

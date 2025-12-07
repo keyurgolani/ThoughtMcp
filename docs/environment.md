@@ -12,7 +12,7 @@ This document describes all environment variables used by ThoughtMCP and their p
 
 2. Update the database credentials and other settings as needed
 
-3. Start the development environment (see [DEVELOPMENT.md](./DEVELOPMENT.md))
+3. Start the development environment (see [development.md](./development.md))
 
 ## Environment Files
 
@@ -286,8 +286,31 @@ EMBEDDING_MODEL=ollama
 - Optimize complex operations
 - Check database query performance
 
+## Configuration Validation
+
+Before deploying, validate your configuration:
+
+```bash
+# Run configuration validator
+npm run config:validate
+```
+
+This script checks:
+
+- All required variables are set
+- Values are valid and within expected ranges
+- Database connection works
+- Embedding service is accessible
+- Production-specific security settings
+
 ## See Also
 
-- [Development Guide](./DEVELOPMENT.md) - Setup and development workflow
-- [Testing Guide](./TESTING.md) - Testing configuration and practices
-- [Deployment Guide](./DEPLOYMENT.md) - Production deployment instructions
+- [Development Guide](./development.md) - Setup and development workflow
+- [Testing Guide](./testing.md) - Testing configuration and practices
+- [Deployment Guide](./deployment.md) - Production deployment instructions
+- [Troubleshooting Guide](./troubleshooting.md) - Common issues and solutions
+
+---
+
+**Last Updated**: December 2025
+**Version**: 0.5.0

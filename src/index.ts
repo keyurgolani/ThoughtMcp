@@ -3,22 +3,41 @@
 /**
  * ThoughtMCP Cognitive Architecture - Entry Point
  *
- * Minimal MCP server stub for the complete rebuild.
- * Implementation will be added following TDD principles in subsequent phases.
+ * MCP server that integrates all cognitive components:
+ * - HMD Memory System with 5-sector embeddings
+ * - Parallel Reasoning Streams
+ * - Dynamic Framework Selection
+ * - Confidence Calibration
+ * - Bias Detection and Mitigation
+ * - Emotion Detection
+ * - Metacognitive Monitoring
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { CognitiveMCPServer } from "./server/mcp-server.js";
 import { Logger } from "./utils/logger.js";
 
-// Placeholder for future exports
-export const VERSION = "2.0.0-rebuild";
+export const VERSION = "0.5.0";
 
-// Export embeddings module
+// Export modules for programmatic use
 export * from "./embeddings/index.js";
+export * from "./security/index.js";
+export { CognitiveMCPServer } from "./server/mcp-server.js";
 
 async function main(): Promise<void> {
+  // Create and initialize the cognitive server
+  const cognitiveServer = new CognitiveMCPServer();
+
+  try {
+    await cognitiveServer.initialize();
+  } catch (error) {
+    Logger.error("Failed to initialize cognitive server:", error);
+    Logger.warn("Starting in degraded mode with limited functionality");
+  }
+
+  // Create MCP SDK server
   const server = new Server(
     {
       name: "thoughtmcp",
@@ -31,48 +50,68 @@ async function main(): Promise<void> {
     }
   );
 
-  // List available tools
+  // List available tools from the cognitive server
   server.setRequestHandler(ListToolsRequestSchema, async () => {
+    const tools = cognitiveServer.toolRegistry.getAllTools();
+
     return {
-      tools: [
-        {
-          name: "placeholder",
-          description: "Placeholder tool - cognitive architecture rebuild in progress",
-          inputSchema: {
-            type: "object",
-            properties: {},
-          },
-        },
-      ],
+      tools: tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+      })),
     };
   });
 
-  // Handle tool calls
+  // Handle tool calls by delegating to the cognitive server
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    if (request.params.name === "placeholder") {
+    const { name, arguments: args } = request.params;
+
+    const tool = cognitiveServer.toolRegistry.getTool(name);
+    if (!tool) {
+      throw new Error(`Unknown tool: ${name}`);
+    }
+
+    try {
+      const result = await tool.handler(args ?? {});
+
       return {
         content: [
           {
             type: "text",
-            text: "ThoughtMCP Cognitive Architecture v2.0.0 - Rebuild in progress. Implementation will be added following TDD principles.",
+            text: JSON.stringify(result, null, 2),
           },
         ],
       };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                success: false,
+                error: error instanceof Error ? error.message : "Tool execution failed",
+              },
+              null,
+              2
+            ),
+          },
+        ],
+        isError: true,
+      };
     }
-
-    throw new Error(`Unknown tool: ${request.params.name}`);
   });
 
   // Connect to stdio transport
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  // Log to stderr (stdout is used for MCP protocol)
-  Logger.info("ThoughtMCP Cognitive Architecture v2.0.0 started");
-  Logger.info("Complete rebuild in progress...");
+  Logger.info(`ThoughtMCP Cognitive Architecture v${VERSION} started`);
+  Logger.info(`Registered ${cognitiveServer.toolRegistry.getToolCount()} tools`);
 }
 
-// Only run main if this file is executed directly
+// Run main if executed directly
 const isMainModule =
   import.meta.url === `file://${process.argv[1]}` ||
   (process.argv[1]?.endsWith("index.js") ?? false) ||
@@ -80,7 +119,7 @@ const isMainModule =
 
 if (isMainModule) {
   main().catch((error) => {
-    Logger.error("Error:", error);
+    Logger.error("Fatal error:", error);
     process.exit(1);
   });
 }

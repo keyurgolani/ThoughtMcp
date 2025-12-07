@@ -24,9 +24,9 @@ import type {
 } from "./types";
 
 /**
- * Simple strategy learning engine implementation
+ * Score-based strategy learning engine implementation
  */
-class SimpleStrategyLearningEngine implements StrategyLearningEngine {
+class ScoreBasedStrategyLearningEngine implements StrategyLearningEngine {
   private executionHistory: StrategyExecution[] = [];
   private strategyScores: Map<string, number> = new Map();
 
@@ -82,7 +82,7 @@ export class AdaptiveStrategySystem {
   private readonly executionHistory: StrategyExecution[] = [];
 
   constructor() {
-    this.learningEngine = new SimpleStrategyLearningEngine();
+    this.learningEngine = new ScoreBasedStrategyLearningEngine();
   }
 
   /**
@@ -113,10 +113,12 @@ export class AdaptiveStrategySystem {
       const contextKey = this.serializeContext(execution.context);
       const key = `${execution.strategyId}:${contextKey}`;
 
-      if (!patternMap.has(key)) {
-        patternMap.set(key, []);
+      const existing = patternMap.get(key);
+      if (existing) {
+        existing.push(execution);
+      } else {
+        patternMap.set(key, [execution]);
       }
-      patternMap.get(key)!.push(execution);
     }
 
     // Extract patterns with sufficient support
@@ -183,10 +185,12 @@ export class AdaptiveStrategySystem {
       const contextKey = this.serializeContext(execution.context);
       const key = `${execution.strategyId}:${contextKey}`;
 
-      if (!patternMap.has(key)) {
-        patternMap.set(key, []);
+      const existing = patternMap.get(key);
+      if (existing) {
+        existing.push(execution);
+      } else {
+        patternMap.set(key, [execution]);
       }
-      patternMap.get(key)!.push(execution);
     }
 
     // Extract patterns with sufficient support
@@ -315,11 +319,11 @@ export class AdaptiveStrategySystem {
       }
 
       // Get or create rules for this strategy
-      if (!this.strategyRules.has(pattern.strategyId)) {
-        this.strategyRules.set(pattern.strategyId, []);
+      let rules = this.strategyRules.get(pattern.strategyId);
+      if (!rules) {
+        rules = [];
+        this.strategyRules.set(pattern.strategyId, rules);
       }
-
-      const rules = this.strategyRules.get(pattern.strategyId)!;
 
       // Create conditions from context factors
       const conditions: Record<string, unknown> = {};
@@ -375,10 +379,12 @@ export class AdaptiveStrategySystem {
       const contextKey = this.serializeContext(fb.context);
       const key = `${fb.strategyId}:${contextKey}`;
 
-      if (!feedbackMap.has(key)) {
-        feedbackMap.set(key, []);
+      const existing = feedbackMap.get(key);
+      if (existing) {
+        existing.push(fb);
+      } else {
+        feedbackMap.set(key, [fb]);
       }
-      feedbackMap.get(key)!.push(fb);
     }
 
     // Create patterns from feedback

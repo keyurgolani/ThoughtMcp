@@ -6,10 +6,15 @@
  */
 
 import { readFileSync } from "fs";
-import { join } from "path";
+import { dirname, join } from "path";
 import type { PoolClient } from "pg";
+import { fileURLToPath } from "url";
 import { Logger } from "../utils/logger.js";
 import type { DatabaseConnectionManager } from "./connection-manager";
+
+// ES module __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
  * Migration definition
@@ -124,10 +129,12 @@ export class SchemaMigrationSystem {
     try {
       Logger.info(`  ⏳ Applying migration ${migration.version}: ${migration.name}...`);
 
-      // Read and execute migration SQL
+      // Read migration SQL
       const sqlPath = join(this.migrationsDir, migration.upFile);
       const sql = readFileSync(sqlPath, "utf-8");
 
+      // Execute the entire SQL file as a single statement
+      // PostgreSQL can handle multiple statements separated by semicolons
       await client.query(sql);
 
       // Record migration

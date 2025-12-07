@@ -1054,6 +1054,7 @@ describe("TemporalDecayEngine - Decay Calculations", () => {
       // Cleanup
       const client2 = await db.getConnection();
       try {
+        await client2.query(`DELETE FROM memory_metadata WHERE memory_id = $1`, ["test-prune-1"]);
         await client2.query(`DELETE FROM memories WHERE id = $1`, ["test-prune-1"]);
       } finally {
         db.releaseConnection(client2);
@@ -1098,6 +1099,7 @@ describe("TemporalDecayEngine - Decay Calculations", () => {
       // Cleanup
       const client2 = await db.getConnection();
       try {
+        await client2.query(`DELETE FROM memory_metadata WHERE memory_id = $1`, ["test-important"]);
         await client2.query(`DELETE FROM memories WHERE id = $1`, ["test-important"]);
       } finally {
         db.releaseConnection(client2);
@@ -1203,6 +1205,9 @@ describe("TemporalDecayEngine - Decay Calculations", () => {
       const client2 = await db.getConnection();
       try {
         for (let i = 1; i <= 5; i++) {
+          await client2.query(`DELETE FROM memory_metadata WHERE memory_id = $1`, [
+            `test-maint-${i}`,
+          ]);
           await client2.query(`DELETE FROM memories WHERE id = $1`, [`test-maint-${i}`]);
         }
       } finally {

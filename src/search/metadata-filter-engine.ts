@@ -52,6 +52,9 @@ export class MetadataFilterEngine {
         // Set statement timeout
         await client.query(`SET statement_timeout = ${this.config.queryTimeout}`);
 
+        // Enable parallel query execution for better performance
+        await client.query("SET max_parallel_workers_per_gather = 4");
+
         // Execute filter query
         const result = await client.query(sql, params);
 

@@ -51,6 +51,19 @@ describe("Reinforcement System", () => {
     // Clean up test data before each test
     const client = await db.getConnection();
     try {
+      // Delete reinforcement history first (foreign key constraint)
+      await client.query(
+        `DELETE FROM memory_reinforcement_history WHERE memory_id LIKE 'test-reinforce-%'`
+      );
+      // Delete metadata (may not have CASCADE constraint)
+      await client.query(`DELETE FROM memory_metadata WHERE memory_id LIKE 'test-reinforce-%'`);
+      // Delete embeddings (may not have CASCADE constraint)
+      await client.query(`DELETE FROM memory_embeddings WHERE memory_id LIKE 'test-reinforce-%'`);
+      // Delete links (may not have CASCADE constraint)
+      await client.query(
+        `DELETE FROM memory_links WHERE source_id LIKE 'test-reinforce-%' OR target_id LIKE 'test-reinforce-%'`
+      );
+      // Then delete memories
       await client.query(`DELETE FROM memories WHERE id LIKE 'test-reinforce-%'`);
     } finally {
       db.releaseConnection(client);

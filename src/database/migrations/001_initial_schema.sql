@@ -23,10 +23,11 @@ CREATE TABLE IF NOT EXISTS memories (
 );
 
 -- Multi-Sector Embeddings Table
+-- Note: vector dimension should match EMBEDDING_DIMENSION env var (default 768 for nomic-embed-text)
 CREATE TABLE IF NOT EXISTS memory_embeddings (
     memory_id TEXT NOT NULL,
     sector TEXT NOT NULL,
-    embedding vector(1536), -- pgvector type
+    embedding vector(768), -- pgvector type, matches nomic-embed-text model
     dimension INTEGER NOT NULL,
     model TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

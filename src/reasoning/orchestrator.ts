@@ -56,6 +56,12 @@ export class ParallelReasoningOrchestrator {
       this.executeStreamWithTimeout(stream, problem, stream.timeout)
     );
 
+    // Share insights between streams during execution (optimization)
+    // This happens asynchronously and doesn't block stream execution
+    this.shareInsightsDuringExecution(streams).catch(() => {
+      // Ignore errors in insight sharing to not block execution
+    });
+
     // Wait for all streams with total timeout
     const results = await this.executeWithTotalTimeout(streamPromises, totalTimeout);
 
@@ -63,6 +69,19 @@ export class ParallelReasoningOrchestrator {
     const synthesizedResult = this.synthesisEngine.synthesizeResults(results);
 
     return synthesizedResult;
+  }
+
+  /**
+   * Share insights between streams during execution
+   *
+   * @param streams - Array of reasoning streams
+   */
+  private async shareInsightsDuringExecution(streams: ReasoningStream[]): Promise<void> {
+    // Wait a bit for streams to generate initial insights
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Share high-importance insights
+    await this.coordinationManager.shareInsights(streams);
   }
 
   /**

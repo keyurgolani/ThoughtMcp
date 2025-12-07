@@ -25,10 +25,12 @@ import type {
 export class EmbeddingEngine {
   private model: EmbeddingModel;
   private cache: IEmbeddingCache;
+  private inFlightRequests: Map<string, Promise<number[]>>;
 
   constructor(model: EmbeddingModel, cache: IEmbeddingCache) {
     this.model = model;
     this.cache = cache;
+    this.inFlightRequests = new Map();
   }
 
   /**
@@ -43,16 +45,18 @@ export class EmbeddingEngine {
       return cached;
     }
 
+    // Check for in-flight request
+    const inFlight = this.inFlightRequests.get(cacheKey);
+    if (inFlight) {
+      return inFlight;
+    }
+
     // Augment content with temporal markers
     const augmentedContent = this.augmentEpisodicContent(content, context);
 
-    // Generate embedding
-    const embedding = await this.model.generate(augmentedContent);
-
-    // Store in cache
-    this.cache.set(cacheKey, embedding);
-
-    return embedding;
+    // Generate embedding with deduplication
+    const promise = this.generateWithDeduplication(cacheKey, augmentedContent);
+    return promise;
   }
 
   /**
@@ -67,13 +71,15 @@ export class EmbeddingEngine {
       return cached;
     }
 
-    // Generate embedding (no augmentation for semantic)
-    const embedding = await this.model.generate(content);
+    // Check for in-flight request
+    const inFlight = this.inFlightRequests.get(cacheKey);
+    if (inFlight) {
+      return inFlight;
+    }
 
-    // Store in cache
-    this.cache.set(cacheKey, embedding);
-
-    return embedding;
+    // Generate embedding with deduplication (no augmentation for semantic)
+    const promise = this.generateWithDeduplication(cacheKey, content);
+    return promise;
   }
 
   /**
@@ -88,16 +94,18 @@ export class EmbeddingEngine {
       return cached;
     }
 
+    // Check for in-flight request
+    const inFlight = this.inFlightRequests.get(cacheKey);
+    if (inFlight) {
+      return inFlight;
+    }
+
     // Augment content with process markers
     const augmentedContent = this.augmentProceduralContent(content);
 
-    // Generate embedding
-    const embedding = await this.model.generate(augmentedContent);
-
-    // Store in cache
-    this.cache.set(cacheKey, embedding);
-
-    return embedding;
+    // Generate embedding with deduplication
+    const promise = this.generateWithDeduplication(cacheKey, augmentedContent);
+    return promise;
   }
 
   /**
@@ -112,16 +120,18 @@ export class EmbeddingEngine {
       return cached;
     }
 
+    // Check for in-flight request
+    const inFlight = this.inFlightRequests.get(cacheKey);
+    if (inFlight) {
+      return inFlight;
+    }
+
     // Augment content with emotion markers
     const augmentedContent = this.augmentEmotionalContent(content, emotion);
 
-    // Generate embedding
-    const embedding = await this.model.generate(augmentedContent);
-
-    // Store in cache
-    this.cache.set(cacheKey, embedding);
-
-    return embedding;
+    // Generate embedding with deduplication
+    const promise = this.generateWithDeduplication(cacheKey, augmentedContent);
+    return promise;
   }
 
   /**
@@ -136,16 +146,18 @@ export class EmbeddingEngine {
       return cached;
     }
 
+    // Check for in-flight request
+    const inFlight = this.inFlightRequests.get(cacheKey);
+    if (inFlight) {
+      return inFlight;
+    }
+
     // Augment content with meta-insight markers
     const augmentedContent = this.augmentReflectiveContent(content, insights);
 
-    // Generate embedding
-    const embedding = await this.model.generate(augmentedContent);
-
-    // Store in cache
-    this.cache.set(cacheKey, embedding);
-
-    return embedding;
+    // Generate embedding with deduplication
+    const promise = this.generateWithDeduplication(cacheKey, augmentedContent);
+    return promise;
   }
 
   /**
@@ -205,6 +217,33 @@ export class EmbeddingEngine {
     this.model = model;
     // Clear cache when switching models
     this.cache.clear();
+  }
+
+  /**
+   * Generate embedding with request deduplication
+   * Prevents duplicate in-flight requests for the same content
+   */
+  private async generateWithDeduplication(cacheKey: string, content: string): Promise<number[]> {
+    // Create promise for this request
+    const promise = (async () => {
+      try {
+        // Generate embedding
+        const embedding = await this.model.generate(content);
+
+        // Store in cache
+        this.cache.set(cacheKey, embedding);
+
+        return embedding;
+      } finally {
+        // Remove from in-flight requests when done
+        this.inFlightRequests.delete(cacheKey);
+      }
+    })();
+
+    // Store in-flight request
+    this.inFlightRequests.set(cacheKey, promise);
+
+    return promise;
   }
 
   /**

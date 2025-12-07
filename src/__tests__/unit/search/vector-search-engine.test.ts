@@ -378,6 +378,68 @@ describe("VectorSearchEngine", () => {
     });
   });
 
+  describe("batch search operations", () => {
+    it("should batch search by multiple embeddings", async () => {
+      const queryEmbeddings = [
+        new Array(1536).fill(0.1),
+        new Array(1536).fill(0.2),
+        new Array(1536).fill(0.3),
+      ];
+      const sector = MemorySector.Semantic;
+
+      // Mock responses for each query
+      mockPool.query
+        .mockResolvedValueOnce({
+          rows: [
+            { memory_id: "mem1", sector: "semantic", similarity: 0.95 },
+            { memory_id: "mem2", sector: "semantic", similarity: 0.85 },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ memory_id: "mem3", sector: "semantic", similarity: 0.9 }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ memory_id: "mem4", sector: "semantic", similarity: 0.88 }],
+        });
+
+      const results = await engine.batchSearchByEmbedding(queryEmbeddings, sector, 10);
+
+      expect(results.size).toBe(3);
+      expect(results.get(0)).toHaveLength(2);
+      expect(results.get(1)).toHaveLength(1);
+      expect(results.get(2)).toHaveLength(1);
+      expect(mockPool.query).toHaveBeenCalledTimes(3);
+    });
+
+    it("should throw error for empty embeddings array", async () => {
+      const sector = MemorySector.Semantic;
+
+      await expect(engine.batchSearchByEmbedding([], sector, 10)).rejects.toThrow(
+        "Query embeddings must be a non-empty array"
+      );
+    });
+
+    it("should validate all embeddings in batch", async () => {
+      const queryEmbeddings = [new Array(1536).fill(0.1), []]; // Second embedding is invalid
+      const sector = MemorySector.Semantic;
+
+      await expect(engine.batchSearchByEmbedding(queryEmbeddings, sector, 10)).rejects.toThrow(
+        "Embedding must be a non-empty array"
+      );
+    });
+
+    it("should handle batch search errors gracefully", async () => {
+      const queryEmbeddings = [new Array(1536).fill(0.1), new Array(1536).fill(0.2)];
+      const sector = MemorySector.Semantic;
+
+      mockPool.query.mockRejectedValue(new Error("Database error"));
+
+      await expect(engine.batchSearchByEmbedding(queryEmbeddings, sector, 10)).rejects.toThrow(
+        "Batch vector search failed"
+      );
+    });
+  });
+
   describe("error handling", () => {
     it("should throw error when database is not connected", async () => {
       const disconnectedDb = {

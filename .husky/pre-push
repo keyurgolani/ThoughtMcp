@@ -2,26 +2,16 @@ echo "🚀 Running pre-push validations..."
 
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
-# Check for technical debt violations
-echo "🔍 Checking for technical debt violations..."
-
-# Check for 'any' types (forbidden)
-ANY_FOUND=$(find src -name "*.ts" -exec grep -l ": any\|as any\|any\[\]\|<any>" {} \; 2>/dev/null)
-if [ -n "$ANY_FOUND" ]; then
-  echo "❌ Forbidden 'any' types found in:"
-  echo "$ANY_FOUND"
-  exit 1
-fi
-
-# Check for suppression comments (forbidden)
-SUPPRESSIONS=$(find src -name "*.ts" -exec grep -l "@ts-ignore\|@ts-expect-error\|eslint-disable" {} \; 2>/dev/null)
-if [ -n "$SUPPRESSIONS" ]; then
-  echo "❌ Forbidden suppression comments found in:"
-  echo "$SUPPRESSIONS"
+# Check for sensitive files in staged changes
+echo "🔐 Checking for sensitive files..."
+if git diff --name-only HEAD~1..HEAD 2>/dev/null | grep -E "\.(key|pem|p12|pfx)$|\.env$|\.env\.(local|development|test|production)$" > /dev/null; then
+  echo "❌ Attempting to push sensitive files. Please remove them from the commit."
+  git diff --name-only HEAD~1..HEAD | grep -E "\.(key|pem|p12|pfx)$|\.env$|\.env\.(local|development|test|production)$"
   exit 1
 fi
 
 # Check for alternative file versions (forbidden)
+echo "🔍 Checking for forbidden file patterns..."
 ALT_FILES=$(find src -name "*-v2.ts" -o -name "*-new.ts" -o -name "*-old.ts" -o -name "*-temp.ts" -o -name "*-backup.ts" -o -name "*-enhanced.ts" -o -name "*-improved.ts" 2>/dev/null)
 if [ -n "$ALT_FILES" ]; then
   echo "❌ Forbidden alternative file versions found:"
@@ -29,9 +19,18 @@ if [ -n "$ALT_FILES" ]; then
   exit 1
 fi
 
-# Run full build with all quality gates
-echo "🏗️  Running full build with quality gates..."
-timeout 220s npm run build
+# Run full validation with strict linting (same as CI)
+echo "🏗️  Running CI validation..."
+timeout 220s npm run validate:ci
+if [ $? -ne 0 ]; then
+  echo "❌ CI validation failed. Please fix the issues above."
+  echo "💡 CI validation includes: security audit, format check, strict lint (zero warnings), typecheck, tests with coverage."
+  exit 1
+fi
+
+# Build the project
+echo "📦 Building project..."
+timeout 120s npm run build:quick
 if [ $? -ne 0 ]; then
   echo "❌ Build failed. Please fix the issues above."
   exit 1

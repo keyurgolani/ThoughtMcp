@@ -375,3 +375,21 @@ export function createDeferred<T>(): {
 
   return { promise, resolve, reject };
 }
+
+/**
+ * Extract data from MCP response with type assertion
+ * This helper safely extracts and casts the data field from MCPResponse
+ * for use in test assertions where the data shape is known
+ *
+ * @param response - MCP response object
+ * @returns The data field cast to the expected type
+ */
+export function getMCPData<T = Record<string, unknown>>(response: {
+  success: boolean;
+  data?: { [key: string]: unknown };
+}): T {
+  if (!response.data) {
+    throw new Error("Response data is undefined");
+  }
+  return response.data as unknown as T;
+}

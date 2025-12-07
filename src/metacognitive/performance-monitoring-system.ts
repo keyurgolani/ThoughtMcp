@@ -38,9 +38,9 @@ interface ReasoningResult {
 }
 
 /**
- * Simple in-memory metrics collector
+ * In-memory metrics collector implementation
  */
-class SimpleMetricsCollector implements MetricsCollector {
+class InMemoryMetricsCollector implements MetricsCollector {
   entries: MetricEntry[] = [];
 
   add(entry: MetricEntry): void {
@@ -70,7 +70,7 @@ export class PerformanceMonitoringSystem {
   private readonly collector: MetricsCollector;
 
   constructor() {
-    this.collector = new SimpleMetricsCollector();
+    this.collector = new InMemoryMetricsCollector();
   }
 
   /**

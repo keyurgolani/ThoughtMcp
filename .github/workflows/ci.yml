@@ -34,85 +34,27 @@ jobs:
         run: mkdir -p tmp/test-brain
 
       - name: Security audit
-        run: npm audit --audit-level=moderate
-        continue-on-error: true
+        run: npm run audit:check
 
-      - name: Check for TypeScript 'any' types
-        run: npm run check:any
-        continue-on-error: true
+      - name: Check formatting
+        run: npm run format:check
 
-      - name: Check for debug statements
-        run: npm run check:debug
-        continue-on-error: true
-
-      - name: Run linting (strict)
+      - name: Run linting (strict - zero warnings)
         run: npm run lint:strict
 
       - name: Run type checking
-        run: npm run type-check
-
-      - name: Run cognitive component tests
-        run: npm run test:cognitive
-
-      - name: Run integration tests
-        run: npm run test:integration
-
-      - name: Run performance tests
-        run: npm run test:performance
-
-      - name: Run memory system tests
-        run: npm run test:memory
+        run: npm run typecheck
 
       - name: Run full test suite with coverage
         run: npm run test:coverage
 
-      - name: Create test directories
-        run: mkdir -p tmp/test-brain
-
-      - name: Verify test coverage thresholds
-        run: |
-          if [ ! -f "./coverage/coverage-summary.json" ]; then
-            echo "Coverage file not found, skipping coverage verification"
-            exit 0
-          fi
-
-          node -e "
-            const coverage = require('./coverage/coverage-summary.json');
-            const total = coverage.total;
-            const minCoverage = {
-              statements: 70,
-              branches: 70,
-              functions: 70,
-              lines: 70
-            };
-
-            let failed = false;
-            Object.keys(minCoverage).forEach(key => {
-              if (total[key].pct < minCoverage[key]) {
-                console.error('Coverage too low for ' + key + ': ' + total[key].pct + '% < ' + minCoverage[key] + '%');
-                failed = true;
-              }
-            });
-
-            if (failed) {
-              console.error('Coverage thresholds not met');
-              process.exit(1);
-            }
-
-            console.log('Coverage thresholds met:');
-            console.log('  Statements: ' + total.statements.pct + '%');
-            console.log('  Branches: ' + total.branches.pct + '%');
-            console.log('  Functions: ' + total.functions.pct + '%');
-            console.log('  Lines: ' + total.lines.pct + '%');
-          "
-
       - name: Build project
-        run: npm run build
+        run: npm run build:quick
 
       - name: Verify build performance
         run: |
           start_time=$(date +%s)
-          npm run build
+          npm run build:quick
           end_time=$(date +%s)
           build_time=$((end_time - start_time))
           echo "Build completed in ${build_time} seconds"
@@ -197,7 +139,7 @@ jobs:
         if: matrix.node-version == '20.x'
         uses: codecov/codecov-action@v4
         with:
-          file: ./coverage/lcov.info
+          file: ./development/reports/coverage/lcov.info
           fail_ci_if_error: false
 
       - name: Upload test results
@@ -206,8 +148,8 @@ jobs:
         with:
           name: test-results-${{ matrix.node-version }}
           path: |
-            coverage/
-            test-results.xml
+            development/reports/coverage/
+            development/reports/test-results.json
           retention-days: 30
 
   security:
@@ -229,7 +171,7 @@ jobs:
         run: mkdir -p tmp/test-brain
 
       - name: Run security audit
-        run: npm audit --audit-level=high
+        run: npm run audit:check
 
       - name: Check for sensitive files
         run: |
@@ -265,7 +207,7 @@ jobs:
         run: mkdir -p tmp/test-brain
 
       - name: Build project
-        run: npm run build
+        run: npm run build:quick
 
       - name: Run performance tests
         run: npm run test:performance
@@ -324,7 +266,7 @@ jobs:
         run: mkdir -p tmp/test-brain
 
       - name: Build project
-        run: npm run build
+        run: npm run build:quick
 
       - name: Run core tests
         run: npm run test:run

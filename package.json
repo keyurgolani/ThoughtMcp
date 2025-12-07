@@ -1,6 +1,6 @@
 {
   "name": "thoughtmcp",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "AI that thinks more like humans do - MCP server with human-like cognitive architecture for enhanced reasoning, memory, and self-monitoring",
   "main": "dist/index.js",
   "type": "module",
@@ -9,17 +9,21 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
-    "./cognitive": {
-      "import": "./dist/cognitive/index.js",
-      "types": "./dist/cognitive/index.d.ts"
-    },
     "./server": {
-      "import": "./dist/server/CognitiveMCPServer.js",
-      "types": "./dist/server/CognitiveMCPServer.d.ts"
+      "import": "./dist/server/index.js",
+      "types": "./dist/server/index.d.ts"
     },
     "./utils": {
       "import": "./dist/utils/index.js",
       "types": "./dist/utils/index.d.ts"
+    },
+    "./monitoring": {
+      "import": "./dist/monitoring/index.js",
+      "types": "./dist/monitoring/index.d.ts"
+    },
+    "./security": {
+      "import": "./dist/security/index.js",
+      "types": "./dist/security/index.d.ts"
     }
   },
   "bin": {
@@ -33,7 +37,7 @@
   ],
   "scripts": {
     "dev": "tsx src/index.ts",
-    "dev:docker": "docker-compose up -d && npm run dev",
+    "dev:docker": "docker-compose up -d postgres && npm run dev",
     "prebuild": "npm run format && npm run validate && npm run clean",
     "build": "npm run build:types && npm run build:bundle",
     "build:types": "tsc --emitDeclarationOnly",
@@ -43,30 +47,35 @@
     "clean": "rm -rf dist development/reports/coverage .vitest",
     "audit:check": "npm audit --audit-level=moderate --omit=dev || (echo '❌ Security vulnerabilities found. Run: npm audit fix' && exit 1)",
     "test": "vitest run",
-    "test:unit": "vitest run --testPathPattern=src/__tests__/.*\\.test\\.ts$",
-    "test:integration": "vitest run --testPathPattern=src/__tests__/.*\\.integration\\.test\\.ts$",
-    "test:e2e": "vitest run --testPathPattern=src/__tests__/.*\\.e2e\\.test\\.ts$",
+    "test:run": "vitest run",
+    "test:unit": "vitest run src/__tests__/unit",
+    "test:integration": "vitest run src/__tests__/integration",
+    "test:e2e": "vitest run src/__tests__/e2e",
+    "test:cognitive": "vitest run src/__tests__/unit/cognitive src/__tests__/integration/cognitive",
+    "test:memory": "vitest run src/__tests__/unit/memory src/__tests__/integration/memory",
+    "test:performance": "vitest run src/__tests__/performance",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:performance": "vitest run --testPathPattern=src/__tests__/.*\\.performance\\.test\\.ts$",
-    "test:accuracy": "vitest run --testPathPattern=src/__tests__/.*\\.accuracy\\.test\\.ts$",
     "db:setup": "bash scripts/db/migrate.sh setup",
-    "db:migrate": "bash scripts/db/migrate.sh migrate",
-    "db:seed": "bash scripts/db/migrate.sh seed",
+    "db:migrate": "tsx scripts/migrate.ts up",
+    "db:status": "tsx scripts/migrate.ts status",
     "db:reset": "bash scripts/db/migrate.sh reset",
-    "db:test:setup": "NODE_ENV=test bash scripts/db/migrate.sh setup",
-    "db:test:teardown": "NODE_ENV=test bash scripts/db/migrate.sh teardown",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
+    "lint:strict": "eslint src/**/*.ts --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,md}\"",
     "typecheck": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "check:any": "! grep -r --include='*.ts' -E ': any|as any|any\\[\\]|<any>' src/ --exclude-dir=__tests__ || echo 'No forbidden any types found'",
+    "check:debug": "! grep -r --include='*.ts' -E 'console\\.(log|debug|info)|debugger' src/ --exclude-dir=__tests__ --exclude-dir=server --exclude='logger.ts' --exclude='MonitoringDashboard.ts' --exclude='PerformanceMonitor.ts' --exclude='config.ts' --exclude='version.ts' || echo 'No debug statements found'",
     "validate": "npm run audit:check && npm run format:check && npm run lint && npm run typecheck && npm run test:coverage",
-    "validate:ci": "npm run audit:check && npm run format:check && npm run lint && npm run typecheck && npm run build:quick && npm run test",
+    "validate:ci": "npm run audit:check && npm run format:check && npm run lint:strict && npm run typecheck && npm run test:coverage",
     "start": "node dist/index.js",
     "start:prod": "NODE_ENV=production node dist/index.js",
     "start:debug": "LOG_LEVEL=DEBUG node dist/index.js",
-    "prepublishOnly": "npm run validate:ci"
+    "config:validate": "tsx scripts/validate-config.ts",
+    "prepublishOnly": "npm run validate:ci && npm run build"
   },
   "keywords": [
     "mcp",
@@ -98,7 +107,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.5.0",
+    "@modelcontextprotocol/sdk": "^1.24.3",
     "pg": "^8.16.3"
   },
   "devDependencies": {

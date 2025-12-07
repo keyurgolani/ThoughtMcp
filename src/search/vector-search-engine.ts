@@ -197,6 +197,56 @@ export class VectorSearchEngine {
   }
 
   /**
+   * Batch search by multiple embeddings in a specific sector
+   * Optimized for performance when searching multiple queries
+   *
+   * @param queryEmbeddings - Array of query embedding vectors
+   * @param sector - Memory sector to search in
+   * @param limitPerQuery - Maximum number of results per query
+   * @param threshold - Minimum similarity threshold (0-1, default 0.0)
+   * @returns Map of query index to similarity results
+   * @throws VectorSearchError if search fails
+   */
+  async batchSearchByEmbedding(
+    queryEmbeddings: number[][],
+    sector: MemorySector,
+    limitPerQuery: number,
+    threshold = 0.0
+  ): Promise<Map<number, SimilarityResult[]>> {
+    // Validate inputs
+    if (!Array.isArray(queryEmbeddings) || queryEmbeddings.length === 0) {
+      throw new VectorSearchError("Query embeddings must be a non-empty array");
+    }
+
+    for (const embedding of queryEmbeddings) {
+      this.validateEmbedding(embedding);
+    }
+    this.validateLimit(limitPerQuery);
+    this.validateThreshold(threshold);
+
+    if (!this.db.pool) {
+      throw new VectorSearchError("Database not connected");
+    }
+
+    // Execute searches in parallel for better performance
+    try {
+      const searchPromises = queryEmbeddings.map((embedding, index) =>
+        this.searchByEmbedding(embedding, sector, limitPerQuery, threshold).then(
+          (results) => [index, results] as [number, SimilarityResult[]]
+        )
+      );
+
+      const results = await Promise.all(searchPromises);
+      return new Map(results);
+    } catch (err) {
+      throw new VectorSearchError(
+        `Batch vector search failed: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err : undefined
+      );
+    }
+  }
+
+  /**
    * Parse embedding from database format
    */
   private parseEmbedding(embeddingData: unknown): number[] {

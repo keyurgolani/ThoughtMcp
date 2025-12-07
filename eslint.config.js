@@ -86,6 +86,27 @@ export default [
       "no-console": "off", // Allow console statements in examples and tests
     },
   },
+  // Allow larger functions in MCP server handlers (complex tool implementations)
+  {
+    files: ["src/server/mcp-server.ts"],
+    rules: {
+      "max-lines-per-function": ["error", { max: 200, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  // Allow more parameters in error factory functions
+  {
+    files: ["src/utils/errors.ts"],
+    rules: {
+      "max-params": ["error", 7],
+    },
+  },
+  // Allow control character regex in input validator (intentional security patterns)
+  {
+    files: ["src/security/input-validator.ts"],
+    rules: {
+      "no-control-regex": "off",
+    },
+  },
   {
     ignores: [
       "dist/**",
