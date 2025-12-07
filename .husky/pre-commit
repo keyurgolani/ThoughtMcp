@@ -8,12 +8,12 @@ if git diff --cached --name-only | grep -E "\.(key|pem|p12|pfx)$|\.env$|\.env\.(
   exit 1
 fi
 
-# Run validation (same as CI: audit, format:check, lint, typecheck, test:coverage)
-echo "🏗️  Running validation..."
-timeout 220s npm run validate
+# Run CI validation (same as CI: audit, format:check, lint:strict, typecheck, test:coverage)
+echo "🏗️  Running CI validation..."
+timeout 220s npm run validate:ci
 if [ $? -ne 0 ]; then
-  echo "❌ Validation failed. Please fix the issues above."
-  echo "💡 Validation includes: security audit, format check, lint, typecheck, tests with coverage."
+  echo "❌ CI validation failed. Please fix the issues above."
+  echo "💡 CI validation includes: security audit, format check, strict lint (zero warnings), typecheck, tests with coverage."
   exit 1
 fi
 
