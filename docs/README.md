@@ -17,14 +17,15 @@ Getting started with ThoughtMCP as an end user or AI assistant developer.
 
 Deploying and operating ThoughtMCP in production environments.
 
-| Document                              | Description                     |
-| ------------------------------------- | ------------------------------- |
-| [Deployment](deployment.md)           | Production deployment guide     |
-| [Environment](environment.md)         | Environment variables reference |
-| [Database](database.md)               | PostgreSQL setup and schema     |
-| [Monitoring](monitoring.md)           | Observability and alerting      |
-| [Security](security.md)               | Security best practices         |
-| [Troubleshooting](troubleshooting.md) | Common issues and solutions     |
+| Document                                  | Description                     |
+| ----------------------------------------- | ------------------------------- |
+| [Docker Deployment](docker-deployment.md) | Docker Compose deployment guide |
+| [Deployment](deployment.md)               | Production deployment guide     |
+| [Environment](environment.md)             | Environment variables reference |
+| [Database](database.md)                   | PostgreSQL setup and schema     |
+| [Monitoring](monitoring.md)               | Observability and alerting      |
+| [Security](security.md)                   | Security best practices         |
+| [Troubleshooting](troubleshooting.md)     | Common issues and solutions     |
 
 ## 💻 For Contributors
 
@@ -60,11 +61,12 @@ Technical reference documentation.
 
 ### I want to deploy ThoughtMCP
 
-1. [Deployment](deployment.md) → Production setup
-2. [Environment](environment.md) → Configuration options
-3. [Database](database.md) → PostgreSQL setup
-4. [Monitoring](monitoring.md) → Observability setup
-5. [Security](security.md) → Security hardening
+1. [Docker Deployment](docker-deployment.md) → Docker Compose setup (recommended)
+2. [Deployment](deployment.md) → Production setup without Docker
+3. [Environment](environment.md) → Configuration options
+4. [Database](database.md) → PostgreSQL setup
+5. [Monitoring](monitoring.md) → Observability setup
+6. [Security](security.md) → Security hardening
 
 ### I want to contribute to ThoughtMCP
 
@@ -78,12 +80,12 @@ Technical reference documentation.
 
 ## Document Overview
 
-| Category         | Documents                                                                |
-| ---------------- | ------------------------------------------------------------------------ |
-| **Users**        | user-guide, mcp-tools, examples, integration                             |
-| **Operators**    | deployment, environment, database, monitoring, security, troubleshooting |
-| **Contributors** | development, testing, build, contributing, extending                     |
-| **Reference**    | api, architecture                                                        |
+| Category         | Documents                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| **Users**        | user-guide, mcp-tools, examples, integration                                                |
+| **Operators**    | docker-deployment, deployment, environment, database, monitoring, security, troubleshooting |
+| **Contributors** | development, testing, build, contributing, extending                                        |
+| **Reference**    | api, architecture                                                                           |
 
 ---
 

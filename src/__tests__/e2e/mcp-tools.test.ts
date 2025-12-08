@@ -760,9 +760,9 @@ describe("MCP Tools End-to-End Tests", () => {
   });
 
   describe("Performance Under Load", () => {
-    it("should handle rapid sequential operations", async () => {
+    it("should handle rapid sequential operations", { timeout: 60000 }, async () => {
       const startTime = Date.now();
-      const operationCount = 50;
+      const operationCount = 20; // Reduced for real embedding generation
 
       // Rapid sequential stores
       for (let i = 0; i < operationCount; i++) {

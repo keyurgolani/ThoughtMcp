@@ -4,10 +4,10 @@ This document describes all environment variables used by ThoughtMCP and their p
 
 ## Quick Start
 
-1. Copy `.env.example` to `.env.development`:
+1. Copy `.env.example` to `.env`:
 
    ```bash
-   cp .env.example .env.development
+   cp .env.example .env
    ```
 
 2. Update the database credentials and other settings as needed
@@ -16,230 +16,313 @@ This document describes all environment variables used by ThoughtMCP and their p
 
 ## Environment Files
 
-- `.env.example` - Template with all available variables and documentation
-- `.env.development` - Local development configuration (not committed)
-- `.env.test` - Test environment configuration (not committed)
-- `.env.production` - Production configuration (not committed, deploy separately)
+ThoughtMCP uses a unified environment variable configuration system where `.env` files are the **single source of truth** for all configuration values.
 
-## Required Variables
+| File                      | Purpose                                                | Committed |
+| ------------------------- | ------------------------------------------------------ | --------- |
+| `.env.example`            | Template with all variables and documentation          | Yes       |
+| `.env`                    | Local configuration (copy from .env.example)           | No        |
+| `.env.development`        | Development-specific overrides                         | No        |
+| `.env.test`               | Test environment overrides                             | No        |
+| `.env.production`         | Production configuration (see .env.production.example) | No        |
+| `.env.production.example` | Production template with security guidance             | Yes       |
 
-### PostgreSQL Database
+Docker Compose files reference these variables via `${VAR_NAME:-default}` syntax, ensuring both Docker Compose and local development use the same configuration values.
 
-#### `DATABASE_URL`
+## Complete Environment Variable Reference
 
-- **Type**: String (PostgreSQL connection URL)
-- **Required**: Yes
-- **Default**: None
-- **Example**: `postgresql://user:password@localhost:5432/thoughtmcp`
-- **Description**: Complete PostgreSQL connection string. Can be used instead of individual DB\_\* variables.
+### Development Database (docker-compose.dev.yml)
 
-#### `DB_HOST`
+| Variable       | Type   | Default          | Required | Description                              |
+| -------------- | ------ | ---------------- | -------- | ---------------------------------------- |
+| `DB_HOST`      | String | `localhost`      | Yes\*    | PostgreSQL server hostname or IP address |
+| `DB_PORT`      | Number | `5432`           | Yes\*    | PostgreSQL server port                   |
+| `DB_NAME`      | String | `thoughtmcp_dev` | Yes\*    | Database name to connect to              |
+| `DB_USER`      | String | `thoughtmcp_dev` | Yes\*    | Database user for authentication         |
+| `DB_PASSWORD`  | String | `dev_password`   | Yes\*    | Database password for authentication     |
+| `DATABASE_URL` | String | Constructed      | Yes      | Full PostgreSQL connection string        |
+| `DB_POOL_SIZE` | Number | `20`             | No       | Maximum database connections in pool     |
 
-- **Type**: String
-- **Required**: Yes (if DATABASE_URL not provided)
-- **Default**: `localhost`
-- **Description**: PostgreSQL server hostname or IP address
+\*Required if `DATABASE_URL` is not provided.
 
-#### `DB_PORT`
+**DATABASE_URL Format:**
 
-- **Type**: Number
-- **Required**: Yes (if DATABASE_URL not provided)
-- **Default**: `5432`
-- **Description**: PostgreSQL server port
+```
+postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+```
 
-#### `DB_NAME`
+**Pool Size Recommendations:**
 
-- **Type**: String
-- **Required**: Yes (if DATABASE_URL not provided)
-- **Default**: `thoughtmcp`
-- **Description**: Database name to connect to
+- Development: 5-10
+- Production: 20-50
+- Test: 5
 
-#### `DB_USER`
+### Development Ollama (docker-compose.dev.yml)
 
-- **Type**: String
-- **Required**: Yes (if DATABASE_URL not provided)
-- **Default**: None
-- **Description**: Database user for authentication
+| Variable              | Type   | Default                  | Required | Description                         |
+| --------------------- | ------ | ------------------------ | -------- | ----------------------------------- |
+| `OLLAMA_HOST`         | URL    | `http://localhost:11434` | Yes      | Ollama API host URL                 |
+| `OLLAMA_PORT`         | Number | `11434`                  | No       | Ollama port for Docker port mapping |
+| `EMBEDDING_MODEL`     | String | `nomic-embed-text`       | Yes      | Embedding model name                |
+| `EMBEDDING_DIMENSION` | Number | `768`                    | Yes      | Vector dimension (must match model) |
 
-#### `DB_PASSWORD`
+**Supported Embedding Models:**
 
-- **Type**: String
-- **Required**: Yes (if DATABASE_URL not provided)
-- **Default**: None
-- **Description**: Database password for authentication
+| Model               | Dimension | Notes                                  |
+| ------------------- | --------- | -------------------------------------- |
+| `nomic-embed-text`  | 768       | Recommended for development, zero cost |
+| `mxbai-embed-large` | 1024      | Higher quality, larger vectors         |
 
-#### `DB_POOL_SIZE`
+### Test Configuration (docker-compose.test.yml)
 
-- **Type**: Number
-- **Required**: No
-- **Default**: `20`
-- **Description**: Maximum number of database connections in the pool. Adjust based on expected concurrent operations.
-- **Recommendations**:
-  - Development: 5-10
-  - Production: 20-50
-  - Test: 5
+| Variable                | Type   | Default                  | Required | Description                                   |
+| ----------------------- | ------ | ------------------------ | -------- | --------------------------------------------- |
+| `TEST_DB_HOST`          | String | `localhost`              | No       | Test database host                            |
+| `TEST_DB_PORT`          | Number | `5433`                   | No       | Test database port (avoids conflict with dev) |
+| `TEST_DB_NAME`          | String | `thoughtmcp_test`        | No       | Test database name                            |
+| `TEST_DB_USER`          | String | `thoughtmcp_test`        | No       | Test database user                            |
+| `TEST_DB_PASSWORD`      | String | `test_password`          | No       | Test database password                        |
+| `TEST_OLLAMA_HOST`      | URL    | `http://localhost:11435` | No       | Test Ollama host URL                          |
+| `TEST_OLLAMA_PORT`      | Number | `11435`                  | No       | Test Ollama port (avoids conflict with dev)   |
+| `TEST_CONTAINER_PREFIX` | String | `thoughtmcp-test`        | No       | Prefix for test container names               |
 
-### Embedding Model
+**Note:** Test ports are offset from development ports to allow running both environments simultaneously.
 
-#### `EMBEDDING_MODEL`
+### Container Management (TestContainerManager)
 
-- **Type**: String (enum)
-- **Required**: Yes
-- **Default**: `ollama`
-- **Options**: `ollama`, `e5`, `bge`, `openai`
-- **Description**: Embedding model to use for vector generation
-- **Details**:
-  - `ollama`: Local Ollama models (recommended for development, zero cost)
-  - `e5`: Sentence-transformers E5 models (local, zero cost)
-  - `bge`: BAAI BGE models (local, zero cost)
-  - `openai`: OpenAI API (requires API key, incurs costs)
+| Variable                    | Type    | Default       | Required | Description                                     |
+| --------------------------- | ------- | ------------- | -------- | ----------------------------------------------- |
+| `AUTO_START_CONTAINERS`     | Boolean | `true`        | No       | Automatically start containers when tests begin |
+| `CONTAINER_STARTUP_TIMEOUT` | Number  | `60`          | No       | Timeout in seconds for container health checks  |
+| `KEEP_CONTAINERS_RUNNING`   | Boolean | `false`       | No       | Keep containers running after tests complete    |
+| `PRESERVE_TEST_DATA`        | Boolean | `false`       | No       | Preserve test data volumes for debugging        |
+| `CI`                        | Boolean | Auto-detected | No       | CI environment flag for optimized settings      |
 
-#### `EMBEDDING_DIMENSION`
+**Usage Scenarios:**
 
-- **Type**: Number
-- **Required**: Yes
-- **Default**: Depends on model
-- **Description**: Vector dimension size (must match selected model)
-- **Model-specific values**:
-  - `ollama` (nomic-embed-text): 768
-  - `e5-large`: 1024
-  - `bge-large`: 1024
-  - `openai` (text-embedding-3-small): 1536
+| Scenario            | AUTO_START_CONTAINERS | KEEP_CONTAINERS_RUNNING | PRESERVE_TEST_DATA |
+| ------------------- | --------------------- | ----------------------- | ------------------ |
+| Normal test run     | `true`                | `false`                 | `false`            |
+| Rapid iteration     | `true`                | `true`                  | `false`            |
+| Debug test failures | `true`                | `true`                  | `true`             |
+| Manual containers   | `false`               | N/A                     | N/A                |
+| CI/CD pipeline      | `true`                | `false`                 | `false`            |
 
-#### `OLLAMA_HOST`
+### Application Settings
 
-- **Type**: String (URL)
-- **Required**: Only if `EMBEDDING_MODEL=ollama`
-- **Default**: `http://localhost:11434`
-- **Description**: Ollama server URL
+| Variable     | Type | Default       | Required | Description                                              |
+| ------------ | ---- | ------------- | -------- | -------------------------------------------------------- |
+| `NODE_ENV`   | Enum | `development` | No       | Environment mode: `development`, `production`, `test`    |
+| `LOG_LEVEL`  | Enum | `DEBUG`       | No       | Logging verbosity: `DEBUG`, `INFO`, `WARN`, `ERROR`      |
+| `LOG_FORMAT` | Enum | `text`        | No       | Log format: `text` (human-readable), `json` (structured) |
 
-#### `OPENAI_API_KEY`
+**Recommended Settings by Environment:**
 
-- **Type**: String
-- **Required**: Only if `EMBEDDING_MODEL=openai`
-- **Default**: None
-- **Description**: OpenAI API key for embedding generation
+| Environment | NODE_ENV      | LOG_LEVEL | LOG_FORMAT |
+| ----------- | ------------- | --------- | ---------- |
+| Development | `development` | `DEBUG`   | `text`     |
+| Test        | `test`        | `ERROR`   | `text`     |
+| Production  | `production`  | `WARN`    | `json`     |
 
-## Optional Variables
+### Performance Configuration
 
-### Logging
-
-#### `LOG_LEVEL`
-
-- **Type**: String (enum)
-- **Required**: No
-- **Default**: `WARN`
-- **Options**: `DEBUG`, `INFO`, `WARN`, `ERROR`
-- **Description**: Logging verbosity level
-- **Recommendations**:
-  - Development: `DEBUG`
-  - Production: `WARN`
-  - Test: `ERROR`
-
-### Environment
-
-#### `NODE_ENV`
-
-- **Type**: String (enum)
-- **Required**: No
-- **Default**: `production`
-- **Options**: `development`, `production`, `test`
-- **Description**: Application environment mode
-
-### Performance
-
-#### `CACHE_TTL`
-
-- **Type**: Number (seconds)
-- **Required**: No
-- **Default**: `300` (5 minutes)
-- **Description**: Query result cache time-to-live in seconds
-- **Recommendations**:
-  - Development: 60 (1 minute)
-  - Production: 300 (5 minutes)
-  - Test: 10 (10 seconds)
-
-#### `MAX_PROCESSING_TIME`
-
-- **Type**: Number (milliseconds)
-- **Required**: No
-- **Default**: `30000` (30 seconds)
-- **Description**: Maximum time allowed for processing operations before timeout
+| Variable              | Type    | Default | Required | Description                             |
+| --------------------- | ------- | ------- | -------- | --------------------------------------- |
+| `CACHE_TTL`           | Number  | `300`   | No       | Query cache TTL in seconds (5 minutes)  |
+| `MAX_PROCESSING_TIME` | Number  | `30000` | No       | Maximum processing time in milliseconds |
+| `ENABLE_CACHE`        | Boolean | `true`  | No       | Enable query result caching             |
+| `ENABLE_MONITORING`   | Boolean | `true`  | No       | Enable performance monitoring           |
 
 ### Feature Flags
 
-#### `ENABLE_CACHE`
+| Variable                   | Type    | Default | Required | Description                        |
+| -------------------------- | ------- | ------- | -------- | ---------------------------------- |
+| `ENABLE_BIAS_DETECTION`    | Boolean | `true`  | No       | Enable bias detection in reasoning |
+| `ENABLE_EMOTION_DETECTION` | Boolean | `true`  | No       | Enable emotion detection in input  |
+| `ENABLE_METACOGNITION`     | Boolean | `true`  | No       | Enable metacognitive monitoring    |
 
-- **Type**: Boolean
-- **Required**: No
-- **Default**: `true`
-- **Description**: Enable/disable query result caching
+### pgAdmin (Optional Development Tool)
 
-#### `ENABLE_MONITORING`
+| Variable           | Type   | Default                  | Required | Description                |
+| ------------------ | ------ | ------------------------ | -------- | -------------------------- |
+| `PGADMIN_EMAIL`    | String | `admin@thoughtmcp.local` | No       | pgAdmin login email        |
+| `PGADMIN_PASSWORD` | String | `admin`                  | No       | pgAdmin login password     |
+| `PGADMIN_PORT`     | Number | `5050`                   | No       | pgAdmin web interface port |
 
-- **Type**: Boolean
-- **Required**: No
-- **Default**: `true`
-- **Description**: Enable/disable performance monitoring
+**Start pgAdmin:**
 
-#### `ENABLE_BIAS_DETECTION`
+```bash
+docker compose -f docker-compose.dev.yml --profile tools up -d
+```
 
-- **Type**: Boolean
-- **Required**: No
-- **Default**: `true`
-- **Description**: Enable/disable bias detection in reasoning
+Access at: http://localhost:5050
 
-#### `ENABLE_EMOTION_DETECTION`
+### Production Database (docker-compose.prod.yml)
 
-- **Type**: Boolean
-- **Required**: No
-- **Default**: `true`
-- **Description**: Enable/disable emotion detection in input
+| Variable            | Type   | Default      | Required | Description                                     |
+| ------------------- | ------ | ------------ | -------- | ----------------------------------------------- |
+| `POSTGRES_USER`     | String | `thoughtmcp` | Yes      | PostgreSQL user for production                  |
+| `POSTGRES_PASSWORD` | String | None         | Yes      | PostgreSQL password (generate strong password!) |
+| `POSTGRES_DB`       | String | `thoughtmcp` | Yes      | PostgreSQL database name                        |
+| `POSTGRES_PORT`     | Number | `5432`       | No       | PostgreSQL external port                        |
+
+**Security Warning:** Always change default passwords before deploying to production. Generate strong passwords:
+
+```bash
+openssl rand -base64 32
+```
+
+### Production Security Configuration
+
+| Variable                | Type    | Default | Required | Description                              |
+| ----------------------- | ------- | ------- | -------- | ---------------------------------------- |
+| `DB_SSL_ENABLED`        | Boolean | `true`  | No       | Enable SSL/TLS for database connections  |
+| `DB_SSL_CA`             | String  | None    | No       | Path to CA certificate for database SSL  |
+| `ENABLE_RATE_LIMITING`  | Boolean | `true`  | No       | Enable rate limiting to prevent abuse    |
+| `RATE_LIMIT_RPM`        | Number  | `100`   | No       | Rate limit: requests per minute per user |
+| `DB_CONNECTION_TIMEOUT` | Number  | `5000`  | No       | Connection timeout in milliseconds       |
+| `DB_IDLE_TIMEOUT`       | Number  | `30000` | No       | Idle connection timeout in milliseconds  |
+| `OLLAMA_TIMEOUT`        | Number  | `30000` | No       | Ollama request timeout in milliseconds   |
+
+### Production Monitoring
+
+| Variable              | Type    | Default      | Required | Description                          |
+| --------------------- | ------- | ------------ | -------- | ------------------------------------ |
+| `ENABLE_HEALTH_CHECK` | Boolean | `true`       | No       | Enable health check endpoint         |
+| `HEALTH_CHECK_PORT`   | Number  | `8080`       | No       | Health check port                    |
+| `ENABLE_METRICS`      | Boolean | `true`       | No       | Enable metrics collection            |
+| `METRICS_FORMAT`      | Enum    | `prometheus` | No       | Metrics format: `prometheus`, `json` |
+
+### Production Resource Limits
+
+| Variable             | Type   | Default | Required | Description                            |
+| -------------------- | ------ | ------- | -------- | -------------------------------------- |
+| `MAX_MEMORY_MB`      | Number | `512`   | No       | Maximum memory per operation in MB     |
+| `MAX_CONCURRENT_OPS` | Number | `10`    | No       | Maximum concurrent operations          |
+| `MAX_BATCH_SIZE`     | Number | `1000`  | No       | Maximum batch size for bulk operations |
+
+### Temporal Decay Configuration
+
+| Variable           | Type    | Default     | Required | Description                          |
+| ------------------ | ------- | ----------- | -------- | ------------------------------------ |
+| `ENABLE_DECAY`     | Boolean | `true`      | No       | Enable automatic memory decay        |
+| `DECAY_SCHEDULE`   | Cron    | `0 2 * * *` | No       | Decay scheduler cron (daily at 2 AM) |
+| `DECAY_BATCH_SIZE` | Number  | `1000`      | No       | Decay batch size                     |
+
+### Backup Configuration (Optional)
+
+| Variable                | Type    | Default     | Required | Description                     |
+| ----------------------- | ------- | ----------- | -------- | ------------------------------- |
+| `ENABLE_AUTO_BACKUP`    | Boolean | `false`     | No       | Enable automatic backups        |
+| `BACKUP_SCHEDULE`       | Cron    | `0 3 * * *` | No       | Backup schedule (daily at 3 AM) |
+| `BACKUP_RETENTION_DAYS` | Number  | `30`        | No       | Backup retention in days        |
+| `BACKUP_PATH`           | String  | None        | No       | Backup storage path             |
 
 ## Environment-Specific Configurations
 
 ### Development
 
 ```bash
-# Optimized for local development
-LOG_LEVEL=DEBUG
+# .env (copy from .env.example)
 NODE_ENV=development
+LOG_LEVEL=DEBUG
+LOG_FORMAT=text
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=thoughtmcp_dev
+DB_USER=thoughtmcp_dev
+DB_PASSWORD=dev_password
 DB_POOL_SIZE=10
+OLLAMA_HOST=http://localhost:11434
+EMBEDDING_MODEL=nomic-embed-text
+EMBEDDING_DIMENSION=768
 CACHE_TTL=60
-EMBEDDING_MODEL=ollama
 ```
 
 ### Test
 
 ```bash
-# Optimized for automated testing
-LOG_LEVEL=ERROR
+# Test environment (used by TestContainerManager)
 NODE_ENV=test
-DB_POOL_SIZE=5
-CACHE_TTL=10
-EMBEDDING_MODEL=ollama
+LOG_LEVEL=ERROR
+TEST_DB_HOST=localhost
+TEST_DB_PORT=5433
+TEST_DB_NAME=thoughtmcp_test
+TEST_DB_USER=thoughtmcp_test
+TEST_DB_PASSWORD=test_password
+TEST_OLLAMA_HOST=http://localhost:11435
+TEST_OLLAMA_PORT=11435
+AUTO_START_CONTAINERS=true
+KEEP_CONTAINERS_RUNNING=false
 ```
 
 ### Production
 
 ```bash
-# Optimized for production deployment
-LOG_LEVEL=WARN
+# .env.production (copy from .env.production.example)
 NODE_ENV=production
+LOG_LEVEL=WARN
+LOG_FORMAT=json
+POSTGRES_USER=thoughtmcp
+POSTGRES_PASSWORD=your_secure_production_password
+POSTGRES_DB=thoughtmcp
 DB_POOL_SIZE=20
-CACHE_TTL=300
-EMBEDDING_MODEL=ollama
+DB_SSL_ENABLED=true
+ENABLE_RATE_LIMITING=true
+RATE_LIMIT_RPM=100
+EMBEDDING_MODEL=nomic-embed-text
+EMBEDDING_DIMENSION=768
+```
+
+## Docker Compose Integration
+
+Docker Compose files use environment variable substitution to read values from `.env` files:
+
+```yaml
+# Example from docker-compose.dev.yml
+services:
+  postgres:
+    environment:
+      POSTGRES_USER: ${DB_USER:-thoughtmcp_dev}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev_password}
+      POSTGRES_DB: ${DB_NAME:-thoughtmcp_dev}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+```
+
+**How it works:**
+
+1. Docker Compose reads `.env` file in the same directory
+2. Variables are substituted using `${VAR_NAME:-default}` syntax
+3. If variable is not set, the default value after `:-` is used
+4. Both Docker Compose and application code use the same values
+
+**Specifying environment file:**
+
+```bash
+# Use default .env
+docker compose -f docker-compose.dev.yml up -d
+
+# Use specific environment file
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 ```
 
 ## Security Best Practices
 
-1. **Never commit `.env.*` files** (except `.env.example`)
-2. **Use strong passwords** for database credentials
+1. **Never commit `.env.*` files** (except `.env.example` and `.env.production.example`)
+2. **Use strong passwords** - Generate with `openssl rand -base64 32`
 3. **Rotate credentials regularly** in production
-4. **Use environment-specific databases** (separate dev/test/prod)
+4. **Use environment-specific databases** - Separate dev/test/prod
 5. **Restrict database user permissions** to minimum required
-6. **Use SSL/TLS** for database connections in production
-7. **Store production secrets** in secure secret management systems (AWS Secrets Manager, HashiCorp Vault, etc.)
+6. **Enable SSL/TLS** for database connections in production (`DB_SSL_ENABLED=true`)
+7. **Store production secrets** in secure secret management systems:
+   - AWS Secrets Manager
+   - HashiCorp Vault
+   - Azure Key Vault
+   - Google Secret Manager
+8. **Enable rate limiting** in production (`ENABLE_RATE_LIMITING=true`)
+9. **Use JSON logging** in production for log aggregation (`LOG_FORMAT=json`)
+10. **Don't expose database ports** externally in production
 
 ## Troubleshooting
 
@@ -247,29 +330,65 @@ EMBEDDING_MODEL=ollama
 
 **Problem**: Cannot connect to PostgreSQL
 
-- Verify PostgreSQL is running: `pg_isready -h localhost -p 5432`
-- Check credentials are correct
-- Verify database exists: `psql -U postgres -l`
-- Check firewall/network settings
+```bash
+# Verify PostgreSQL is running
+pg_isready -h localhost -p 5432
+
+# Check credentials
+psql -U $DB_USER -h $DB_HOST -p $DB_PORT -d $DB_NAME
+
+# Verify database exists
+psql -U postgres -l
+```
 
 **Problem**: Connection pool exhausted
 
 - Increase `DB_POOL_SIZE`
-- Check for connection leaks in application code
-- Monitor active connections: `SELECT count(*) FROM pg_stat_activity;`
+- Check for connection leaks
+- Monitor: `SELECT count(*) FROM pg_stat_activity;`
+
+### Container Issues
+
+**Problem**: Test containers won't start
+
+```bash
+# Check if ports are in use
+lsof -i :5433
+lsof -i :11435
+
+# Check Docker status
+docker ps -a | grep thoughtmcp
+
+# View container logs
+docker compose -f docker-compose.test.yml logs
+```
+
+**Problem**: Containers start but tests fail
+
+- Verify `TEST_DB_PORT` and `TEST_OLLAMA_PORT` match running containers
+- Check `AUTO_START_CONTAINERS` is `true`
+- Increase `CONTAINER_STARTUP_TIMEOUT` if containers are slow to start
 
 ### Embedding Issues
 
 **Problem**: Ollama connection failed
 
-- Verify Ollama is running: `curl http://localhost:11434/api/tags`
-- Check `OLLAMA_HOST` is correct
-- Ensure model is pulled: `ollama pull nomic-embed-text`
+```bash
+# Verify Ollama is running
+curl http://localhost:11434/api/tags
+
+# Check model is available
+ollama list
+
+# Pull model if missing
+ollama pull nomic-embed-text
+```
 
 **Problem**: Dimension mismatch
 
 - Verify `EMBEDDING_DIMENSION` matches your model
-- Check model documentation for correct dimension size
+- `nomic-embed-text`: 768
+- `mxbai-embed-large`: 1024
 
 ### Performance Issues
 
@@ -278,12 +397,12 @@ EMBEDDING_MODEL=ollama
 - Increase `CACHE_TTL` to cache results longer
 - Verify database indexes are created
 - Check `DB_POOL_SIZE` is adequate
-- Monitor query execution times
+- Enable monitoring: `ENABLE_MONITORING=true`
 
 **Problem**: Timeout errors
 
 - Increase `MAX_PROCESSING_TIME`
-- Optimize complex operations
+- Increase `OLLAMA_TIMEOUT` for embedding operations
 - Check database query performance
 
 ## Configuration Validation
@@ -292,25 +411,26 @@ Before deploying, validate your configuration:
 
 ```bash
 # Run configuration validator
-npm run config:validate
+npm run validate:config
 ```
 
-This script checks:
+This checks:
 
 - All required variables are set
 - Values are valid and within expected ranges
 - Database connection works
 - Embedding service is accessible
-- Production-specific security settings
+- Production security settings are enabled
 
 ## See Also
 
 - [Development Guide](./development.md) - Setup and development workflow
 - [Testing Guide](./testing.md) - Testing configuration and practices
+- [Docker Deployment Guide](./docker-deployment.md) - Docker Compose usage
 - [Deployment Guide](./deployment.md) - Production deployment instructions
 - [Troubleshooting Guide](./troubleshooting.md) - Common issues and solutions
 
 ---
 
 **Last Updated**: December 2025
-**Version**: 0.5.0
+**Version**: 0.6.0

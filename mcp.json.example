@@ -1,29 +1,93 @@
 {
+  // ============================================================================
+  // ThoughtMCP MCP Server Configuration
+  // ============================================================================
+  //
+  // There are TWO ways to connect to ThoughtMCP:
+  //
+  // 1. DOCKER EXEC (Recommended for Production)
+  //    Connect directly to the running Docker container.
+  //    The container runs in standby mode, waiting for MCP client connections.
+  //
+  // 2. LOCAL NODE PROCESS (Development)
+  //    Run the MCP server locally, connecting to Docker services (postgres, ollama).
+  //
+  // ============================================================================
+  // OPTION 1: DOCKER EXEC (Production - Recommended)
+  // ============================================================================
+  //
+  // Prerequisites:
+  //   docker compose -f docker-compose.prod.yml up -d
+  //
+  // The container runs in MCP_STANDBY_MODE, staying alive and ready for
+  // MCP client connections via "docker exec". All environment variables
+  // are pre-configured inside the container.
+  //
+  // ============================================================================
+
   "mcpServers": {
-thoughtmcp": {
-      "command": "node",
-      "args": ["/absolute/path/to/ThoughtMcp/dist/index.js"],
-      "env": {
-        "NODE_ENV": "development",
-        "DB_HOST": "localhost",
-        "DB_PORT": "5432",
-        "DB_NAME": "thoughtmcp_dev",
-        "DB_USER": "thoughtmcp_dev",
-        "DB_PASSWORD": "dev_password",
-        "EMBEDDING_MODEL": "nomic-embed-text",
-        "EMBEDDING_DIMENSION": "768",
-        "OLLAMA_HOST": "http://localhost:11434",
-        "LOG_LEVEL": "INFO",
-        "BUILD_TIMESTAMP": "2025-12-07T00:00:00Z"
-      },
+    // ========================================================================
+    // OPTION 1: Docker Exec (Production)
+    // ========================================================================
+    // Connects directly to the running Docker container.
+    // Container must be running: docker compose -f docker-compose.prod.yml up -d
+    //
+    "thoughtmcp": {
+      "command": "docker",
+      "args": ["exec", "-i", "thoughtmcp-server", "node", "dist/index.js"],
+      "env": {},
       "disabled": false,
       "autoApprove": [
         "store_memory",
         "retrieve_memories",
         "search_memories",
+        "update_memory",
+        "delete_memory",
         "think",
-        "assess_confidence"
+        "think_parallel",
+        "analyze_systematically",
+        "decompose_problem",
+        "assess_confidence",
+        "detect_bias",
+        "detect_emotion",
+        "analyze_reasoning"
       ]
     }
+
+    // ========================================================================
+    // OPTION 2: Local Node Process (Development)
+    // ========================================================================
+    // Uncomment this section and comment out the Docker exec config above
+    // to run the MCP server locally while connecting to Docker services.
+    //
+    // Prerequisites:
+    //   1. docker compose -f docker-compose.dev.yml up -d
+    //   2. npm run build
+    //
+    // "thoughtmcp": {
+    //   "command": "node",
+    //   "args": ["/absolute/path/to/ThoughtMcp/dist/index.js"],
+    //   "env": {
+    //     "NODE_ENV": "development",
+    //     "DB_HOST": "localhost",
+    //     "DB_PORT": "5432",
+    //     "DB_NAME": "thoughtmcp_dev",
+    //     "DB_USER": "thoughtmcp_dev",
+    //     "DB_PASSWORD": "dev_password",
+    //     "OLLAMA_HOST": "http://localhost:11434",
+    //     "EMBEDDING_MODEL": "nomic-embed-text",
+    //     "EMBEDDING_DIMENSION": "768",
+    //     "LOG_LEVEL": "INFO",
+    //     "BUILD_TIMESTAMP": "2025-12-07T00:00:00Z"
+    //   },
+    //   "disabled": false,
+    //   "autoApprove": [
+    //     "store_memory",
+    //     "retrieve_memories",
+    //     "search_memories",
+    //     "think",
+    //     "assess_confidence"
+    //   ]
+    // }
   }
 }

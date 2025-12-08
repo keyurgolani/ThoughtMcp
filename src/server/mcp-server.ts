@@ -157,35 +157,22 @@ export class CognitiveMCPServer {
   private async initializeEmbeddingEngine(): Promise<void> {
     // Import required dependencies
     const { GenericLRUCache } = await import("../embeddings/cache.js");
+    const { OllamaEmbeddingModel } = await import("../embeddings/models/ollama-model.js");
 
-    // Check if we should use mock model (for testing)
+    // Get embedding configuration from environment
     const embeddingModel = process.env.EMBEDDING_MODEL ?? "nomic-embed-text";
-    const useMock = embeddingModel === "mock";
     const embeddingDimension = parseInt(process.env.EMBEDDING_DIMENSION ?? "768");
 
-    // Create embedding model (mock or real)
-    let model;
-    if (useMock) {
-      // Use mock model for testing
-      const { MockOllamaEmbeddingModel } = await import("../__tests__/utils/mock-embeddings.js");
-      model = new MockOllamaEmbeddingModel({
-        host: "http://localhost:11434", // Accepted for compatibility but not used
-        modelName: "mock",
-        dimension: embeddingDimension,
-        timeout: 30000,
-        maxRetries: 3,
-      });
-    } else {
-      // Use real Ollama model for production
-      const { OllamaEmbeddingModel } = await import("../embeddings/models/ollama-model.js");
-      model = new OllamaEmbeddingModel({
-        host: process.env.OLLAMA_HOST ?? "http://localhost:11434",
-        modelName: embeddingModel,
-        dimension: embeddingDimension,
-        timeout: 30000,
-        maxRetries: 3,
-      });
-    }
+    // Create Ollama embedding model
+    // Note: For testing, use the test utilities directly in test files
+    // The production server always uses the real Ollama model
+    const model = new OllamaEmbeddingModel({
+      host: process.env.OLLAMA_HOST ?? "http://localhost:11434",
+      modelName: embeddingModel,
+      dimension: embeddingDimension,
+      timeout: 30000,
+      maxRetries: 3,
+    });
 
     // Create cache with proper typing
     const cache = new GenericLRUCache<number[]>(10000, 3600000); // 10k entries, 1 hour TTL

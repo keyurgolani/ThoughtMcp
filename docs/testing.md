@@ -454,6 +454,210 @@ const model = new MockOllamaEmbeddingModel({
 });
 ```
 
+## Test Container Management
+
+ThoughtMCP uses Docker containers for PostgreSQL (with pgvector) and Ollama during testing. The `TestContainerManager` provides automatic container lifecycle management, eliminating the need for manual container setup.
+
+### Automatic Container Management
+
+By default, test containers start automatically when you run tests and stop when tests complete. This is controlled by the `AUTO_START_CONTAINERS` environment variable.
+
+```bash
+# Run tests with automatic container management (default)
+npm test
+
+# Explicitly enable auto-start
+AUTO_START_CONTAINERS=true npm test
+
+# Disable auto-start (use manually started containers)
+AUTO_START_CONTAINERS=false npm test
+```
+
+### How It Works
+
+The `TestContainerManager` orchestrates container lifecycle using Docker Compose as the single source of truth:
+
+1. **Startup Phase** (in `global-setup.ts`):
+   - Checks if `AUTO_START_CONTAINERS` is enabled (default: true)
+   - Verifies Docker and Docker Compose availability
+   - Checks for existing running containers
+   - Allocates dynamic ports if defaults are occupied
+   - Starts containers via `docker compose -f docker-compose.test.yml up`
+   - Waits for health checks to pass
+   - Configures test environment variables
+
+2. **Teardown Phase** (in `global-teardown.ts`):
+   - Checks `KEEP_CONTAINERS_RUNNING` setting
+   - Stops containers that were started by the manager
+   - Releases allocated ports
+   - Handles SIGINT/SIGTERM for graceful cleanup
+
+### Docker Compose Configuration
+
+Test containers are defined in `docker-compose.test.yml`:
+
+```yaml
+services:
+  postgres-test:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "${TEST_DB_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U thoughtmcp_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ollama-test:
+    image: ollama/ollama:latest
+    ports:
+      - "${TEST_OLLAMA_PORT:-11435}:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+```
+
+All configuration values use environment variable substitution, allowing customization via `.env` files.
+
+### Dynamic Port Allocation
+
+When default ports are occupied (e.g., development containers running), the `TestContainerManager` automatically finds available ports:
+
+- **PostgreSQL**: Default 5433, fallback range 5434-5500
+- **Ollama**: Default 11435, fallback range 11436-11500
+
+The allocated ports are passed to Docker Compose via environment variables (`TEST_DB_PORT`, `TEST_OLLAMA_PORT`) and configured in the test environment.
+
+### Container Reuse
+
+If test containers are already running and healthy, the `TestContainerManager` reuses them instead of starting new ones. This speeds up repeated test runs during development.
+
+```bash
+# Start containers manually (they'll be reused by tests)
+docker compose -f docker-compose.test.yml up -d
+
+# Run tests (containers are reused)
+npm test
+
+# Containers remain running after tests
+```
+
+### Environment Variables
+
+| Variable                    | Default           | Description                           |
+| --------------------------- | ----------------- | ------------------------------------- |
+| `AUTO_START_CONTAINERS`     | `true`            | Enable automatic container startup    |
+| `KEEP_CONTAINERS_RUNNING`   | `false`           | Keep containers running after tests   |
+| `CONTAINER_STARTUP_TIMEOUT` | `60`              | Health check timeout in seconds       |
+| `PRESERVE_TEST_DATA`        | `false`           | Preserve container volumes on cleanup |
+| `TEST_DB_PORT`              | `5433`            | PostgreSQL external port              |
+| `TEST_OLLAMA_PORT`          | `11435`           | Ollama external port                  |
+| `TEST_CONTAINER_PREFIX`     | `thoughtmcp-test` | Container name prefix                 |
+| `SKIP_DB_SETUP`             | `false`           | Skip database setup (for unit tests)  |
+
+### Manual Container Management
+
+For scenarios where you prefer manual control over containers:
+
+```bash
+# 1. Disable auto-start
+export AUTO_START_CONTAINERS=false
+
+# 2. Start containers manually
+docker compose -f docker-compose.test.yml up -d
+
+# 3. Wait for health checks
+docker compose -f docker-compose.test.yml ps
+
+# 4. Run tests
+npm test
+
+# 5. Stop containers when done
+docker compose -f docker-compose.test.yml down
+```
+
+### CI/CD Integration
+
+In CI environments, automatic container management works out of the box:
+
+```yaml
+# GitHub Actions example
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: npm test # Containers start automatically
+```
+
+For CI environments with pre-configured services:
+
+```yaml
+# Using GitHub Actions services
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        ports:
+          - 5433:5432
+    env:
+      AUTO_START_CONTAINERS: false
+    steps:
+      - run: npm test
+```
+
+### Troubleshooting Container Issues
+
+**Docker not available:**
+
+```
+❌ Docker is not available for test containers
+   Options:
+   1. Start Docker Desktop or Docker daemon
+   2. Set AUTO_START_CONTAINERS=false and start containers manually
+```
+
+**Port conflicts:**
+
+```
+Using dynamic port 5434 (default 5433 occupied)
+```
+
+The manager automatically finds available ports. Check what's using the default port:
+
+```bash
+lsof -i :5433
+```
+
+**Health check failures:**
+
+```bash
+# Check container logs
+docker compose -f docker-compose.test.yml logs postgres-test
+docker compose -f docker-compose.test.yml logs ollama-test
+
+# Check container status
+docker compose -f docker-compose.test.yml ps
+```
+
+**Cleanup issues:**
+
+```bash
+# Force cleanup of test containers
+docker compose -f docker-compose.test.yml down -v
+
+# Remove orphaned containers
+docker compose -f docker-compose.test.yml down --remove-orphans
+```
+
 ## Troubleshooting
 
 ### Tests Failing Unexpectedly
