@@ -55,8 +55,10 @@ describe("PerformanceMonitor", () => {
 
     it("should measure elapsed time accurately", async () => {
       const timer = monitor.startTimer("delay-op", "test");
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 15));
       const duration = monitor.endTimer(timer);
+      // Allow 5ms tolerance for timer imprecision in CI environments
+      // setTimeout can fire slightly early due to event loop timing
       expect(duration).toBeGreaterThanOrEqual(10);
     });
   });

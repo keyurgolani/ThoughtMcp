@@ -19,6 +19,62 @@ if [ -n "$ALT_FILES" ]; then
   exit 1
 fi
 
+# NEW: Comprehensive untracked file check (REQ-3)
+echo "🔍 Checking for untracked source files..."
+UNTRACKED_SRC=$(find src -name "*.ts" -type f 2>/dev/null | while read -r file; do
+  if ! git ls-files --error-unmatch "$file" >/dev/null 2>&1; then
+    echo "$file"
+  fi
+done)
+
+if [ -n "$UNTRACKED_SRC" ]; then
+  echo "❌ Found untracked source files that WILL cause CI failures:"
+  echo "$UNTRACKED_SRC"
+  echo ""
+  echo "💡 These files exist locally but are not in git."
+  echo "   CI will fail because it only sees tracked files."
+  echo "   To fix:"
+  echo "   1. git add <files>"
+  echo "   2. git commit --amend (to add to current commit)"
+  echo "   Or create a new commit:"
+  echo "   1. git add <files>"
+  echo "   2. git commit -m 'fix: add missing source files'"
+  exit 1
+fi
+
+# NEW: Validate no source files are gitignored (REQ-3, REQ-7)
+echo "🔍 Validating .gitignore doesn't ignore source code..."
+IGNORED_SRC=$(git check-ignore src/**/*.ts 2>/dev/null || true)
+if [ -n "$IGNORED_SRC" ]; then
+  echo "❌ Source files are being ignored by .gitignore:"
+  echo "$IGNORED_SRC"
+  echo ""
+  echo "💡 This WILL cause CI failures. The .gitignore patterns are"
+  echo "   preventing these source files from being committed."
+  echo ""
+  echo "   To fix .gitignore patterns:"
+  echo "   1. Use leading '/' to anchor patterns to repository root"
+  echo "   2. Example: Change 'memory/' to '/memory/'"
+  echo "   3. This ensures only root-level directories are ignored,"
+  echo "      not src/memory/ or other nested directories."
+  exit 1
+fi
+
+# NEW: Validate TypeScript imports resolve correctly (REQ-7)
+echo "🔍 Validating TypeScript import resolution..."
+timeout 60s npm run typecheck >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+  echo "⚠️  TypeScript import resolution issues detected."
+  echo "   Running full typecheck for details..."
+  npm run typecheck
+  echo ""
+  echo "💡 Import resolution failures often indicate:"
+  echo "   - Missing source files (not tracked by git)"
+  echo "   - Incorrect import paths"
+  echo "   - Missing type definitions"
+  exit 1
+fi
+
 # Run full validation with strict linting (same as CI)
 echo "🏗️  Running CI validation..."
 timeout 220s npm run validate:ci

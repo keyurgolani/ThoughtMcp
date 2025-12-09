@@ -8,6 +8,37 @@ if git diff --cached --name-only | grep -E "\.(key|pem|p12|pfx)$|\.env$|\.env\.(
   exit 1
 fi
 
+# NEW: Check for untracked source files that might be imported (REQ-2)
+echo "🔍 Checking for untracked source files..."
+UNTRACKED_SRC=$(find src -name "*.ts" -type f 2>/dev/null | while read -r file; do
+  if ! git ls-files --error-unmatch "$file" >/dev/null 2>&1; then
+    echo "$file"
+  fi
+done)
+
+if [ -n "$UNTRACKED_SRC" ]; then
+  echo "❌ Found untracked source files that may cause CI failures:"
+  echo "$UNTRACKED_SRC"
+  echo ""
+  echo "💡 These files exist locally but are not tracked by git."
+  echo "   CI will fail because it only sees tracked files."
+  echo "   Add these files: git add <files>"
+  exit 1
+fi
+
+# NEW: Validate gitignore patterns don't ignore source code (REQ-2)
+echo "🔍 Validating .gitignore patterns..."
+IGNORED_SRC=$(git check-ignore src/**/*.ts 2>/dev/null || true)
+if [ -n "$IGNORED_SRC" ]; then
+  echo "❌ Source files are being ignored by .gitignore:"
+  echo "$IGNORED_SRC"
+  echo ""
+  echo "💡 This WILL cause CI failures. Fix .gitignore patterns."
+  echo "   Use leading '/' to anchor patterns to repository root."
+  echo "   Example: '/memory/' only matches root-level memory directory"
+  exit 1
+fi
+
 # Run CI validation (same as CI: audit, format:check, lint:strict, typecheck, test:coverage)
 echo "🏗️  Running CI validation..."
 timeout 800s npm run validate:ci
