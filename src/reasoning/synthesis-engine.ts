@@ -324,9 +324,52 @@ export class ResultSynthesisEngine {
       return `Integrated conclusion: ${conclusions.join(". ")}`;
     }
 
-    // If conflicts exist, acknowledge them
+    // Categorize conflicts by severity
+    const criticalConflicts = conflicts.filter((c) => c.severity === ConflictSeverity.CRITICAL);
+    const highConflicts = conflicts.filter((c) => c.severity === ConflictSeverity.HIGH);
+    const otherConflicts = conflicts.filter(
+      (c) => c.severity !== ConflictSeverity.CRITICAL && c.severity !== ConflictSeverity.HIGH
+    );
+
     const conclusions = results.map((r) => r.conclusion).filter((c) => c.length > 0);
-    return `Multiple perspectives identified: ${conclusions.join(". ")} (${conflicts.length} conflicts detected)`;
+    let conclusionText = `Multiple perspectives identified: ${conclusions.join(". ")}`;
+
+    // Highlight critical conflicts prominently
+    if (criticalConflicts.length > 0) {
+      const criticalDescriptions = criticalConflicts
+        .map((c) => this.formatConflictWithResolution(c))
+        .join(" ");
+      conclusionText += ` CRITICAL CONFLICTS REQUIRING IMMEDIATE ATTENTION: ${criticalDescriptions}`;
+    }
+
+    // Highlight high-severity conflicts
+    if (highConflicts.length > 0) {
+      const highDescriptions = highConflicts
+        .map((c) => this.formatConflictWithResolution(c))
+        .join(" ");
+      conclusionText += ` HIGH-PRIORITY CONFLICTS: ${highDescriptions}`;
+    }
+
+    // Mention other conflicts
+    if (otherConflicts.length > 0) {
+      conclusionText += ` (${otherConflicts.length} additional conflicts detected)`;
+    }
+
+    return conclusionText;
+  }
+
+  /**
+   * Format a conflict with its resolution suggestion
+   */
+  private formatConflictWithResolution(conflict: Conflict): string {
+    let formatted = conflict.description;
+
+    // Add resolution suggestion if available
+    if (conflict.resolutionFramework) {
+      formatted += ` Resolution: ${conflict.resolutionFramework.recommendedAction}`;
+    }
+
+    return formatted;
   }
 
   private calculateOverallConfidence(results: StreamResult[]): number {

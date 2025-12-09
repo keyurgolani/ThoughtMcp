@@ -24,6 +24,200 @@ import {
 } from "./types";
 
 /**
+ * Bias indicator pattern for text-based detection
+ */
+interface BiasIndicatorPattern {
+  /** The bias type this pattern indicates */
+  biasType: BiasTypeEnum;
+  /** Phrases that indicate this bias (case-insensitive) */
+  phrases: string[];
+  /** Base confidence for this pattern */
+  confidence: number;
+  /** Base severity for this pattern */
+  severity: number;
+  /** Explanation template for detected bias */
+  explanation: string;
+}
+
+/**
+ * Text-based bias indicator patterns
+ *
+ * These patterns detect cognitive biases from raw text input
+ * based on common phrases and language patterns.
+ */
+const TEXT_BIAS_PATTERNS: BiasIndicatorPattern[] = [
+  // Confirmation bias indicators (Requirements 10.1)
+  {
+    biasType: BiasTypeEnum.CONFIRMATION,
+    phrases: [
+      "always used",
+      "worked fine",
+      "don't see why",
+      "proves my point",
+      "as i expected",
+      "confirms what i",
+      "knew it",
+      "told you so",
+      "obviously",
+      "clearly shows",
+      "just as i thought",
+      "supports my view",
+      "validates my",
+      "i was right",
+      "clearly supports",
+      "all data supports",
+      "data confirms",
+      "evidence shows",
+    ],
+    confidence: 0.7,
+    severity: 0.65,
+    explanation:
+      "Reasoning shows confirmation bias by favoring information that confirms existing beliefs",
+  },
+  // Status quo bias indicators (Requirements 10.2)
+  {
+    biasType: BiasTypeEnum.FRAMING, // Using FRAMING as closest match for status quo
+    phrases: [
+      "we've always",
+      "no need to change",
+      "why fix what",
+      "if it ain't broke",
+      "worked before",
+      "tradition",
+      "the way we do things",
+      "never had problems",
+      "always done it this way",
+      "don't rock the boat",
+      "stick with what works",
+      "tried and true",
+      "why change",
+      "keep things as they are",
+    ],
+    confidence: 0.7,
+    severity: 0.6,
+    explanation: "Reasoning shows status quo bias by preferring the current state over change",
+  },
+  // Bandwagon effect indicators (Requirements 10.3)
+  {
+    biasType: BiasTypeEnum.REPRESENTATIVENESS, // Using REPRESENTATIVENESS as closest match for bandwagon
+    phrases: [
+      "everyone uses",
+      "industry standard",
+      "everyone knows",
+      "most people",
+      "popular choice",
+      "widely adopted",
+      "common practice",
+      "mainstream",
+      "trending",
+      "what others are doing",
+      "following the crowd",
+      "majority agrees",
+      "consensus is",
+      "nobody does it that way",
+      "everyone else is doing",
+      "everyone is doing",
+      "everyone does it",
+      "others are doing",
+      "they all do",
+    ],
+    confidence: 0.7,
+    severity: 0.6,
+    explanation: "Reasoning shows bandwagon effect by relying on popularity rather than merit",
+  },
+  // Anchoring bias indicators (Requirements 10.4)
+  {
+    biasType: BiasTypeEnum.ANCHORING,
+    phrases: [
+      "starting from",
+      "based on the initial",
+      "original estimate",
+      "first impression",
+      "initially thought",
+      "my first guess",
+      "began with",
+      "anchor point",
+      "reference point",
+      "baseline of",
+      "starting point",
+      "original price",
+      "first offer",
+      "initial value",
+    ],
+    confidence: 0.65,
+    severity: 0.6,
+    explanation: "Reasoning shows anchoring bias by over-relying on initial information",
+  },
+  // Availability heuristic indicators (Requirements 10.5)
+  {
+    biasType: BiasTypeEnum.AVAILABILITY,
+    phrases: [
+      "i remember when",
+      "just happened",
+      "recent example",
+      "i heard about",
+      "in the news",
+      "just saw",
+      "recently read",
+      "comes to mind",
+      "easy to recall",
+      "vivid example",
+      "memorable case",
+      "fresh in my mind",
+      "just last week",
+      "i know someone who",
+    ],
+    confidence: 0.65,
+    severity: 0.6,
+    explanation: "Reasoning shows availability bias by overweighting easily recalled examples",
+  },
+  // Sunk cost fallacy indicators
+  {
+    biasType: BiasTypeEnum.SUNK_COST,
+    phrases: [
+      "already invested",
+      "too much time",
+      "can't give up now",
+      "come this far",
+      "wasted effort",
+      "spent so much",
+      "put in too much",
+      "after all this work",
+      "too late to stop",
+      "committed to",
+      "invested significant",
+      "invested resources",
+      "invested time",
+      "invested money",
+      "spent significant",
+      "put significant",
+    ],
+    confidence: 0.75,
+    severity: 0.7,
+    explanation:
+      "Reasoning shows sunk cost fallacy by letting past investments drive current decisions",
+  },
+  // Attribution bias indicators
+  {
+    biasType: BiasTypeEnum.ATTRIBUTION,
+    phrases: [
+      "they're just",
+      "it's their fault",
+      "they should have",
+      "incompetent",
+      "lazy",
+      "not my fault",
+      "circumstances beyond",
+      "bad luck",
+      "unfair situation",
+    ],
+    confidence: 0.65,
+    severity: 0.6,
+    explanation: "Reasoning shows attribution bias in assigning causes to behavior",
+  },
+];
+
+/**
  * BiasPatternRecognizer class
  *
  * Main class for detecting cognitive biases in reasoning chains.
@@ -70,6 +264,81 @@ export class BiasPatternRecognizer {
 
     const bias8 = this.detectAttributionBias(reasoning);
     if (bias8) biases.push(bias8);
+
+    return biases;
+  }
+
+  /**
+   * Detect biases from raw text input using phrase-based pattern matching
+   *
+   * This method analyzes raw text for cognitive bias indicators without
+   * requiring a structured ReasoningChain. It uses phrase-based pattern
+   * matching to identify common bias indicators.
+   *
+   * @param text - The raw text to analyze for biases
+   * @param context - Optional context about the reasoning situation
+   * @returns Array of detected biases with matched indicators
+   *
+   * @example
+   * ```typescript
+   * const recognizer = new BiasPatternRecognizer();
+   * const biases = recognizer.detectBiasesFromText(
+   *   "We've always done it this way and everyone uses this approach",
+   *   "Technology decision"
+   * );
+   * // Returns biases for status quo and bandwagon effect
+   * ```
+   */
+  detectBiasesFromText(text: string, context?: string): DetectedBias[] {
+    if (!text || typeof text !== "string" || text.trim().length === 0) {
+      return [];
+    }
+
+    const lowerText = text.toLowerCase();
+    const biases: DetectedBias[] = [];
+    const detectedTypes = new Set<BiasTypeEnum>();
+
+    // Check each pattern against the text
+    for (const pattern of TEXT_BIAS_PATTERNS) {
+      const matchedPhrases: string[] = [];
+
+      // Find all matching phrases
+      for (const phrase of pattern.phrases) {
+        if (lowerText.includes(phrase.toLowerCase())) {
+          matchedPhrases.push(phrase);
+        }
+      }
+
+      // If we found matches and haven't already detected this bias type
+      if (matchedPhrases.length > 0 && !detectedTypes.has(pattern.biasType)) {
+        detectedTypes.add(pattern.biasType);
+
+        // Calculate severity based on number of matches (more matches = higher severity)
+        const matchBoost = Math.min(matchedPhrases.length * 0.05, 0.2);
+        const adjustedSeverity = Math.min(pattern.severity + matchBoost, 1.0);
+
+        // Calculate confidence based on number of matches
+        const confidenceBoost = Math.min(matchedPhrases.length * 0.03, 0.15);
+        const adjustedConfidence = Math.min(pattern.confidence + confidenceBoost, 0.95);
+
+        // Create evidence array with matched indicators
+        const evidence = matchedPhrases.map((phrase) => `Matched indicator: "${phrase}"`);
+
+        biases.push({
+          type: pattern.biasType,
+          severity: adjustedSeverity,
+          confidence: adjustedConfidence,
+          evidence,
+          location: {
+            stepIndex: 0,
+            reasoning: text.substring(0, 200) + (text.length > 200 ? "..." : ""),
+            context: context,
+          },
+          explanation: pattern.explanation,
+          detectedAt: new Date(),
+        });
+      }
+    }
 
     return biases;
   }

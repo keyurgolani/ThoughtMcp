@@ -430,6 +430,62 @@ describe("Reasoning Workflow Integration", () => {
       }
     }, 35000);
 
+    /**
+     * Integration test for comprehensive test case from the report
+     *
+     * **Validates: Requirements 2.7**
+     *
+     * Tests the specific case: "All the data clearly supports my hypothesis.
+     * I've been working on this for 6 months and invested significant resources,
+     * so we should definitely continue. Everyone else is doing it this way."
+     *
+     * Verifies detection of:
+     * - Confirmation bias (from "clearly supports", "all data supports")
+     * - Sunk cost fallacy (from "invested significant")
+     * - Bandwagon effect (from "everyone else is doing")
+     */
+    it("should detect all three biases in the comprehensive test case from the report", () => {
+      const testCase =
+        "All the data clearly supports my hypothesis. I've been working on this for 6 months " +
+        "and invested significant resources, so we should definitely continue. Everyone else " +
+        "is doing it this way.";
+
+      const biasRecognizer = new BiasPatternRecognizer();
+      const detectedBiases = biasRecognizer.detectBiasesFromText(testCase);
+
+      // Should detect at least 3 biases
+      expect(detectedBiases.length).toBeGreaterThanOrEqual(3);
+
+      // Verify confirmation bias is detected
+      const confirmationBias = detectedBiases.find((b) => b.type === "confirmation");
+      expect(confirmationBias).toBeDefined();
+      expect(confirmationBias?.severity).toBeGreaterThan(0);
+      expect(confirmationBias?.confidence).toBeGreaterThan(0);
+      expect(confirmationBias?.evidence.length).toBeGreaterThan(0);
+
+      // Verify sunk cost fallacy is detected
+      const sunkCostBias = detectedBiases.find((b) => b.type === "sunk_cost");
+      expect(sunkCostBias).toBeDefined();
+      expect(sunkCostBias?.severity).toBeGreaterThan(0);
+      expect(sunkCostBias?.confidence).toBeGreaterThan(0);
+      expect(sunkCostBias?.evidence.length).toBeGreaterThan(0);
+
+      // Verify bandwagon effect is detected (mapped to REPRESENTATIVENESS)
+      const bandwagonBias = detectedBiases.find((b) => b.type === "representativeness");
+      expect(bandwagonBias).toBeDefined();
+      expect(bandwagonBias?.severity).toBeGreaterThan(0);
+      expect(bandwagonBias?.confidence).toBeGreaterThan(0);
+      expect(bandwagonBias?.evidence.length).toBeGreaterThan(0);
+
+      // Verify evidence contains matched indicators
+      for (const bias of detectedBiases) {
+        const hasMatchedIndicator = bias.evidence.some((e) =>
+          e.toLowerCase().includes("matched indicator")
+        );
+        expect(hasMatchedIndicator).toBe(true);
+      }
+    });
+
     it("should apply bias correction when biases are detected", async () => {
       const problem: Problem = {
         id: "test-problem-6",

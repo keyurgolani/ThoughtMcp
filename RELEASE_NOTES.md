@@ -1,3 +1,76 @@
+# ThoughtMCP v0.6.0 Release Notes
+
+**Release Date:** December 8, 2025
+
+## Overview
+
+ThoughtMCP v0.6.0 introduces natural, cognitive-aligned tool names and numerous quality improvements identified during comprehensive testing.
+
+## ⚠️ Breaking Changes
+
+### Tool Renaming
+
+All MCP tools have been renamed to use natural, cognitive-aligned names that better reflect their purpose:
+
+| Old Name                 | New Name    | Description                              |
+| ------------------------ | ----------- | ---------------------------------------- |
+| `store_memory`           | `remember`  | Store new memory with embeddings         |
+| `retrieve_memories`      | `recall`    | Retrieve memories with composite scoring |
+| `delete_memory`          | `forget`    | Delete memory (soft/hard)                |
+| `search_memories`        | `search`    | Full-text and vector search              |
+| `think_parallel`         | `ponder`    | Parallel stream reasoning                |
+| `analyze_systematically` | `analyze`   | Framework-based analysis                 |
+| `decompose_problem`      | `breakdown` | Problem decomposition                    |
+| `analyze_reasoning`      | `evaluate`  | Reasoning quality analysis               |
+
+**Note:** The following tools retain their original names:
+
+- `think` - Single-mode reasoning
+- `update_memory` - Update existing memory
+- `assess_confidence` - Confidence assessment
+- `detect_bias` - Bias detection
+- `detect_emotion` - Emotion analysis
+
+### Migration Guide
+
+Update your tool calls to use the new names:
+
+```javascript
+// Before (v0.5.0)
+await callTool("store_memory", { content: "...", userId: "..." });
+await callTool("retrieve_memories", { userId: "...", text: "..." });
+await callTool("think_parallel", { problem: "..." });
+
+// After (v0.6.0)
+await callTool("remember", { content: "...", userId: "..." });
+await callTool("recall", { userId: "...", text: "..." });
+await callTool("ponder", { problem: "..." });
+```
+
+## Quality Improvements
+
+- **Full-text search**: Fixed NOT operator handling in QueryParser
+- **Bias detection**: Added text-based bias detection with correction suggestions
+- **Memory-augmented reasoning**: Cognitive tools now retrieve relevant memories
+- **Waypoint graph**: Fixed link creation integration
+- **Problem decomposition**: Improved sub-problem naming quality
+- **Framework selection**: Better confidence calibration
+- **Reasoning specificity**: Problem-specific insights instead of generic recommendations
+- **Content validation**: Added length validation (10-100,000 characters)
+- **Metadata merge**: Partial updates preserve existing fields
+- **Evidence extraction**: Automatic extraction from reasoning text
+
+## New Components
+
+- `BiasCorrector` - Generates correction suggestions for detected biases
+- `ContentValidator` - Validates memory content length
+- `MetadataMerger` - Handles partial metadata updates
+- `EvidenceExtractor` - Extracts evidence from reasoning text
+- `MemoryAugmentedReasoning` - Integrates memory retrieval with cognitive tools
+- `ProblemComplexityAnalyzer` - Scales analysis depth based on complexity
+
+---
+
 # ThoughtMCP v0.5.0 Release Notes
 
 **Release Date:** December 7, 2025
@@ -78,25 +151,25 @@ All cognitive capabilities are exposed through MCP tools:
 
 ### Memory Operations
 
-- `store_memory` - Store memories with five-sector embeddings
-- `retrieve_memories` - Retrieve with composite scoring
+- `remember` - Store memories with five-sector embeddings
+- `recall` - Retrieve with composite scoring
 - `update_memory` - Update memory content and metadata
-- `delete_memory` - Delete with cascade options
-- `search_memories` - Full-text and metadata search
+- `forget` - Delete with cascade options
+- `search` - Full-text and metadata search
 
 ### Reasoning Operations
 
 - `think` - Human-like reasoning with multiple modes
-- `analyze_systematically` - Framework-based problem solving
-- `think_parallel` - Multi-stream parallel reasoning
-- `decompose_problem` - Complex problem breakdown
+- `analyze` - Framework-based problem solving
+- `ponder` - Multi-stream parallel reasoning
+- `breakdown` - Complex problem breakdown
 
 ### Metacognitive Operations
 
 - `assess_confidence` - Multi-dimensional confidence assessment
 - `detect_bias` - Real-time bias detection and correction
 - `detect_emotion` - Circumplex and discrete emotion analysis
-- `analyze_reasoning` - Reasoning quality assessment
+- `evaluate` - Reasoning quality assessment
 
 ## New in v0.5.0
 

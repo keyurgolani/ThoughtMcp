@@ -7,8 +7,10 @@
  * - Evidence evaluation and validation
  * - Structured solution generation
  * - Progress tracking and timeout management
+ * - Problem-specific insights (Requirements 4.1, 15.3, 15.4)
  */
 
+import { KeyTermExtractor, type KeyTerms } from "../key-term-extractor";
 import type { ReasoningStream, StreamProcessor } from "../stream";
 import { StreamStatus, StreamType, type Insight, type Problem, type StreamResult } from "../types";
 
@@ -17,8 +19,15 @@ import { StreamStatus, StreamType, type Insight, type Problem, type StreamResult
  *
  * Implements the core analytical reasoning logic with systematic
  * problem decomposition and evidence-based analysis.
+ * Generates problem-specific insights using key term extraction.
  */
 export class AnalyticalStreamProcessor implements StreamProcessor {
+  private readonly keyTermExtractor: KeyTermExtractor;
+
+  constructor() {
+    this.keyTermExtractor = new KeyTermExtractor();
+  }
+
   /**
    * Process a problem using analytical reasoning
    *
@@ -36,13 +45,16 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
     }
 
     try {
+      // Extract key terms for problem-specific insights (Req 4.1, 15.3, 15.4)
+      const keyTerms = this.keyTermExtractor.extract(problem.description, problem.context);
+
       // Step 1: Analyze problem structure
       reasoning.push(
         `Analyzing problem: ${problem.description.substring(0, 100)}${problem.description.length > 100 ? "..." : ""}`
       );
 
       // Step 2: Decompose into sub-problems
-      const subProblems = this.decomposeProblem(problem);
+      const subProblems = this.decomposeProblem(problem, keyTerms);
       if (subProblems.length > 1) {
         reasoning.push(
           `Decomposed into ${subProblems.length} sub-problems: ${subProblems.join(", ")}`
@@ -50,7 +62,7 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
       }
 
       // Step 3: Evaluate available evidence
-      const evidenceQuality = this.evaluateEvidence(problem);
+      const evidenceQuality = this.evaluateEvidence(problem, keyTerms);
       reasoning.push(
         `Evidence assessment: ${evidenceQuality.description}. ${evidenceQuality.gaps.length > 0 ? `Gaps identified: ${evidenceQuality.gaps.join(", ")}` : "Sufficient data available."}`
       );
@@ -58,18 +70,27 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
       // Step 4: Consider constraints
       if (problem.constraints && problem.constraints.length > 0) {
         reasoning.push(`Constraints to consider: ${problem.constraints.join(", ")}`);
+        const constraintTerms = this.keyTermExtractor.formatTermsForInsight(keyTerms, 2);
+        const constraintContent = `Analysis of ${constraintTerms || "the problem"} must account for ${problem.constraints.length} constraint(s): ${problem.constraints.join(", ")}`;
         insights.push({
-          content: `Analysis must account for ${problem.constraints.length} constraint(s)`,
+          content: constraintContent,
           source: StreamType.ANALYTICAL,
           confidence: 0.9,
           importance: 0.7,
+          referencedTerms: this.keyTermExtractor.findReferencedTerms(constraintContent, keyTerms),
         });
       }
 
       // Step 5: Systematic analysis of each sub-problem
       for (let i = 0; i < subProblems.length; i++) {
         const subProblem = subProblems[i];
-        const analysis = this.analyzeSubProblem(subProblem, problem, i, subProblems.length);
+        const analysis = this.analyzeSubProblem(
+          subProblem,
+          problem,
+          i,
+          subProblems.length,
+          keyTerms
+        );
         reasoning.push(analysis.reasoning);
         if (analysis.insight) {
           insights.push(analysis.insight);
@@ -77,11 +98,16 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
       }
 
       // Step 6: Synthesize findings
-      const conclusion = this.generateConclusion(problem, subProblems, evidenceQuality);
+      const conclusion = this.generateConclusion(problem, subProblems, evidenceQuality, keyTerms);
       reasoning.push(`Therefore, ${conclusion}`);
 
       // Step 7: Generate actionable insights
-      const actionableInsights = this.generateInsights(problem, subProblems, evidenceQuality);
+      const actionableInsights = this.generateInsights(
+        problem,
+        subProblems,
+        evidenceQuality,
+        keyTerms
+      );
       insights.push(...actionableInsights);
 
       // Calculate confidence based on evidence quality and problem clarity
@@ -128,9 +154,10 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
    * Decompose problem into sub-problems
    *
    * @param problem - Problem to decompose
+   * @param keyTerms - Extracted key terms for problem-specific decomposition
    * @returns Array of sub-problem descriptions
    */
-  private decomposeProblem(problem: Problem): string[] {
+  private decomposeProblem(problem: Problem, keyTerms: KeyTerms): string[] {
     const subProblems: string[] = [];
 
     // For simple problems, don't over-decompose
@@ -147,15 +174,26 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
       const parts = problem.description.split(/\band\b/i);
       subProblems.push(...parts.map((p) => p.trim()).filter((p) => p.length > 0));
     } else {
-      // Default decomposition for moderate/complex problems
-      subProblems.push(`Root cause analysis: ${problem.description}`);
+      // Use key terms for problem-specific decomposition
+      const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the issue";
+      const domainContext =
+        keyTerms.domainTerms.length > 0 ? keyTerms.domainTerms.slice(0, 2).join(" and ") : "";
+
+      // Default decomposition for moderate/complex problems with specific terms
+      if (domainContext) {
+        subProblems.push(`Root cause analysis of ${primaryTerm} in context of ${domainContext}`);
+      } else {
+        subProblems.push(`Root cause analysis of ${primaryTerm}`);
+      }
 
       if (problem.goals && problem.goals.length > 0) {
-        subProblems.push(`Solution identification for: ${problem.goals.join(", ")}`);
+        subProblems.push(`Solution identification for ${primaryTerm}: ${problem.goals.join(", ")}`);
       }
 
       if (problem.constraints && problem.constraints.length > 0) {
-        subProblems.push(`Constraint impact assessment`);
+        subProblems.push(
+          `Constraint impact on ${primaryTerm}: ${problem.constraints.slice(0, 2).join(", ")}`
+        );
       }
     }
 
@@ -166,9 +204,13 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
    * Evaluate available evidence
    *
    * @param problem - Problem with context
+   * @param keyTerms - Extracted key terms for specific gap identification
    * @returns Evidence quality assessment
    */
-  private evaluateEvidence(problem: Problem): {
+  private evaluateEvidence(
+    problem: Problem,
+    keyTerms: KeyTerms
+  ): {
     quality: number;
     description: string;
     gaps: string[];
@@ -183,32 +225,48 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
       problem.description.length < 30;
 
     if (isAmbiguous) {
-      gaps.push("Problem description is unclear or ambiguous - need more specific information");
+      const subject = keyTerms.primarySubject || "the issue";
+      gaps.push(`Clarify specific aspects of ${subject} that need addressing`);
       quality -= 0.3;
     }
 
     // Check context richness
     if (!problem.context || problem.context.length < 20) {
-      gaps.push("Limited context provided");
+      // Use problem-specific terms instead of generic "limited context"
+      if (keyTerms.domainTerms.length > 0) {
+        gaps.push(`More details about ${keyTerms.domainTerms[0]} implementation needed`);
+      } else if (keyTerms.primarySubject) {
+        gaps.push(`More context about ${keyTerms.primarySubject} needed`);
+      } else {
+        gaps.push("Limited context provided");
+      }
       quality -= 0.2;
     } else if (problem.context.length > 100) {
       quality += 0.2;
     }
 
-    // Check for quantitative data
+    // Check for quantitative data - use specific terms
     const hasNumbers = /\d+%|\d+\.\d+|\d+ (users|customers|percent)/.test(problem.context);
     if (hasNumbers) {
       quality += 0.2;
-    } else {
-      gaps.push("Quantitative data needed");
+    } else if (keyTerms.domainTerms.length > 0) {
+      // Suggest specific metrics based on domain
+      const domain = keyTerms.domainTerms[0];
+      if (domain === "performance" || domain === "latency" || domain === "throughput") {
+        gaps.push(
+          `${domain} metrics (response times, throughput numbers) would strengthen analysis`
+        );
+      } else if (domain === "user" || domain === "customer" || domain === "engagement") {
+        gaps.push(`${domain} metrics (conversion rates, retention data) would strengthen analysis`);
+      } else {
+        gaps.push(`Quantitative ${domain} data would strengthen analysis`);
+      }
     }
 
     // Check for specific details
     const hasSpecifics = problem.context.includes(":") || problem.context.includes("shows");
     if (hasSpecifics) {
       quality += 0.1;
-    } else {
-      gaps.push("More specific details required");
     }
 
     // Ensure quality is in valid range
@@ -225,19 +283,21 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Analyze a sub-problem
+   * Analyze a sub-problem with term reference tracking
    *
    * @param subProblem - Sub-problem description
    * @param problem - Original problem
    * @param index - Index of this sub-problem
    * @param total - Total number of sub-problems
-   * @returns Analysis result
+   * @param keyTerms - Extracted key terms for problem-specific analysis
+   * @returns Analysis result with referenced terms tracked
    */
   private analyzeSubProblem(
     subProblem: string,
     problem: Problem,
     index: number,
-    total: number
+    total: number,
+    keyTerms: KeyTerms
   ): { reasoning: string; insight?: Insight } {
     // Use logical connectors based on position
     let connector = "";
@@ -251,111 +311,174 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
 
     let reasoning = `Examining ${connector}${subProblem}. `;
 
-    // Generate insight based on sub-problem type
+    // Generate insight based on sub-problem type with problem-specific terms
     let insight: Insight | undefined;
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const domainContext = keyTerms.domainTerms.slice(0, 2).join(", ");
 
     if (subProblem.toLowerCase().includes("root cause")) {
-      reasoning += `We must examine underlying factors in: ${problem.context.substring(0, 50)}...`;
+      const contextSnippet = problem.context.substring(0, 50);
+      reasoning += `We must examine underlying factors affecting ${primaryTerm}: ${contextSnippet}...`;
+      const content = `Root cause analysis of ${primaryTerm} requires examining: ${contextSnippet}${domainContext ? ` (focusing on ${domainContext})` : ""}`;
       insight = {
-        content: `Root cause analysis requires examining underlying factors in: ${problem.context.substring(0, 50)}...`,
+        content,
         source: StreamType.ANALYTICAL,
         confidence: 0.75,
         importance: 0.85,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       };
     } else if (subProblem.toLowerCase().includes("solution")) {
-      reasoning += `Solutions must address identified causes while respecting constraints.`;
+      const constraintContext =
+        problem.constraints?.slice(0, 2).join(", ") || "identified constraints";
+      reasoning += `Solutions for ${primaryTerm} must address identified causes while respecting ${constraintContext}.`;
+      const content = `Solutions for ${primaryTerm} must address root causes while respecting: ${constraintContext}`;
       insight = {
-        content: `Solutions must address identified causes while respecting constraints`,
+        content,
         source: StreamType.ANALYTICAL,
         confidence: 0.8,
         importance: 0.8,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
+      };
+    } else if (subProblem.toLowerCase().includes("constraint")) {
+      reasoning += `Evaluating how constraints impact ${primaryTerm}.`;
+      const content = `Constraints directly impact ${primaryTerm} implementation approach`;
+      insight = {
+        content,
+        source: StreamType.ANALYTICAL,
+        confidence: 0.75,
+        importance: 0.7,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       };
     } else {
-      reasoning += "Analysis complete.";
+      reasoning += `Analysis of ${primaryTerm} complete.`;
     }
 
     return { reasoning, insight };
   }
 
   /**
-   * Generate conclusion from analysis
+   * Generate conclusion from analysis with validated term references
    *
    * @param problem - Original problem
    * @param subProblems - Identified sub-problems
    * @param evidenceQuality - Evidence assessment
-   * @returns Conclusion statement
+   * @param keyTerms - Extracted key terms for problem-specific conclusion
+   * @returns Conclusion statement with guaranteed key term reference
    */
   private generateConclusion(
     problem: Problem,
     _subProblems: string[],
-    evidenceQuality: { quality: number; gaps: string[] }
+    evidenceQuality: { quality: number; gaps: string[] },
+    keyTerms: KeyTerms
   ): string {
     const parts: string[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the issue";
 
-    // Address the main problem
+    // Address the main problem with specific terms
     if (problem.goals && problem.goals.length > 0) {
-      parts.push(`to achieve ${problem.goals[0]}`);
+      parts.push(`to achieve ${problem.goals[0]} for ${primaryTerm}`);
     } else {
-      parts.push(`to address ${problem.description}`);
+      parts.push(`to address ${primaryTerm}`);
     }
 
-    // Note evidence quality
+    // Note evidence quality with specific recommendations (avoid generic "additional data collection")
     if (evidenceQuality.quality < 0.5) {
-      parts.push("additional data collection is recommended before proceeding");
+      // Provide specific recommendations based on gaps instead of generic advice
+      if (evidenceQuality.gaps.length > 0) {
+        const specificGap = evidenceQuality.gaps[0];
+        parts.push(`focus on: ${specificGap}`);
+      } else if (keyTerms.domainTerms.length > 0) {
+        parts.push(`a focused analysis of ${keyTerms.domainTerms[0]} factors is recommended`);
+      } else {
+        parts.push(`a targeted investigation of ${primaryTerm} specifics is recommended`);
+      }
     } else {
-      parts.push("the analysis suggests a systematic approach");
+      // Provide specific systematic approach
+      if (keyTerms.actionVerbs.length > 0) {
+        parts.push(
+          `the analysis supports a systematic approach to ${keyTerms.actionVerbs[0]} ${primaryTerm}`
+        );
+      } else {
+        parts.push(`the analysis supports a systematic approach to improving ${primaryTerm}`);
+      }
     }
 
-    // Consider constraints
+    // Consider constraints with specifics
     if (problem.constraints && problem.constraints.length > 0) {
-      parts.push(`within the given constraints (${problem.constraints.join(", ")})`);
+      parts.push(`within the given constraints (${problem.constraints.slice(0, 2).join(", ")})`);
     }
 
-    return parts.join(", ");
+    // Validate and ensure conclusion contains at least one key term
+    const conclusion = parts.join(", ");
+    return this.keyTermExtractor.ensureTermReference(conclusion, keyTerms);
   }
 
   /**
-   * Generate actionable insights
+   * Generate actionable insights with term reference tracking
    *
    * @param problem - Original problem
    * @param subProblems - Identified sub-problems
    * @param evidenceQuality - Evidence assessment
-   * @returns Array of insights
+   * @param keyTerms - Extracted key terms for problem-specific insights
+   * @returns Array of insights with referenced terms tracked
    */
   private generateInsights(
     problem: Problem,
     subProblems: string[],
-    evidenceQuality: { quality: number; gaps: string[] }
+    evidenceQuality: { quality: number; gaps: string[] },
+    keyTerms: KeyTerms
   ): Insight[] {
     const insights: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const domainContext = keyTerms.domainTerms.slice(0, 2).join(" and ");
 
-    // Insight about problem complexity
+    // Insight about problem complexity with specific terms
     if (subProblems.length > 2) {
+      const content = `${primaryTerm} has ${subProblems.length} distinct aspects${domainContext ? ` involving ${domainContext}` : ""} requiring coordinated approach`;
       insights.push({
-        content: `Problem has ${subProblems.length} distinct aspects requiring coordinated approach`,
+        content,
         source: StreamType.ANALYTICAL,
         confidence: 0.85,
         importance: 0.75,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
-    // Insight about evidence gaps
+    // Insight about evidence gaps - use specific gaps, not generic recommendations
     if (evidenceQuality.gaps.length > 0) {
+      // Format gaps as specific, actionable items
+      const specificGaps = evidenceQuality.gaps.slice(0, 2).join("; ");
+      const content = `For ${primaryTerm}: ${specificGaps}`;
       insights.push({
-        content: `Evidence gaps identified: ${evidenceQuality.gaps.join(", ")}. Recommend gathering this data.`,
+        content,
         source: StreamType.ANALYTICAL,
         confidence: 0.9,
         importance: 0.8,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
-    // Insight about urgency
+    // Insight about urgency with problem-specific context
     if (problem.urgency === "high") {
+      const content = `High urgency for ${primaryTerm} requires prioritizing quick wins${domainContext ? ` in ${domainContext}` : ""} while planning comprehensive solution`;
       insights.push({
-        content: `High urgency requires prioritizing quick wins while planning comprehensive solution`,
+        content,
         source: StreamType.ANALYTICAL,
         confidence: 0.8,
         importance: 0.85,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
+      });
+    }
+
+    // Add domain-specific insight if we have domain terms
+    if (keyTerms.domainTerms.length > 0 && keyTerms.actionVerbs.length > 0) {
+      const content = `Key action for ${primaryTerm}: ${keyTerms.actionVerbs[0]} ${keyTerms.domainTerms[0]} to address core issues`;
+      insights.push({
+        content,
+        source: StreamType.ANALYTICAL,
+        confidence: 0.75,
+        importance: 0.7,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 

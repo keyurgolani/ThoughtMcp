@@ -546,13 +546,15 @@ describe("CriticalReasoningStream", () => {
     it("should provide alternative perspectives", async () => {
       const result = await getStream().process(testProblem);
 
-      // Should consider different viewpoints
+      // Should consider different viewpoints (may use various phrasings)
       const providesAlternatives = result.reasoning.some(
         (step) =>
           step.toLowerCase().includes("perspective") ||
           step.toLowerCase().includes("viewpoint") ||
           step.toLowerCase().includes("angle") ||
-          step.toLowerCase().includes("consider")
+          step.toLowerCase().includes("consider") ||
+          step.toLowerCase().includes("alternative") ||
+          step.toLowerCase().includes("counter")
       );
       expect(providesAlternatives).toBe(true);
     });

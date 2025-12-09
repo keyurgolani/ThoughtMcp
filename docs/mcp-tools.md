@@ -7,21 +7,21 @@ This document provides comprehensive documentation for all MCP (Model Context Pr
 ## Table of Contents
 
 - [Memory Tools](#memory-tools)
-  - [store_memory](#store_memory)
-  - [retrieve_memories](#retrieve_memories)
+  - [remember](#remember)
+  - [recall](#recall)
   - [update_memory](#update_memory)
-  - [delete_memory](#delete_memory)
-  - [search_memories](#search_memories)
+  - [forget](#forget)
+  - [search](#search)
 - [Reasoning Tools](#reasoning-tools)
   - [think](#think)
-  - [analyze_systematically](#analyze_systematically)
-  - [think_parallel](#think_parallel)
-  - [decompose_problem](#decompose_problem)
+  - [analyze](#analyze)
+  - [ponder](#ponder)
+  - [breakdown](#breakdown)
 - [Metacognitive Tools](#metacognitive-tools)
   - [assess_confidence](#assess_confidence)
   - [detect_bias](#detect_bias)
   - [detect_emotion](#detect_emotion)
-  - [analyze_reasoning](#analyze_reasoning)
+  - [evaluate](#evaluate)
 - [Response Format](#response-format)
 - [Error Codes](#error-codes)
 
@@ -29,7 +29,7 @@ This document provides comprehensive documentation for all MCP (Model Context Pr
 
 ## Memory Tools
 
-### store_memory
+### remember
 
 Store a new memory with automatic embedding generation and waypoint graph connections.
 
@@ -143,7 +143,7 @@ Creates a new memory in the HMD (Hierarchical Memory Decomposition) system. Auto
 
 ---
 
-### retrieve_memories
+### recall
 
 Retrieve memories using composite scoring with vector similarity, metadata filtering, and pagination.
 
@@ -348,7 +348,7 @@ Updates memory fields selectively. Content changes trigger automatic embedding r
 
 ---
 
-### delete_memory
+### forget
 
 Delete a memory with cascade deletion options.
 
@@ -403,7 +403,7 @@ Supports soft delete (sets strength to 0, preserves data) or hard delete (remove
 
 ---
 
-### search_memories
+### search
 
 Advanced memory search combining full-text search, vector similarity, and metadata filtering.
 
@@ -640,7 +640,7 @@ Integrates all reasoning components including parallel streams, confidence asses
 
 ---
 
-### analyze_systematically
+### analyze
 
 Analyze problem using systematic thinking framework with dynamic framework selection.
 
@@ -744,7 +744,7 @@ Automatically selects optimal framework (Scientific Method, Design Thinking, Sys
 
 ---
 
-### think_parallel
+### ponder
 
 Execute parallel reasoning streams with coordination and synthesis.
 
@@ -846,7 +846,7 @@ Runs all four reasoning streams (analytical, creative, critical, synthetic) conc
 
 ---
 
-### decompose_problem
+### breakdown
 
 Decompose problem into hierarchical sub-problems with dependency mapping.
 
@@ -1163,7 +1163,7 @@ Analyzes text using the Circumplex model (valence, arousal, dominance) and class
 
 ---
 
-### analyze_reasoning
+### evaluate
 
 Analyze reasoning quality with comprehensive assessment.
 

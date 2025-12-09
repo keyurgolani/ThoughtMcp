@@ -102,24 +102,92 @@ export class ConflictResolutionEngine {
       },
     ];
 
+    // Generate specific description explaining the nature of disagreement
+    const description = this.generateSpecificDescription(conflictType, result1, result2);
+
     // Create conflict object
     const conflict: Conflict = {
       id: `conflict-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: conflictType,
       severity: ConflictSeverity.MEDIUM, // Will be assessed properly
       sourceStreams: [result1.streamId, result2.streamId],
-      description: `${conflictType} conflict between ${result1.streamType} and ${result2.streamType}`,
+      description,
       evidence,
       detectedAt: new Date(),
     };
 
-    // Assess severity
+    // Assess severity based on contradiction degree
     conflict.severity = this.assessSeverity(conflict);
 
     // Generate resolution framework
     conflict.resolutionFramework = this.generateResolutionFramework(conflict);
 
     return conflict;
+  }
+
+  /**
+   * Generate a specific description explaining the nature of the disagreement
+   *
+   * @param conflictType - Type of conflict
+   * @param result1 - First stream result
+   * @param result2 - Second stream result
+   * @returns Specific description of the conflict
+   */
+  private generateSpecificDescription(
+    conflictType: ConflictType,
+    result1: StreamResult,
+    result2: StreamResult
+  ): string {
+    const stream1 = result1.streamType;
+    const stream2 = result2.streamType;
+    const claim1 = this.extractKeyClaim(result1.conclusion);
+    const claim2 = this.extractKeyClaim(result2.conclusion);
+
+    switch (conflictType) {
+      case ConflictType.FACTUAL:
+        return `Factual disagreement: ${stream1} claims "${claim1}" while ${stream2} claims "${claim2}". These represent contradictory factual assertions that cannot both be true.`;
+
+      case ConflictType.LOGICAL:
+        return `Logical inconsistency: ${stream1} concludes "${claim1}" but ${stream2} concludes "${claim2}". The reasoning chains lead to mutually exclusive conclusions.`;
+
+      case ConflictType.METHODOLOGICAL:
+        return `Methodological conflict: ${stream1} advocates "${claim1}" whereas ${stream2} recommends "${claim2}". Different approaches are proposed for the same problem.`;
+
+      case ConflictType.EVALUATIVE:
+        return `Value conflict: ${stream1} prioritizes "${claim1}" while ${stream2} prioritizes "${claim2}". Different value judgments lead to different recommendations.`;
+
+      case ConflictType.PREDICTIVE:
+        return `Predictive disagreement: ${stream1} forecasts "${claim1}" but ${stream2} forecasts "${claim2}". Different models or assumptions lead to divergent predictions.`;
+
+      default:
+        return `Conflict between ${stream1} and ${stream2}: "${claim1}" vs "${claim2}".`;
+    }
+  }
+
+  /**
+   * Extract the key claim from a conclusion for description purposes
+   *
+   * @param conclusion - Full conclusion text
+   * @returns Shortened key claim (max 60 chars)
+   */
+  private extractKeyClaim(conclusion: string): string {
+    // Truncate to reasonable length for description
+    const maxLength = 60;
+    const trimmed = conclusion.trim();
+
+    if (trimmed.length <= maxLength) {
+      return trimmed;
+    }
+
+    // Try to cut at a word boundary
+    const truncated = trimmed.substring(0, maxLength);
+    const lastSpace = truncated.lastIndexOf(" ");
+
+    if (lastSpace > maxLength * 0.6) {
+      return `${truncated.substring(0, lastSpace)}...`;
+    }
+
+    return `${truncated}...`;
   }
 
   /**
@@ -458,7 +526,8 @@ export class ConflictResolutionEngine {
    *
    * Evaluates conflict severity based on:
    * - Confidence levels of conflicting streams
-   * - Type of conflict
+   * - Type of conflict (factual/logical more severe than methodological)
+   * - Degree of contradiction between claims
    * - Evidence strength
    *
    * @param conflict - Conflict to assess
@@ -470,44 +539,203 @@ export class ConflictResolutionEngine {
       return ConflictSeverity.LOW;
     }
 
-    // Calculate average confidence of conflicting streams
+    // Calculate severity metrics
+    const metrics = this.calculateSeverityMetrics(conflict);
+
+    // Check for CRITICAL severity
+    if (this.isCriticalSeverity(metrics, conflict)) {
+      return ConflictSeverity.CRITICAL;
+    }
+
+    // Check for HIGH severity
+    if (this.isHighSeverity(metrics, conflict)) {
+      return ConflictSeverity.HIGH;
+    }
+
+    // Check for MEDIUM severity
+    if (this.isMediumSeverity(metrics)) {
+      return ConflictSeverity.MEDIUM;
+    }
+
+    // LOW: Lower confidence (<0.65) or methodological with low confidence
+    return ConflictSeverity.LOW;
+  }
+
+  /**
+   * Calculate metrics used for severity assessment
+   */
+  private calculateSeverityMetrics(conflict: Conflict): {
+    avgConfidence: number;
+    confidenceDiff: number;
+    contradictionDegree: number;
+    typeSeverityWeight: number;
+  } {
     const avgConfidence =
       conflict.evidence.reduce((sum, e) => sum + e.confidence, 0) / conflict.evidence.length;
 
-    // Calculate confidence difference
     const confidences = conflict.evidence.map((e) => e.confidence);
     const maxConfidence = Math.max(...confidences);
     const minConfidence = Math.min(...confidences);
     const confidenceDiff = maxConfidence - minConfidence;
 
-    // Assess based on conflict type and confidence
-    // CRITICAL: Both streams very confident (>=0.95) and similar confidence
-    if (avgConfidence >= 0.95 && confidenceDiff < 0.05) {
-      return ConflictSeverity.CRITICAL;
+    const contradictionDegree = this.calculateContradictionDegree(conflict);
+    const typeSeverityWeight = this.getTypeSeverityWeight(conflict.type);
+
+    return { avgConfidence, confidenceDiff, contradictionDegree, typeSeverityWeight };
+  }
+
+  /**
+   * Check if conflict meets CRITICAL severity criteria
+   */
+  private isCriticalSeverity(
+    metrics: { avgConfidence: number; confidenceDiff: number; contradictionDegree: number },
+    _conflict: Conflict
+  ): boolean {
+    // Very high confidence (>=0.95) with direct contradiction
+    return (
+      metrics.avgConfidence >= 0.95 &&
+      metrics.confidenceDiff < 0.05 &&
+      metrics.contradictionDegree >= 0.8
+    );
+  }
+
+  /**
+   * Check if conflict meets HIGH severity criteria
+   */
+  private isHighSeverity(
+    metrics: { avgConfidence: number; confidenceDiff: number },
+    conflict: Conflict
+  ): boolean {
+    // High confidence with significant contradiction for logical/factual
+    if (metrics.avgConfidence >= 0.85 && metrics.confidenceDiff < 0.1) {
+      if (conflict.type === ConflictType.LOGICAL) {
+        return true;
+      }
+      if (conflict.type === ConflictType.FACTUAL && metrics.avgConfidence < 0.95) {
+        return true;
+      }
     }
 
-    // HIGH: High confidence (>=0.85) with small difference, or logical conflicts with high confidence
-    if (avgConfidence >= 0.85 && confidenceDiff < 0.1) {
-      return ConflictSeverity.HIGH;
+    // Evaluative conflicts with reasonable confidence
+    if (metrics.avgConfidence >= 0.75 && conflict.type === ConflictType.EVALUATIVE) {
+      return true;
     }
 
-    if (avgConfidence >= 0.9 && conflict.type === ConflictType.LOGICAL) {
-      return ConflictSeverity.HIGH;
+    return false;
+  }
+
+  /**
+   * Check if conflict meets MEDIUM severity criteria
+   */
+  private isMediumSeverity(metrics: {
+    avgConfidence: number;
+    typeSeverityWeight: number;
+  }): boolean {
+    if (metrics.avgConfidence >= 0.65) {
+      // Factual/logical conflicts at moderate confidence
+      if (metrics.typeSeverityWeight >= 0.7) {
+        return true;
+      }
+      // Methodological conflicts need higher confidence
+      if (metrics.avgConfidence >= 0.7) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Calculate the degree of contradiction between conflicting claims
+   *
+   * Higher values indicate more direct/severe contradictions.
+   *
+   * @param conflict - Conflict to analyze
+   * @returns Contradiction degree (0-1)
+   */
+  private calculateContradictionDegree(conflict: Conflict): number {
+    if (conflict.evidence.length < 2) {
+      return 0.5; // Default for insufficient evidence
     }
 
-    // Evaluative conflicts (value judgments) are inherently more severe when confidence is reasonable
-    // because they represent fundamental disagreements about priorities
-    if (avgConfidence >= 0.75 && conflict.type === ConflictType.EVALUATIVE) {
-      return ConflictSeverity.HIGH;
+    const claim1 = conflict.evidence[0].claim.toLowerCase();
+    const claim2 = conflict.evidence[1].claim.toLowerCase();
+
+    // Check for direct negation patterns
+    const hasDirectNegation = this.hasDirectNegation(claim1, claim2);
+    if (hasDirectNegation) {
+      return 1.0; // Maximum contradiction
     }
 
-    // MEDIUM: Moderate to moderately-high confidence (0.7-0.85)
-    if (avgConfidence >= 0.7 && avgConfidence < 0.85) {
-      return ConflictSeverity.MEDIUM;
+    // Check for contradictory numbers
+    const hasContradictoryNumbers = this.haveConflictingNumbers(claim1, claim2);
+    if (hasContradictoryNumbers) {
+      return 0.9; // High contradiction
     }
 
-    // LOW: Lower confidence (<0.7)
-    return ConflictSeverity.LOW;
+    // Check for contradictory terms
+    const hasContradictoryTerms = this.haveContradictoryTerms(claim1, claim2);
+    if (hasContradictoryTerms) {
+      return 0.85; // High contradiction
+    }
+
+    // Calculate semantic dissimilarity (inverse of word overlap)
+    const similarity = this.calculateWordSimilarity(claim1, claim2);
+    const dissimilarity = 1.0 - similarity;
+
+    // Scale dissimilarity to contradiction degree (0.3 to 0.8 range)
+    return 0.3 + dissimilarity * 0.5;
+  }
+
+  /**
+   * Check if two claims have direct negation patterns
+   */
+  private hasDirectNegation(claim1: string, claim2: string): boolean {
+    const negationPatterns = [
+      { positive: /\bis\s+safe\b/, negative: /\bis\s+(not\s+safe|unsafe)\b/ },
+      { positive: /\bis\s+true\b/, negative: /\bis\s+(not\s+true|false)\b/ },
+      { positive: /\bwill\s+succeed\b/, negative: /\bwill\s+(not\s+succeed|fail)\b/ },
+      { positive: /\bshould\b/, negative: /\bshould\s+not\b/ },
+      { positive: /\bcan\b/, negative: /\bcannot\b/ },
+      { positive: /\bwill\s+increase\b/, negative: /\bwill\s+(decrease|decline)\b/ },
+      { positive: /\bwill\s+grow\b/, negative: /\bwill\s+(shrink|decline)\b/ },
+    ];
+
+    for (const pattern of negationPatterns) {
+      if (
+        (pattern.positive.test(claim1) && pattern.negative.test(claim2)) ||
+        (pattern.positive.test(claim2) && pattern.negative.test(claim1))
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Get severity weight based on conflict type
+   *
+   * Factual and logical conflicts are inherently more severe because
+   * they represent fundamental disagreements about truth/validity.
+   *
+   * @param type - Conflict type
+   * @returns Severity weight (0-1)
+   */
+  private getTypeSeverityWeight(type: ConflictType): number {
+    switch (type) {
+      case ConflictType.FACTUAL:
+        return 0.9; // Factual contradictions are very severe
+      case ConflictType.LOGICAL:
+        return 0.85; // Logical inconsistencies are severe
+      case ConflictType.PREDICTIVE:
+        return 0.7; // Predictive disagreements are moderately severe
+      case ConflictType.EVALUATIVE:
+        return 0.6; // Value conflicts are subjective but important
+      case ConflictType.METHODOLOGICAL:
+        return 0.5; // Methodological differences are often acceptable
+      default:
+        return 0.5;
+    }
   }
 
   /**

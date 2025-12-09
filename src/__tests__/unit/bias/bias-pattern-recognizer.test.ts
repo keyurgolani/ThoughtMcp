@@ -1021,6 +1021,545 @@ describe("BiasPatternRecognizer", () => {
     });
   });
 
+  /**
+   * Tests for detectBiasesFromText method
+   *
+   * These tests validate text-based bias detection using phrase-based pattern matching.
+   * Requirements: 10.1, 10.2, 10.3, 10.4, 10.5
+   */
+  describe("detectBiasesFromText", () => {
+    describe("Text-based confirmation bias detection (Requirement 10.1)", () => {
+      it("should detect confirmation bias with 'always used' phrase", () => {
+        const text = "We've always used this approach and it worked fine for us.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.CONFIRMATION)).toBe(true);
+      });
+
+      it("should detect confirmation bias with 'worked fine' phrase", () => {
+        const text = "This solution worked fine in the past, so we should keep using it.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.CONFIRMATION)).toBe(true);
+      });
+
+      it("should detect confirmation bias with 'don't see why' phrase", () => {
+        const text = "I don't see why we would change our approach now.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.CONFIRMATION)).toBe(true);
+      });
+
+      it("should detect confirmation bias with 'proves my point' phrase", () => {
+        const text = "This data proves my point about the effectiveness of our strategy.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.CONFIRMATION)).toBe(true);
+      });
+
+      it("should detect confirmation bias with 'as i expected' phrase", () => {
+        const text = "The results came out as I expected, confirming our hypothesis.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.CONFIRMATION)).toBe(true);
+      });
+
+      it("should include matched indicators in evidence", () => {
+        const text = "This obviously confirms what I knew it would show.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        const confirmationBias = biases.find((b) => b.type === BiasType.CONFIRMATION);
+        expect(confirmationBias).toBeDefined();
+        expect(confirmationBias?.evidence.some((e) => e.includes("Matched indicator"))).toBe(true);
+      });
+
+      // New tests for Requirements 2.1, 2.2 - Additional confirmation bias phrases
+      it("should detect confirmation bias with 'clearly supports' phrase", () => {
+        const text = "This data clearly supports my hypothesis about the market trend.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.CONFIRMATION)).toBe(true);
+      });
+
+      it("should detect confirmation bias with 'all data supports' phrase", () => {
+        const text = "All data supports my initial conclusion about the project.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.CONFIRMATION)).toBe(true);
+      });
+
+      it("should detect confirmation bias with 'data confirms' phrase", () => {
+        const text = "The data confirms what we already believed about the system.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.CONFIRMATION)).toBe(true);
+      });
+
+      it("should detect confirmation bias with 'evidence shows' phrase", () => {
+        const text = "The evidence shows exactly what I predicted would happen.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.CONFIRMATION)).toBe(true);
+      });
+    });
+
+    describe("Status quo bias detection (Requirement 10.2)", () => {
+      it("should detect status quo bias with 'we've always' phrase", () => {
+        const text = "We've always done it this way and there's no reason to change.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        // Status quo is mapped to FRAMING type
+        expect(biases.some((b) => b.type === BiasType.FRAMING)).toBe(true);
+      });
+
+      it("should detect status quo bias with 'no need to change' phrase", () => {
+        const text = "There's no need to change our current process.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.FRAMING)).toBe(true);
+      });
+
+      it("should detect status quo bias with 'why fix what' phrase", () => {
+        const text = "Why fix what isn't broken? Our system works.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.FRAMING)).toBe(true);
+      });
+
+      it("should detect status quo bias with 'if it ain't broke' phrase", () => {
+        const text = "If it ain't broke, don't fix it. That's my philosophy.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.FRAMING)).toBe(true);
+      });
+
+      it("should detect status quo bias with 'always done it this way' phrase", () => {
+        const text = "We've always done it this way and it works for us.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.FRAMING)).toBe(true);
+      });
+
+      it("should include explanation about status quo bias", () => {
+        const text = "We've always done it this way and there's no need to change.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        const statusQuoBias = biases.find((b) => b.type === BiasType.FRAMING);
+        expect(statusQuoBias).toBeDefined();
+        expect(statusQuoBias?.explanation.toLowerCase()).toContain("status quo");
+      });
+    });
+
+    describe("Bandwagon effect detection (Requirement 10.3)", () => {
+      it("should detect bandwagon effect with 'everyone uses' phrase", () => {
+        const text = "Everyone uses this framework, so it must be the best choice.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        // Bandwagon is mapped to REPRESENTATIVENESS type
+        expect(biases.some((b) => b.type === BiasType.REPRESENTATIVENESS)).toBe(true);
+      });
+
+      it("should detect bandwagon effect with 'industry standard' phrase", () => {
+        const text = "This is the industry standard approach that everyone follows.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.REPRESENTATIVENESS)).toBe(true);
+      });
+
+      it("should detect bandwagon effect with 'everyone knows' phrase", () => {
+        const text = "Everyone knows that this is the right way to do it.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.REPRESENTATIVENESS)).toBe(true);
+      });
+
+      it("should detect bandwagon effect with 'popular choice' phrase", () => {
+        const text = "It's the popular choice among developers for a reason.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.REPRESENTATIVENESS)).toBe(true);
+      });
+
+      it("should detect bandwagon effect with 'widely adopted' phrase", () => {
+        const text = "This technology is widely adopted across the industry.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.REPRESENTATIVENESS)).toBe(true);
+      });
+
+      it("should include explanation about bandwagon effect", () => {
+        const text = "Everyone uses this because it's the industry standard.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        const bandwagonBias = biases.find((b) => b.type === BiasType.REPRESENTATIVENESS);
+        expect(bandwagonBias).toBeDefined();
+        expect(bandwagonBias?.explanation.toLowerCase()).toContain("bandwagon");
+      });
+
+      // New tests for Requirements 2.5, 2.6 - Additional bandwagon effect phrases
+      it("should detect bandwagon effect with 'everyone else is doing' phrase", () => {
+        const text = "Everyone else is doing it this way, so we should too.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.REPRESENTATIVENESS)).toBe(true);
+      });
+
+      it("should detect bandwagon effect with 'everyone is doing' phrase", () => {
+        const text = "Everyone is doing microservices now, we should follow.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.REPRESENTATIVENESS)).toBe(true);
+      });
+
+      it("should detect bandwagon effect with 'everyone does it' phrase", () => {
+        const text = "Everyone does it this way in the industry.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.REPRESENTATIVENESS)).toBe(true);
+      });
+
+      it("should detect bandwagon effect with 'others are doing' phrase", () => {
+        const text = "Others are doing this approach and seeing success.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.REPRESENTATIVENESS)).toBe(true);
+      });
+
+      it("should detect bandwagon effect with 'they all do' phrase", () => {
+        const text = "They all do it this way, so it must be the right approach.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.REPRESENTATIVENESS)).toBe(true);
+      });
+    });
+
+    describe("Anchoring bias detection (Requirement 10.4)", () => {
+      it("should detect anchoring bias with 'starting from' phrase", () => {
+        const text = "Starting from the initial estimate of $100, we adjusted slightly.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.ANCHORING)).toBe(true);
+      });
+
+      it("should detect anchoring bias with 'first impression' phrase", () => {
+        const text = "My first impression was that this would cost around $500.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.ANCHORING)).toBe(true);
+      });
+
+      it("should detect anchoring bias with 'original estimate' phrase", () => {
+        const text = "Based on the original estimate, we made minor adjustments.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.ANCHORING)).toBe(true);
+      });
+    });
+
+    describe("Availability bias detection (Requirement 10.5)", () => {
+      it("should detect availability bias with 'i remember when' phrase", () => {
+        const text = "I remember when this happened before, so it must be common.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.AVAILABILITY)).toBe(true);
+      });
+
+      it("should detect availability bias with 'just happened' phrase", () => {
+        const text = "This just happened to a colleague, so we should be careful.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.AVAILABILITY)).toBe(true);
+      });
+
+      it("should detect availability bias with 'in the news' phrase", () => {
+        const text = "I saw this in the news recently, so it must be a big problem.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.AVAILABILITY)).toBe(true);
+      });
+
+      it("should detect availability bias with 'comes to mind' phrase", () => {
+        const text = "The first example that comes to mind is the recent incident.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.AVAILABILITY)).toBe(true);
+      });
+    });
+
+    describe("Sunk cost fallacy detection", () => {
+      it("should detect sunk cost fallacy with 'already invested' phrase", () => {
+        const text = "We've already invested too much to stop now.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.SUNK_COST)).toBe(true);
+      });
+
+      it("should detect sunk cost fallacy with 'can't give up now' phrase", () => {
+        const text = "We can't give up now after all this work.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.SUNK_COST)).toBe(true);
+      });
+
+      it("should detect sunk cost fallacy with 'come this far' phrase", () => {
+        const text = "We've come this far, we have to see it through.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.SUNK_COST)).toBe(true);
+      });
+
+      // New tests for Requirements 2.3, 2.4 - Additional sunk cost fallacy phrases
+      it("should detect sunk cost fallacy with 'invested significant' phrase", () => {
+        const text = "We've invested significant resources into this project already.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.SUNK_COST)).toBe(true);
+      });
+
+      it("should detect sunk cost fallacy with 'invested resources' phrase", () => {
+        const text = "The team has invested resources that we cannot recover.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.SUNK_COST)).toBe(true);
+      });
+
+      it("should detect sunk cost fallacy with 'invested time' phrase", () => {
+        const text = "We have invested time and effort that would be wasted if we stop.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.SUNK_COST)).toBe(true);
+      });
+
+      it("should detect sunk cost fallacy with 'invested money' phrase", () => {
+        const text = "The company has invested money that we need to justify.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.SUNK_COST)).toBe(true);
+      });
+
+      it("should detect sunk cost fallacy with 'spent significant' phrase", () => {
+        const text = "We've spent significant amounts on this initiative.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.SUNK_COST)).toBe(true);
+      });
+
+      it("should detect sunk cost fallacy with 'put significant' phrase", () => {
+        const text = "We've put significant effort into making this work.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.SUNK_COST)).toBe(true);
+      });
+    });
+
+    describe("Attribution bias detection", () => {
+      it("should detect attribution bias with 'they're just' phrase", () => {
+        const text = "They're just incompetent, that's why the project failed.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.ATTRIBUTION)).toBe(true);
+      });
+
+      it("should detect attribution bias with 'it's their fault' phrase", () => {
+        const text = "It's their fault for not following the process correctly.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.ATTRIBUTION)).toBe(true);
+      });
+
+      it("should detect attribution bias with 'not my fault' phrase", () => {
+        const text = "It's not my fault, the circumstances were against me.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.ATTRIBUTION)).toBe(true);
+      });
+    });
+
+    describe("Edge cases and input validation", () => {
+      it("should return empty array for empty string", () => {
+        const biases = recognizer.detectBiasesFromText("");
+        expect(biases).toEqual([]);
+      });
+
+      it("should return empty array for whitespace-only string", () => {
+        const biases = recognizer.detectBiasesFromText("   \t\n  ");
+        expect(biases).toEqual([]);
+      });
+
+      it("should return empty array for null-like input", () => {
+        const biases = recognizer.detectBiasesFromText(null as unknown as string);
+        expect(biases).toEqual([]);
+      });
+
+      it("should return empty array for undefined input", () => {
+        const biases = recognizer.detectBiasesFromText(undefined as unknown as string);
+        expect(biases).toEqual([]);
+      });
+
+      it("should handle text without bias indicators", () => {
+        const text = "The weather is nice today. I went for a walk in the park.";
+        const biases = recognizer.detectBiasesFromText(text);
+        expect(biases).toEqual([]);
+      });
+
+      it("should be case-insensitive", () => {
+        const text = "EVERYONE USES this approach because it's the INDUSTRY STANDARD.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases.some((b) => b.type === BiasType.REPRESENTATIVENESS)).toBe(true);
+      });
+
+      it("should include context in location when provided", () => {
+        const text = "We've always done it this way.";
+        const context = "Technology decision";
+        const biases = recognizer.detectBiasesFromText(text, context);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases[0].location.context).toBe(context);
+      });
+
+      it("should truncate long text in location.reasoning", () => {
+        const longText = "We've always done it this way. ".repeat(20);
+        const biases = recognizer.detectBiasesFromText(longText);
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases[0].location.reasoning.length).toBeLessThanOrEqual(203); // 200 + "..."
+      });
+    });
+
+    describe("Multiple bias detection", () => {
+      it("should detect multiple different bias types in same text", () => {
+        const text =
+          "We've always done it this way and everyone uses this approach. " +
+          "I remember when this worked before, so we should stick with it.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(1);
+        const biasTypes = biases.map((b) => b.type);
+        expect(new Set(biasTypes).size).toBeGreaterThan(1);
+      });
+
+      it("should not duplicate same bias type", () => {
+        const text =
+          "We've always done it this way. We've always used this approach. " +
+          "There's no need to change what we've always done.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        // Should only have one FRAMING bias (status quo) even with multiple indicators
+        const framingBiases = biases.filter((b) => b.type === BiasType.FRAMING);
+        expect(framingBiases.length).toBe(1);
+      });
+
+      it("should increase severity with more matched indicators", () => {
+        const singleIndicator = "We've always done it this way.";
+        const multipleIndicators =
+          "We've always done it this way. There's no need to change. " +
+          "If it ain't broke, don't fix it. Why change what works?";
+
+        const singleBiases = recognizer.detectBiasesFromText(singleIndicator);
+        const multipleBiases = recognizer.detectBiasesFromText(multipleIndicators);
+
+        const singleSeverity = singleBiases.find((b) => b.type === BiasType.FRAMING)?.severity ?? 0;
+        const multipleSeverity =
+          multipleBiases.find((b) => b.type === BiasType.FRAMING)?.severity ?? 0;
+
+        expect(multipleSeverity).toBeGreaterThanOrEqual(singleSeverity);
+      });
+    });
+
+    describe("Bias detection metadata", () => {
+      it("should include detectedAt timestamp", () => {
+        const text = "Everyone uses this approach.";
+        const before = new Date();
+        const biases = recognizer.detectBiasesFromText(text);
+        const after = new Date();
+
+        expect(biases.length).toBeGreaterThan(0);
+        expect(biases[0].detectedAt).toBeInstanceOf(Date);
+        expect(biases[0].detectedAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
+        expect(biases[0].detectedAt.getTime()).toBeLessThanOrEqual(after.getTime());
+      });
+
+      it("should include confidence score between 0 and 1", () => {
+        const text = "We've always done it this way and everyone uses this.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        for (const bias of biases) {
+          expect(bias.confidence).toBeGreaterThanOrEqual(0);
+          expect(bias.confidence).toBeLessThanOrEqual(1);
+        }
+      });
+
+      it("should include severity score between 0 and 1", () => {
+        const text = "We've always done it this way and everyone uses this.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        for (const bias of biases) {
+          expect(bias.severity).toBeGreaterThanOrEqual(0);
+          expect(bias.severity).toBeLessThanOrEqual(1);
+        }
+      });
+
+      it("should include explanation for each detected bias", () => {
+        const text = "We've always done it this way and everyone uses this.";
+        const biases = recognizer.detectBiasesFromText(text);
+
+        expect(biases.length).toBeGreaterThan(0);
+        for (const bias of biases) {
+          expect(bias.explanation).toBeTruthy();
+          expect(typeof bias.explanation).toBe("string");
+          expect(bias.explanation.length).toBeGreaterThan(10);
+        }
+      });
+    });
+  });
+
   describe("Additional Coverage for Edge Cases", () => {
     it("should detect anchoring bias with explicit anchoring language", () => {
       const chain = createReasoningChain({

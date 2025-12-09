@@ -845,10 +845,17 @@ This guide provides solutions to common issues encountered when developing, test
    npm run build:bundle
    ```
 
-3. **Increase timeout**:
+3. **Increase timeout** (recommended timeouts based on measured execution times):
 
    ```bash
+   # Full build with tests (~220s typical)
    timeout 300s npm run build
+
+   # Full test suite (~440s typical)
+   timeout 600s npm test
+
+   # Coverage tests (~220s typical)
+   timeout 300s npm run test:coverage
    ```
 
 4. **Check for infinite loops**:

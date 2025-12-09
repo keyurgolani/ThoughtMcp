@@ -8,8 +8,10 @@
  * - Novelty scoring (how unique/innovative)
  * - Feasibility assessment (how practical)
  * - Progress tracking and timeout management
+ * - Problem-specific ideas (Requirements 4.2, 15.3)
  */
 
+import { KeyTermExtractor, type KeyTerms } from "../key-term-extractor";
 import type { ReasoningStream, StreamProcessor } from "../stream";
 import { StreamStatus, StreamType, type Insight, type Problem, type StreamResult } from "../types";
 
@@ -18,8 +20,15 @@ import { StreamStatus, StreamType, type Insight, type Problem, type StreamResult
  *
  * Implements the core creative reasoning logic with brainstorming,
  * alternative generation, and creative techniques.
+ * Generates problem-specific ideas using key term extraction.
  */
 export class CreativeStreamProcessor implements StreamProcessor {
+  private readonly keyTermExtractor: KeyTermExtractor;
+
+  constructor() {
+    this.keyTermExtractor = new KeyTermExtractor();
+  }
+
   /**
    * Process a problem using creative reasoning
    *
@@ -37,36 +46,39 @@ export class CreativeStreamProcessor implements StreamProcessor {
     }
 
     try {
+      // Extract key terms for problem-specific ideas (Req 4.2, 15.3)
+      const keyTerms = this.keyTermExtractor.extract(problem.description, problem.context);
+
       // Step 1: Initial brainstorming
       reasoning.push(
         `Brainstorming innovative solutions for: ${problem.description.substring(0, 100)}${problem.description.length > 100 ? "..." : ""}`
       );
 
       // Step 2: Generate diverse ideas using creative techniques
-      const ideas = this.generateCreativeIdeas(problem);
+      const ideas = this.generateCreativeIdeas(problem, keyTerms);
       reasoning.push(`Generated ${ideas.length} diverse ideas using multiple creative techniques`);
 
       // Step 3: Apply creative techniques
-      const analogyIdeas = this.applyAnalogy(problem);
+      const analogyIdeas = this.applyAnalogy(problem, keyTerms);
       if (analogyIdeas.length > 0) {
         reasoning.push(`Using analogy: ${analogyIdeas[0].content.substring(0, 80)}...`);
         insights.push(...analogyIdeas);
       }
 
-      const reframingIdeas = this.applyReframing(problem);
+      const reframingIdeas = this.applyReframing(problem, keyTerms);
       if (reframingIdeas.length > 0) {
         reasoning.push(`Reframing perspective: ${reframingIdeas[0].content.substring(0, 80)}...`);
         insights.push(...reframingIdeas);
       }
 
-      const lateralIdeas = this.applyLateralThinking(problem);
+      const lateralIdeas = this.applyLateralThinking(problem, keyTerms);
       if (lateralIdeas.length > 0) {
         reasoning.push(`What if we ${lateralIdeas[0].content.toLowerCase().substring(0, 60)}...?`);
         insights.push(...lateralIdeas);
       }
 
       // Step 4: Combine and build on ideas
-      const combinedIdeas = this.combineIdeas(ideas, problem);
+      const combinedIdeas = this.combineIdeas(ideas, problem, keyTerms);
       if (combinedIdeas.length > 0) {
         reasoning.push(
           `Building on previous ideas: combining ${combinedIdeas.length} concepts together`
@@ -85,12 +97,12 @@ export class CreativeStreamProcessor implements StreamProcessor {
         reasoning.push(
           `Considering constraints: ${problem.constraints.join(", ")} - but looking for creative workarounds`
         );
-        const constraintAwareIdeas = this.adaptToConstraints(scoredIdeas, problem);
+        const constraintAwareIdeas = this.adaptToConstraints(scoredIdeas, problem, keyTerms);
         insights.push(...constraintAwareIdeas);
       }
 
       // Step 7: Generate conclusion
-      const conclusion = this.generateConclusion(problem, scoredIdeas);
+      const conclusion = this.generateConclusion(problem, scoredIdeas, keyTerms);
       reasoning.push(`Therefore, ${conclusion}`);
 
       // Calculate confidence based on idea quality and diversity
@@ -139,21 +151,25 @@ export class CreativeStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Generate creative ideas through brainstorming
+   * Generate creative ideas through brainstorming with term reference tracking
    *
    * @param problem - Problem to brainstorm
-   * @returns Array of creative insights
+   * @param keyTerms - Extracted key terms for problem-specific ideas
+   * @returns Array of creative insights with referenced terms tracked
    */
-  private generateCreativeIdeas(problem: Problem): Insight[] {
+  private generateCreativeIdeas(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const ideas: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the challenge";
+    const domainTerms = keyTerms.domainTerms.slice(0, 2);
+    const actionVerb = keyTerms.actionVerbs[0] || "transform";
 
-    // Generate multiple diverse ideas
+    // Generate problem-specific ideas using extracted terms
     const ideaTemplates = [
-      `Create a novel approach to ${problem.description.toLowerCase()}`,
-      `Imagine an innovative solution that ${problem.goals?.[0] || "solves the problem"}`,
-      `Design a unique method to address ${problem.description.toLowerCase()}`,
-      `Develop an unconventional strategy for ${problem.description.toLowerCase()}`,
-      `Invent a creative way to ${problem.goals?.[0] || "achieve the goal"}`,
+      `Create a novel ${domainTerms[0] || "approach"} for ${primaryTerm} that leverages ${domainTerms[1] || "existing strengths"}`,
+      `Imagine ${primaryTerm} reimagined with ${problem.goals?.[0] || "enhanced capabilities"}`,
+      `Design a unique method to ${actionVerb} ${primaryTerm} using unconventional techniques`,
+      `Develop an innovative ${domainTerms[0] || "strategy"} that addresses ${primaryTerm} from a fresh angle`,
+      `Invent a creative way to ${problem.goals?.[0] || `improve ${primaryTerm}`} by combining disparate concepts`,
     ];
 
     for (const template of ideaTemplates) {
@@ -162,6 +178,7 @@ export class CreativeStreamProcessor implements StreamProcessor {
         source: StreamType.CREATIVE,
         confidence: 0.7,
         importance: 0.6 + Math.random() * 0.3, // Vary novelty scores
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(template, keyTerms),
       });
     }
 
@@ -169,47 +186,63 @@ export class CreativeStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Apply analogy technique
+   * Apply analogy technique with term reference tracking
    *
-   * @param _problem - Problem to analyze (unused in current implementation)
-   * @returns Array of analogy-based insights
+   * @param problem - Problem to analyze
+   * @param keyTerms - Extracted key terms for problem-specific analogies
+   * @returns Array of analogy-based insights with referenced terms tracked
    */
-  private applyAnalogy(_problem: Problem): Insight[] {
+  private applyAnalogy(_problem: Problem, keyTerms: KeyTerms): Insight[] {
     const insights: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "this challenge";
+    const domainTerm = keyTerms.domainTerms[0] || "";
 
-    // Generate analogies from different domains
-    const analogies = [
-      "This is like how nature solves similar problems through evolution",
-      "Similar to how successful companies pivot when facing challenges",
-      "Analogous to how ecosystems maintain balance through diversity",
-    ];
-
-    const selectedAnalogy = analogies[Math.floor(Math.random() * analogies.length)];
+    // Generate problem-specific analogies
+    let analogy: string;
+    if (
+      domainTerm === "performance" ||
+      domainTerm === "optimization" ||
+      domainTerm === "scalability"
+    ) {
+      analogy = `${primaryTerm} is like a highway system - we can apply traffic flow optimization principles to improve throughput`;
+    } else if (domainTerm === "user" || domainTerm === "customer" || domainTerm === "engagement") {
+      analogy = `${primaryTerm} is like a conversation - we can apply principles of active listening and responsiveness`;
+    } else if (domainTerm === "security" || domainTerm === "authentication") {
+      analogy = `${primaryTerm} is like a castle defense - we can apply layered protection strategies`;
+    } else if (domainTerm === "data" || domainTerm === "analytics") {
+      analogy = `${primaryTerm} is like archaeology - we can apply systematic excavation techniques to uncover insights`;
+    } else {
+      analogy = `${primaryTerm} is like how nature solves similar problems through evolution - we could apply adaptive principles`;
+    }
 
     insights.push({
-      content: `${selectedAnalogy} - we could apply similar principles here`,
+      content: analogy,
       source: StreamType.CREATIVE,
       confidence: 0.65,
       importance: 0.75,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(analogy, keyTerms),
     });
 
     return insights;
   }
 
   /**
-   * Apply reframing technique
+   * Apply reframing technique with term reference tracking
    *
-   * @param _problem - Problem to reframe (unused in current implementation)
-   * @returns Array of reframed insights
+   * @param problem - Problem to reframe
+   * @param keyTerms - Extracted key terms for problem-specific reframing
+   * @returns Array of reframed insights with referenced terms tracked
    */
-  private applyReframing(_problem: Problem): Insight[] {
+  private applyReframing(_problem: Problem, keyTerms: KeyTerms): Insight[] {
     const insights: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "this situation";
+    const actionVerb = keyTerms.actionVerbs[0] || "improve";
 
-    // Reframe from different perspectives
+    // Generate problem-specific reframing
     const perspectives = [
-      "Looking at this from a different angle: what if we viewed this as an opportunity rather than a problem?",
-      "Reframing the perspective: instead of fixing what's broken, what if we reimagined the entire approach?",
-      "From another viewpoint: what would a complete beginner suggest without preconceptions?",
+      `Reframing ${primaryTerm}: what if we viewed this as an opportunity to ${actionVerb} rather than a problem to fix?`,
+      `Instead of trying to ${actionVerb} ${primaryTerm}, what if we reimagined the entire approach from scratch?`,
+      `From a user's perspective: what would make ${primaryTerm} delightful rather than just functional?`,
     ];
 
     const selectedPerspective = perspectives[Math.floor(Math.random() * perspectives.length)];
@@ -219,26 +252,30 @@ export class CreativeStreamProcessor implements StreamProcessor {
       source: StreamType.CREATIVE,
       confidence: 0.7,
       importance: 0.8,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(selectedPerspective, keyTerms),
     });
 
     return insights;
   }
 
   /**
-   * Apply lateral thinking technique
+   * Apply lateral thinking technique with term reference tracking
    *
-   * @param _problem - Problem to analyze (unused in current implementation)
-   * @returns Array of lateral thinking insights
+   * @param problem - Problem to analyze
+   * @param keyTerms - Extracted key terms for problem-specific lateral thinking
+   * @returns Array of lateral thinking insights with referenced terms tracked
    */
-  private applyLateralThinking(_problem: Problem): Insight[] {
+  private applyLateralThinking(_problem: Problem, keyTerms: KeyTerms): Insight[] {
     const insights: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "this";
+    const domainTerm = keyTerms.domainTerms[0] || "";
 
-    // Generate "what if" scenarios
+    // Generate problem-specific "what if" scenarios
     const lateralQuestions = [
-      "What if we did the exact opposite of the conventional approach?",
-      "Suppose we had unlimited resources - what would we try?",
-      "What if this problem didn't exist - how would that change things?",
-      "Imagine we could start from scratch - what would we do differently?",
+      `What if we did the exact opposite with ${primaryTerm} - instead of adding, what if we removed?`,
+      `Suppose we had unlimited ${domainTerm || "resources"} for ${primaryTerm} - what would we try first?`,
+      `What if ${primaryTerm} didn't need to exist at all - what would replace it?`,
+      `Imagine we could redesign ${primaryTerm} from scratch with today's technology - what would be different?`,
     ];
 
     const selectedQuestion = lateralQuestions[Math.floor(Math.random() * lateralQuestions.length)];
@@ -248,38 +285,55 @@ export class CreativeStreamProcessor implements StreamProcessor {
       source: StreamType.CREATIVE,
       confidence: 0.6,
       importance: 0.85,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(selectedQuestion, keyTerms),
     });
 
     return insights;
   }
 
   /**
-   * Combine ideas in novel ways
+   * Combine ideas in novel ways with term reference tracking
    *
    * @param ideas - Existing ideas
-   * @param _problem - Original problem (unused in current implementation)
-   * @returns Array of combined insights
+   * @param problem - Original problem
+   * @param keyTerms - Extracted key terms for problem-specific combinations
+   * @returns Array of combined insights with referenced terms tracked
    */
-  private combineIdeas(ideas: Insight[], _problem: Problem): Insight[] {
+  private combineIdeas(ideas: Insight[], _problem: Problem, keyTerms: KeyTerms): Insight[] {
     const combined: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the solution";
+    const domainTerms = keyTerms.domainTerms.slice(0, 2);
 
     if (ideas.length >= 2) {
-      // Combine first two ideas
+      // Combine ideas with problem-specific context
+      const hybridContent = `Hybrid approach for ${primaryTerm}: combine ${ideas[0].content.substring(0, 40)}... with ${ideas[1].content.substring(0, 40)}...`;
       combined.push({
-        content: `Combining approaches: merge ${ideas[0].content.substring(0, 30)}... with ${ideas[1].content.substring(0, 30)}... for a hybrid solution`,
+        content: hybridContent,
         source: StreamType.CREATIVE,
         confidence: 0.65,
         importance: 0.7,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(hybridContent, keyTerms),
       });
     }
 
-    // Add iterative improvement
-    if (ideas.length > 0) {
+    // Add iterative improvement with specific terms
+    if (ideas.length > 0 && domainTerms.length > 0) {
+      const iterativeContent = `Building on ${primaryTerm} concept: integrate ${domainTerms.join(" and ")} elements for enhanced effectiveness`;
       combined.push({
-        content: `Building on the initial concept, we could further expand by integrating additional creative elements`,
+        content: iterativeContent,
         source: StreamType.CREATIVE,
         confidence: 0.7,
         importance: 0.65,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(iterativeContent, keyTerms),
+      });
+    } else if (ideas.length > 0) {
+      const iterativeContent = `Building on ${primaryTerm} concept: iterate and expand with complementary approaches`;
+      combined.push({
+        content: iterativeContent,
+        source: StreamType.CREATIVE,
+        confidence: 0.7,
+        importance: 0.65,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(iterativeContent, keyTerms),
       });
     }
 
@@ -338,29 +392,36 @@ export class CreativeStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Adapt ideas to constraints while maintaining creativity
+   * Adapt ideas to constraints while maintaining creativity with term reference tracking
    *
    * @param _ideas - Existing ideas (unused in current implementation)
    * @param problem - Problem with constraints
-   * @returns Constraint-aware insights
+   * @param keyTerms - Extracted key terms for problem-specific adaptations
+   * @returns Constraint-aware insights with referenced terms tracked
    */
-  private adaptToConstraints(_ideas: Insight[], problem: Problem): Insight[] {
+  private adaptToConstraints(_ideas: Insight[], problem: Problem, keyTerms: KeyTerms): Insight[] {
     const adapted: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the solution";
 
     if (problem.constraints && problem.constraints.length > 0) {
+      const constraint = problem.constraints[0];
+      const workaroundContent = `Creative workaround for ${primaryTerm}: leverage ${constraint} as a design constraint that drives innovation`;
       adapted.push({
-        content: `Creative workaround: work within existing ${problem.constraints[0]} by finding innovative applications`,
+        content: workaroundContent,
         source: StreamType.CREATIVE,
         confidence: 0.7,
         importance: 0.75,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(workaroundContent, keyTerms),
       });
 
-      // Show optimistic, possibility-focused thinking
+      // Show optimistic, possibility-focused thinking with specific terms
+      const optimisticContent = `Despite ${constraint}, ${primaryTerm} can achieve goals through creative ${keyTerms.domainTerms[0] || "resource"} allocation`;
       adapted.push({
-        content: `Despite constraints, there's potential to achieve goals through creative resource allocation`,
+        content: optimisticContent,
         source: StreamType.CREATIVE,
         confidence: 0.65,
         importance: 0.7,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(optimisticContent, keyTerms),
       });
     }
 
@@ -368,39 +429,45 @@ export class CreativeStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Generate conclusion from creative analysis
+   * Generate conclusion from creative analysis with validated term references
    *
    * @param problem - Original problem
    * @param ideas - Generated ideas
-   * @returns Conclusion statement
+   * @param keyTerms - Extracted key terms for problem-specific conclusion
+   * @returns Conclusion statement with guaranteed key term reference
    */
-  private generateConclusion(problem: Problem, ideas: Insight[]): string {
+  private generateConclusion(problem: Problem, ideas: Insight[], keyTerms: KeyTerms): string {
     const parts: string[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the challenge";
 
     // Count highly novel ideas
     const highNoveltyCount = ideas.filter((i) => i.importance > 0.7).length;
 
     if (highNoveltyCount > 0) {
       parts.push(
-        `${highNoveltyCount} highly innovative solution${highNoveltyCount > 1 ? "s" : ""} identified`
+        `${highNoveltyCount} highly innovative solution${highNoveltyCount > 1 ? "s" : ""} for ${primaryTerm} identified`
       );
     } else {
-      parts.push("several creative approaches generated");
+      parts.push(`several creative approaches for ${primaryTerm} generated`);
     }
 
-    // Address goals
+    // Address goals with specific terms
     if (problem.goals && problem.goals.length > 0) {
       parts.push(`that could ${problem.goals[0].toLowerCase()}`);
+    } else if (keyTerms.actionVerbs.length > 0) {
+      parts.push(`that could ${keyTerms.actionVerbs[0]} ${primaryTerm}`);
     }
 
-    // Note feasibility
+    // Note feasibility with specific constraints
     if (problem.constraints && problem.constraints.length > 0) {
-      parts.push("while working within practical constraints");
+      parts.push(`while working within ${problem.constraints[0]}`);
     } else {
       parts.push("with strong potential for implementation");
     }
 
-    return parts.join(" ");
+    // Validate and ensure conclusion contains at least one key term
+    const conclusion = parts.join(" ");
+    return this.keyTermExtractor.ensureTermReference(conclusion, keyTerms);
   }
 
   /**

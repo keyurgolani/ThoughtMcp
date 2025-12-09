@@ -365,9 +365,9 @@ ThoughtMCP exposes cognitive capabilities through MCP tools:
 
 | Category          | Tools                                                                                    | Description                                     |
 | ----------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| **Memory**        | `store_memory`, `retrieve_memories`, `update_memory`, `delete_memory`, `search_memories` | Persistent memory with five-sector embeddings   |
-| **Reasoning**     | `think`, `analyze_systematically`, `think_parallel`, `decompose_problem`                 | Multi-stream reasoning with framework selection |
-| **Metacognitive** | `assess_confidence`, `detect_bias`, `detect_emotion`, `analyze_reasoning`                | Self-monitoring and quality assessment          |
+| **Memory**        | `remember`, `recall`, `update_memory`, `forget`, `search` | Persistent memory with five-sector embeddings   |
+| **Reasoning**     | `think`, `analyze`, `ponder`, `breakdown`                 | Multi-stream reasoning with framework selection |
+| **Metacognitive** | `assess_confidence`, `detect_bias`, `detect_emotion`, `evaluate`                | Self-monitoring and quality assessment          |
 
 👉 **[Complete MCP Tools Reference](docs/mcp-tools.md)**
 

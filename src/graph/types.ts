@@ -45,6 +45,7 @@ export interface Memory {
   sessionId: string;
   primarySector: string;
   metadata: MemoryMetadata;
+  embeddings?: import("../embeddings/types").SectorEmbeddings;
 }
 
 /**

@@ -294,12 +294,20 @@ export class WaypointGraphBuilder {
 
   /**
    * Calculate embedding similarity across all sectors
+   * Uses in-memory embeddings when available to avoid transaction isolation issues
    */
   private async calculateEmbeddingSimilarity(memory1: Memory, memory2: Memory): Promise<number> {
     try {
-      const embeddings1 = await this.embeddingStorage.retrieveEmbeddings(memory1.id);
-      const embeddings2 = await this.embeddingStorage.retrieveEmbeddings(memory2.id);
-      Logger.debug(`Retrieved embeddings for ${memory1.id} and ${memory2.id}`);
+      // Use in-memory embeddings if available, otherwise retrieve from database
+      // This fixes the transaction isolation issue where new memory's embeddings
+      // are not visible until the transaction is committed
+      const embeddings1 =
+        memory1.embeddings ?? (await this.embeddingStorage.retrieveEmbeddings(memory1.id));
+      const embeddings2 =
+        memory2.embeddings ?? (await this.embeddingStorage.retrieveEmbeddings(memory2.id));
+      Logger.debug(
+        `Retrieved embeddings for ${memory1.id} and ${memory2.id} (in-memory: ${!!memory1.embeddings}, ${!!memory2.embeddings})`
+      );
 
       // Calculate cosine similarity for each sector
       const similarities: number[] = [];
@@ -314,7 +322,7 @@ export class WaypointGraphBuilder {
         const emb1 = embeddings1[sector];
         const emb2 = embeddings2[sector];
 
-        if (emb1 && emb2) {
+        if (emb1 && emb2 && emb1.length > 0 && emb2.length > 0) {
           const similarity = this.cosineSimilarity(emb1, emb2);
           similarities.push(similarity);
         }
