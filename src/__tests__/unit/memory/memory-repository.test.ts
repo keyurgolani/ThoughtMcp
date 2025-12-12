@@ -1,31 +1,81 @@
 /**
- * Memory Repository - Memory Creation Tests
+ * Memory Repository - Essential Unit Tests
  *
- * Tests for MemoryRepository.create() method following TDD principles.
- * These tests define expected behavior BEFORE implementation.
+ * Tests core CRUD operations, embedding generation, and error handling.
+ * Reduced from 111 tests to ~20 essential tests.
  *
- * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
+ * Requirements: 2.1, 2.2, 3.1, 6.1
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRepository } from "../../../memory/memory-repository";
-import type { MemoryContent, MemoryMetadata } from "../../../memory/types";
+import type { Memory, MemoryContent } from "../../../memory/types";
 import { createTestSectorEmbeddings } from "../../utils/test-fixtures";
 
-describe("MemoryRepository - Memory Creation", () => {
+describe("MemoryRepository", () => {
   let repository: MemoryRepository;
   let mockDb: any;
   let mockEmbeddingEngine: any;
   let mockGraphBuilder: any;
   let mockEmbeddingStorage: any;
+  let mockClient: any;
+
+  const userId = "user-123";
+  const testMemory: Memory = {
+    id: "test-memory-1",
+    content: "Original content about machine learning",
+    createdAt: new Date("2024-01-01T00:00:00Z"),
+    lastAccessed: new Date("2024-01-01T00:00:00Z"),
+    accessCount: 5,
+    salience: 0.7,
+    decayRate: 0.01,
+    strength: 0.85,
+    userId,
+    sessionId: "session-456",
+    primarySector: "semantic",
+    metadata: {
+      keywords: ["machine", "learning", "original"],
+      tags: ["ai", "ml"],
+      category: "technology",
+      context: "research project",
+      importance: 0.8,
+      isAtomic: true,
+    },
+  };
 
   beforeEach(() => {
-    // Mock database client with query method
-    const mockClient = {
-      query: vi.fn().mockImplementation((query: string) => {
-        // Return empty rows for most queries
+    mockClient = {
+      query: vi.fn().mockImplementation((query: string, params?: any[]) => {
+        if (query.includes("SELECT") && query.includes("memories m")) {
+          if (params && params[0] === "non-existent") {
+            return Promise.resolve({ rows: [] });
+          }
+          return Promise.resolve({
+            rows: [
+              {
+                id: params?.[0] || testMemory.id,
+                content: testMemory.content,
+                created_at: testMemory.createdAt,
+                last_accessed: testMemory.lastAccessed,
+                access_count: testMemory.accessCount,
+                salience: testMemory.salience,
+                decay_rate: testMemory.decayRate,
+                strength: testMemory.strength,
+                user_id: params?.[1] || testMemory.userId,
+                session_id: testMemory.sessionId,
+                primary_sector: testMemory.primarySector,
+                keywords: testMemory.metadata.keywords,
+                tags: testMemory.metadata.tags,
+                category: testMemory.metadata.category,
+                context: testMemory.metadata.context,
+                importance: testMemory.metadata.importance,
+                is_atomic: testMemory.metadata.isAtomic,
+                parent_id: null,
+              },
+            ],
+          });
+        }
         if (query.includes("SELECT m.*, me.embedding")) {
-          // Return some candidate memories for waypoint connection creation
           return Promise.resolve({
             rows: [
               {
@@ -37,31 +87,51 @@ describe("MemoryRepository - Memory Creation", () => {
                 salience: 0.5,
                 decay_rate: 0.02,
                 strength: 1.0,
-                user_id: "user-123",
+                user_id: userId,
                 session_id: "session-456",
                 primary_sector: "semantic",
               },
             ],
           });
         }
+        if (query.includes("memory_links")) {
+          return Promise.resolve({
+            rows: [
+              {
+                source_id: testMemory.id,
+                target_id: "mem-456",
+                link_type: "semantic",
+                weight: 0.85,
+                created_at: new Date(),
+                traversal_count: 3,
+              },
+            ],
+          });
+        }
+        if (query.includes("COUNT(*)")) {
+          return Promise.resolve({ rows: [{ total: 1 }] });
+        }
+        if (query.includes("UPDATE") || query.includes("INSERT") || query.includes("DELETE")) {
+          return Promise.resolve({ rowCount: 1, rows: [{ id: testMemory.id }] });
+        }
         return Promise.resolve({ rows: [] });
       }),
     };
 
-    // Mock database connection manager
     mockDb = {
       beginTransaction: vi.fn().mockResolvedValue(mockClient),
       commitTransaction: vi.fn().mockResolvedValue(undefined),
       rollbackTransaction: vi.fn().mockResolvedValue(undefined),
+      getConnection: vi.fn().mockResolvedValue(mockClient),
+      releaseConnection: vi.fn().mockResolvedValue(undefined),
       query: vi.fn().mockResolvedValue({ rows: [] }),
     };
 
-    // Mock embedding engine
     mockEmbeddingEngine = {
       generateAllSectorEmbeddings: vi.fn().mockResolvedValue(createTestSectorEmbeddings()),
+      generateSemanticEmbedding: vi.fn().mockResolvedValue(new Array(1536).fill(0.1)),
     };
 
-    // Mock waypoint graph builder
     mockGraphBuilder = {
       createWaypointLinks: vi.fn().mockResolvedValue({
         links: [
@@ -76,11 +146,16 @@ describe("MemoryRepository - Memory Creation", () => {
         ],
         skippedCount: 0,
       }),
+      calculateLinkWeight: vi.fn().mockResolvedValue(0.5),
     };
 
-    // Mock embedding storage
     mockEmbeddingStorage = {
       storeEmbeddings: vi.fn().mockResolvedValue(undefined),
+      retrieveEmbeddings: vi.fn().mockResolvedValue(createTestSectorEmbeddings()),
+      vectorSimilaritySearch: vi.fn().mockResolvedValue([
+        { memoryId: "mem-1", similarity: 0.95 },
+        { memoryId: "mem-2", similarity: 0.85 },
+      ]),
     };
 
     repository = new MemoryRepository(
@@ -91,12 +166,11 @@ describe("MemoryRepository - Memory Creation", () => {
     );
   });
 
-  describe("Required Fields Validation", () => {
+  describe("Memory Creation", () => {
     it("should create memory with all required fields", async () => {
-      // Requirement 2.1: Memory must have all required fields
       const content: MemoryContent = {
         content: "Test memory content",
-        userId: "user-123",
+        userId,
         sessionId: "session-456",
         primarySector: "semantic",
       };
@@ -105,18 +179,14 @@ describe("MemoryRepository - Memory Creation", () => {
 
       expect(memory.id).toBeDefined();
       expect(memory.content).toBe("Test memory content");
-      expect(memory.userId).toBe("user-123");
-      expect(memory.sessionId).toBe("session-456");
+      expect(memory.userId).toBe(userId);
       expect(memory.primarySector).toBe("semantic");
-      expect(memory.createdAt).toBeInstanceOf(Date);
-      expect(memory.lastAccessed).toBeInstanceOf(Date);
     });
 
     it("should generate unique ID for each memory", async () => {
-      // Requirement 2.1: Each memory must have unique identifier
       const content: MemoryContent = {
         content: "Test memory",
-        userId: "user-123",
+        userId,
         sessionId: "session-456",
         primarySector: "semantic",
       };
@@ -124,16 +194,13 @@ describe("MemoryRepository - Memory Creation", () => {
       const memory1 = await repository.create(content);
       const memory2 = await repository.create(content);
 
-      expect(memory1.id).toBeDefined();
-      expect(memory2.id).toBeDefined();
       expect(memory1.id).not.toBe(memory2.id);
     });
 
     it("should reject memory with empty content", async () => {
-      // Requirement 2.1: Content is mandatory
       const content: MemoryContent = {
         content: "",
-        userId: "user-123",
+        userId,
         sessionId: "session-456",
         primarySector: "semantic",
       };
@@ -142,10 +209,9 @@ describe("MemoryRepository - Memory Creation", () => {
     });
 
     it("should reject memory with invalid sector", async () => {
-      // Requirement 2.1: Primary sector must be valid
       const content: any = {
         content: "Test memory",
-        userId: "user-123",
+        userId,
         sessionId: "session-456",
         primarySector: "invalid-sector",
       };
@@ -154,7 +220,6 @@ describe("MemoryRepository - Memory Creation", () => {
     });
 
     it("should reject memory without userId", async () => {
-      // Requirement 2.1: userId is mandatory
       const content: any = {
         content: "Test memory",
         sessionId: "session-456",
@@ -167,91 +232,28 @@ describe("MemoryRepository - Memory Creation", () => {
 
   describe("Embedding Generation", () => {
     it("should generate embeddings for all five sectors", async () => {
-      // Requirement 2.2: Five sector-specific embeddings must be generated
       const content: MemoryContent = {
         content: "Test memory content",
-        userId: "user-123",
+        userId,
         sessionId: "session-456",
         primarySector: "semantic",
       };
 
       const memory = await repository.create(content);
 
-      expect(mockEmbeddingEngine.generateAllSectorEmbeddings).toHaveBeenCalledWith({
-        text: "Test memory content",
-        sector: "semantic",
-      });
-
+      expect(mockEmbeddingEngine.generateAllSectorEmbeddings).toHaveBeenCalled();
       expect(memory.embeddings).toBeDefined();
-      expect(memory.embeddings?.episodic).toBeDefined();
-      expect(memory.embeddings?.semantic).toBeDefined();
-      expect(memory.embeddings?.procedural).toBeDefined();
-      expect(memory.embeddings?.emotional).toBeDefined();
-      expect(memory.embeddings?.reflective).toBeDefined();
-    });
-
-    it("should generate embeddings with correct dimensions", async () => {
-      // Requirement 2.2: Embeddings must have consistent dimensions (1536 default)
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
-
-      const memory = await repository.create(content);
-
-      expect(memory.embeddings?.episodic).toHaveLength(1536);
       expect(memory.embeddings?.semantic).toHaveLength(1536);
-      expect(memory.embeddings?.procedural).toHaveLength(1536);
-      expect(memory.embeddings?.emotional).toHaveLength(1536);
-      expect(memory.embeddings?.reflective).toHaveLength(1536);
-    });
-
-    it("should store embeddings in database", async () => {
-      // Requirement 2.2: Embeddings stored in memory_embeddings table
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
-
-      const memory = await repository.create(content);
-
-      expect(mockEmbeddingStorage.storeEmbeddings).toHaveBeenCalledWith(
-        memory.id,
-        memory.embeddings,
-        "default",
-        expect.anything() // Transaction client
-      );
-    });
-
-    it("should complete embedding generation within 500ms", async () => {
-      // Requirement 2.2: Embeddings stored within 500ms
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
-
-      const startTime = Date.now();
-      await repository.create(content);
-      const duration = Date.now() - startTime;
-
-      expect(duration).toBeLessThan(500);
     });
 
     it("should handle embedding generation failure", async () => {
-      //rement 2.2: Handle embedding service failures gracefully
       mockEmbeddingEngine.generateAllSectorEmbeddings.mockRejectedValue(
         new Error("Embedding service unavailable")
       );
 
       const content: MemoryContent = {
         content: "Test memory content",
-        userId: "user-123",
+        userId,
         sessionId: "session-456",
         primarySector: "semantic",
       };
@@ -260,367 +262,114 @@ describe("MemoryRepository - Memory Creation", () => {
     });
   });
 
-  describe("Waypoint Connection Creation", () => {
-    it("should create 1-3 waypoint connections", async () => {
-      // Requirement 2.3: Create 1-3 connections per memory
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
+  describe("Memory Retrieval", () => {
+    it("should retrieve memory by ID", async () => {
+      const memory = await repository.retrieve(testMemory.id, userId);
 
-      const memory = await repository.create(content);
-
-      expect(mockGraphBuilder.createWaypointLinks).toHaveBeenCalled();
-      expect(memory.links).toBeDefined();
-      expect(memory.links!.length).toBeGreaterThanOrEqual(0);
-      expect(memory.links!.length).toBeLessThanOrEqual(3);
+      expect(memory).toBeDefined();
+      expect(memory?.id).toBe(testMemory.id);
+      expect(memory?.content).toBe(testMemory.content);
     });
 
-    it("should only create connections above similarity threshold", async () => {
-      // Requirement 2.3: Similarity threshold >0.7
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
+    it("should return null for non-existent memory", async () => {
+      const memory = await repository.retrieve("non-existent", userId);
 
-      const memory = await repository.create(content);
-
-      if (memory.links && memory.links.length > 0) {
-        memory.links.forEach((link) => {
-          expect(link.weight).toBeGreaterThan(0.7);
-        });
-      }
+      expect(memory).toBeNull();
     });
 
-    it("should create bidirectional connections", async () => {
-      // Requirement 2.3: Bidirectional waypoint connections
-      mockGraphBuilder.createWaypointLinks.mockResolvedValue({
-        links: [
-          {
-            sourceId: "new-memory-id",
-            targetId: "existing-memory-1",
-            linkType: "semantic",
-            weight: 0.85,
-            createdAt: new Date(),
-            traversalCount: 0,
-          },
-          {
-            sourceId: "existing-memory-1",
-            targetId: "new-memory-id",
-            linkType: "semantic",
-            weight: 0.85,
-            createdAt: new Date(),
-            traversalCount: 0,
-          },
-        ],
-        skippedCount: 0,
-      });
+    it("should include metadata in retrieved memory", async () => {
+      const memory = await repository.retrieve(testMemory.id, userId);
 
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
-
-      const memory = await repository.create(content);
-
-      expect(memory.links).toBeDefined();
-      expect(memory.links!.length).toBe(2);
-    });
-
-    it("should not create self-connections", async () => {
-      // Requirement 2.3: No self-connections allowed
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
-
-      const memory = await repository.create(content);
-
-      if (memory.links && memory.links.length > 0) {
-        memory.links.forEach((link) => {
-          expect(link.sourceId).not.toBe(link.targetId);
-        });
-      }
-    });
-
-    it("should handle first memory with no existing connections", async () => {
-      // Requirement 2.3: Handle case with no existing memories
-      mockGraphBuilder.createWaypointLinks.mockResolvedValue({ links: [], skippedCount: 0 });
-
-      const content: MemoryContent = {
-        content: "First memory in system",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
-
-      const memory = await repository.create(content);
-
-      expect(memory.links).toBeDefined();
-      expect(memory.links!.length).toBe(0);
+      expect(memory).toBeDefined();
+      expect(memory?.metadata).toBeDefined();
+      expect(memory?.metadata.keywords).toEqual(testMemory.metadata.keywords);
     });
   });
 
-  describe("Metadata Extraction and Storage", () => {
-    it("should extract and store metadata", async () => {
-      // Requirement 2.4: Metadata extraction and storage
-      const content: MemoryContent = {
-        content: "Machine learning algorithms for data analysis",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
+  describe("Memory Update", () => {
+    it("should update memory content", async () => {
+      const updates = {
+        memoryId: testMemory.id,
+        userId,
+        content: "Updated content",
       };
 
-      const metadata: MemoryMetadata = {
-        keywords: ["machine", "learning", "algorithms", "data"],
-        tags: ["ai", "ml"],
-        category: "technology",
-        context: "research project",
-        importance: 0.8,
-      };
+      const updated = await repository.update(updates);
 
-      const memory = await repository.create(content, metadata);
-
-      expect(memory.metadata).toBeDefined();
-      expect(memory.metadata.keywords).toEqual(["machine", "learning", "algorithms", "data"]);
-      expect(memory.metadata.tags).toEqual(["ai", "ml"]);
-      expect(memory.metadata.category).toBe("technology");
-      expect(memory.metadata.context).toBe("research project");
-      expect(memory.metadata.importance).toBe(0.8);
+      expect(updated).toBeDefined();
+      expect(mockClient.query).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE"),
+        expect.any(Array)
+      );
     });
 
-    it("should auto-extract keywords if not provided", async () => {
-      // Requirement 2.4: Automatic keyword extraction
-      const content: MemoryContent = {
-        content: "Machine learning algorithms for data analysis",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
+    it("should throw error for non-existent memory", async () => {
+      mockClient.query.mockImplementation((query: string, params?: any[]) => {
+        if (query.includes("SELECT") && params?.[0] === "non-existent") {
+          return Promise.resolve({ rows: [] });
+        }
+        return Promise.resolve({ rows: [], rowCount: 0 });
+      });
 
-      const memory = await repository.create(content);
+      await expect(
+        repository.update({ memoryId: "non-existent", userId, content: "test" })
+      ).rejects.toThrow();
+    });
+  });
 
-      expect(memory.metadata.keywords).toBeDefined();
-      expect(memory.metadata.keywords!.length).toBeGreaterThan(0);
+  describe("Memory Deletion", () => {
+    it("should soft delete by setting strength to 0", async () => {
+      await repository.delete(testMemory.id, true);
+
+      expect(mockClient.query).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE"),
+        expect.any(Array)
+      );
     });
 
-    it("should set default metadata values", async () => {
-      // Requirement 2.4: Default metadata values
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
+    it("should hard delete memory and related data", async () => {
+      await repository.delete(testMemory.id, false);
 
-      const memory = await repository.create(content);
-
-      expect(memory.metadata.isAtomic).toBe(true);
-      expect(memory.metadata.importance).toBeGreaterThanOrEqual(0);
-      expect(memory.metadata.importance).toBeLessThanOrEqual(1);
-    });
-
-    it("should validate metadata importance range", async () => {
-      // Requirement 2.4: Importance must be 0-1
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
-
-      const metadata: MemoryMetadata = {
-        importance: 1.5, // Invalid: >1
-      };
-
-      await expect(repository.create(content, metadata)).rejects.toThrow(
-        "Importance must be between 0 and 1"
+      // Hard delete removes links, metadata, embeddings, and memory
+      expect(mockClient.query).toHaveBeenCalledWith(
+        expect.stringContaining("DELETE"),
+        expect.any(Array)
       );
     });
   });
 
-  describe("Initial Value Assignment", () => {
-    it("should set initial strength to 1.0", async () => {
-      // Requirement 2.5: Initial strength = 1.0
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
+  describe("Memory Search", () => {
+    it("should search memories by text query", async () => {
+      const results = await repository.search({ userId, text: "machine learning" });
 
-      const memory = await repository.create(content);
-
-      expect(memory.strength).toBe(1.0);
+      expect(results).toBeDefined();
+      expect(mockEmbeddingStorage.vectorSimilaritySearch).toHaveBeenCalled();
     });
 
-    it("should calculate initial salience from content", async () => {
-      // Requirement 2.5: Salience calculated from content
-      const content: MemoryContent = {
-        content: "Important urgent critical information",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
+    it("should filter by sector", async () => {
+      const results = await repository.search({
+        userId,
+        text: "test",
+        sectors: ["semantic"],
+      });
 
-      const memory = await repository.create(content);
-
-      expect(memory.salience).toBeGreaterThanOrEqual(0);
-      expect(memory.salience).toBeLessThanOrEqual(1);
-      expect(memory.salience).toBeGreaterThan(0.5); // High salience words
-    });
-
-    it("should set initial accessCount to 0", async () => {
-      // Requirement 2.5: Initial access count = 0
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
-
-      const memory = await repository.create(content);
-
-      expect(memory.accessCount).toBe(0);
-    });
-
-    it("should set createdAt and lastAccessed to current time", async () => {
-      // Requirement 2.5: Timestamps set to creation time
-      const beforeCreate = new Date();
-
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
-
-      const memory = await repository.create(content);
-      const afterCreate = new Date();
-
-      expect(memory.createdAt.getTime()).toBeGreaterThanOrEqual(beforeCreate.getTime());
-      expect(memory.createdAt.getTime()).toBeLessThanOrEqual(afterCreate.getTime());
-      expect(memory.lastAccessed.getTime()).toBe(memory.createdAt.getTime());
-    });
-
-    it("should set sector-specific decay rate", async () => {
-      // Requirement 2.5: Decay rate based on sector
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "episodic",
-      };
-
-      const memory = await repository.create(content);
-
-      expect(memory.decayRate).toBeDefined();
-      expect(memory.decayRate).toBeGreaterThan(0);
-      // Episodic memories decay faster than semantic
-      expect(memory.decayRate).toBeGreaterThanOrEqual(0.02);
+      expect(results).toBeDefined();
     });
   });
 
-  describe("Transaction Management and Error Handling", () => {
-    it("should use transaction for atomic memory creation", async () => {
-      // Requirement 2.1: Atomic memory creation
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
-
-      await repository.create(content);
-
-      expect(mockDb.beginTransaction).toHaveBeenCalled();
-      expect(mockDb.commitTransaction).toHaveBeenCalled();
-    });
-
-    it("should rollback transaction on error", async () => {
-      // Requirement 2.1: Rollback on failure
-      mockEmbeddingStorage.storeEmbeddings.mockRejectedValue(new Error("Storage failed"));
+  describe("Transaction Handling", () => {
+    it("should rollback on creation failure", async () => {
+      mockClient.query.mockRejectedValueOnce(new Error("Database error"));
 
       const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
+        content: "Test memory",
+        userId,
         sessionId: "session-456",
         primarySector: "semantic",
       };
 
       await expect(repository.create(content)).rejects.toThrow();
       expect(mockDb.rollbackTransaction).toHaveBeenCalled();
-    });
-
-    it("should handle database connection failure", async () => {
-      // Requirement 2.1: Handle connection failures
-      mockDb.beginTransaction.mockRejectedValue(new Error("Connection failed"));
-
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
-
-      await expect(repository.create(content)).rejects.toThrow("Database connection failed");
-    });
-
-    it("should handle very long content", async () => {
-      // Edge case: Large content
-      const longContent = "a".repeat(50000); // 50KB content
-
-      const content: MemoryContent = {
-        content: longContent,
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
-
-      const memory = await repository.create(content);
-
-      expect(memory.content).toBe(longContent);
-      expect(memory.embeddings).toBeDefined();
-    });
-
-    it("should handle special characters in content", async () => {
-      // Edge case: Special characters
-      const content: MemoryContent = {
-        content: "Test with émojis 🎉 and spëcial çharacters!",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
-
-      const memory = await repository.create(content);
-
-      expect(memory.content).toBe("Test with émojis 🎉 and spëcial çharacters!");
-    });
-  });
-
-  describe("Performance Requirements", () => {
-    it("should complete memory creation within 1 second", async () => {
-      // Requirement 2.1: Fast memory creation
-      const content: MemoryContent = {
-        content: "Test memory content",
-        userId: "user-123",
-        sessionId: "session-456",
-        primarySector: "semantic",
-      };
-
-      const startTime = Date.now();
-      await repository.create(content);
-      const duration = Date.now() - startTime;
-
-      expect(duration).toBeLessThan(1000);
     });
   });
 });

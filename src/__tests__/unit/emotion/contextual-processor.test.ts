@@ -18,6 +18,7 @@ import type {
   ProfessionalContext,
   Situation,
 } from "../../../emotion/types";
+import { TIME } from "../../utils/test-helpers";
 
 describe("ContextualEmotionProcessor", () => {
   let processor: ContextualEmotionProcessor;
@@ -42,16 +43,18 @@ describe("ContextualEmotionProcessor", () => {
     });
 
     it("should adjust emotion based on previous negative messages", () => {
+      // Note: Using Date.now() because the processor calculates recency against current time
+      const now = Date.now();
       const history: Message[] = [
         {
           id: "1",
           text: "I'm so frustrated with this project.",
-          timestamp: new Date(Date.now() - 60000),
+          timestamp: new Date(now - TIME.MINUTE),
         },
         {
           id: "2",
           text: "Nothing is working as expected.",
-          timestamp: new Date(Date.now() - 30000),
+          timestamp: new Date(now - 30 * TIME.SECOND),
         },
       ];
 
@@ -64,16 +67,18 @@ describe("ContextualEmotionProcessor", () => {
     });
 
     it("should adjust emotion based on previous positive messages", () => {
+      // Note: Using Date.now() because the processor calculates recency against current time
+      const now = Date.now();
       const history: Message[] = [
         {
           id: "1",
           text: "This is going great!",
-          timestamp: new Date(Date.now() - 60000),
+          timestamp: new Date(now - TIME.MINUTE),
         },
         {
           id: "2",
           text: "I'm really excited about the progress.",
-          timestamp: new Date(Date.now() - 30000),
+          timestamp: new Date(now - 30 * TIME.SECOND),
         },
       ];
 
@@ -86,21 +91,23 @@ describe("ContextualEmotionProcessor", () => {
     });
 
     it("should detect emotional trend from conversation history", () => {
+      // Note: Using Date.now() because the processor calculates recency against current time
+      const now = Date.now();
       const history: Message[] = [
         {
           id: "1",
           text: "I'm frustrated.",
-          timestamp: new Date(Date.now() - 120000),
+          timestamp: new Date(now - 2 * TIME.MINUTE),
         },
         {
           id: "2",
           text: "Things are getting better.",
-          timestamp: new Date(Date.now() - 60000),
+          timestamp: new Date(now - TIME.MINUTE),
         },
         {
           id: "3",
           text: "I'm feeling much better now!",
-          timestamp: new Date(Date.now() - 30000),
+          timestamp: new Date(now - 30 * TIME.SECOND),
         },
       ];
 
@@ -121,16 +128,18 @@ describe("ContextualEmotionProcessor", () => {
     });
 
     it("should weight recent messages more heavily", () => {
+      // Note: Using Date.now() because the processor calculates recency against current time
+      const now = Date.now();
       const history: Message[] = [
         {
           id: "1",
           text: "I was happy yesterday.",
-          timestamp: new Date(Date.now() - 86400000), // 1 day ago
+          timestamp: new Date(now - TIME.DAY), // 1 day ago
         },
         {
           id: "2",
           text: "I'm frustrated right now.",
-          timestamp: new Date(Date.now() - 1000), // 1 second ago
+          timestamp: new Date(now - TIME.SECOND), // 1 second ago
         },
       ];
 
@@ -284,11 +293,13 @@ describe("ContextualEmotionProcessor", () => {
 
   describe("Context-Adjusted Accuracy", () => {
     it("should improve accuracy with full context", () => {
+      // Note: Using Date.now() because the processor calculates recency against current time
+      const now = Date.now();
       const history: Message[] = [
         {
           id: "1",
           text: "I've been working on this all day.",
-          timestamp: new Date(Date.now() - 3600000),
+          timestamp: new Date(now - TIME.HOUR),
         },
       ];
 
@@ -338,10 +349,12 @@ describe("ContextualEmotionProcessor", () => {
 
   describe("Processing Speed", () => {
     it("should process emotion with context in under 200ms", () => {
+      // Note: Using Date.now() because the processor calculates recency against current time
+      const now = Date.now();
       const history: Message[] = Array.from({ length: 10 }, (_, i) => ({
         id: `${i}`,
         text: `Message ${i}`,
-        timestamp: new Date(Date.now() - i * 60000),
+        timestamp: new Date(now - i * TIME.MINUTE),
       }));
 
       const culturalContext: CulturalContext = {
@@ -356,9 +369,9 @@ describe("ContextualEmotionProcessor", () => {
         culturalContext,
       };
 
-      const startTime = Date.now();
+      const startTime = performance.now();
       processor.processWithContext(text, options);
-      const endTime = Date.now();
+      const endTime = performance.now();
 
       expect(endTime - startTime).toBeLessThan(200);
     });
@@ -366,9 +379,9 @@ describe("ContextualEmotionProcessor", () => {
     it("should process multiple messages efficiently", () => {
       const texts = ["I'm happy.", "I'm sad.", "I'm angry.", "I'm excited.", "I'm calm."];
 
-      const startTime = Date.now();
+      const startTime = performance.now();
       texts.forEach((text) => processor.processWithContext(text));
-      const endTime = Date.now();
+      const endTime = performance.now();
 
       const avgTime = (endTime - startTime) / texts.length;
       expect(avgTime).toBeLessThan(200);
@@ -408,11 +421,13 @@ describe("ContextualEmotionProcessor", () => {
     });
 
     it("should handle conflicting context signals", () => {
+      // Note: Using Date.now() because the processor calculates recency against current time
+      const now = Date.now();
       const history: Message[] = [
         {
           id: "1",
           text: "I'm so happy!",
-          timestamp: new Date(Date.now() - 60000),
+          timestamp: new Date(now - TIME.MINUTE),
         },
       ];
 
@@ -435,18 +450,20 @@ describe("ContextualEmotionProcessor", () => {
     });
 
     it("should handle very long conversation history", () => {
+      // Note: Using Date.now() because the processor calculates recency against current time
+      const now = Date.now();
       const history: Message[] = Array.from({ length: 100 }, (_, i) => ({
         id: `${i}`,
         text: `Message ${i} with some emotional content`,
-        timestamp: new Date(Date.now() - i * 60000),
+        timestamp: new Date(now - i * TIME.MINUTE),
       }));
 
       const text = "Current message.";
       const options: ContextualProcessingOptions = { conversationHistory: history };
 
-      const startTime = Date.now();
+      const startTime = performance.now();
       const result = processor.processWithContext(text, options);
-      const endTime = Date.now();
+      const endTime = performance.now();
 
       expect(result).toBeDefined();
       expect(endTime - startTime).toBeLessThan(200);

@@ -155,7 +155,7 @@ export class DesignThinkingFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const empathizeResult = previousResults.find((r) => r.stepId === "empathize");
-        if (!empathizeResult || !empathizeResult.success) {
+        if (!empathizeResult?.success) {
           return {
             valid: false,
             issues: ["Empathize phase must be completed before defining problem"],
@@ -216,7 +216,7 @@ export class DesignThinkingFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const defineResult = previousResults.find((r) => r.stepId === "define");
-        if (!defineResult || !defineResult.success) {
+        if (!defineResult?.success) {
           return {
             valid: false,
             issues: ["Problem must be defined before ideating solutions"],
@@ -276,7 +276,7 @@ export class DesignThinkingFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const ideateResult = previousResults.find((r) => r.stepId === "ideate");
-        if (!ideateResult || !ideateResult.success) {
+        if (!ideateResult?.success) {
           return {
             valid: false,
             issues: ["Ideas must be generated before creating prototype"],
@@ -342,7 +342,7 @@ export class DesignThinkingFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const prototypeResult = previousResults.find((r) => r.stepId === "prototype");
-        if (!prototypeResult || !prototypeResult.success) {
+        if (!prototypeResult?.success) {
           return {
             valid: false,
             issues: ["Prototype must be created before testing"],

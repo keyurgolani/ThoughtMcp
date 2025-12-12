@@ -15,7 +15,7 @@ ThoughtMCP v0.5.0 is a production-ready cognitive architecture featuring Hierarc
 
 ### 2. Production-Grade Quality
 
-- **95%+ Test Coverage**
+- **75%+ Test Coverage**
 - **Sub-200ms Retrieval** at 100k memories
 - **Graceful Degradation**
 

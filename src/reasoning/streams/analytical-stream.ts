@@ -40,7 +40,7 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
     const insights: Insight[] = [];
 
     // Validate problem - throw for truly invalid problems
-    if (!problem || !problem.id || !problem.description) {
+    if (!problem?.id || !problem.description) {
       throw new Error("Invalid problem: missing required fields");
     }
 
@@ -71,7 +71,7 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
       if (problem.constraints && problem.constraints.length > 0) {
         reasoning.push(`Constraints to consider: ${problem.constraints.join(", ")}`);
         const constraintTerms = this.keyTermExtractor.formatTermsForInsight(keyTerms, 2);
-        const constraintContent = `Analysis of ${constraintTerms || "the problem"} must account for ${problem.constraints.length} constraint(s): ${problem.constraints.join(", ")}`;
+        const constraintContent = `Analysis of ${constraintTerms ?? "the problem"} must account for ${problem.constraints.length} constraint(s): ${problem.constraints.join(", ")}`;
         insights.push({
           content: constraintContent,
           source: StreamType.ANALYTICAL,
@@ -175,7 +175,7 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
       subProblems.push(...parts.map((p) => p.trim()).filter((p) => p.length > 0));
     } else {
       // Use key terms for problem-specific decomposition
-      const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the issue";
+      const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the issue";
       const domainContext =
         keyTerms.domainTerms.length > 0 ? keyTerms.domainTerms.slice(0, 2).join(" and ") : "";
 
@@ -219,55 +219,13 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
     let quality = 0.5;
 
     // Check for ambiguous or vague problem description
-    const isAmbiguous =
-      problem.description.toLowerCase().includes("something") ||
-      problem.description.toLowerCase().includes("wrong") ||
-      problem.description.length < 30;
-
-    if (isAmbiguous) {
-      const subject = keyTerms.primarySubject || "the issue";
-      gaps.push(`Clarify specific aspects of ${subject} that need addressing`);
-      quality -= 0.3;
-    }
+    quality = this.evaluateAmbiguity(problem, keyTerms, gaps, quality);
 
     // Check context richness
-    if (!problem.context || problem.context.length < 20) {
-      // Use problem-specific terms instead of generic "limited context"
-      if (keyTerms.domainTerms.length > 0) {
-        gaps.push(`More details about ${keyTerms.domainTerms[0]} implementation needed`);
-      } else if (keyTerms.primarySubject) {
-        gaps.push(`More context about ${keyTerms.primarySubject} needed`);
-      } else {
-        gaps.push("Limited context provided");
-      }
-      quality -= 0.2;
-    } else if (problem.context.length > 100) {
-      quality += 0.2;
-    }
+    quality = this.evaluateContext(problem, keyTerms, gaps, quality);
 
     // Check for quantitative data - use specific terms
-    const hasNumbers = /\d+%|\d+\.\d+|\d+ (users|customers|percent)/.test(problem.context);
-    if (hasNumbers) {
-      quality += 0.2;
-    } else if (keyTerms.domainTerms.length > 0) {
-      // Suggest specific metrics based on domain
-      const domain = keyTerms.domainTerms[0];
-      if (domain === "performance" || domain === "latency" || domain === "throughput") {
-        gaps.push(
-          `${domain} metrics (response times, throughput numbers) would strengthen analysis`
-        );
-      } else if (domain === "user" || domain === "customer" || domain === "engagement") {
-        gaps.push(`${domain} metrics (conversion rates, retention data) would strengthen analysis`);
-      } else {
-        gaps.push(`Quantitative ${domain} data would strengthen analysis`);
-      }
-    }
-
-    // Check for specific details
-    const hasSpecifics = problem.context.includes(":") || problem.context.includes("shows");
-    if (hasSpecifics) {
-      quality += 0.1;
-    }
+    quality = this.evaluateQuantitativeData(problem, keyTerms, gaps, quality);
 
     // Ensure quality is in valid range
     quality = Math.max(0.1, Math.min(1.0, quality));
@@ -280,6 +238,80 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
           : "Limited evidence";
 
     return { quality, description, gaps };
+  }
+
+  private evaluateAmbiguity(
+    problem: Problem,
+    keyTerms: KeyTerms,
+    gaps: string[],
+    quality: number
+  ): number {
+    const isAmbiguous =
+      problem.description.toLowerCase().includes("something") ||
+      problem.description.toLowerCase().includes("wrong") ||
+      problem.description.length < 30;
+
+    if (isAmbiguous) {
+      const subject = keyTerms.primarySubject ?? "the issue";
+      gaps.push(`Clarify specific aspects of ${subject} that need addressing`);
+      return quality - 0.3;
+    }
+    return quality;
+  }
+
+  private evaluateContext(
+    problem: Problem,
+    keyTerms: KeyTerms,
+    gaps: string[],
+    quality: number
+  ): number {
+    if (!problem.context || problem.context.length < 20) {
+      if (keyTerms.domainTerms.length > 0) {
+        gaps.push(`More details about ${keyTerms.domainTerms[0]} implementation needed`);
+      } else if (keyTerms.primarySubject) {
+        gaps.push(`More context about ${keyTerms.primarySubject} needed`);
+      } else {
+        gaps.push("Limited context provided");
+      }
+      return quality - 0.2;
+    } else if (problem.context.length > 100) {
+      return quality + 0.2;
+    }
+    return quality;
+  }
+
+  private evaluateQuantitativeData(
+    problem: Problem,
+    keyTerms: KeyTerms,
+    gaps: string[],
+    quality: number
+  ): number {
+    const hasNumbers = /\d+%|\d+\.\d+|\d+ (users|customers|percent)/.test(problem.context ?? "");
+    if (hasNumbers) {
+      return quality + 0.2;
+    }
+
+    if (keyTerms.domainTerms.length > 0) {
+      const domain = keyTerms.domainTerms[0];
+      this.addDomainSpecificGap(domain, gaps);
+    }
+
+    const hasSpecifics =
+      (problem.context ?? "").includes(":") || (problem.context ?? "").includes("shows");
+    if (hasSpecifics) {
+      return quality + 0.1;
+    }
+    return quality;
+  }
+
+  private addDomainSpecificGap(domain: string, gaps: string[]): void {
+    if (domain === "performance" || domain === "latency" || domain === "throughput") {
+      gaps.push(`${domain} metrics (response times, throughput numbers) would strengthen analysis`);
+    } else if (domain === "user" || domain === "customer" || domain === "engagement") {
+      gaps.push(`${domain} metrics (conversion rates, retention data) would strengthen analysis`);
+    } else {
+      gaps.push(`Quantitative ${domain} data would strengthen analysis`);
+    }
   }
 
   /**
@@ -313,7 +345,7 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
 
     // Generate insight based on sub-problem type with problem-specific terms
     let insight: Insight | undefined;
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the system";
     const domainContext = keyTerms.domainTerms.slice(0, 2).join(", ");
 
     if (subProblem.toLowerCase().includes("root cause")) {
@@ -329,7 +361,7 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
       };
     } else if (subProblem.toLowerCase().includes("solution")) {
       const constraintContext =
-        problem.constraints?.slice(0, 2).join(", ") || "identified constraints";
+        problem.constraints?.slice(0, 2).join(", ") ?? "identified constraints";
       reasoning += `Solutions for ${primaryTerm} must address identified causes while respecting ${constraintContext}.`;
       const content = `Solutions for ${primaryTerm} must address root causes while respecting: ${constraintContext}`;
       insight = {
@@ -372,7 +404,7 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
     keyTerms: KeyTerms
   ): string {
     const parts: string[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the issue";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the issue";
 
     // Address the main problem with specific terms
     if (problem.goals && problem.goals.length > 0) {
@@ -429,7 +461,7 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
     keyTerms: KeyTerms
   ): Insight[] {
     const insights: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the system";
     const domainContext = keyTerms.domainTerms.slice(0, 2).join(" and ");
 
     // Insight about problem complexity with specific terms

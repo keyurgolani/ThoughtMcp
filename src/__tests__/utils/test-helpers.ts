@@ -6,7 +6,137 @@
  * - Retry logic
  * - Timeout handling
  * - Test data generation
+ * - Deterministic values for flaky test prevention
  */
+
+// ============================================================================
+// Deterministic Test Helpers (Flaky Test Prevention)
+// ============================================================================
+
+/**
+ * Fixed timestamp for deterministic tests.
+ * Use this instead of Date.now() in tests to prevent flaky behavior.
+ */
+export const FIXED_TIMESTAMP = 1702300800000; // 2023-12-11T12:00:00.000Z
+
+/**
+ * Create a fixed Date object for deterministic tests.
+ * Use this instead of new Date() in tests.
+ */
+export function fixedDate(): Date {
+  return new Date(FIXED_TIMESTAMP);
+}
+
+/**
+ * Create a Date object offset from the fixed timestamp.
+ * Useful for creating relative timestamps in tests.
+ *
+ * @param offsetMs - Offset in milliseconds (negative for past, positive for future)
+ * @returns Date object at fixed timestamp + offset
+ */
+export function fixedDateOffset(offsetMs: number): Date {
+  return new Date(FIXED_TIMESTAMP + offsetMs);
+}
+
+/**
+ * Time constants for readable test offsets
+ */
+export const TIME = {
+  SECOND: 1000,
+  MINUTE: 60 * 1000,
+  HOUR: 60 * 60 * 1000,
+  DAY: 24 * 60 * 60 * 1000,
+  WEEK: 7 * 24 * 60 * 60 * 1000,
+  MONTH: 30 * 24 * 60 * 60 * 1000,
+} as const;
+
+/**
+ * Seeded pseudo-random number generator for deterministic tests.
+ * Use this instead of Math.random() in tests.
+ */
+export class SeededRandom {
+  private seed: number;
+
+  constructor(seed: number = 12345) {
+    this.seed = seed;
+  }
+
+  /**
+   * Generate next pseudo-random number between 0 and 1
+   */
+  next(): number {
+    // Linear congruential generator
+    this.seed = (this.seed * 1103515245 + 12345) & 0x7fffffff;
+    return this.seed / 0x7fffffff;
+  }
+
+  /**
+   * Generate pseudo-random integer in range [min, max]
+   */
+  nextInt(min: number, max: number): number {
+    return Math.floor(this.next() * (max - min + 1)) + min;
+  }
+
+  /**
+   * Generate pseudo-random float in range [min, max]
+   */
+  nextFloat(min: number, max: number): number {
+    return this.next() * (max - min) + min;
+  }
+
+  /**
+   * Reset the generator to initial seed
+   */
+  reset(seed?: number): void {
+    this.seed = seed ?? 12345;
+  }
+}
+
+/**
+ * Default seeded random instance for tests.
+ * Call seededRandom.reset() in beforeEach to ensure deterministic behavior.
+ */
+export const seededRandom = new SeededRandom();
+
+/**
+ * Generate a deterministic ID based on a counter.
+ * Use this instead of UUID or random ID generation in tests.
+ */
+let deterministicIdCounter = 0;
+
+export function deterministicId(prefix: string = "test"): string {
+  return `${prefix}-${++deterministicIdCounter}`;
+}
+
+/**
+ * Reset the deterministic ID counter.
+ * Call this in beforeEach to ensure consistent IDs across test runs.
+ */
+export function resetDeterministicId(): void {
+  deterministicIdCounter = 0;
+}
+
+/**
+ * Generate deterministic values for calibration/learning tests.
+ * These provide predictable sequences for testing statistical algorithms.
+ */
+export function deterministicCalibrationData(
+  count: number,
+  seed: number = 42
+): Array<{ actual: number; predicted: number }> {
+  const rng = new SeededRandom(seed);
+  const data: Array<{ actual: number; predicted: number }> = [];
+
+  for (let i = 0; i < count; i++) {
+    const actual = rng.next();
+    // Add small deterministic noise
+    const noise = (rng.next() - 0.5) * 0.1;
+    const predicted = Math.max(0, Math.min(1, actual + noise));
+    data.push({ actual, predicted });
+  }
+
+  return data;
+}
 
 /**
  * Wait for a condition to be true

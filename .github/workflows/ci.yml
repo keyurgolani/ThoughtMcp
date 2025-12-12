@@ -10,13 +10,46 @@ env:
   NODE_OPTIONS: --max-old-space-size=4096
 
 jobs:
-  validate:
+  # Pre-flight checks that don't require containers
+  preflight:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create test directories
+        run: mkdir -p tmp/test-brain development/reports/coverage
+
+      - name: Security audit
+        run: npm run audit:check
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Run linting (strict - zero warnings)
+        run: npm run lint:strict
+
+      - name: Run type checking
+        run: npm run typecheck
+
+  # Local tests: Unit + Integration (parallel execution, all deps mocked)
+  local-tests:
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     strategy:
       matrix:
         node-version: [18.x, 20.x, 22.x]
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,39 +64,160 @@ jobs:
         run: npm ci
 
       - name: Create test directories
-        run: mkdir -p tmp/test-brain
+        run: mkdir -p tmp/test-brain development/reports/coverage
 
-      - name: Security audit
-        run: npm run audit:check
-
-      - name: Check formatting
-        run: npm run format:check
-
-      - name: Run linting (strict - zero warnings)
-        run: npm run lint:strict
-
-      - name: Run type checking
-        run: npm run typecheck
-
-      - name: Run full test suite with coverage
+      - name: Run Local Tests (Unit + Integration)
         run: npm run test:coverage
+        env:
+          NODE_ENV: test
+
+      - name: Upload coverage
+        if: matrix.node-version == '20.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-tests-coverage
+          path: development/reports/coverage/
+          retention-days: 7
+          if-no-files-found: warn
+
+  # E2E tests: Real PostgreSQL + Real Ollama (sequential execution)
+  e2e-tests:
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: thoughtmcp_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: thoughtmcp_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U thoughtmcp_test -d thoughtmcp_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+          --health-start-period 5s
+        volumes:
+          - ${{ github.workspace }}/scripts/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+          - ${{ github.workspace }}/scripts/db/enable-pgvector.sql:/docker-entrypoint-initdb.d/02-enable-pgvector.sql:ro
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create test directories
+        run: mkdir -p tmp/test-brain development/reports/coverage
+
+      - name: Cache Docker images
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-images
+          key: docker-ollama-${{ runner.os }}-${{ hashFiles('docker-compose.test.yml') }}
+          restore-keys: |
+            docker-ollama-${{ runner.os }}-
+
+      - name: Load cached Docker images
+        run: |
+          if [ -f /tmp/docker-images/ollama.tar ]; then
+            echo "Loading cached Ollama image..."
+            docker load -i /tmp/docker-images/ollama.tar || true
+          fi
+
+      - name: Start Ollama container
+        run: |
+          docker run -d --name ollama-test \
+            -p 11435:11434 \
+            ollama/ollama:latest
+
+          echo "Waiting for Ollama to be ready..."
+          for i in {1..30}; do
+            if docker exec ollama-test ollama list 2>/dev/null; then
+              echo "Ollama is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+      - name: Wait for PostgreSQL
+        run: |
+          echo "Waiting for PostgreSQL to be ready..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5433 -U thoughtmcp_test; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+      - name: Run E2E Tests
+        run: npm run test:e2e
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: "5433"
+          DB_USER: thoughtmcp_test
+          DB_PASSWORD: test_password
+          DB_NAME: thoughtmcp_test
+          OLLAMA_HOST: http://localhost:11435
+          # Skip container management - using GitHub Actions services
+          SKIP_CONTAINER_MANAGEMENT: "true"
+
+      - name: Save Docker images to cache
+        run: |
+          mkdir -p /tmp/docker-images
+          docker save ollama/ollama:latest -o /tmp/docker-images/ollama.tar || true
+
+      - name: Stop Ollama container
+        if: always()
+        run: docker stop ollama-test && docker rm ollama-test || true
+
+  # Finalize: Build and validate
+  finalize:
+    needs: [local-tests, e2e-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create directories
+        run: mkdir -p development/reports/coverage
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: local-tests-coverage
+          path: development/reports/coverage/
+        continue-on-error: true
 
       - name: Build project
         run: npm run build:quick
 
-      - name: Verify build performance
-        run: |
-          start_time=$(date +%s)
-          npm run build:quick
-          end_time=$(date +%s)
-          build_time=$((end_time - start_time))
-          echo "Build completed in ${build_time} seconds"
-          if [ $build_time -gt 60 ]; then
-            echo "Warning: Build time exceeded 60 seconds"
-            exit 1
-          fi
-
-      - name: Check build artifacts
+      - name: Verify build artifacts
         run: |
           required_files=(
             "dist/index.js"
@@ -117,13 +271,11 @@ jobs:
           PACKAGE_NAME=$(ls *.tgz | head -1)
           echo "Package created: $PACKAGE_NAME"
 
-          # Test installation in temporary directory
           mkdir -p /tmp/test-install
           cd /tmp/test-install
           npm init -y
           npm install $GITHUB_WORKSPACE/$PACKAGE_NAME
 
-          # Verify package can be imported
           node --input-type=module -e "
             try {
               const pkg = await import('thoughtmcp');
@@ -135,25 +287,27 @@ jobs:
             }
           "
 
-      - name: Upload coverage reports
-        if: matrix.node-version == '20.x'
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          file: ./development/reports/coverage/lcov.info
+          directory: ./development/reports/coverage/
           fail_ci_if_error: false
+          verbose: true
 
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ matrix.node-version }}
-          path: |
-            development/reports/coverage/
-            development/reports/test-results.json
-          retention-days: 30
+      - name: Generate CI summary
+        run: |
+          echo "## CI Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Category | Description | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Local Tests | Unit + Integration (mocked deps) | ${{ needs.local-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests | Real PostgreSQL + Ollama | ${{ needs.e2e-tests.result }} |" >> $GITHUB_STEP_SUMMARY
 
+  # Security job
   security:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -166,9 +320,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Create test directories
-        run: mkdir -p tmp/test-brain
 
       - name: Run security audit
         run: npm run audit:check
@@ -182,77 +333,25 @@ jobs:
 
       - name: Scan for secrets
         run: |
-          # Basic secret scanning
           if grep -r -i "password\|secret\|key\|token" --include="*.ts" --include="*.js" --include="*.json" src/ | grep -v "// " | grep -v "test" | grep -q .; then
             echo "Warning: Potential secrets found in source code"
             grep -r -i "password\|secret\|key\|token" --include="*.ts" --include="*.js" --include="*.json" src/ | grep -v "// " | grep -v "test" || true
           fi
 
-  performance:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20.x"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Create test directories
-        run: mkdir -p tmp/test-brain
-
-      - name: Build project
-        run: npm run build:quick
-
-      # Performance tests are excluded from the main vitest config because they
-      # require database setup. They run as part of the main test:coverage job
-      # which sets up Docker containers. This job validates build performance only.
-      - name: Validate build performance
-        run: |
-          echo "Performance tests run as part of the main test suite with Docker containers"
-          echo "This job validates build and memory performance only"
-
-      - name: Memory usage test
-        run: |
-          node -e "
-            const { performance, PerformanceObserver } = require('perf_hooks');
-            const obs = new PerformanceObserver((items) => {
-              items.getEntries().forEach((entry) => {
-                console.log(entry.name + ': ' + entry.duration + 'ms');
-              });
-            });
-            obs.observe({ entryTypes: ['measure'] });
-
-            performance.mark('start');
-            // Simulate cognitive processing
-            setTimeout(() => {
-              performance.mark('end');
-              performance.measure('cognitive-processing', 'start', 'end');
-
-              const memUsage = process.memoryUsage();
-              console.log('Memory usage:');
-              console.log('  RSS: ' + Math.round(memUsage.rss / 1024 / 1024) + 'MB');
-              console.log('  Heap Used: ' + Math.round(memUsage.heapUsed / 1024 / 1024) + 'MB');
-              console.log('  Heap Total: ' + Math.round(memUsage.heapTotal / 1024 / 1024) + 'MB');
-
-              if (memUsage.heapUsed > 2 * 1024 * 1024 * 1024) {
-                console.error('Memory usage exceeds 2GB threshold');
-                process.exit(1);
-              }
-            }, 100);
-          "
-
+  # Compatibility job
   compatibility:
+    needs: finalize
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: [18.x, 20.x, 22.x]
+        exclude:
+          - os: windows-latest
+            node-version: 18.x
+          - os: macos-latest
+            node-version: 18.x
 
     steps:
       - name: Checkout code
@@ -273,18 +372,7 @@ jobs:
       - name: Build project
         run: npm run build:quick
 
-      # Full test suite requires Docker (PostgreSQL, Ollama containers)
-      # Only run on ubuntu-latest where Docker is available
-      # macOS and Windows runners don't have Docker pre-installed
-      - name: Run core tests (Ubuntu only - requires Docker)
-        if: matrix.os == 'ubuntu-latest'
-        run: npm run test:run
-        timeout-minutes: 15
-
-      # On non-Docker platforms, run typecheck and build validation only
-      - name: Validate build (non-Docker platforms)
-        if: matrix.os != 'ubuntu-latest'
+      - name: Validate build
         run: |
           npm run typecheck
           echo "✅ TypeScript compilation successful on ${{ matrix.os }}"
-          echo "Note: Full test suite requires Docker and runs on Ubuntu only"

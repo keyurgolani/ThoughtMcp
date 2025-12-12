@@ -2165,9 +2165,18 @@ export class CognitiveMCPServer {
     if (!preferredFrameworkId) {
       return selection.primaryFramework;
     }
+
+    // Check if preferred matches the primary framework first
+    if (selection.primaryFramework.id === preferredFrameworkId) {
+      return selection.primaryFramework;
+    }
+
+    // Then check alternatives
     const preferred = selection.alternatives.find(
       (alt) => alt.framework.id === preferredFrameworkId
     );
+
+    // If found in alternatives, use it; otherwise fall back to primary
     return preferred ? preferred.framework : selection.primaryFramework;
   }
 

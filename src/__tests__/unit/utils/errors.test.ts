@@ -94,7 +94,7 @@ describe("Error Hierarchy", () => {
   });
 
   describe("DatabaseError", () => {
-    it("shouatabase error with query and params", () => {
+    it("should create database error with query and params", () => {
       const query = "SELECT * FROM memories WHERE id = $1";
       const params = ["mem123"];
       const error = new DatabaseError(

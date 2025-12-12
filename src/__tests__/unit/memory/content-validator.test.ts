@@ -1,15 +1,20 @@
 /**
  * Content Validator - Unit Tests
  *
- * Tests for ContentValidator class following TDD principles.
- * These tests validate specific examples and edge cases for content length validation.
+ * Tests for ContentValidator class and truncateContent function following TDD principles.
+ * These tests validate specific examples and edge cases for content length validation
+ * and content truncation.
  *
- * Requirements: 8.1, 8.2, 8.3, 8.4
+ * Requirements: 4.1, 4.2, 4.3, 8.1, 8.2, 8.3, 8.4
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { ContentValidator, createContentValidator } from "../../../memory/content-validator";
+import {
+  ContentValidator,
+  createContentValidator,
+  truncateContent,
+} from "../../../memory/content-validator";
 
 describe("ContentValidator - Unit Tests", () => {
   let validator: ContentValidator;
@@ -216,6 +221,174 @@ describe("ContentValidator - Unit Tests", () => {
 
       expect(factoryValidator.getMinLength()).toBe(15);
       expect(factoryValidator.getMaxLength()).toBe(500);
+    });
+  });
+});
+
+/**
+ * truncateContent - Unit Tests
+ *
+ * Tests for truncateContent function following TDD principles.
+ * These tests validate specific examples and edge cases for content truncation.
+ *
+ * Requirements: 4.1, 4.2, 4.3
+ */
+describe("truncateContent - Unit Tests", () => {
+  const DEFAULT_MAX_LENGTH = 500;
+  const DEFAULT_MIN_PRESERVED = 200;
+  const TRUNCATION_INDICATOR = "[truncated]";
+
+  describe("Content within limits (Requirement 4.2)", () => {
+    it("should return empty content as-is", () => {
+      const result = truncateContent("");
+
+      expect(result.isTruncated).toBe(false);
+      expect(result.content).toBe("");
+      expect(result.originalLength).toBe(0);
+    });
+
+    it("should return short content as-is", () => {
+      const content = "Short content";
+      const result = truncateContent(content);
+
+      expect(result.isTruncated).toBe(false);
+      expect(result.content).toBe(content);
+      expect(result.originalLength).toBe(content.length);
+    });
+
+    it("should return content at exactly maxLength as-is", () => {
+      const content = "x".repeat(DEFAULT_MAX_LENGTH);
+      const result = truncateContent(content);
+
+      expect(result.isTruncated).toBe(false);
+      expect(result.content).toBe(content);
+      expect(result.originalLength).toBe(DEFAULT_MAX_LENGTH);
+    });
+
+    it("should not include truncation indicator for content within limits", () => {
+      const content = "This is content within the display limits.";
+      const result = truncateContent(content);
+
+      expect(result.content).not.toContain(TRUNCATION_INDICATOR);
+    });
+  });
+
+  describe("Content exceeding limits (Requirement 4.1)", () => {
+    it("should truncate content exceeding maxLength", () => {
+      const content = "x".repeat(DEFAULT_MAX_LENGTH + 100);
+      const result = truncateContent(content);
+
+      expect(result.isTruncated).toBe(true);
+      expect(result.content.length).toBeLessThan(content.length);
+      expect(result.originalLength).toBe(content.length);
+    });
+
+    it("should append truncation indicator to truncated content", () => {
+      const content = "x".repeat(DEFAULT_MAX_LENGTH + 100);
+      const result = truncateContent(content);
+
+      expect(result.content).toMatch(/\[truncated\]$/);
+    });
+
+    it("should truncate content at maxLength + 1", () => {
+      const content = "x".repeat(DEFAULT_MAX_LENGTH + 1);
+      const result = truncateContent(content);
+
+      expect(result.isTruncated).toBe(true);
+      expect(result.content).toContain(TRUNCATION_INDICATOR);
+    });
+  });
+
+  describe("Minimum preserved content (Requirement 4.3)", () => {
+    it("should preserve at least minPreserved characters when truncating", () => {
+      const content = "x".repeat(1000);
+      const result = truncateContent(content);
+
+      const preservedContent = result.content.replace(TRUNCATION_INDICATOR, "");
+      expect(preservedContent.length).toBeGreaterThanOrEqual(DEFAULT_MIN_PRESERVED);
+    });
+
+    it("should preserve minPreserved even when maxLength is smaller", () => {
+      const smallMaxLength = 100;
+      const content = "x".repeat(300);
+      const result = truncateContent(content, smallMaxLength, DEFAULT_MIN_PRESERVED);
+
+      const preservedContent = result.content.replace(TRUNCATION_INDICATOR, "");
+      expect(preservedContent.length).toBeGreaterThanOrEqual(DEFAULT_MIN_PRESERVED);
+    });
+  });
+
+  describe("Custom parameters", () => {
+    it("should respect custom maxLength", () => {
+      const customMaxLength = 100;
+      const content = "x".repeat(150);
+      const result = truncateContent(content, customMaxLength);
+
+      expect(result.isTruncated).toBe(true);
+      expect(result.content).toContain(TRUNCATION_INDICATOR);
+    });
+
+    it("should not truncate content within custom maxLength", () => {
+      const customMaxLength = 100;
+      const content = "x".repeat(100);
+      const result = truncateContent(content, customMaxLength);
+
+      expect(result.isTruncated).toBe(false);
+      expect(result.content).toBe(content);
+    });
+
+    it("should respect custom minPreserved", () => {
+      const customMinPreserved = 50;
+      const customMaxLength = 100;
+      const content = "x".repeat(200);
+      const result = truncateContent(content, customMaxLength, customMinPreserved);
+
+      if (result.isTruncated) {
+        const preservedContent = result.content.replace(TRUNCATION_INDICATOR, "");
+        expect(preservedContent.length).toBeGreaterThanOrEqual(customMinPreserved);
+      }
+    });
+  });
+
+  describe("Original length tracking", () => {
+    it("should track original length for non-truncated content", () => {
+      const content = "Short content";
+      const result = truncateContent(content);
+
+      expect(result.originalLength).toBe(content.length);
+    });
+
+    it("should track original length for truncated content", () => {
+      const content = "x".repeat(1000);
+      const result = truncateContent(content);
+
+      expect(result.originalLength).toBe(1000);
+    });
+  });
+
+  describe("Special content handling", () => {
+    it("should handle content with newlines", () => {
+      const content = "Line 1\nLine 2\nLine 3";
+      const result = truncateContent(content);
+
+      expect(result.isTruncated).toBe(false);
+      expect(result.content).toBe(content);
+    });
+
+    it("should handle content with unicode characters", () => {
+      const content = "日本語テキスト with mixed content";
+      const result = truncateContent(content);
+
+      expect(result.isTruncated).toBe(false);
+      expect(result.content).toBe(content);
+    });
+
+    it("should handle content with emojis", () => {
+      const content = "Content with émojis 🎉 and spëcial çharacters!";
+      const result = truncateContent(content);
+
+      expect(result.isTruncated).toBe(false);
+      expect(result.content).toBe(content);
     });
   });
 });

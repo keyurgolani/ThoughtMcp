@@ -143,7 +143,7 @@ export class ScientificMethodFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const observeResult = previousResults.find((r) => r.stepId === "observe");
-        if (!observeResult || !observeResult.success) {
+        if (!observeResult?.success) {
           return {
             valid: false,
             issues: ["Observe step must be completed before hypothesizing"],
@@ -199,7 +199,7 @@ export class ScientificMethodFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const hypothesisResult = previousResults.find((r) => r.stepId === "hypothesize");
-        if (!hypothesisResult || !hypothesisResult.success) {
+        if (!hypothesisResult?.success) {
           return {
             valid: false,
             issues: ["Hypothesis must be formulated before designing experiment"],
@@ -255,7 +255,7 @@ export class ScientificMethodFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const experimentResult = previousResults.find((r) => r.stepId === "experiment");
-        if (!experimentResult || !experimentResult.success) {
+        if (!experimentResult?.success) {
           return {
             valid: false,
             issues: ["Experiment must be designed before collecting data"],
@@ -315,7 +315,7 @@ export class ScientificMethodFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const collectResult = previousResults.find((r) => r.stepId === "collect");
-        if (!collectResult || !collectResult.success) {
+        if (!collectResult?.success) {
           return {
             valid: false,
             issues: ["Data must be collected before analysis"],

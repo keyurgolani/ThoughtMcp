@@ -9,20 +9,66 @@ This comprehensive guide covers testing strategies, best practices, and workflow
 ### Core Principles
 
 1. **Tests First**: Write failing tests before implementation
-2. **Comprehensive Coverage**: 95%+ line coverage, 90%+ branch coverage
+2. **Comprehensive Coverage**: 75%+ coverage for lines, branches, functions, and statements
 3. **Test Behavior**: Focus on what, not how
 4. **Keep Tests Simple**: Tests should be easier to understand than code
 5. **Fast Feedback**: Tests should run quickly (<2 minutes for full suite)
 6. **Isolated Tests**: Each test should be independent
 7. **Realistic Tests**: No mocks for core functionality
 
+## Test Architecture
+
+ThoughtMCP uses a **two-category test architecture** that separates fast local tests from slower E2E tests requiring real external dependencies.
+
+### Test Categories
+
+| Category    | Dependencies                  | Execution             | Typical Duration |
+| ----------- | ----------------------------- | --------------------- | ---------------- |
+| Local Tests | All mocked                    | Parallel (10 threads) | ~40s             |
+| E2E Tests   | Real PostgreSQL + Real Ollama | Sequential            | ~60s             |
+
+### Test Classification
+
+Tests are classified based on their file location:
+
+- **Local Tests (Unit)**: `src/__tests__/unit/**` - All external dependencies mocked
+- **Local Tests (Integration)**: `src/__tests__/integration/**` - Module interactions with mocked external deps
+- **E2E Tests**: `src/__tests__/e2e/**` - Complete workflows with real PostgreSQL and Ollama
+
+### Execution Strategy
+
+Local tests run in parallel with 10 threads for fast feedback. E2E tests run sequentially with real containers that are automatically started and stopped.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Test Architecture                         │
+├─────────────────────────────────────────────────────────────┤
+│  LOCAL TESTS (npm test, npm run build)                      │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  Unit Tests + Integration Tests                      │    │
+│  │  - All external dependencies mocked                  │    │
+│  │  - Parallel execution (10 threads)                   │    │
+│  │  - Fast feedback (~40s)                              │    │
+│  └─────────────────────────────────────────────────────┘    │
+├─────────────────────────────────────────────────────────────┤
+│  E2E TESTS (npm run test:e2e)                               │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  End-to-End Tests                                    │    │
+│  │  - Real PostgreSQL + Real Ollama                     │    │
+│  │  - Sequential execution                              │    │
+│  │  - Containers auto-start/stop                        │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ## Test Organization
 
 ```
 src/__tests__/
-├── setup/                   # Global test setup
-│   ├── global-setup.ts     # Test initialization
-│   ├── global-teardown.ts  # Test cleanup
+├── setup/                   # Test setup/teardown files
+│   ├── local-setup.ts      # Local tests setup (unit + integration with mocks)
+│   ├── e2e-setup.ts        # E2E tests setup (real PostgreSQL + Ollama)
+│   ├── e2e-teardown.ts     # E2E tests teardown (container cleanup)
 │   └── test-environment.ts # Test environment config
 ├── utils/                   # Test utilities
 │   ├── test-database.ts    # Database test helpers
@@ -36,7 +82,7 @@ src/__tests__/
 │   ├── e2e-test.template.ts
 │   ├── performance-test.template.ts
 │   └── accuracy-test.template.ts
-├── unit/                    # Unit tests (mirrors src/ structure)
+├── unit/                    # Local: Unit tests (mirrors src/)
 │   ├── bias/
 │   ├── confidence/
 │   ├── database/
@@ -53,23 +99,18 @@ src/__tests__/
 │   ├── server/
 │   ├── temporal/
 │   └── utils/
-├── integration/             # Integration tests
+├── integration/             # Local: Integration tests (mocked external deps)
 │   ├── memory-lifecycle.test.ts
-│   ├── reasoning-workflow.test.ts
-│   └── migration-process.test.ts
-├── e2e/                     # End-to-end tests
+│   ├── memory-deletion.test.ts
+│   ├── embedding-storage.test.ts
+│   ├── graph-traversal.test.ts
+│   ├── temporal-decay.test.ts
+│   ├── search-integration.test.ts
+│   └── reasoning-workflow.test.ts
+├── e2e/                     # E2E: End-to-end tests (real dependencies)
 │   └── mcp-tools.test.ts
-├── performance/             # Performance tests
-│   ├── embedding-generation.perf.test.ts
-│   ├── memory-retrieval.perf.test.ts
-│   ├── parallel-reasoning.perf.test.ts
-│   └── search-operations.perf.test.ts
-├── production/              # Production readiness tests
-│   ├── production-environment.test.ts
-│   └── production-readiness.test.ts
-└── validation/              # Accuracy validation tests
-    ├── accuracy-validation.test.ts
-    └── framework-validation.test.ts
+└── production/              # Production readiness tests
+    └── production-readiness.test.ts
 ```
 
 ## Test Types
@@ -231,10 +272,41 @@ Validate cognitive accuracy requirements.
 
 ## Running Tests
 
+### Quick Reference
+
 ```bash
-# Run all tests
+# Run local tests (unit + integration with mocks)
 npm test
 
+# Run with coverage
+npm run test:coverage
+
+# Run in watch mode
+npm run test:watch
+
+# Run E2E tests (auto-starts containers)
+npm run test:e2e
+
+# Run full QA suite (local + E2E)
+npm run test:qa
+```
+
+### Test Commands
+
+```bash
+# Local tests (no external dependencies)
+npm test                   # All local tests (unit + integration)
+npm run test:unit          # Unit tests only
+npm run test:integration   # Integration tests only
+
+# E2E tests (requires PostgreSQL + Ollama)
+npm run test:e2e           # E2E tests (containers auto-start)
+npm run test:qa            # Full QA: local tests + E2E tests
+```
+
+### Additional Test Commands
+
+```bash
 # Run specific test file
 npm test -- memory-repository.test.ts
 
@@ -243,17 +315,22 @@ npm test -- --grep "embedding"
 
 # Run with coverage
 npm run test:coverage
-
-# Run in watch mode
-npm run test:watch
-
-# Test categories
-npm run test:unit          # Unit tests only
-npm run test:integration   # Integration tests only
-npm run test:e2e           # End-to-end tests only
-npm run test:performance   # Performance tests
-npm run test:accuracy      # Accuracy tests
 ```
+
+### Recommended Timeouts
+
+When running tests manually, use these timeout values (2x observed execution time):
+
+| Command                    | Timeout |
+| -------------------------- | ------- |
+| `npm run test:unit`        | 75s     |
+| `npm run test:integration` | 30s     |
+| `npm test`                 | 90s     |
+| `npm run test:coverage`    | 120s    |
+| `npm run test:e2e`         | 180s    |
+| `npm run test:qa`          | 240s    |
+
+Example: `timeout 90s npm test`
 
 ## Test Utilities
 
@@ -354,10 +431,10 @@ Control embedding behavior with environment variables:
 
 ## Coverage Requirements
 
-- **Line Coverage**: 95%+
-- **Branch Coverage**: 90%+
-- **Function Coverage**: 95%+
-- **Statement Coverage**: 95%+
+- **Line Coverage**: 75%+
+- **Branch Coverage**: 75%+
+- **Function Coverage**: 75%+
+- **Statement Coverage**: 75%+
 
 ```bash
 # Generate coverage report

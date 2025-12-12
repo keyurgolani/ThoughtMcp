@@ -186,16 +186,21 @@ describe("PortAllocator", () => {
     });
 
     it("should handle single port range", async () => {
-      // First find an available port to use for the test
+      // Find an actually available port to test with in a wider range
       const basePort = 59940;
-      let testPort = basePort;
+      let testPort: number | null = null;
 
-      // Find an actually available port to test with
-      for (let p = basePort; p <= basePort + 10; p++) {
+      for (let p = basePort; p <= basePort + 100; p++) {
         if (await allocator.isPortAvailable(p)) {
           testPort = p;
           break;
         }
+      }
+
+      // Skip test if no port available (rare but possible)
+      if (testPort === null) {
+        console.warn("Skipping test: no available port found in range");
+        return;
       }
 
       const foundPort = await allocator.findAvailablePort(testPort, testPort);

@@ -19,6 +19,9 @@ import {
   type StreamResult,
 } from "../../../reasoning/types";
 
+// Counter for deterministic mock stream ID generation
+let mockStreamCounter = 0;
+
 // Mock stream for testing
 class MockReasoningStream implements ReasoningStream {
   public id: string;
@@ -30,7 +33,7 @@ class MockReasoningStream implements ReasoningStream {
   private _cancelled: boolean = false;
 
   constructor(type: StreamType, timeout: number = 10000) {
-    this.id = `mock-${type}-${Date.now()}`;
+    this.id = `mock-${type}-${mockStreamCounter++}`;
     this.type = type;
     this.timeout = timeout;
     this.processor = { getStreamType: () => type };

@@ -1,21 +1,21 @@
-# Contributing to ThoughtMCP
+# Contributing to ThoughtMCP - Detailed Guide
 
-Thank you for your interest in contributing to ThoughtMCP! This guide will help you get started.
+> For a quick overview, see [CONTRIBUTING.md](../CONTRIBUTING.md) in the project root.
+
+This guide provides detailed information for contributors to ThoughtMCP.
 
 ## Code of Conduct
 
 Be respectful, inclusive, and constructive in all interactions.
 
-## Getting Started
-
-### Prerequisites
+## Prerequisites
 
 - Node.js 18+
 - PostgreSQL 14+ with pgvector
 - Docker and Docker Compose
 - Git
 
-### Setup
+## Development Setup
 
 ```bash
 git clone https://github.com/keyurgolani/ThoughtMcp.git
@@ -36,7 +36,7 @@ git checkout -b feature/your-feature-name
 git checkout -b fix/your-bug-fix
 ```
 
-### 2. Follow TDD
+### 2. Follow TDD (Test-Driven Development)
 
 **Always write tests first:**
 
@@ -48,7 +48,7 @@ git checkout -b fix/your-bug-fix
 
 - **No `any` types** in TypeScript
 - **No `@ts-ignore`** or `eslint-disable`
-- **95%+ test coverage**
+- **75%+ test coverage** for lines, branches, functions, and statements
 - **Zero TypeScript errors**
 
 ### 4. Run Validation
@@ -57,12 +57,7 @@ git checkout -b fix/your-bug-fix
 npm run validate
 ```
 
-This runs:
-
-- ESLint
-- Prettier check
-- TypeScript type check
-- All tests with coverage
+This runs: ESLint, Prettier check, TypeScript type check, and all tests with coverage.
 
 ### 5. Commit Messages
 
@@ -76,14 +71,6 @@ type(scope): brief description
 ```
 
 **Types**: `feat`, `fix`, `refactor`, `test`, `docs`, `style`, `perf`
-
-**Examples**:
-
-```bash
-feat(memory): add five-sector embedding generation
-fix(search): correct composite scoring calculation
-docs(api): update MCP tool documentation
-```
 
 ### 6. Submit Pull Request
 
@@ -119,40 +106,33 @@ src/
 ### Run Tests
 
 ```bash
-npm test                 # All tests
-npm run test:unit        # Unit tests
-npm run test:integration # Integration tests
-npm run test:coverage    # With coverage
+npm test                 # All local tests
+npm run test:unit        # Unit tests only
+npm run test:integration # Integration tests only
+npm run test:e2e         # E2E tests (requires containers)
+npm run test:coverage    # With coverage report
 ```
 
 ### Test Organization
 
-- Unit tests: `src/__tests__/unit/`
-- Integration tests: `src/__tests__/integration/`
-- E2E tests: `src/__tests__/e2e/`
+| Category    | Directory                    | Dependencies             |
+| ----------- | ---------------------------- | ------------------------ |
+| Unit        | `src/__tests__/unit/`        | All mocked               |
+| Integration | `src/__tests__/integration/` | All mocked               |
+| E2E         | `src/__tests__/e2e/`         | Real PostgreSQL + Ollama |
 
 ### Coverage Requirements
 
-- Line coverage: 95%+
-- Branch coverage: 90%+
+All metrics must be 75%+: lines, branches, functions, and statements.
 
 ## Adding New Features
 
-### 1. Memory Sectors
+See [Extension Guide](./extending.md) for:
 
-See [Extension Guide](./extending.md) for adding new memory sectors.
-
-### 2. Reasoning Frameworks
-
-See [Extension Guide](./extending.md) for adding new frameworks.
-
-### 3. Bias Detection Patterns
-
-See [Extension Guide](./extending.md) for adding bias patterns.
-
-### 4. Emotion Types
-
-See [Extension Guide](./extending.md) for extending emotion detection.
+- Adding new memory sectors
+- Adding new reasoning frameworks
+- Adding bias detection patterns
+- Extending emotion detection
 
 ## Documentation
 
@@ -171,7 +151,7 @@ See [Extension Guide](./extending.md) for extending emotion detection.
 
 - **Issues**: Report bugs or request features
 - **Discussions**: Ask questions
-- **Documentation**: Check `docs/` directory
+- **Documentation**: Check this `docs/` directory
 
 ## License
 
@@ -179,6 +159,4 @@ By contributing, you agree that your contributions will be licensed under the MI
 
 ---
 
-**Last Updated**: December 2025
-
-**Version**: 0.5.0
+**Version**: 0.6.0

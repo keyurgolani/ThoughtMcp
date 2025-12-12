@@ -74,7 +74,6 @@ export default [
   {
     files: [
       "src/examples/**/*.ts",
-      "src/__tests__/**/*.ts",
       "src/server/**/*.ts", // Allow console in server files for logging
       "src/utils/logger.ts",
       "src/utils/MonitoringDashboard.ts",
@@ -83,7 +82,25 @@ export default [
       "src/utils/version.ts",
     ],
     rules: {
-      "no-console": "off", // Allow console statements in examples and tests
+      "no-console": "off", // Allow console statements in examples
+    },
+  },
+  // Relaxed rules for test files - per steering documentation, 'any' is acceptable
+  // in test files for mocks, invalid input testing, and accessing internals
+  {
+    files: ["src/__tests__/**/*.ts"],
+    rules: {
+      "no-console": "off", // Allow console statements in tests
+      "@typescript-eslint/no-explicit-any": "off", // Allow 'any' for mocks and test utilities
+      "@typescript-eslint/explicit-function-return-type": "off", // Tests don't need explicit return types
+      "max-lines-per-function": "off", // Test functions can be large (setup, multiple assertions)
+      complexity: "off", // Test functions can have complex setup/teardown
+      "max-depth": "off", // Tests may have nested describe/it blocks
+      "@typescript-eslint/no-non-null-assertion": "off", // Allow non-null assertions in tests
+      "@typescript-eslint/prefer-nullish-coalescing": "off", // Allow || for default values in tests
+      "no-duplicate-imports": "off", // Allow duplicate imports in tests (common with mocking)
+      "max-params": "off", // Test helper functions may have many parameters
+      "@typescript-eslint/no-unused-vars": "off", // Allow unused vars in tests (setup variables)
     },
   },
   // Allow larger functions in MCP server handlers (complex tool implementations)

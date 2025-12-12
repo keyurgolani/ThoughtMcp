@@ -1,651 +1,382 @@
 /**
- * Embedding Storage Tests
+ * Embedding Storage Unit Tests
  *
- * Tests for embedding storage and retrieval system using PostgreSQL with pgvector.
+ * Unit tests for EmbeddingStorage class with mocked database dependencies.
  * Tests cover:
- * - Storing five-sector embeddings per memory
- * - Vector similarity search using pgvector
- * - IVFFlat index usage and performance
- * - Embedding updates when memory content changes
- * - Embedding deletion cascade
- * - Multi-sector search with composite scoring
+ * - Storing five-sector embeddings
+ * - Retrieving embeddings
+ * - Updating embeddings
+ * - Deleting embeddings
+ * - Vector similarity search
+ * - Multi-sector search
  * - Error handling (connection failures, invalid data)
  *
- * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
+ * Requirements: 2.1, 3.1
  */
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { DatabaseConnectionManager } from "../../../database/connection-manager";
-import { SchemaMigrationSystem } from "../../../database/schema-migration";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EmbeddingStorage } from "../../../embeddings/embedding-storage";
 import type { MemorySector, SectorEmbeddings } from "../../../embeddings/types";
 
-describe("EmbeddingStorage - Store and Retrieve", () => {
+// Mock DatabaseConnectionManager
+vi.mock("../../../database/connection-manager");
+
+describe("EmbeddingStorage - Unit Tests", () => {
   let storage: EmbeddingStorage;
-  let dbManager: DatabaseConnectionManager;
-  const testMemoryId = "test-memory-001";
+  let mockDbManager: {
+    pool: {
+      query: ReturnType<typeof vi.fn>;
+    } | null;
+  };
 
-  beforeAll(async () => {
-    // Set up database connection and run migrations
-    dbManager = new DatabaseConnectionManager({
-      host: process.env.DB_HOST || "localhost",
-      port: parseInt(process.env.DB_PORT || "5433"),
-      database: process.env.DB_NAME || "thoughtmcp_test",
-      user: process.env.DB_USER || "postgres",
-      password: process.env.DB_PASSWORD || "postgres",
+  beforeEach(() => {
+    mockDbManager = {
+      pool: {
+        query: vi.fn(),
+      },
+    };
+    storage = new EmbeddingStorage(mockDbManager as any);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("storeEmbeddings", () => {
+    it("should store all five sector embeddings for a memory", async () => {
+      const memoryId = "test-memory-001";
+      const embeddings: SectorEmbeddings = {
+        episodic: createTestEmbedding(768, 0.1),
+        semantic: createTestEmbedding(768, 0.2),
+        procedural: createTestEmbedding(768, 0.3),
+        emotional: createTestEmbedding(768, 0.4),
+        reflective: createTestEmbedding(768, 0.5),
+      };
+
+      mockDbManager.pool!.query.mockResolvedValue({ rows: [] });
+
+      await storage.storeEmbeddings(memoryId, embeddings, "nomic-embed-text");
+
+      // Should call query 5 times (once per sector)
+      expect(mockDbManager.pool!.query).toHaveBeenCalledTimes(5);
+
+      // Verify each sector was stored
+      const calls = mockDbManager.pool!.query.mock.calls;
+      const sectors = calls.map((call: unknown[]) => (call[1] as unknown[])[1]);
+      expect(sectors).toContain("episodic");
+      expect(sectors).toContain("semantic");
+      expect(sectors).toContain("procedural");
+      expect(sectors).toContain("emotional");
+      expect(sectors).toContain("reflective");
     });
 
-    await dbManager.connect();
+    it("should throw error when storing embeddings without database connection", async () => {
+      const disconnectedStorage = new EmbeddingStorage({ pool: null } as any);
+      const embeddings: SectorEmbeddings = {
+        episodic: createTestEmbedding(768, 0.1),
+        semantic: createTestEmbedding(768, 0.2),
+        procedural: createTestEmbedding(768, 0.3),
+        emotional: createTestEmbedding(768, 0.4),
+        reflective: createTestEmbedding(768, 0.5),
+      };
 
-    // Run migrations to create schema
-    const migrationSystem = new SchemaMigrationSystem(dbManager);
-    await migrationSystem.runMigrations();
-  });
-
-  afterAll(async () => {
-    await dbManager.disconnect();
-  });
-
-  beforeEach(async () => {
-    storage = new EmbeddingStorage(dbManager);
-
-    // Clean up test data
-    await dbManager.pool!.query("DELETE FROM memory_embeddings WHERE memory_id LIKE 'test-%'");
-    await dbManager.pool!.query("DELETE FROM memories WHERE id LIKE 'test-%'");
-
-    // Insert test memory
-    await dbManager.pool!.query(
-      `INSERT INTO memories (id, content, user_id, session_id, primary_sector)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [testMemoryId, "Test memory content", "test-user", "test-session", "semantic"]
-    );
-  });
-
-  afterEach(async () => {
-    // Clean up
-    await dbManager.pool!.query("DELETE FROM memory_embeddings WHERE memory_id LIKE 'test-%'");
-    await dbManager.pool!.query("DELETE FROM memories WHERE id LIKE 'test-%'");
-  });
-
-  it("should store all five sector embeddings for a memory", async () => {
-    // Requirement 2.1, 2.3: Store five-sector embeddings
-    const embeddings: SectorEmbeddings = {
-      episodic: createTestEmbedding(768, 0.1),
-      semantic: createTestEmbedding(768, 0.2),
-      procedural: createTestEmbedding(768, 0.3),
-      emotional: createTestEmbedding(768, 0.4),
-      reflective: createTestEmbedding(768, 0.5),
-    };
-
-    await storage.storeEmbeddings(testMemoryId, embeddings, "nomic-embed-text");
-
-    // Verify all sectors are stored
-    const result = await dbManager.pool!.query(
-      "SELECT sector, dimension, model FROM memory_embeddings WHERE memory_id = $1 ORDER BY sector",
-      [testMemoryId]
-    );
-
-    expect(result.rows).toHaveLength(5);
-    expect(result.rows.map((r) => r.sector).sort()).toEqual([
-      "emotional",
-      "episodic",
-      "procedural",
-      "reflective",
-      "semantic",
-    ]);
-    expect(result.rows.every((r) => r.dimension === 768)).toBe(true);
-    expect(result.rows.every((r) => r.model === "nomic-embed-text")).toBe(true);
-  });
-
-  it("should retrieve all sector embeddings for a memory", async () => {
-    // Requirement 2.1, 2.3: Retrieve five-sector embeddings
-    const embeddings: SectorEmbeddings = {
-      episodic: createTestEmbedding(768, 0.1),
-      semantic: createTestEmbedding(768, 0.2),
-      procedural: createTestEmbedding(768, 0.3),
-      emotional: createTestEmbedding(768, 0.4),
-      reflective: createTestEmbedding(768, 0.5),
-    };
-
-    await storage.storeEmbeddings(testMemoryId, embeddings, "nomic-embed-text");
-
-    const retrieved = await storage.retrieveEmbeddings(testMemoryId);
-
-    expect(retrieved).toBeDefined();
-    expect(retrieved.episodic).toBeDefined();
-    expect(retrieved.semantic).toBeDefined();
-    expect(retrieved.procedural).toBeDefined();
-    expect(retrieved.emotional).toBeDefined();
-    expect(retrieved.reflective).toBeDefined();
-
-    expect(retrieved.episodic.length).toBe(768);
-    expect(retrieved.semantic.length).toBe(768);
-    expect(retrieved.procedural.length).toBe(768);
-    expect(retrieved.emotional.length).toBe(768);
-    expect(retrieved.reflective.length).toBe(768);
-  });
-
-  it("should retrieve specific sectors when requested", async () => {
-    // Requirement 2.1, 2.3: Selective sector retrieval
-    const embeddings: SectorEmbeddings = {
-      episodic: createTestEmbedding(768, 0.1),
-      semantic: createTestEmbedding(768, 0.2),
-      procedural: createTestEmbedding(768, 0.3),
-      emotional: createTestEmbedding(768, 0.4),
-      reflective: createTestEmbedding(768, 0.5),
-    };
-
-    await storage.storeEmbeddings(testMemoryId, embeddings, "nomic-embed-text");
-
-    const retrieved = await storage.retrieveEmbeddings(testMemoryId, [
-      "semantic" as MemorySector,
-      "episodic" as MemorySector,
-    ]);
-
-    expect(retrieved.semantic).toBeDefined();
-    expect(retrieved.episodic).toBeDefined();
-    expect(retrieved.semantic.length).toBe(768);
-    expect(retrieved.episodic.length).toBe(768);
-  });
-
-  it("should update embeddings when memory content changes", async () => {
-    // Requirement 2.3: Update embeddings
-    const originalEmbeddings: SectorEmbeddings = {
-      episodic: createTestEmbedding(768, 0.1),
-      semantic: createTestEmbedding(768, 0.2),
-      procedural: createTestEmbedding(768, 0.3),
-      emotional: createTestEmbedding(768, 0.4),
-      reflective: createTestEmbedding(768, 0.5),
-    };
-
-    await storage.storeEmbeddings(testMemoryId, originalEmbeddings, "nomic-embed-text");
-
-    // Update semantic embedding
-    const updatedEmbeddings: Partial<SectorEmbeddings> = {
-      semantic: createTestEmbedding(768, 0.9),
-    };
-
-    await storage.updateEmbeddings(testMemoryId, updatedEmbeddings, "nomic-embed-text");
-
-    const retrieved = await storage.retrieveEmbeddings(testMemoryId);
-
-    // Semantic should be updated - verify it matches the new embedding
-    const expectedSemanticEmbedding = createTestEmbedding(768, 0.9);
-    expect(retrieved.semantic[0]).toBeCloseTo(expectedSemanticEmbedding[0], 3);
-
-    // Others should remain unchanged
-    const expectedEpisodicEmbedding = createTestEmbedding(768, 0.1);
-    expect(retrieved.episodic[0]).toBeCloseTo(expectedEpisodicEmbedding[0], 3);
-  });
-
-  it("should delete embeddings when memory is deleted", async () => {
-    // Requirement 2.3: Cascade deletion
-    const embeddings: SectorEmbeddings = {
-      episodic: createTestEmbedding(768, 0.1),
-      semantic: createTestEmbedding(768, 0.2),
-      procedural: createTestEmbedding(768, 0.3),
-      emotional: createTestEmbedding(768, 0.4),
-      reflective: createTestEmbedding(768, 0.5),
-    };
-
-    await storage.storeEmbeddings(testMemoryId, embeddings, "nomic-embed-text");
-
-    await storage.deleteEmbeddings(testMemoryId);
-
-    const result = await dbManager.pool!.query(
-      "SELECT COUNT(*) as count FROM memory_embeddings WHERE memory_id = $1",
-      [testMemoryId]
-    );
-
-    expect(parseInt(result.rows[0].count)).toBe(0);
-  });
-});
-
-describe("EmbeddingStorage - Vector Similarity Search", () => {
-  let storage: EmbeddingStorage;
-  let dbManager: DatabaseConnectionManager;
-
-  beforeAll(async () => {
-    dbManager = new DatabaseConnectionManager({
-      host: process.env.DB_HOST || "localhost",
-      port: parseInt(process.env.DB_PORT || "5433"),
-      database: process.env.DB_NAME || "thoughtmcp_test",
-      user: process.env.DB_USER || "postgres",
-      password: process.env.DB_PASSWORD || "postgres",
+      await expect(
+        disconnectedStorage.storeEmbeddings("test-id", embeddings, "test-model")
+      ).rejects.toThrow("Database not connected");
     });
 
-    await dbManager.connect();
+    it("should throw error when embeddings have different dimensions", async () => {
+      const memoryId = "test-memory-001";
+      const invalidEmbeddings: SectorEmbeddings = {
+        episodic: createTestEmbedding(512, 0.1), // Different dimension
+        semantic: createTestEmbedding(768, 0.2),
+        procedural: createTestEmbedding(768, 0.3),
+        emotional: createTestEmbedding(768, 0.4),
+        reflective: createTestEmbedding(768, 0.5),
+      };
 
-    // Run migrations to create schema
-    const migrationSystem = new SchemaMigrationSystem(dbManager);
-    await migrationSystem.runMigrations();
-  });
+      await expect(
+        storage.storeEmbeddings(memoryId, invalidEmbeddings, "nomic-embed-text")
+      ).rejects.toThrow("All embeddings must have the same dimension");
+    });
 
-  afterAll(async () => {
-    await dbManager.disconnect();
-  });
+    it("should use provided client when passed", async () => {
+      const memoryId = "test-memory-001";
+      const embeddings: SectorEmbeddings = {
+        episodic: createTestEmbedding(768, 0.1),
+        semantic: createTestEmbedding(768, 0.2),
+        procedural: createTestEmbedding(768, 0.3),
+        emotional: createTestEmbedding(768, 0.4),
+        reflective: createTestEmbedding(768, 0.5),
+      };
 
-  beforeEach(async () => {
-    storage = new EmbeddingStorage(dbManager);
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({ rows: [] }),
+      };
 
-    // Clean up test data
-    await dbManager.pool!.query("DELETE FROM memory_embeddings WHERE memory_id LIKE 'test-%'");
-    await dbManager.pool!.query("DELETE FROM memories WHERE id LIKE 'test-%'");
+      await storage.storeEmbeddings(memoryId, embeddings, "nomic-embed-text", mockClient as any);
 
-    // Insert test memories with embeddings
-    await insertTestMemoriesWithEmbeddings(dbManager, storage);
-  });
-
-  afterEach(async () => {
-    await dbManager.pool!.query("DELETE FROM memory_embeddings WHERE memory_id LIKE 'test-%'");
-    await dbManager.pool!.query("DELETE FROM memories WHERE id LIKE 'test-%'");
-  });
-
-  it("should perform vector similarity search using pgvector", async () => {
-    // Requirement 2.2, 2.5: Vector similarity search
-    const queryEmbedding = createTestEmbedding(768, 0.1);
-
-    const results = await storage.vectorSimilaritySearch(
-      queryEmbedding,
-      "semantic" as MemorySector,
-      10,
-      0.5
-    );
-
-    expect(results).toBeDefined();
-    expect(Array.isArray(results)).toBe(true);
-    expect(results.length).toBeGreaterThan(0);
-
-    // Results should be sorted by similarity (descending)
-    for (let i = 1; i < results.length; i++) {
-      expect(results[i - 1].similarity).toBeGreaterThanOrEqual(results[i].similarity);
-    }
-
-    // All results should meet threshold
-    results.forEach((result) => {
-      expect(result.similarity).toBeGreaterThanOrEqual(0.5);
-      expect(result.memoryId).toBeDefined();
-      expect(result.sector).toBe("semantic");
+      // Should use provided client, not pool
+      expect(mockClient.query).toHaveBeenCalledTimes(5);
+      expect(mockDbManager.pool!.query).not.toHaveBeenCalled();
     });
   });
 
-  it("should complete similarity search within performance target", async () => {
-    // Requirement 2.5: p95 <200ms for vector search
-    const queryEmbedding = createTestEmbedding(768, 0.5);
+  describe("retrieveEmbeddings", () => {
+    it("should retrieve all sector embeddings for a memory", async () => {
+      const memoryId = "test-memory-001";
+      mockDbManager.pool!.query.mockResolvedValue({
+        rows: [
+          { sector: "episodic", embedding: JSON.stringify(createTestEmbedding(768, 0.1)) },
+          { sector: "semantic", embedding: JSON.stringify(createTestEmbedding(768, 0.2)) },
+          { sector: "procedural", embedding: JSON.stringify(createTestEmbedding(768, 0.3)) },
+          { sector: "emotional", embedding: JSON.stringify(createTestEmbedding(768, 0.4)) },
+          { sector: "reflective", embedding: JSON.stringify(createTestEmbedding(768, 0.5)) },
+        ],
+      });
 
-    const startTime = Date.now();
-    await storage.vectorSimilaritySearch(queryEmbedding, "semantic" as MemorySector, 10, 0.5);
-    const duration = Date.now() - startTime;
+      const result = await storage.retrieveEmbeddings(memoryId);
 
-    // Should complete in reasonable time (relaxed for test environment)
-    expect(duration).toBeLessThan(500); // 500ms for test environment
-  });
-
-  it("should use IVFFlat index for fast approximate search", async () => {
-    // Requirement 2.2, 2.5: IVFFlat index usage
-    const queryEmbedding = createTestEmbedding(768, 0.3);
-
-    // Query should use index (verified by performance)
-    const startTime = Date.now();
-    const results = await storage.vectorSimilaritySearch(
-      queryEmbedding,
-      "semantic" as MemorySector,
-      10,
-      0.5
-    );
-    const duration = Date.now() - startTime;
-
-    expect(results).toBeDefined();
-    expect(duration).toBeLessThan(500); // Fast due to index
-  });
-
-  it("should limit results to specified count", async () => {
-    // Requirement 2.2: Result limiting
-    const queryEmbedding = createTestEmbedding(768, 0.2);
-
-    const results = await storage.vectorSimilaritySearch(
-      queryEmbedding,
-      "semantic" as MemorySector,
-      3,
-      0.0
-    );
-
-    expect(results.length).toBeLessThanOrEqual(3);
-  });
-
-  it("should filter results by similarity threshold", async () => {
-    // Requirement 2.2: Threshold filtering
-    const queryEmbedding = createTestEmbedding(768, 0.4);
-
-    const results = await storage.vectorSimilaritySearch(
-      queryEmbedding,
-      "semantic" as MemorySector,
-      10,
-      0.8
-    );
-
-    // All results should meet high threshold
-    results.forEach((result) => {
-      expect(result.similarity).toBeGreaterThanOrEqual(0.8);
-    });
-  });
-});
-
-describe("EmbeddingStorage - Multi-Sector Search", () => {
-  let storage: EmbeddingStorage;
-  let dbManager: DatabaseConnectionManager;
-
-  beforeAll(async () => {
-    dbManager = new DatabaseConnectionManager({
-      host: process.env.DB_HOST || "localhost",
-      port: parseInt(process.env.DB_PORT || "5433"),
-      database: process.env.DB_NAME || "thoughtmcp_test",
-      user: process.env.DB_USER || "postgres",
-      password: process.env.DB_PASSWORD || "postgres",
+      expect(result.episodic).toBeDefined();
+      expect(result.semantic).toBeDefined();
+      expect(result.procedural).toBeDefined();
+      expect(result.emotional).toBeDefined();
+      expect(result.reflective).toBeDefined();
+      expect(result.episodic.length).toBe(768);
     });
 
-    await dbManager.connect();
+    it("should retrieve specific sectors when requested", async () => {
+      const memoryId = "test-memory-001";
+      mockDbManager.pool!.query.mockResolvedValue({
+        rows: [
+          { sector: "semantic", embedding: JSON.stringify(createTestEmbedding(768, 0.2)) },
+          { sector: "episodic", embedding: JSON.stringify(createTestEmbedding(768, 0.1)) },
+        ],
+      });
 
-    // Run migrations to create schema
-    const migrationSystem = new SchemaMigrationSystem(dbManager);
-    await migrationSystem.runMigrations();
-  });
-
-  afterAll(async () => {
-    await dbManager.disconnect();
-  });
-
-  beforeEach(async () => {
-    storage = new EmbeddingStorage(dbManager);
-
-    await dbManager.pool!.query("DELETE FROM memory_embeddings WHERE memory_id LIKE 'test-%'");
-    await dbManager.pool!.query("DELETE FROM memories WHERE id LIKE 'test-%'");
-
-    await insertTestMemoriesWithEmbeddings(dbManager, storage);
-  });
-
-  afterEach(async () => {
-    await dbManager.pool!.query("DELETE FROM memory_embeddings WHERE memory_id LIKE 'test-%'");
-    await dbManager.pool!.query("DELETE FROM memories WHERE id LIKE 'test-%'");
-  });
-
-  it("should perform multi-sector search with composite scoring", async () => {
-    // Requirement 2.1, 2.2: Multi-sector search
-    const queryEmbeddings: Partial<SectorEmbeddings> = {
-      semantic: createTestEmbedding(768, 0.2),
-      episodic: createTestEmbedding(768, 0.1),
-    };
-
-    const weights = {
-      semantic: 0.6,
-      episodic: 0.4,
-    };
-
-    const results = await storage.multiSectorSearch(queryEmbeddings, weights, 10);
-
-    expect(results).toBeDefined();
-    expect(Array.isArray(results)).toBe(true);
-    expect(results.length).toBeGreaterThan(0);
-
-    // Results should be sorted by composite score
-    for (let i = 1; i < results.length; i++) {
-      expect(results[i - 1].similarity).toBeGreaterThanOrEqual(results[i].similarity);
-    }
-  });
-
-  it("should weight sectors according to specified weights", async () => {
-    // Requirement 2.1, 2.2: Weighted sector search
-    const queryEmbeddings: Partial<SectorEmbeddings> = {
-      semantic: createTestEmbedding(768, 0.5),
-      emotional: createTestEmbedding(768, 0.3),
-    };
-
-    // Heavily weight semantic
-    const weights = {
-      semantic: 0.9,
-      emotional: 0.1,
-    };
-
-    const results = await storage.multiSectorSearch(queryEmbeddings, weights, 5);
-
-    expect(results).toBeDefined();
-    expect(results.length).toBeGreaterThan(0);
-  });
-});
-
-describe("EmbeddingStorage - Error Handling", () => {
-  let storage: EmbeddingStorage;
-  let dbManager: DatabaseConnectionManager;
-
-  beforeAll(async () => {
-    dbManager = new DatabaseConnectionManager({
-      host: process.env.DB_HOST || "localhost",
-      port: parseInt(process.env.DB_PORT || "5433"),
-      database: process.env.DB_NAME || "thoughtmcp_test",
-      user: process.env.DB_USER || "postgres",
-      password: process.env.DB_PASSWORD || "postgres",
-    });
-
-    await dbManager.connect();
-
-    // Run migrations to create schema
-    const migrationSystem = new SchemaMigrationSystem(dbManager);
-    await migrationSystem.runMigrations();
-  });
-
-  afterAll(async () => {
-    await dbManager.disconnect();
-  });
-
-  beforeEach(async () => {
-    storage = new EmbeddingStorage(dbManager);
-  });
-
-  it("should handle storing embeddings for non-existent memory", async () => {
-    // Requirement 2.3: Error handling
-    const embeddings: SectorEmbeddings = {
-      episodic: createTestEmbedding(768, 0.1),
-      semantic: createTestEmbedding(768, 0.2),
-      procedural: createTestEmbedding(768, 0.3),
-      emotional: createTestEmbedding(768, 0.4),
-      reflective: createTestEmbedding(768, 0.5),
-    };
-
-    await expect(
-      storage.storeEmbeddings("non-existent-memory", embeddings, "nomic-embed-text")
-    ).rejects.toThrow();
-  });
-
-  it("should handle retrieving embeddings for non-existent memory", async () => {
-    // Requirement 2.3: Error handling
-    const retrieved = await storage.retrieveEmbeddings("non-existent-memory");
-
-    // Should return empty or throw - implementation dependent
-    expect(retrieved).toBeDefined();
-  });
-
-  it("should handle invalid embedding dimensions", async () => {
-    // Requirement 2.4: Dimension validation
-    const invalidEmbeddings: SectorEmbeddings = {
-      episodic: createTestEmbedding(512, 0.1), // Wrong dimension
-      semantic: createTestEmbedding(768, 0.2),
-      procedural: createTestEmbedding(768, 0.3),
-      emotional: createTestEmbedding(768, 0.4),
-      reflective: createTestEmbedding(768, 0.5),
-    };
-
-    // Should handle dimension mismatch gracefully
-    await expect(
-      storage.storeEmbeddings("test-memory-invalid", invalidEmbeddings, "nomic-embed-text")
-    ).rejects.toThrow();
-  });
-
-  it("should throw error when database not connected for storeEmbeddings", async () => {
-    // Test error handling when database is not connected
-    const disconnectedManager = new DatabaseConnectionManager({
-      host: "localhost",
-      port: 5433,
-      database: "test",
-      user: "test",
-      password: "test",
-    });
-    const disconnectedStorage = new EmbeddingStorage(disconnectedManager);
-
-    const embeddings: SectorEmbeddings = {
-      episodic: createTestEmbedding(768, 0.1),
-      semantic: createTestEmbedding(768, 0.2),
-      procedural: createTestEmbedding(768, 0.3),
-      emotional: createTestEmbedding(768, 0.4),
-      reflective: createTestEmbedding(768, 0.5),
-    };
-
-    await expect(
-      disconnectedStorage.storeEmbeddings("test-id", embeddings, "test-model")
-    ).rejects.toThrow("Database not connected");
-  });
-
-  it("should throw error when database not connected for retrieveEmbeddings", async () => {
-    const disconnectedManager = new DatabaseConnectionManager({
-      host: "localhost",
-      port: 5433,
-      database: "test",
-      user: "test",
-      password: "test",
-    });
-    const disconnectedStorage = new EmbeddingStorage(disconnectedManager);
-
-    await expect(disconnectedStorage.retrieveEmbeddings("test-id")).rejects.toThrow(
-      "Database not connected"
-    );
-  });
-
-  it("should throw error when database not connected for updateEmbeddings", async () => {
-    const disconnectedManager = new DatabaseConnectionManager({
-      host: "localhost",
-      port: 5433,
-      database: "test",
-      user: "test",
-      password: "test",
-    });
-    const disconnectedStorage = new EmbeddingStorage(disconnectedManager);
-
-    await expect(disconnectedStorage.updateEmbeddings("test-id", {}, "test-model")).rejects.toThrow(
-      "Database not connected"
-    );
-  });
-
-  it("should throw error when database not connected for deleteEmbeddings", async () => {
-    const disconnectedManager = new DatabaseConnectionManager({
-      host: "localhost",
-      port: 5433,
-      database: "test",
-      user: "test",
-      password: "test",
-    });
-    const disconnectedStorage = new EmbeddingStorage(disconnectedManager);
-
-    await expect(disconnectedStorage.deleteEmbeddings("test-id")).rejects.toThrow(
-      "Database not connected"
-    );
-  });
-
-  it("should throw error when database not connected for vectorSimilaritySearch", async () => {
-    const disconnectedManager = new DatabaseConnectionManager({
-      host: "localhost",
-      port: 5433,
-      database: "test",
-      user: "test",
-      password: "test",
-    });
-    const disconnectedStorage = new EmbeddingStorage(disconnectedManager);
-
-    await expect(
-      disconnectedStorage.vectorSimilaritySearch(
-        createTestEmbedding(768, 0.1),
+      const result = await storage.retrieveEmbeddings(memoryId, [
         "semantic" as MemorySector,
-        10
-      )
-    ).rejects.toThrow("Database not connected");
-  });
+        "episodic" as MemorySector,
+      ]);
 
-  it("should throw error when database not connected for multiSectorSearch", async () => {
-    const disconnectedManager = new DatabaseConnectionManager({
-      host: "localhost",
-      port: 5433,
-      database: "test",
-      user: "test",
-      password: "test",
+      expect(result.semantic).toBeDefined();
+      expect(result.episodic).toBeDefined();
+      expect(result.semantic.length).toBe(768);
     });
-    const disconnectedStorage = new EmbeddingStorage(disconnectedManager);
 
-    await expect(
-      disconnectedStorage.multiSectorSearch({ semantic: createTestEmbedding(768, 0.1) }, {}, 10)
-    ).rejects.toThrow("Database not connected");
+    it("should return empty arrays for missing sectors", async () => {
+      const memoryId = "test-memory-001";
+      mockDbManager.pool!.query.mockResolvedValue({
+        rows: [{ sector: "semantic", embedding: JSON.stringify(createTestEmbedding(768, 0.2)) }],
+      });
+
+      const result = await storage.retrieveEmbeddings(memoryId);
+
+      expect(result.semantic.length).toBe(768);
+      expect(result.episodic).toEqual([]);
+      expect(result.procedural).toEqual([]);
+      expect(result.emotional).toEqual([]);
+      expect(result.reflective).toEqual([]);
+    });
+
+    it("should throw error when retrieving embeddings without database connection", async () => {
+      const disconnectedStorage = new EmbeddingStorage({ pool: null } as any);
+
+      await expect(disconnectedStorage.retrieveEmbeddings("test-id")).rejects.toThrow(
+        "Database not connected"
+      );
+    });
+
+    it("should parse embedding from array format", async () => {
+      const memoryId = "test-memory-001";
+      const embedding = createTestEmbedding(768, 0.1);
+      mockDbManager.pool!.query.mockResolvedValue({
+        rows: [{ sector: "semantic", embedding: embedding }], // Array format
+      });
+
+      const result = await storage.retrieveEmbeddings(memoryId, ["semantic" as MemorySector]);
+
+      expect(result.semantic).toEqual(embedding);
+    });
+
+    it("should throw error for invalid embedding format", async () => {
+      const memoryId = "test-memory-001";
+      mockDbManager.pool!.query.mockResolvedValue({
+        rows: [{ sector: "semantic", embedding: 12345 }], // Invalid format
+      });
+
+      await expect(storage.retrieveEmbeddings(memoryId)).rejects.toThrow(
+        "Invalid embedding format"
+      );
+    });
   });
 
-  it("should handle updateEmbeddings with empty embeddings object", async () => {
-    // Test that updateEmbeddings handles empty updates gracefully
-    const memoryId = "test-memory-update-empty";
+  describe("updateEmbeddings", () => {
+    it("should update specific sector embeddings", async () => {
+      const memoryId = "test-memory-001";
+      const updatedEmbeddings: Partial<SectorEmbeddings> = {
+        semantic: createTestEmbedding(768, 0.9),
+      };
 
-    await dbManager.pool!.query(
-      `INSERT INTO memories (id, content, user_id, session_id, primary_sector)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [memoryId, "Test content", "test-user", "test-session", "semantic"]
-    );
+      mockDbManager.pool!.query.mockResolvedValue({ rows: [] });
 
-    // Store initial embeddings
-    const embeddings: SectorEmbeddings = {
-      episodic: createTestEmbedding(768, 0.1),
-      semantic: createTestEmbedding(768, 0.2),
-      procedural: createTestEmbedding(768, 0.3),
-      emotional: createTestEmbedding(768, 0.4),
-      reflective: createTestEmbedding(768, 0.5),
-    };
+      await storage.updateEmbeddings(memoryId, updatedEmbeddings, "nomic-embed-text");
 
-    await storage.storeEmbeddings(memoryId, embeddings, "test-model");
+      expect(mockDbManager.pool!.query).toHaveBeenCalledTimes(1);
+      expect(mockDbManager.pool!.query).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE memory_embeddings"),
+        expect.arrayContaining([memoryId, "semantic"])
+      );
+    });
 
-    // Update with empty object should not throw
-    await expect(storage.updateEmbeddings(memoryId, {}, "test-model")).resolves.not.toThrow();
+    it("should skip empty embeddings", async () => {
+      const memoryId = "test-memory-001";
+      const updatedEmbeddings: Partial<SectorEmbeddings> = {
+        semantic: [],
+      };
 
-    // Clean up
-    await dbManager.pool!.query("DELETE FROM memory_embeddings WHERE memory_id = $1", [memoryId]);
-    await dbManager.pool!.query("DELETE FROM memories WHERE id = $1", [memoryId]);
+      await storage.updateEmbeddings(memoryId, updatedEmbeddings, "nomic-embed-text");
+
+      expect(mockDbManager.pool!.query).not.toHaveBeenCalled();
+    });
+
+    it("should handle empty embeddings object", async () => {
+      const memoryId = "test-memory-001";
+
+      await storage.updateEmbeddings(memoryId, {}, "nomic-embed-text");
+
+      expect(mockDbManager.pool!.query).not.toHaveBeenCalled();
+    });
+
+    it("should throw error when updating embeddings without database connection", async () => {
+      const disconnectedStorage = new EmbeddingStorage({ pool: null } as any);
+
+      await expect(
+        disconnectedStorage.updateEmbeddings("test-id", {}, "test-model")
+      ).rejects.toThrow("Database not connected");
+    });
   });
 
-  it("should handle updateEmbeddings with empty array embeddings", async () => {
-    // Test that updateEmbeddings skips empty array embeddings
-    const memoryId = "test-memory-update-empty-array";
+  describe("deleteEmbeddings", () => {
+    it("should delete all embeddings for a memory", async () => {
+      const memoryId = "test-memory-001";
+      mockDbManager.pool!.query.mockResolvedValue({ rows: [] });
 
-    await dbManager.pool!.query(
-      `INSERT INTO memories (id, content, user_id, session_id, primary_sector)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [memoryId, "Test content", "test-user", "test-session", "semantic"]
-    );
+      await storage.deleteEmbeddings(memoryId);
 
-    // Store initial embeddings
-    const embeddings: SectorEmbeddings = {
-      episodic: createTestEmbedding(768, 0.1),
-      semantic: createTestEmbedding(768, 0.2),
-      procedural: createTestEmbedding(768, 0.3),
-      emotional: createTestEmbedding(768, 0.4),
-      reflective: createTestEmbedding(768, 0.5),
-    };
+      expect(mockDbManager.pool!.query).toHaveBeenCalledWith(
+        "DELETE FROM memory_embeddings WHERE memory_id = $1",
+        [memoryId]
+      );
+    });
 
-    await storage.storeEmbeddings(memoryId, embeddings, "test-model");
+    it("should throw error when deleting embeddings without database connection", async () => {
+      const disconnectedStorage = new EmbeddingStorage({ pool: null } as any);
 
-    // Update with empty array should not throw
-    await expect(
-      storage.updateEmbeddings(memoryId, { semantic: [] }, "test-model")
-    ).resolves.not.toThrow();
+      await expect(disconnectedStorage.deleteEmbeddings("test-id")).rejects.toThrow(
+        "Database not connected"
+      );
+    });
+  });
 
-    // Clean up
-    await dbManager.pool!.query("DELETE FROM memory_embeddings WHERE memory_id = $1", [memoryId]);
-    await dbManager.pool!.query("DELETE FROM memories WHERE id = $1", [memoryId]);
+  describe("vectorSimilaritySearch", () => {
+    it("should perform vector similarity search", async () => {
+      const queryEmbedding = createTestEmbedding(768, 0.1);
+      mockDbManager.pool!.query.mockResolvedValue({
+        rows: [
+          { memory_id: "mem-1", sector: "semantic", similarity: "0.95" },
+          { memory_id: "mem-2", sector: "semantic", similarity: "0.85" },
+        ],
+      });
+
+      const results = await storage.vectorSimilaritySearch(
+        queryEmbedding,
+        "semantic" as MemorySector,
+        10,
+        0.5
+      );
+
+      expect(results).toHaveLength(2);
+      expect(results[0].memoryId).toBe("mem-1");
+      expect(results[0].similarity).toBe(0.95);
+      expect(results[0].sector).toBe("semantic");
+    });
+
+    it("should throw error when searching vectors without database connection", async () => {
+      const disconnectedStorage = new EmbeddingStorage({ pool: null } as any);
+
+      await expect(
+        disconnectedStorage.vectorSimilaritySearch(
+          createTestEmbedding(768, 0.1),
+          "semantic" as MemorySector,
+          10
+        )
+      ).rejects.toThrow("Database not connected");
+    });
+  });
+
+  describe("multiSectorSearch", () => {
+    it("should perform multi-sector search with weighted scoring", async () => {
+      const queryEmbeddings: Partial<SectorEmbeddings> = {
+        semantic: createTestEmbedding(768, 0.2),
+        episodic: createTestEmbedding(768, 0.1),
+      };
+      const weights = {
+        semantic: 0.6,
+        episodic: 0.4,
+      };
+
+      mockDbManager.pool!.query.mockResolvedValue({
+        rows: [
+          { memory_id: "mem-1", similarity: "0.85" },
+          { memory_id: "mem-2", similarity: "0.75" },
+        ],
+      });
+
+      const results = await storage.multiSectorSearch(queryEmbeddings, weights, 10);
+
+      expect(results).toHaveLength(2);
+      expect(results[0].memoryId).toBe("mem-1");
+      expect(results[0].similarity).toBe(0.85);
+    });
+
+    it("should return empty array when no query embeddings provided", async () => {
+      const results = await storage.multiSectorSearch({}, {}, 10);
+
+      expect(results).toEqual([]);
+      expect(mockDbManager.pool!.query).not.toHaveBeenCalled();
+    });
+
+    it("should return empty array when all weights are zero", async () => {
+      const queryEmbeddings: Partial<SectorEmbeddings> = {
+        semantic: createTestEmbedding(768, 0.5),
+        episodic: createTestEmbedding(768, 0.3),
+      };
+      const weights = {
+        semantic: 0,
+        episodic: 0,
+      };
+
+      const results = await storage.multiSectorSearch(queryEmbeddings, weights, 10);
+
+      expect(results).toEqual([]);
+    });
+
+    it("should throw error when multi-sector searching without database connection", async () => {
+      const disconnectedStorage = new EmbeddingStorage({ pool: null } as any);
+
+      await expect(
+        disconnectedStorage.multiSectorSearch(
+          { semantic: createTestEmbedding(768, 0.1) },
+          { semantic: 0.5 },
+          10
+        )
+      ).rejects.toThrow("Database not connected");
+    });
   });
 });
 
-// Helper functions
-
+// Helper function
 function createTestEmbedding(dimension: number, seed: number): number[] {
   const embedding = new Array(dimension);
   for (let i = 0; i < dimension; i++) {
@@ -654,173 +385,4 @@ function createTestEmbedding(dimension: number, seed: number): number[] {
   // Normalize to unit vector
   const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
   return embedding.map((val) => val / magnitude);
-}
-
-describe("EmbeddingStorage - Edge Cases", () => {
-  let dbManager: DatabaseConnectionManager;
-  let storage: EmbeddingStorage;
-
-  beforeAll(async () => {
-    dbManager = new DatabaseConnectionManager({
-      host: process.env.DB_HOST || "localhost",
-      port: parseInt(process.env.DB_PORT || "5433"),
-      database: process.env.DB_NAME || "thoughtmcp_test",
-      user: process.env.DB_USER || "postgres",
-      password: process.env.DB_PASSWORD || "postgres",
-    });
-
-    await dbManager.connect();
-
-    const migrationSystem = new SchemaMigrationSystem(dbManager);
-    await migrationSystem.runMigrations();
-  });
-
-  afterAll(async () => {
-    await dbManager.disconnect();
-  });
-
-  beforeEach(async () => {
-    storage = new EmbeddingStorage(dbManager);
-  });
-
-  it("should return empty array when no query embeddings provided", async () => {
-    // Requirement: Handle edge case of empty query embeddings
-    const result = await storage.multiSectorSearch({}, {}, 10);
-
-    expect(result).toEqual([]);
-  });
-
-  it("should handle transaction rollback on error", async () => {
-    // Requirement: Test transaction rollback scenario
-    const memoryId = "test-memory-rollback";
-
-    // Insert memory
-    await dbManager.pool!.query(
-      `INSERT INTO memories (id, content, user_id, session_id, primary_sector)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [memoryId, "Test content", "test-user", "test-session", "semantic"]
-    );
-
-    // Try to store embeddings with invalid dimension (should fail)
-    const invalidEmbeddings: SectorEmbeddings = {
-      episodic: [0.1, 0.2], // Wrong dimension
-      semantic: [0.1, 0.2],
-      procedural: [0.1, 0.2],
-      emotional: [0.1, 0.2],
-      reflective: [0.1, 0.2],
-    };
-
-    await expect(
-      storage.storeEmbeddings(memoryId, invalidEmbeddings, "test-model")
-    ).rejects.toThrow();
-
-    // Verify no embeddings were stored (transaction rolled back)
-    const result = await dbManager.pool!.query(
-      "SELECT COUNT(*) FROM memory_embeddings WHERE memory_id = $1",
-      [memoryId]
-    );
-
-    expect(parseInt(result.rows[0].count)).toBe(0);
-  });
-
-  it("should handle invalid embedding format in parseEmbedding", async () => {
-    // Requirement: Test parseEmbedding error path for invalid format
-    const memoryId = "test-memory-invalid-format";
-
-    // We need to test the else branch where embeddingData is neither string nor array
-    // This is tricky because PostgreSQL will always return data in a specific format
-    // We'll test by mocking the database response
-    if (!dbManager.pool) {
-      throw new Error("Database pool not initialized");
-    }
-
-    type QueryFunction = typeof dbManager.pool.query;
-    const originalQuery = dbManager.pool.query.bind(dbManager.pool) as QueryFunction;
-
-    dbManager.pool.query = (async (sql: string | { text: string }, params?: unknown[]) => {
-      const sqlText = typeof sql === "string" ? sql : sql.text;
-      if (sqlText.includes("SELECT sector, embedding FROM memory_embeddings")) {
-        return {
-          rows: [
-            {
-              sector: "semantic",
-              embedding: 12345, // Invalid format - number instead of string/array
-            },
-          ],
-          command: "SELECT",
-          rowCount: 1,
-          oid: 0,
-          fields: [],
-        };
-      }
-      return originalQuery(sql, params);
-    }) as QueryFunction;
-
-    // Should throw error for invalid embedding format
-    await expect(storage.retrieveEmbeddings(memoryId)).rejects.toThrow("Invalid embedding format");
-
-    // Restore original query function
-    dbManager.pool!.query = originalQuery;
-  });
-
-  it("should handle multiSectorSearch with all zero weights", async () => {
-    // Requirement: Test multiSectorSearch with zero-weight sectors
-    const queryEmbeddings: Partial<SectorEmbeddings> = {
-      semantic: createTestEmbedding(768, 0.5),
-      episodic: createTestEmbedding(768, 0.3),
-    };
-
-    // All weights are zero
-    const weights = {
-      semantic: 0,
-      episodic: 0,
-    };
-
-    const results = await storage.multiSectorSearch(queryEmbeddings, weights, 10);
-
-    // Should return empty array when all weights are zero
-    expect(results).toEqual([]);
-  });
-
-  it("should handle vectorSimilaritySearch with no matching results", async () => {
-    // Requirement: Test vectorSimilaritySearch with empty result set
-    // Use a very high threshold that no results will meet
-    const queryEmbedding = createTestEmbedding(768, 0.1);
-
-    const results = await storage.vectorSimilaritySearch(
-      queryEmbedding,
-      "semantic" as MemorySector,
-      10,
-      0.999 // Very high threshold
-    );
-
-    // Should return empty array when no results meet threshold
-    expect(results).toEqual([]);
-  });
-});
-
-async function insertTestMemoriesWithEmbeddings(
-  dbManager: DatabaseConnectionManager,
-  storage: EmbeddingStorage
-): Promise<void> {
-  // Insert 10 test memories with embeddings
-  for (let i = 0; i < 10; i++) {
-    const memoryId = `test-memory-${String(i).padStart(3, "0")}`;
-
-    await dbManager.pool!.query(
-      `INSERT INTO memories (id, content, user_id, session_id, primary_sector)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [memoryId, `Test memory content ${i}`, "test-user", "test-session", "semantic"]
-    );
-
-    const embeddings: SectorEmbeddings = {
-      episodic: createTestEmbedding(768, 0.1 + i * 0.05),
-      semantic: createTestEmbedding(768, 0.2 + i * 0.05),
-      procedural: createTestEmbedding(768, 0.3 + i * 0.05),
-      emotional: createTestEmbedding(768, 0.4 + i * 0.05),
-      reflective: createTestEmbedding(768, 0.5 + i * 0.05),
-    };
-
-    await storage.storeEmbeddings(memoryId, embeddings, "nomic-embed-text");
-  }
 }

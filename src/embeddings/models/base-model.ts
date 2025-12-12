@@ -8,8 +8,7 @@
  * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
  */
 
-import type { EmbeddingModel } from "../types";
-import { TimeoutError, ValidationError } from "../types";
+import { TimeoutError, ValidationError, type EmbeddingModel } from "../types";
 
 /**
  * Abstract base class for embedding models

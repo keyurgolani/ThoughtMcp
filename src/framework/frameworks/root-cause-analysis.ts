@@ -170,7 +170,7 @@ export class RootCauseAnalysisFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const defineResult = previousResults.find((r) => r.stepId === "define");
-        if (!defineResult || !defineResult.success) {
+        if (!defineResult?.success) {
           return {
             valid: false,
             issues: ["Problem must be defined before collecting data"],
@@ -233,7 +233,7 @@ export class RootCauseAnalysisFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const collectResult = previousResults.find((r) => r.stepId === "collect");
-        if (!collectResult || !collectResult.success) {
+        if (!collectResult?.success) {
           return {
             valid: false,
             issues: ["Data must be collected before identifying causal factors"],
@@ -296,7 +296,7 @@ export class RootCauseAnalysisFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const identifyResult = previousResults.find((r) => r.stepId === "identify");
-        if (!identifyResult || !identifyResult.success) {
+        if (!identifyResult?.success) {
           return {
             valid: false,
             issues: ["Causal factors must be identified before determining root cause"],
@@ -363,7 +363,7 @@ export class RootCauseAnalysisFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const determineResult = previousResults.find((r) => r.stepId === "determine");
-        if (!determineResult || !determineResult.success) {
+        if (!determineResult?.success) {
           return {
             valid: false,
             issues: ["Root cause must be determined before recommending solutions"],
