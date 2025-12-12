@@ -11,6 +11,6 @@ export * from "./memory-augmented-reasoning";
 export * from "./orchestrator";
 export * from "./problem-complexity-analyzer";
 export * from "./problem-decomposer";
-export * from "./stream";
+export * from "./stream.types";
 export * from "./synthesis-engine";
 export * from "./types";

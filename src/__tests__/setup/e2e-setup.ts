@@ -318,48 +318,56 @@ export default async function e2eSetup(): Promise<() => Promise<void>> {
   console.log(`   Ollama: ${process.env.OLLAMA_HOST}`);
   console.log(`   Model: ${process.env.EMBEDDING_MODEL}`);
 
-  // Initialize container management
-  const composeWrapper = new DockerComposeWrapper();
-  const composeFile = process.env.TEST_COMPOSE_FILE ?? "docker-compose.test.yml";
-
-  // Check if containers are already running
-  const postgresAlreadyRunning = await isPostgresRunning(composeWrapper, composeFile);
-  const ollamaAlreadyRunning = await isOllamaRunning(composeWrapper, composeFile);
+  // Check if container management should be skipped (e.g., in CI with pre-started services)
+  const skipContainerManagement = process.env.SKIP_CONTAINER_MANAGEMENT === "true";
 
   // Track which containers we start (used by teardown closure)
   let postgresStartedBySetup = false;
   let ollamaStartedBySetup = false;
 
-  if (postgresAlreadyRunning) {
-    console.log("   ℹ️  PostgreSQL container already running - reusing");
-  }
-  if (ollamaAlreadyRunning) {
-    console.log("   ℹ️  Ollama container already running - reusing");
-  }
+  if (skipContainerManagement) {
+    console.log("   ℹ️  Skipping container management (SKIP_CONTAINER_MANAGEMENT=true)");
+    console.log("   ℹ️  Using externally managed PostgreSQL and Ollama services");
+  } else {
+    // Initialize container management
+    const composeWrapper = new DockerComposeWrapper();
+    const composeFile = process.env.TEST_COMPOSE_FILE ?? "docker-compose.test.yml";
 
-  // Start containers as needed
-  try {
-    if (!postgresAlreadyRunning && !ollamaAlreadyRunning) {
-      await startAllContainers(composeWrapper, composeFile);
-      postgresStartedBySetup = true;
-      ollamaStartedBySetup = true;
-      console.log("   ✅ Both containers started");
-    } else if (!postgresAlreadyRunning) {
-      await startPostgresContainer(composeWrapper, composeFile);
-      postgresStartedBySetup = true;
-      console.log("   ✅ PostgreSQL container started");
-    } else if (!ollamaAlreadyRunning) {
-      await startOllamaContainer(composeWrapper, composeFile);
-      ollamaStartedBySetup = true;
-      console.log("   ✅ Ollama container started");
+    // Check if containers are already running
+    const postgresAlreadyRunning = await isPostgresRunning(composeWrapper, composeFile);
+    const ollamaAlreadyRunning = await isOllamaRunning(composeWrapper, composeFile);
+
+    if (postgresAlreadyRunning) {
+      console.log("   ℹ️  PostgreSQL container already running - reusing");
     }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("❌ E2E container setup failed:", errorMessage);
-    console.error("   Please ensure Docker is running and try again.");
-    console.error("   You can also start containers manually:");
-    console.error("   docker compose -f docker-compose.test.yml up -d");
-    throw new Error(`E2E container setup failed: ${errorMessage}`);
+    if (ollamaAlreadyRunning) {
+      console.log("   ℹ️  Ollama container already running - reusing");
+    }
+
+    // Start containers as needed
+    try {
+      if (!postgresAlreadyRunning && !ollamaAlreadyRunning) {
+        await startAllContainers(composeWrapper, composeFile);
+        postgresStartedBySetup = true;
+        ollamaStartedBySetup = true;
+        console.log("   ✅ Both containers started");
+      } else if (!postgresAlreadyRunning) {
+        await startPostgresContainer(composeWrapper, composeFile);
+        postgresStartedBySetup = true;
+        console.log("   ✅ PostgreSQL container started");
+      } else if (!ollamaAlreadyRunning) {
+        await startOllamaContainer(composeWrapper, composeFile);
+        ollamaStartedBySetup = true;
+        console.log("   ✅ Ollama container started");
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("❌ E2E container setup failed:", errorMessage);
+      console.error("   Please ensure Docker is running and try again.");
+      console.error("   You can also start containers manually:");
+      console.error("   docker compose -f docker-compose.test.yml up -d");
+      throw new Error(`E2E container setup failed: ${errorMessage}`);
+    }
   }
 
   // Wait for services and run migrations
@@ -376,6 +384,12 @@ export default async function e2eSetup(): Promise<() => Promise<void>> {
   return async () => {
     console.log("\n🧹 Starting E2E Test Teardown...");
 
+    if (skipContainerManagement) {
+      console.log("   Skipping container teardown (SKIP_CONTAINER_MANAGEMENT=true)");
+      console.log("✅ E2E teardown complete\n");
+      return;
+    }
+
     if (process.env.KEEP_CONTAINERS_RUNNING === "true") {
       console.log("   Keeping containers running (KEEP_CONTAINERS_RUNNING=true)");
       console.log("✅ E2E teardown complete\n");
@@ -390,6 +404,8 @@ export default async function e2eSetup(): Promise<() => Promise<void>> {
     }
 
     if (postgresStartedBySetup || ollamaStartedBySetup) {
+      const composeWrapper = new DockerComposeWrapper();
+      const composeFile = process.env.TEST_COMPOSE_FILE ?? "docker-compose.test.yml";
       try {
         console.log("   Stopping containers...");
         await composeWrapper.down(composeFile, { volumes: true, timeout: 15 });

@@ -214,3 +214,68 @@ describe("WaypointGraphBuilder - Self-Connection Prevention", () => {
     expect(isValid).toBe(true);
   });
 });
+
+describe("WaypointGraphBuilder - Configuration", () => {
+  it("should create builder with standard config", () => {
+    const standardConfig: WaypointGraphConfig = {
+      similarityThreshold: 0.7,
+      maxLinksPerNode: 3,
+      minLinksPerNode: 1,
+      enableBidirectional: true,
+    };
+    const builder = new WaypointGraphBuilder(mockDbManager, mockEmbeddingStorage, standardConfig);
+    expect(builder).toBeDefined();
+  });
+
+  it("should create builder with custom config", () => {
+    const customConfig: WaypointGraphConfig = {
+      similarityThreshold: 0.8,
+      maxLinksPerNode: 5,
+      minLinksPerNode: 2,
+      enableBidirectional: false,
+    };
+    const builder = new WaypointGraphBuilder(mockDbManager, mockEmbeddingStorage, customConfig);
+    expect(builder).toBeDefined();
+  });
+});
+
+describe("WaypointGraphBuilder - Edge Cases", () => {
+  let builder: WaypointGraphBuilder;
+
+  beforeEach(() => {
+    builder = new WaypointGraphBuilder(mockDbManager, mockEmbeddingStorage, {
+      similarityThreshold: 0.7,
+      maxLinksPerNode: 3,
+      minLinksPerNode: 1,
+      enableBidirectional: true,
+    });
+  });
+
+  it("should handle empty existing memories", async () => {
+    const newMemory = createTestMemory("mem-001", "New memory");
+    const result = await builder.createWaypointLinks(newMemory, []);
+
+    expect(result.links).toEqual([]);
+  });
+
+  it("should handle single existing memory", async () => {
+    const newMemory = createTestMemory("mem-001", "New memory");
+    const existingMemories = [createTestMemory("mem-002", "Existing memory")];
+
+    const result = await builder.createWaypointLinks(newMemory, existingMemories);
+
+    expect(result.links.length).toBeLessThanOrEqual(1);
+  });
+
+  it("should handle memory with same ID as source", async () => {
+    const memory = createTestMemory("mem-001", "Memory");
+    const existingMemories = [memory]; // Same memory in existing list
+
+    const result = await builder.createWaypointLinks(memory, existingMemories);
+
+    // Should not create self-referential links
+    result.links.forEach((link) => {
+      expect(link.sourceId).not.toBe(link.targetId);
+    });
+  });
+});

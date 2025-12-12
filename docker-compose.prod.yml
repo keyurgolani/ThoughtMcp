@@ -39,6 +39,13 @@
 #   To disable standby mode and run the MCP server directly (legacy behavior):
 #   Set MCP_STANDBY_MODE=false in .env.production
 #
+# REST API Access:
+#   By default, the REST API is enabled and accessible at:
+#   http://localhost:${REST_API_PORT:-3000}/api/v1/
+#
+#   Configure CORS_ORIGINS in .env.production to allow your Mind Palace UI origin.
+#   To disable REST API: Set REST_API_ENABLED=false in .env.production
+#
 # The thoughtmcp service waits for postgres and ollama to be healthy before starting.
 # Ollama will automatically pull the embedding model on first startup.
 
@@ -132,9 +139,16 @@ services:
       ENABLE_METACOGNITION: ${ENABLE_METACOGNITION:-true}
       # Standby mode - container stays alive, MCP clients connect via docker exec
       MCP_STANDBY_MODE: ${MCP_STANDBY_MODE:-true}
+      # REST API configuration (Requirements: 16.1)
+      REST_API_ENABLED: ${REST_API_ENABLED:-true}
+      REST_API_PORT: ${REST_API_PORT:-3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
     # MCP servers communicate via stdio
     stdin_open: true
     tty: true
+    # Expose REST API port (Requirements: 16.1)
+    ports:
+      - "${REST_API_PORT:-3000}:3000"
     networks:
       - thoughtmcp-network
 

@@ -234,5 +234,21 @@ describe("DatabaseConnectionManager", () => {
     it("should handle disconnect when not connected", async () => {
       await expect(manager.disconnect()).resolves.not.toThrow();
     });
+
+    it("should handle commit transaction error", async () => {
+      await manager.connect();
+      const client = await manager.beginTransaction();
+      mockClient.query.mockRejectedValueOnce(new Error("Commit failed"));
+
+      await expect(manager.commitTransaction(client)).rejects.toThrow();
+    });
+
+    it("should handle rollback transaction error", async () => {
+      await manager.connect();
+      const client = await manager.beginTransaction();
+      mockClient.query.mockRejectedValueOnce(new Error("Rollback failed"));
+
+      await expect(manager.rollbackTransaction(client)).rejects.toThrow();
+    });
   });
 });

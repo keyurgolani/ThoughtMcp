@@ -100,9 +100,6 @@ jobs:
           --health-timeout 3s
           --health-retries 10
           --health-start-period 5s
-        volumes:
-          - ${{ github.workspace }}/scripts/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-          - ${{ github.workspace }}/scripts/db/enable-pgvector.sql:/docker-entrypoint-initdb.d/02-enable-pgvector.sql:ro
 
     steps:
       - name: Checkout code
@@ -119,6 +116,25 @@ jobs:
 
       - name: Create test directories
         run: mkdir -p tmp/test-brain development/reports/coverage
+
+      - name: Wait for PostgreSQL
+        run: |
+          echo "Waiting for PostgreSQL to be ready..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5433 -U thoughtmcp_test; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+      - name: Initialize database schema
+        run: |
+          echo "Initializing database schema..."
+          PGPASSWORD=test_password psql -h localhost -p 5433 -U thoughtmcp_test -d thoughtmcp_test -f scripts/db/init.sql
+          PGPASSWORD=test_password psql -h localhost -p 5433 -U thoughtmcp_test -d thoughtmcp_test -f scripts/db/enable-pgvector.sql
+          echo "Database schema initialized successfully"
 
       - name: Cache Docker images
         uses: actions/cache@v4
@@ -145,18 +161,6 @@ jobs:
           for i in {1..30}; do
             if docker exec ollama-test ollama list 2>/dev/null; then
               echo "Ollama is ready!"
-              break
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 2
-          done
-
-      - name: Wait for PostgreSQL
-        run: |
-          echo "Waiting for PostgreSQL to be ready..."
-          for i in {1..30}; do
-            if pg_isready -h localhost -p 5433 -U thoughtmcp_test; then
-              echo "PostgreSQL is ready!"
               break
             fi
             echo "Waiting... ($i/30)"

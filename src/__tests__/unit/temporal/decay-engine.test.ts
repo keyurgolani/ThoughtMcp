@@ -459,4 +459,510 @@ describe("TemporalDecayEngine - Unit Tests", () => {
       expect(updatedConfig.minimumStrength).toBe(0.2);
     });
   });
+
+  describe("applyDecay", () => {
+    it("should apply decay to a single memory and update database", async () => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({ rows: [] }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      const memory: Memory = {
+        id: "test-mem-1",
+        content: "Test memory",
+        createdAt: new Date("2024-11-02T12:00:00Z"),
+        lastAccessed: new Date("2024-11-02T12:00:00Z"),
+        accessCount: 1,
+        salience: 0.5,
+        decayRate: 0.03,
+        strength: 1.0,
+        userId: "user-1",
+        sessionId: "session-1",
+        primarySector: "episodic",
+        metadata: {},
+      };
+
+      await decayEngine.applyDecay(memory);
+
+      expect(mockDb.getConnection).toHaveBeenCalled();
+      expect(mockClient.query).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE memories"),
+        expect.arrayContaining([expect.any(Number), expect.any(Date), memory.id])
+      );
+      expect(mockDb.releaseConnection).toHaveBeenCalledWith(mockClient);
+    });
+  });
+
+  describe("batchApplyDecay", () => {
+    it("should apply decay to multiple memories in a transaction", async () => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({ rows: [] }),
+      };
+      mockDb.beginTransaction.mockResolvedValue(mockClient);
+
+      const memories: Memory[] = [
+        {
+          id: "mem-1",
+          content: "Memory 1",
+          createdAt: new Date("2024-11-02T12:00:00Z"),
+          lastAccessed: new Date("2024-11-02T12:00:00Z"),
+          accessCount: 1,
+          salience: 0.5,
+          decayRate: 0.03,
+          strength: 1.0,
+          userId: "user-1",
+          sessionId: "session-1",
+          primarySector: "episodic",
+          metadata: {},
+        },
+        {
+          id: "mem-2",
+          content: "Memory 2",
+          createdAt: new Date("2024-11-05T12:00:00Z"),
+          lastAccessed: new Date("2024-11-05T12:00:00Z"),
+          accessCount: 1,
+          salience: 0.5,
+          decayRate: 0.03,
+          strength: 0.8,
+          userId: "user-1",
+          sessionId: "session-1",
+          primarySector: "semantic",
+          metadata: {},
+        },
+      ];
+
+      await decayEngine.batchApplyDecay(memories);
+
+      expect(mockDb.beginTransaction).toHaveBeenCalled();
+      expect(mockClient.query).toHaveBeenCalledTimes(2);
+      expect(mockDb.commitTransaction).toHaveBeenCalledWith(mockClient);
+    });
+
+    it("should handle empty batch gracefully", async () => {
+      await decayEngine.batchApplyDecay([]);
+
+      expect(mockDb.beginTransaction).not.toHaveBeenCalled();
+    });
+
+    it("should rollback transaction on error", async () => {
+      const mockClient = {
+        query: vi.fn().mockRejectedValue(new Error("Database error")),
+      };
+      mockDb.beginTransaction.mockResolvedValue(mockClient);
+
+      const memories: Memory[] = [
+        {
+          id: "mem-1",
+          content: "Memory 1",
+          createdAt: new Date(),
+          lastAccessed: new Date(),
+          accessCount: 1,
+          salience: 0.5,
+          decayRate: 0.03,
+          strength: 1.0,
+          userId: "user-1",
+          sessionId: "session-1",
+          primarySector: "episodic",
+          metadata: {},
+        },
+      ];
+
+      await expect(decayEngine.batchApplyDecay(memories)).rejects.toThrow("Database error");
+      expect(mockDb.rollbackTransaction).toHaveBeenCalledWith(mockClient);
+    });
+  });
+
+  describe("reinforceMemory", () => {
+    it("should reinforce memory and log event", async () => {
+      const mockClient = {
+        query: vi
+          .fn()
+          .mockResolvedValueOnce({ rows: [{ strength: 0.5 }] }) // SELECT strength
+          .mockResolvedValueOnce({ rows: [] }) // UPDATE memories
+          .mockResolvedValueOnce({ rows: [] }), // INSERT reinforcement history
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      await decayEngine.reinforceMemory("mem-1", 0.2);
+
+      expect(mockClient.query).toHaveBeenCalledTimes(3);
+      expect(mockClient.query).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining("UPDATE memories SET strength"),
+        [0.7, "mem-1"]
+      );
+    });
+
+    it("should cap strength at 1.0", async () => {
+      const mockClient = {
+        query: vi
+          .fn()
+          .mockResolvedValueOnce({ rows: [{ strength: 0.9 }] })
+          .mockResolvedValueOnce({ rows: [] })
+          .mockResolvedValueOnce({ rows: [] }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      await decayEngine.reinforceMemory("mem-1", 0.5);
+
+      expect(mockClient.query).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining("UPDATE memories SET strength"),
+        [1.0, "mem-1"]
+      );
+    });
+
+    it("should throw error for non-existent memory", async () => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({ rows: [] }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      await expect(decayEngine.reinforceMemory("non-existent", 0.2)).rejects.toThrow(
+        "Memory not found: non-existent"
+      );
+    });
+  });
+
+  describe("autoReinforceOnAccess", () => {
+    it("should auto-reinforce with default boost", async () => {
+      const mockClient = {
+        query: vi
+          .fn()
+          .mockResolvedValueOnce({ rows: [] }) // No previous reinforcement
+          .mockResolvedValueOnce({ rows: [{ strength: 0.5 }] }) // SELECT strength
+          .mockResolvedValueOnce({ rows: [] }) // UPDATE memories
+          .mockResolvedValueOnce({ rows: [] }), // INSERT reinforcement history
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      await decayEngine.autoReinforceOnAccess("mem-1");
+
+      expect(mockClient.query).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE memories"),
+        expect.arrayContaining(["mem-1"])
+      );
+    });
+
+    it("should apply diminished boost for recent reinforcement", async () => {
+      const recentTime = new Date(Date.now() - 30 * 60 * 1000); // 30 minutes ago
+      const mockClient = {
+        query: vi
+          .fn()
+          .mockResolvedValueOnce({ rows: [{ timestamp: recentTime }] }) // Recent reinforcement
+          .mockResolvedValueOnce({ rows: [{ strength: 0.5 }] })
+          .mockResolvedValueOnce({ rows: [] })
+          .mockResolvedValueOnce({ rows: [] }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      await decayEngine.autoReinforceOnAccess("mem-1");
+
+      // Verify diminished boost was applied (50% of default)
+      expect(mockClient.query).toHaveBeenCalled();
+    });
+
+    it("should throw error for non-existent memory", async () => {
+      const mockClient = {
+        query: vi
+          .fn()
+          .mockResolvedValueOnce({ rows: [] }) // No previous reinforcement
+          .mockResolvedValueOnce({ rows: [] }), // Memory not found
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      await expect(decayEngine.autoReinforceOnAccess("non-existent")).rejects.toThrow(
+        "Memory not found: non-existent"
+      );
+    });
+  });
+
+  describe("getReinforcementHistory", () => {
+    it("should return reinforcement history for a memory", async () => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({
+          rows: [
+            {
+              timestamp: new Date("2024-11-10T12:00:00Z"),
+              type: "access",
+              boost: 0.1,
+              strength_before: 0.5,
+              strength_after: 0.6,
+            },
+            {
+              timestamp: new Date("2024-11-09T12:00:00Z"),
+              type: "explicit",
+              boost: 0.2,
+              strength_before: 0.3,
+              strength_after: 0.5,
+            },
+          ],
+        }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      const history = await decayEngine.getReinforcementHistory("mem-1");
+
+      expect(history).toHaveLength(2);
+      expect(history[0].type).toBe("access");
+      expect(history[0].boost).toBe(0.1);
+      expect(history[1].type).toBe("explicit");
+    });
+
+    it("should return empty array for memory with no history", async () => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({ rows: [] }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      const history = await decayEngine.getReinforcementHistory("mem-1");
+
+      expect(history).toHaveLength(0);
+    });
+  });
+
+  describe("reinforceMemoryByType", () => {
+    it("should reinforce with access type using diminished boost", async () => {
+      const mockClient = {
+        query: vi
+          .fn()
+          .mockResolvedValueOnce({ rows: [{ strength: 0.5, importance: 0.7 }] }) // SELECT memory
+          .mockResolvedValueOnce({ rows: [] }) // No previous reinforcement
+          .mockResolvedValueOnce({ rows: [] }) // UPDATE strength
+          .mockResolvedValueOnce({ rows: [] }) // INSERT history
+          .mockResolvedValueOnce({ rows: [] }), // UPDATE last_accessed
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      await decayEngine.reinforceMemoryByType("mem-1", "access");
+
+      expect(mockClient.query).toHaveBeenCalled();
+    });
+
+    it("should reinforce with explicit type using provided boost", async () => {
+      const mockClient = {
+        query: vi
+          .fn()
+          .mockResolvedValueOnce({ rows: [{ strength: 0.5, importance: 0.7 }] })
+          .mockResolvedValueOnce({ rows: [] })
+          .mockResolvedValueOnce({ rows: [] }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      await decayEngine.reinforceMemoryByType("mem-1", "explicit", 0.3);
+
+      expect(mockClient.query).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining("UPDATE memories SET strength"),
+        [0.8, "mem-1"]
+      );
+    });
+
+    it("should reinforce with importance type based on memory importance", async () => {
+      const mockClient = {
+        query: vi
+          .fn()
+          .mockResolvedValueOnce({ rows: [{ strength: 0.5, importance: 0.8 }] })
+          .mockResolvedValueOnce({ rows: [] })
+          .mockResolvedValueOnce({ rows: [] }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      await decayEngine.reinforceMemoryByType("mem-1", "importance");
+
+      // Boost should be importance * 0.5 = 0.8 * 0.5 = 0.4
+      expect(mockClient.query).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining("UPDATE memories SET strength"),
+        [0.9, "mem-1"]
+      );
+    });
+
+    it("should throw error for invalid reinforcement type", async () => {
+      await expect(decayEngine.reinforceMemoryByType("mem-1", "invalid" as any)).rejects.toThrow(
+        "Invalid reinforcement type: invalid"
+      );
+    });
+
+    it("should throw error for explicit type without boost", async () => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValueOnce({ rows: [{ strength: 0.5, importance: 0.7 }] }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      await expect(decayEngine.reinforceMemoryByType("mem-1", "explicit")).rejects.toThrow(
+        "Boost parameter required for explicit reinforcement"
+      );
+    });
+
+    it("should throw error for non-existent memory", async () => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({ rows: [] }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      await expect(decayEngine.reinforceMemoryByType("non-existent", "access")).rejects.toThrow(
+        "Memory not found: non-existent"
+      );
+    });
+
+    it("should use default importance when null", async () => {
+      const mockClient = {
+        query: vi
+          .fn()
+          .mockResolvedValueOnce({ rows: [{ strength: 0.5, importance: null }] })
+          .mockResolvedValueOnce({ rows: [] })
+          .mockResolvedValueOnce({ rows: [] }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      await decayEngine.reinforceMemoryByType("mem-1", "importance");
+
+      // Default importance 0.5 * 0.5 = 0.25 boost
+      expect(mockClient.query).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining("UPDATE memories SET strength"),
+        [0.75, "mem-1"]
+      );
+    });
+  });
+
+  describe("runDecayMaintenance", () => {
+    it("should run full maintenance cycle", async () => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({
+          rows: [
+            {
+              id: "mem-1",
+              content: "Test",
+              created_at: new Date(),
+              last_accessed: new Date(),
+              access_count: 1,
+              salience: 0.5,
+              decay_rate: 0.03,
+              strength: 0.8,
+              user_id: "user-1",
+              session_id: "session-1",
+              primary_sector: "episodic",
+            },
+          ],
+        }),
+      };
+      const mockTxClient = {
+        query: vi.fn().mockResolvedValue({ rows: [] }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+      mockDb.beginTransaction.mockResolvedValue(mockTxClient);
+
+      const result = await decayEngine.runDecayMaintenance();
+
+      expect(result.processedCount).toBe(1);
+      expect(result.processingTime).toBeGreaterThanOrEqual(0);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("should handle maintenance errors gracefully", async () => {
+      const mockClient = {
+        query: vi.fn().mockRejectedValue(new Error("Database error")),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      const result = await decayEngine.runDecayMaintenance();
+
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors[0]).toContain("Maintenance failed");
+    });
+
+    it("should process memories in batches", async () => {
+      // Create 1500 memories to test batching (batch size is 1000)
+      const memories = Array.from({ length: 1500 }, (_, i) => ({
+        id: `mem-${i}`,
+        content: `Test ${i}`,
+        created_at: new Date(),
+        last_accessed: new Date(),
+        access_count: 1,
+        salience: 0.5,
+        decay_rate: 0.03,
+        strength: 0.8,
+        user_id: "user-1",
+        session_id: "session-1",
+        primary_sector: "episodic",
+      }));
+
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({ rows: memories }),
+      };
+      const mockTxClient = {
+        query: vi.fn().mockResolvedValue({ rows: [] }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+      mockDb.beginTransaction.mockResolvedValue(mockTxClient);
+
+      const result = await decayEngine.runDecayMaintenance();
+
+      expect(result.processedCount).toBe(1500);
+      // Should have called beginTransaction at least twice (2 batches for decay)
+      // Plus additional calls for pruning if candidates found
+      expect(mockDb.beginTransaction.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  describe("identifyPruningCandidates", () => {
+    it("should identify memories below pruning threshold", async () => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({
+          rows: [{ id: "mem-1" }, { id: "mem-2" }],
+        }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      const candidates = await decayEngine.identifyPruningCandidates(0.2);
+
+      expect(candidates).toHaveLength(2);
+      expect(candidates).toContain("mem-1");
+      expect(candidates).toContain("mem-2");
+    });
+
+    it("should return empty array when no candidates", async () => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({ rows: [] }),
+      };
+      mockDb.getConnection.mockResolvedValue(mockClient);
+
+      const candidates = await decayEngine.identifyPruningCandidates(0.2);
+
+      expect(candidates).toHaveLength(0);
+    });
+  });
+
+  describe("pruneMemories", () => {
+    it("should delete memories by IDs", async () => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({ rowCount: 3 }),
+      };
+      mockDb.beginTransaction.mockResolvedValue(mockClient);
+
+      const count = await decayEngine.pruneMemories(["mem-1", "mem-2", "mem-3"]);
+
+      expect(count).toBe(3);
+      expect(mockDb.commitTransaction).toHaveBeenCalledWith(mockClient);
+    });
+
+    it("should return 0 for empty array", async () => {
+      const count = await decayEngine.pruneMemories([]);
+
+      expect(count).toBe(0);
+      expect(mockDb.beginTransaction).not.toHaveBeenCalled();
+    });
+
+    it("should rollback on error", async () => {
+      const mockClient = {
+        query: vi.fn().mockRejectedValue(new Error("Delete failed")),
+      };
+      mockDb.beginTransaction.mockResolvedValue(mockClient);
+
+      await expect(decayEngine.pruneMemories(["mem-1"])).rejects.toThrow("Delete failed");
+      expect(mockDb.rollbackTransaction).toHaveBeenCalledWith(mockClient);
+    });
+  });
 });

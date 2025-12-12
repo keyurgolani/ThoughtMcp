@@ -2205,4 +2205,563 @@ export class MemoryRepository {
       }
     }
   }
+
+  /**
+   * Get memory statistics for a user
+   *
+   * Returns counts per sector, total capacity, consolidation status,
+   * and recent activity.
+   *
+   * Requirements: 1.5
+   *
+   * @param userId - User ID to get stats for
+   * @returns Memory statistics
+   */
+  async getStats(userId: string): Promise<import("./types").MemoryStats> {
+    this.validateUserId(userId);
+
+    let client: import("pg").PoolClient | null = null;
+
+    try {
+      client = await this.db.getConnection();
+
+      // Get counts per sector (excluding soft-deleted memories with strength=0)
+      const countsQuery = `
+        SELECT primary_sector, COUNT(*) as count
+        FROM memories
+        WHERE user_id = $1 AND strength > 0
+        GROUP BY primary_sector
+      `;
+      const countsResult = await client.query(countsQuery, [userId]);
+
+      // Initialize counts
+      const counts: Record<MemorySectorType, number> = {
+        episodic: 0,
+        semantic: 0,
+        procedural: 0,
+        emotional: 0,
+        reflective: 0,
+      };
+
+      // Populate counts from query result
+      for (const row of countsResult.rows) {
+        const sector = row.primary_sector as MemorySectorType;
+        counts[sector] = parseInt(row.count as string, 10);
+      }
+
+      // Get consolidation pending count (memories with low strength that need consolidation)
+      const consolidationQuery = `
+        SELECT COUNT(*) as count
+        FROM memories
+        WHERE user_id = $1 AND strength > 0 AND strength < 0.3
+      `;
+      const consolidationResult = await client.query(consolidationQuery, [userId]);
+      const consolidationPending = parseInt(consolidationResult.rows[0]?.count as string, 10) || 0;
+
+      // Get recent activity (last 10 operations based on last_accessed)
+      const activityQuery = `
+        SELECT id, primary_sector, last_accessed, created_at
+        FROM memories
+        WHERE user_id = $1 AND strength > 0
+        ORDER BY last_accessed DESC
+        LIMIT 10
+      `;
+      const activityResult = await client.query(activityQuery, [userId]);
+
+      const recentActivity: import("./types").ActivityItem[] = activityResult.rows.map(
+        (row: Record<string, unknown>) => {
+          const createdAt = new Date(row.created_at as string);
+          const lastAccessed = new Date(row.last_accessed as string);
+          // Determine activity type based on timestamps
+          const type =
+            createdAt.getTime() === lastAccessed.getTime()
+              ? ("create" as const)
+              : ("access" as const);
+
+          return {
+            type,
+            memoryId: row.id as string,
+            timestamp: lastAccessed,
+            sector: row.primary_sector as MemorySectorType,
+          };
+        }
+      );
+
+      // Calculate total capacity (configurable, default 100k memories per user)
+      const totalCapacity = 100000;
+
+      return {
+        episodicCount: counts.episodic,
+        semanticCount: counts.semantic,
+        proceduralCount: counts.procedural,
+        emotionalCount: counts.emotional,
+        reflectiveCount: counts.reflective,
+        totalCapacity,
+        consolidationPending,
+        recentActivity,
+      };
+    } catch (error) {
+      Logger.error("Get stats failed:", error);
+
+      if (error instanceof MemoryValidationError) {
+        throw error;
+      }
+
+      throw new Error(
+        `Get stats failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    } finally {
+      if (client) {
+        this.db.releaseConnection(client);
+      }
+    }
+  }
+
+  /**
+   * Get memory graph data for visualization
+   *
+   * Returns nodes, edges, and clusters representing the waypoint graph.
+   * Supports filtering by center memory, depth, and sector type.
+   *
+   * Requirements: 2.1, 2.3
+   *
+   * @param query - Graph query parameters
+   * @returns Graph data with nodes, edges, and clusters
+   */
+  async getGraph(query: import("./types").GraphQuery): Promise<import("./types").GraphResult> {
+    this.validateUserId(query.userId);
+
+    const depth = query.depth ?? 3;
+    const maxDepth = Math.min(depth, 5); // Cap at 5 to prevent excessive traversal
+
+    let client: import("pg").PoolClient | null = null;
+
+    try {
+      client = await this.db.getConnection();
+
+      // Build base query for nodes
+      let nodesQuery: string;
+      const nodesParams: unknown[] = [query.userId];
+      let paramIndex = 2;
+
+      if (query.centerMemoryId) {
+        // If center memory specified, get connected memories via graph traversal
+        nodesQuery = `
+          WITH RECURSIVE connected AS (
+            -- Start with center memory
+            SELECT m.id, m.content, m.primary_sector, m.salience, m.strength, m.created_at,
+                   md.keywords, md.tags, md.category, 0 as depth
+            FROM memories m
+            LEFT JOIN memory_metadata md ON m.id = md.memory_id
+            WHERE m.id = $${paramIndex} AND m.user_id = $1 AND m.strength > 0
+
+            UNION
+
+            -- Get connected memories via links
+            SELECT m.id, m.content, m.primary_sector, m.salience, m.strength, m.created_at,
+                   md.keywords, md.tags, md.category, c.depth + 1
+            FROM connected c
+            JOIN memory_links ml ON (ml.source_id = c.id OR ml.target_id = c.id)
+            JOIN memories m ON m.id = CASE WHEN ml.source_id = c.id THEN ml.target_id ELSE ml.source_id END
+            LEFT JOIN memory_metadata md ON m.id = md.memory_id
+            WHERE m.user_id = $1 AND m.strength > 0 AND c.depth < $${paramIndex + 1}
+              AND m.id NOT IN (SELECT id FROM connected)
+          )
+          SELECT DISTINCT id, content, primary_sector, salience, strength, created_at,
+                 keywords, tags, category
+          FROM connected
+        `;
+        nodesParams.push(query.centerMemoryId, maxDepth);
+        paramIndex += 2;
+      } else {
+        // No center memory, get all memories for user
+        nodesQuery = `
+          SELECT m.id, m.content, m.primary_sector, m.salience, m.strength, m.created_at,
+                 md.keywords, md.tags, md.category
+          FROM memories m
+          LEFT JOIN memory_metadata md ON m.id = md.memory_id
+          WHERE m.user_id = $1 AND m.strength > 0
+        `;
+      }
+
+      // Add type filter if specified
+      if (query.typeFilter) {
+        nodesQuery += ` AND m.primary_sector = $${paramIndex}`;
+        nodesParams.push(query.typeFilter);
+        paramIndex++;
+      }
+
+      // Add ordering and limit
+      nodesQuery += ` ORDER BY created_at DESC LIMIT 500`;
+
+      const nodesResult = await client.query(nodesQuery, nodesParams);
+
+      // Convert rows to GraphNode objects
+      const nodes: import("./types").GraphNode[] = nodesResult.rows.map(
+        (row: Record<string, unknown>) => ({
+          id: row.id as string,
+          content:
+            (row.content as string).length > 200
+              ? `${(row.content as string).substring(0, 197)}...`
+              : (row.content as string),
+          primarySector: row.primary_sector as MemorySectorType,
+          salience: row.salience as number,
+          strength: row.strength as number,
+          createdAt: new Date(row.created_at as string).toISOString(),
+          metadata: {
+            keywords: (row.keywords as string[]) ?? [],
+            tags: (row.tags as string[]) ?? [],
+            category: (row.category as string) ?? undefined,
+          },
+        })
+      );
+
+      // Get node IDs for edge query
+      const nodeIds = nodes.map((n) => n.id);
+
+      // Get edges between the nodes
+      let edges: import("./types").GraphEdge[] = [];
+      if (nodeIds.length > 0) {
+        const edgesQuery = `
+          SELECT source_id, target_id, link_type, weight
+          FROM memory_links
+          WHERE source_id = ANY($1) AND target_id = ANY($1)
+        `;
+        const edgesResult = await client.query(edgesQuery, [nodeIds]);
+
+        edges = edgesResult.rows.map((row: Record<string, unknown>) => ({
+          source: row.source_id as string,
+          target: row.target_id as string,
+          linkType: row.link_type as string,
+          weight: row.weight as number,
+        }));
+      }
+
+      // Generate clusters based on sector grouping
+      const clusters = this.generateClusters(nodes);
+
+      return {
+        nodes,
+        edges,
+        clusters,
+      };
+    } catch (error) {
+      Logger.error("Get graph failed:", error);
+
+      if (error instanceof MemoryValidationError) {
+        throw error;
+      }
+
+      throw new Error(
+        `Get graph failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    } finally {
+      if (client) {
+        this.db.releaseConnection(client);
+      }
+    }
+  }
+
+  /**
+   * Generate clusters from nodes based on sector grouping
+   * @param nodes - Array of graph nodes
+   * @returns Array of clusters
+   */
+  private generateClusters(nodes: import("./types").GraphNode[]): import("./types").GraphCluster[] {
+    // Group nodes by sector
+    const sectorGroups = new Map<string, import("./types").GraphNode[]>();
+
+    for (const node of nodes) {
+      const sector = node.primarySector;
+      if (!sectorGroups.has(sector)) {
+        sectorGroups.set(sector, []);
+      }
+      const sectorGroup = sectorGroups.get(sector);
+      if (sectorGroup) {
+        sectorGroup.push(node);
+      }
+    }
+
+    // Create clusters for each sector with at least 2 nodes
+    const clusters: import("./types").GraphCluster[] = [];
+
+    for (const [sector, sectorNodes] of sectorGroups) {
+      if (sectorNodes.length >= 2) {
+        // Find centroid (node with highest salience)
+        const centroid = sectorNodes.reduce((max, node) =>
+          node.salience > max.salience ? node : max
+        );
+
+        clusters.push({
+          id: `cluster-${sector}`,
+          name: `${sector.charAt(0).toUpperCase() + sector.slice(1)} Memories`,
+          nodeIds: sectorNodes.map((n) => n.id),
+          centroidId: centroid.id,
+        });
+      }
+    }
+
+    return clusters;
+  }
+
+  /**
+   * Get memory timeline data for visualization
+   *
+   * Returns chronologically ordered timeline events with emotional trends.
+   * Supports filtering by date range and emotional parameters.
+   *
+   * Requirements: 2.2
+   *
+   * @param query - Timeline query parameters
+   * @returns Timeline data with events and emotional trends
+   */
+  async getTimeline(
+    query: import("./types").TimelineQuery
+  ): Promise<import("./types").TimelineResult> {
+    this.validateUserId(query.userId);
+
+    let client: import("pg").PoolClient | null = null;
+
+    try {
+      client = await this.db.getConnection();
+
+      // Build query for timeline events
+      const conditions: string[] = ["m.user_id = $1", "m.strength > 0"];
+      const params: unknown[] = [query.userId];
+      let paramIndex = 2;
+
+      // Add date range filter
+      if (query.dateRange?.start) {
+        conditions.push(`m.created_at >= $${paramIndex}`);
+        params.push(query.dateRange.start);
+        paramIndex++;
+      }
+      if (query.dateRange?.end) {
+        conditions.push(`m.created_at <= $${paramIndex}`);
+        params.push(query.dateRange.end);
+        paramIndex++;
+      }
+
+      // Build the main query
+      const whereClause = conditions.join(" AND ");
+      const limit = Math.min(query.limit ?? 100, 500);
+      const offset = query.offset ?? 0;
+
+      // Query memories with metadata, ordered chronologically
+      const timelineQuery = `
+        SELECT m.id, m.content, m.created_at, m.primary_sector, m.salience, m.strength,
+               md.keywords, md.tags, md.category
+        FROM memories m
+        LEFT JOIN memory_metadata md ON m.id = md.memory_id
+        WHERE ${whereClause}
+        ORDER BY m.created_at ASC
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
+      params.push(limit, offset);
+
+      const timelineResult = await client.query(timelineQuery, params);
+
+      // Get total count for pagination
+      const countQuery = `
+        SELECT COUNT(*) as count
+        FROM memories m
+        WHERE ${whereClause}
+      `;
+      const countResult = await client.query(countQuery, params.slice(0, paramIndex - 1));
+      const totalCount = parseInt(countResult.rows[0]?.count as string, 10) || 0;
+
+      // Convert rows to TimelineEvent objects
+      // For emotional memories, extract emotional state from content analysis
+      const timeline: import("./types").TimelineEvent[] = [];
+
+      for (const row of timelineResult.rows) {
+        const event: import("./types").TimelineEvent = {
+          id: row.id as string,
+          content:
+            (row.content as string).length > 300
+              ? `${(row.content as string).substring(0, 297)}...`
+              : (row.content as string),
+          timestamp: new Date(row.created_at as string).toISOString(),
+          primarySector: row.primary_sector as MemorySectorType,
+          salience: row.salience as number,
+          strength: row.strength as number,
+          metadata: {
+            keywords: (row.keywords as string[]) ?? [],
+            tags: (row.tags as string[]) ?? [],
+            category: (row.category as string) ?? undefined,
+          },
+        };
+
+        // For emotional sector memories, estimate emotional state from salience
+        // In a full implementation, this would come from stored emotional analysis
+        if (row.primary_sector === "emotional") {
+          event.emotionalState = {
+            valence: (row.salience as number) * 2 - 1, // Map 0-1 to -1 to 1
+            arousal: Math.min(1, (row.salience as number) * 1.5), // Higher salience = higher arousal
+            dominance: 0, // Neutral dominance without more context
+          };
+        }
+
+        // Apply emotional filter if specified
+        if (query.emotionalFilter && event.emotionalState) {
+          const { minValence, maxValence, minArousal, maxArousal } = query.emotionalFilter;
+          const { valence, arousal } = event.emotionalState;
+
+          if (minValence !== undefined && valence < minValence) continue;
+          if (maxValence !== undefined && valence > maxValence) continue;
+          if (minArousal !== undefined && arousal < minArousal) continue;
+          if (maxArousal !== undefined && arousal > maxArousal) continue;
+        }
+
+        timeline.push(event);
+      }
+
+      // Calculate emotional trends by grouping events into time periods
+      const emotionalTrends = this.calculateEmotionalTrends(timeline, query.dateRange);
+
+      return {
+        timeline,
+        emotionalTrends,
+        totalCount,
+      };
+    } catch (error) {
+      Logger.error("Get timeline failed:", error);
+
+      if (error instanceof MemoryValidationError) {
+        throw error;
+      }
+
+      throw new Error(
+        `Get timeline failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    } finally {
+      if (client) {
+        this.db.releaseConnection(client);
+      }
+    }
+  }
+
+  /**
+   * Calculate emotional trends from timeline events
+   * Groups events into time periods and calculates average emotional values
+   *
+   * @param timeline - Array of timeline events
+   * @param dateRange - Optional date range for context
+   * @returns Array of emotional trends
+   */
+  private calculateEmotionalTrends(
+    timeline: import("./types").TimelineEvent[],
+    _dateRange?: { start?: Date; end?: Date }
+  ): import("./types").EmotionalTrend[] {
+    if (timeline.length === 0) {
+      return [];
+    }
+
+    // Filter events with emotional state
+    const emotionalEvents = timeline.filter((e) => e.emotionalState);
+
+    if (emotionalEvents.length === 0) {
+      return [];
+    }
+
+    // Determine time span and period size
+    const timestamps = timeline.map((e) => new Date(e.timestamp).getTime());
+    const minTime = Math.min(...timestamps);
+    const maxTime = Math.max(...timestamps);
+    const timeSpan = maxTime - minTime;
+
+    // Determine period granularity based on time span
+    let periodMs: number;
+    let periodLabel: string;
+
+    if (timeSpan <= 24 * 60 * 60 * 1000) {
+      // Less than 1 day: hourly periods
+      periodMs = 60 * 60 * 1000;
+      periodLabel = "hour";
+    } else if (timeSpan <= 7 * 24 * 60 * 60 * 1000) {
+      // Less than 1 week: daily periods
+      periodMs = 24 * 60 * 60 * 1000;
+      periodLabel = "day";
+    } else if (timeSpan <= 30 * 24 * 60 * 60 * 1000) {
+      // Less than 1 month: weekly periods
+      periodMs = 7 * 24 * 60 * 60 * 1000;
+      periodLabel = "week";
+    } else {
+      // More than 1 month: monthly periods
+      periodMs = 30 * 24 * 60 * 60 * 1000;
+      periodLabel = "month";
+    }
+
+    // Group events by period
+    const periodGroups = new Map<
+      number,
+      { events: import("./types").TimelineEvent[]; startTime: number }
+    >();
+
+    for (const event of emotionalEvents) {
+      const eventTime = new Date(event.timestamp).getTime();
+      const periodStart = Math.floor((eventTime - minTime) / periodMs) * periodMs + minTime;
+
+      if (!periodGroups.has(periodStart)) {
+        periodGroups.set(periodStart, { events: [], startTime: periodStart });
+      }
+      const periodGroup = periodGroups.get(periodStart);
+      if (periodGroup) {
+        periodGroup.events.push(event);
+      }
+    }
+
+    // Calculate trends for each period
+    const trends: import("./types").EmotionalTrend[] = [];
+    const sortedPeriods = Array.from(periodGroups.entries()).sort((a, b) => a[0] - b[0]);
+
+    let previousValence: number | null = null;
+
+    for (const [periodStart, { events }] of sortedPeriods) {
+      const periodEnd = periodStart + periodMs;
+
+      // Calculate averages
+      let totalValence = 0;
+      let totalArousal = 0;
+      let totalDominance = 0;
+
+      for (const event of events) {
+        if (event.emotionalState) {
+          totalValence += event.emotionalState.valence;
+          totalArousal += event.emotionalState.arousal;
+          totalDominance += event.emotionalState.dominance;
+        }
+      }
+
+      const count = events.length;
+      const avgValence = totalValence / count;
+      const avgArousal = totalArousal / count;
+      const avgDominance = totalDominance / count;
+
+      // Determine trend direction
+      let trend: "improving" | "declining" | "stable" = "stable";
+      if (previousValence !== null) {
+        const valenceDelta = avgValence - previousValence;
+        if (valenceDelta > 0.1) {
+          trend = "improving";
+        } else if (valenceDelta < -0.1) {
+          trend = "declining";
+        }
+      }
+      previousValence = avgValence;
+
+      trends.push({
+        period: periodLabel,
+        startDate: new Date(periodStart).toISOString(),
+        endDate: new Date(periodEnd).toISOString(),
+        averageValence: Math.round(avgValence * 1000) / 1000,
+        averageArousal: Math.round(avgArousal * 1000) / 1000,
+        averageDominance: Math.round(avgDominance * 1000) / 1000,
+        trend,
+        memoryCount: count,
+      });
+    }
+
+    return trends;
+  }
 }

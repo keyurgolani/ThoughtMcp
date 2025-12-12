@@ -9,7 +9,7 @@
  * - Stream independence maintenance
  */
 
-import type { ReasoningStream } from "./stream";
+import type { ReasoningStream } from "./stream.types";
 import type { Insight, StreamResult, StreamStatus } from "./types";
 
 /**

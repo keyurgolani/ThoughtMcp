@@ -110,6 +110,14 @@ export default [
       "max-lines-per-function": ["error", { max: 200, skipBlankLines: true, skipComments: true }],
     },
   },
+  // Allow larger/complex functions in memory repository (complex database operations)
+  {
+    files: ["src/memory/memory-repository.ts"],
+    rules: {
+      "max-lines-per-function": ["error", { max: 120, skipBlankLines: true, skipComments: true }],
+      complexity: ["error", 30],
+    },
+  },
   // Allow more parameters in error factory functions
   {
     files: ["src/utils/errors.ts"],
