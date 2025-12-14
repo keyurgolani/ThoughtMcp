@@ -101,6 +101,9 @@ export default defineConfig({
         "**/*.d.ts",
         "**/index.ts", // Re-export files
         "**/types.ts", // Type definition files
+        "**/*.types.ts", // Interface-only files (no executable code)
+        "src/rest-api-start.ts", // Entry point script (not unit testable)
+        "src/database/schema-migration.ts", // Migration script requiring file system and DB (integration tested)
       ],
 
       // Report uncovered lines

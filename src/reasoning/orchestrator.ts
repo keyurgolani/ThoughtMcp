@@ -6,7 +6,7 @@
  */
 
 import { StreamCoordinationManager } from "./coordination-manager";
-import type { ReasoningStream } from "./stream";
+import type { ReasoningStream } from "./stream.types";
 import { ResultSynthesisEngine } from "./synthesis-engine";
 import type { Problem, StreamResult, StreamStatus, StreamType, SynthesizedResult } from "./types";
 

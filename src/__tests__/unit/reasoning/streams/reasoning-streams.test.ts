@@ -11,7 +11,7 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import type { ReasoningStream } from "../../../../reasoning/stream";
+import type { ReasoningStream } from "../../../../reasoning/stream.types";
 import { AnalyticalReasoningStream } from "../../../../reasoning/streams/analytical-stream";
 import { CreativeReasoningStream } from "../../../../reasoning/streams/creative-stream";
 import { CriticalReasoningStream } from "../../../../reasoning/streams/critical-stream";

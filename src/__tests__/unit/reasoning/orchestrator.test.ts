@@ -7,7 +7,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { ParallelReasoningOrchestrator } from "../../../reasoning/orchestrator";
-import type { ReasoningStream } from "../../../reasoning/stream";
+import type { ReasoningStream } from "../../../reasoning/stream.types";
 import {
   Problem,
   StreamResult,

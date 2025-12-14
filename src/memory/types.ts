@@ -307,3 +307,158 @@ export interface TruncationResult {
   /** Original content length before truncation */
   originalLength: number;
 }
+
+/**
+ * Activity item for recent memory operations
+ * Requirements: 1.5
+ */
+export interface ActivityItem {
+  type: "create" | "update" | "delete" | "access";
+  memoryId: string;
+  timestamp: Date;
+  sector: MemorySectorType;
+}
+
+/**
+ * Memory statistics for a user
+ * Requirements: 1.5
+ */
+export interface MemoryStats {
+  episodicCount: number;
+  semanticCount: number;
+  proceduralCount: number;
+  emotionalCount: number;
+  reflectiveCount: number;
+  totalCapacity: number;
+  consolidationPending: number;
+  recentActivity: ActivityItem[];
+}
+
+/**
+ * Graph node representing a memory in the waypoint graph
+ * Requirements: 2.1
+ */
+export interface GraphNode {
+  id: string;
+  content: string;
+  primarySector: MemorySectorType;
+  salience: number;
+  strength: number;
+  createdAt: string;
+  metadata: {
+    keywords?: string[];
+    tags?: string[];
+    category?: string;
+  };
+}
+
+/**
+ * Graph edge representing a connection between memories
+ * Requirements: 2.1
+ */
+export interface GraphEdge {
+  source: string;
+  target: string;
+  linkType: string;
+  weight: number;
+}
+
+/**
+ * Graph cluster representing a group of related memories
+ * Requirements: 2.1
+ */
+export interface GraphCluster {
+  id: string;
+  name: string;
+  nodeIds: string[];
+  centroidId?: string;
+}
+
+/**
+ * Query parameters for graph retrieval
+ * Requirements: 2.1, 2.3
+ */
+export interface GraphQuery {
+  userId: string;
+  centerMemoryId?: string;
+  depth?: number;
+  typeFilter?: MemorySectorType;
+}
+
+/**
+ * Result of graph retrieval operation
+ * Requirements: 2.1, 2.3
+ */
+export interface GraphResult {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  clusters: GraphCluster[];
+}
+
+/**
+ * Timeline event representing a memory with temporal context
+ * Requirements: 2.2
+ */
+export interface TimelineEvent {
+  id: string;
+  content: string;
+  timestamp: string;
+  primarySector: MemorySectorType;
+  salience: number;
+  strength: number;
+  emotionalState?: {
+    valence: number;
+    arousal: number;
+    dominance: number;
+  };
+  metadata: {
+    keywords?: string[];
+    tags?: string[];
+    category?: string;
+  };
+}
+
+/**
+ * Emotional trend over a time period
+ * Requirements: 2.2
+ */
+export interface EmotionalTrend {
+  period: string;
+  startDate: string;
+  endDate: string;
+  averageValence: number;
+  averageArousal: number;
+  averageDominance: number;
+  trend: "improving" | "declining" | "stable";
+  memoryCount: number;
+}
+
+/**
+ * Query parameters for timeline retrieval
+ * Requirements: 2.2
+ */
+export interface TimelineQuery {
+  userId: string;
+  dateRange?: {
+    start?: Date;
+    end?: Date;
+  };
+  emotionalFilter?: {
+    minValence?: number;
+    maxValence?: number;
+    minArousal?: number;
+    maxArousal?: number;
+  };
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Result of timeline retrieval operation
+ * Requirements: 2.2
+ */
+export interface TimelineResult {
+  timeline: TimelineEvent[];
+  emotionalTrends: EmotionalTrend[];
+  totalCount: number;
+}

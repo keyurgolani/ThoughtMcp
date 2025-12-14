@@ -12,7 +12,7 @@
  */
 
 import { KeyTermExtractor, type KeyTerms } from "../key-term-extractor";
-import type { ReasoningStream, StreamProcessor } from "../stream";
+import type { ReasoningStream, StreamProcessor } from "../stream.types";
 import { StreamStatus, StreamType, type Insight, type Problem, type StreamResult } from "../types";
 
 /**
@@ -854,8 +854,8 @@ export class SyntheticReasoningStream implements ReasoningStream {
           streamId: this.id,
           streamType: this.type,
           conclusion: "",
-          reasoning: result.reasoning || [],
-          insights: result.insights || [],
+          reasoning: result.reasoning ?? [],
+          insights: result.insights ?? [],
           confidence: 0,
           processingTime: result.processingTime,
           status: StreamStatus.CANCELLED,

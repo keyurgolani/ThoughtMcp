@@ -187,5 +187,47 @@ describe("QueryParser", () => {
       const result = parser.parse("test 你好 query");
       expect(result).toContain("你好");
     });
+
+    it("should handle multiple spaces between words", () => {
+      const result = parser.parse("word1    word2");
+      expect(result).toBeDefined();
+    });
+
+    it("should handle mixed case operators", () => {
+      const result = parser.parseQuery("test AND query OR other");
+      expect(result.includeTerms).toContain("test");
+      expect(result.includeTerms).toContain("query");
+    });
+  });
+
+  describe("extractAllTerms()", () => {
+    it("should extract all terms from ts_query string", () => {
+      const terms = parser.extractAllTerms("test & query | other");
+      expect(terms).toContain("test");
+      expect(terms).toContain("query");
+      expect(terms).toContain("other");
+    });
+
+    it("should remove duplicates", () => {
+      const terms = parser.extractAllTerms("test & test | test");
+      expect(terms.filter((t) => t === "test").length).toBe(1);
+    });
+
+    it("should handle empty string", () => {
+      const terms = parser.extractAllTerms("");
+      expect(terms).toEqual([]);
+    });
+  });
+
+  describe("extractExcludeTerms()", () => {
+    it("should extract excluded terms from query", () => {
+      const terms = parser.extractExcludeTerms("test NOT excluded");
+      expect(terms).toContain("excluded");
+    });
+
+    it("should return empty array when no excluded terms", () => {
+      const terms = parser.extractExcludeTerms("test query");
+      expect(terms).toEqual([]);
+    });
   });
 });

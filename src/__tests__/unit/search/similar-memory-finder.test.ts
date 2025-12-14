@@ -234,4 +234,51 @@ describe("SimilarMemoryFinder", () => {
       expect(proximity).toBeLessThan(0.5);
     });
   });
+
+  describe("Configuration", () => {
+    it("should create finder with default config", () => {
+      const defaultFinder = new SimilarMemoryFinder(mockDb);
+      expect(defaultFinder).toBeDefined();
+    });
+
+    it("should create finder with custom config", () => {
+      const customFinder = new SimilarMemoryFinder(mockDb, {
+        enableCache: true,
+        cacheTTL: 60000,
+      });
+      expect(customFinder).toBeDefined();
+    });
+  });
+
+  describe("Error Handling", () => {
+    it("should handle database errors in keyword similarity", async () => {
+      mockClient.query.mockRejectedValueOnce(new Error("Database error"));
+
+      await expect(finder.calculateKeywordSimilarity("mem1", "mem2")).rejects.toThrow();
+    });
+
+    it("should handle database errors in tag similarity", async () => {
+      mockClient.query.mockRejectedValueOnce(new Error("Database error"));
+
+      await expect(finder.calculateTagSimilarity("mem1", "mem2")).rejects.toThrow();
+    });
+
+    it("should handle database errors in content similarity", async () => {
+      mockClient.query.mockRejectedValueOnce(new Error("Database error"));
+
+      await expect(finder.calculateContentSimilarity("mem1", "mem2")).rejects.toThrow();
+    });
+
+    it("should handle database errors in category match", async () => {
+      mockClient.query.mockRejectedValueOnce(new Error("Database error"));
+
+      await expect(finder.calculateCategoryMatch("mem1", "mem2")).rejects.toThrow();
+    });
+
+    it("should handle database errors in temporal proximity", async () => {
+      mockClient.query.mockRejectedValueOnce(new Error("Database error"));
+
+      await expect(finder.calculateTemporalProximity("mem1", "mem2")).rejects.toThrow();
+    });
+  });
 });

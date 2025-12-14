@@ -11,7 +11,7 @@
  */
 
 import { KeyTermExtractor, type KeyTerms } from "../key-term-extractor";
-import type { ReasoningStream, StreamProcessor } from "../stream";
+import type { ReasoningStream, StreamProcessor } from "../stream.types";
 import { StreamStatus, StreamType, type Insight, type Problem, type StreamResult } from "../types";
 
 /**

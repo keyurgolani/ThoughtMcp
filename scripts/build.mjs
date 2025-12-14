@@ -63,6 +63,17 @@ async function build() {
     });
     results.push({ name: "Main", result: mainResult });
 
+    // Build REST API entry point (Requirements: 16.1)
+    if (fileExists("src/rest-api-start.ts")) {
+      console.log("📦 Building REST API entry point...");
+      const restApiResult = await esbuild.build({
+        ...commonOptions,
+        entryPoints: ["src/rest-api-start.ts"],
+        outfile: "dist/rest-api-start.js",
+      });
+      results.push({ name: "REST API", result: restApiResult });
+    }
+
     // Build cognitive module (if exists)
     if (fileExists("src/cognitive/index.ts")) {
       console.log("📦 Building cognitive module...");

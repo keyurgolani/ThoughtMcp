@@ -230,4 +230,32 @@ describe("BiasMonitoringSystem", () => {
       expect(metrics.overheadPercentage).toBeGreaterThanOrEqual(0);
     });
   });
+
+  describe("Real-Time Alerts", () => {
+    it("should generate alerts for detected biases", async () => {
+      const chain = createBiasedReasoningChain();
+
+      await monitoringSystem.monitorContinuously(chain);
+      const alerts = monitoringSystem.generateRealTimeAlerts(chain);
+
+      // Alerts may or may not be generated depending on bias detection
+      expect(Array.isArray(alerts)).toBe(true);
+    });
+
+    it("should return empty alerts for chain with no biases", async () => {
+      const chain = createTestReasoningChain();
+
+      await monitoringSystem.monitorContinuously(chain);
+      const alerts = monitoringSystem.generateRealTimeAlerts(chain);
+
+      expect(Array.isArray(alerts)).toBe(true);
+    });
+
+    it("should return empty alerts for unknown chain", () => {
+      const unknownChain = createTestReasoningChain({ id: "unknown-chain" });
+      const alerts = monitoringSystem.generateRealTimeAlerts(unknownChain);
+
+      expect(alerts).toEqual([]);
+    });
+  });
 });

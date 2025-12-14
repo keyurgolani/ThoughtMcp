@@ -116,4 +116,43 @@ describe("MemorySearchEngine", () => {
       expect(searchEngine).toBeDefined();
     });
   });
+
+  describe("Analytics", () => {
+    it("should return analytics summary with zero searches", () => {
+      const summary = searchEngine.getAnalyticsSummary();
+
+      expect(summary).toHaveProperty("totalSearches");
+      expect(summary.totalSearches).toBe(0);
+      expect(summary).toHaveProperty("avgExecutionTimeMs");
+      expect(summary).toHaveProperty("cacheHitRate");
+      expect(summary).toHaveProperty("strategiesUsed");
+    });
+
+    it("should filter analytics by date range", () => {
+      const startDate = new Date(Date.now() - 86400000); // 1 day ago
+      const endDate = new Date();
+      const summary = searchEngine.getAnalyticsSummary(startDate, endDate);
+
+      expect(summary.totalSearches).toBe(0);
+    });
+  });
+
+  describe("Configuration", () => {
+    it("should create engine with default config", () => {
+      const defaultEngine = new MemorySearchEngine(mockDb, mockEmbeddingStorage);
+      expect(defaultEngine).toBeDefined();
+    });
+
+    it("should create engine with custom config", () => {
+      const customEngine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
+        enableCache: false,
+        enableAnalytics: false,
+        parallelExecution: false,
+        maxExecutionTimeMs: 10000,
+        defaultLimit: 20,
+        maxLimit: 200,
+      });
+      expect(customEngine).toBeDefined();
+    });
+  });
 });

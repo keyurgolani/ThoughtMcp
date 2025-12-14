@@ -11,7 +11,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { StreamCoordinationManager } from "../../../reasoning/coordination-manager";
-import type { ReasoningStream } from "../../../reasoning/stream";
+import type { ReasoningStream } from "../../../reasoning/stream.types";
 import {
   StreamStatus,
   StreamType,
