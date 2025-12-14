@@ -333,15 +333,17 @@ jspm_packages/
 # TernJS port file
 .tern-port
 
-# Memory and cognitive state files
-memory/
-cognitive-state/
+# Memory and cognitive state files (runtime data at root level only)
+# Anchored with / to avoid ignoring src/memory/ source code
+/memory/
+/cognitive-state/
 *.memory
 *.state
 
-# Brain directories (MCP server memory storage)
-brain/
-data/
+# Brain directories (MCP server memory storage at root level only)
+# Anchored with / to avoid ignoring source code directories
+/brain/
+/data/
 
 # Test artifacts
 test-data/
