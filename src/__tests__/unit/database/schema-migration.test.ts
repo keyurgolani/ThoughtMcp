@@ -621,14 +621,14 @@ describe("SchemaMigrationSystem", () => {
       await validMigrationSystem.runMigrations();
 
       const versionBefore = await validMigrationSystem.getCurrentVersion();
-      expect(versionBefore).toBe(3);
+      expect(versionBefore).toBe(4);
 
       // Try to rollback with invalid path (should fail)
       await expect(invalidMigrationSystem.rollbackMigration(1)).rejects.toThrow();
 
-      // Verify database is still at version 3 (transaction was rolled back)
+      // Verify database is still at version 4 (transaction was rolled back)
       const versionAfter = await validMigrationSystem.getCurrentVersion();
-      expect(versionAfter).toBe(3);
+      expect(versionAfter).toBe(4);
     });
 
     it("should support rollback functionality", async () => {
@@ -657,9 +657,9 @@ describe("SchemaMigrationSystem", () => {
       // Re-run migrations to restore
       await migrationSystem.runMigrations();
 
-      // Verify we're back to version 3 (latest)
+      // Verify we're back to version 4 (latest)
       const finalVersion = await migrationSystem.getCurrentVersion();
-      expect(finalVersion).toBe(3);
+      expect(finalVersion).toBe(4);
     });
 
     it("should handle rollback when already at target version", async () => {
@@ -700,10 +700,10 @@ describe("SchemaMigrationSystem", () => {
     it("should handle rollback when target version is between migrations", async () => {
       const migrationSystem = new SchemaMigrationSystem(dbManager);
 
-      // Ensure we're at version 3 (latest)
+      // Ensure we're at version 4 (latest)
       await migrationSystem.runMigrations();
       const currentVersion = await migrationSystem.getCurrentVersion();
-      expect(currentVersion).toBe(3);
+      expect(currentVersion).toBe(4);
 
       // Try to rollback to version 1.5 (between migrations 1 and 2)
       // This should rollback migration 2 but keep migration 1
@@ -753,9 +753,9 @@ describe("SchemaMigrationSystem", () => {
       // Clean up: remove fake migration
       await client.query("DELETE FROM schema_migrations WHERE version = 5");
 
-      // Verify we're back to version 3 (latest)
+      // Verify we're back to version 4 (latest)
       const finalVersion = await migrationSystem.getCurrentVersion();
-      expect(finalVersion).toBe(3);
+      expect(finalVersion).toBe(4);
     });
 
     it("should be idempotent (safe to run multiple times)", async () => {
@@ -800,7 +800,7 @@ describe("SchemaMigrationSystem", () => {
 
       // Verify we're at latest version
       const version = await migrationSystem.getCurrentVersion();
-      expect(version).toBe(3);
+      expect(version).toBe(4);
     });
 
     it("should support convenience methods for table creation", async () => {
