@@ -11,7 +11,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { DatabaseConnectionManager } from "../../../database/connection-manager";
 import { BackgroundScheduler } from "../../../temporal/background-scheduler";
 import { TemporalDecayEngine } from "../../../temporal/decay-engine";
-import type { BackgroundSchedulerConfig } from "../../../temporal/scheduler-types";
+import {
+  type BackgroundSchedulerConfig,
+  DEFAULT_SCHEDULER_CONFIG,
+} from "../../../temporal/scheduler-types";
 import { SectorConfigManager } from "../../../temporal/sector-config";
 
 describe("BackgroundScheduler - Cron-based Scheduling", () => {
@@ -19,6 +22,15 @@ describe("BackgroundScheduler - Cron-based Scheduling", () => {
   let db: DatabaseConnectionManager;
   let decayEngine: TemporalDecayEngine;
   let scheduler: BackgroundScheduler;
+
+  it("should have valid default scheduler configuration", () => {
+    expect(DEFAULT_SCHEDULER_CONFIG).toBeDefined();
+    expect(DEFAULT_SCHEDULER_CONFIG.cronExpression).toBe("0 2 * * *");
+    expect(DEFAULT_SCHEDULER_CONFIG.batchSize).toBe(1000);
+    expect(DEFAULT_SCHEDULER_CONFIG.maxProcessingTime).toBe(30 * 60 * 1000);
+    expect(DEFAULT_SCHEDULER_CONFIG.resourceThresholds.maxCpuPercent).toBe(80);
+    expect(DEFAULT_SCHEDULER_CONFIG.resourceThresholds.maxMemoryMB).toBe(2048);
+  });
 
   beforeEach(async () => {
     configManager = new SectorConfigManager();
