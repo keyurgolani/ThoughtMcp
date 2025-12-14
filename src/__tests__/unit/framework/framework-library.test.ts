@@ -2168,6 +2168,123 @@ describe("Critical Thinking Framework", () => {
     });
   });
 
+  describe("Step Validation", () => {
+    it("should validate Evaluate Evidence step requires Identify Claims", async () => {
+      const { CriticalThinkingFramework } = await import(
+        "../../../framework/frameworks/critical-thinking.js"
+      );
+      const framework = new CriticalThinkingFramework();
+      const evaluateStep = framework.steps[1];
+
+      // Missing previous step result
+      const validation = await evaluateStep.validate(context, []);
+
+      expect(validation.valid).toBe(false);
+      expect(validation.issues).toContain("Claims must be identified before evaluating evidence");
+    });
+
+    it("should validate Examine Assumptions step requires Evaluate Evidence", async () => {
+      const { CriticalThinkingFramework } = await import(
+        "../../../framework/frameworks/critical-thinking.js"
+      );
+      const framework = new CriticalThinkingFramework();
+      const examineStep = framework.steps[2];
+
+      const previousResults: StepResult[] = [
+        {
+          stepId: "identify",
+          success: true,
+          output: "Claims identified",
+          insights: [],
+          processingTime: 100,
+          confidence: 0.8,
+        },
+      ];
+
+      // Missing evaluate step result
+      const validation = await examineStep.validate(context, previousResults);
+
+      expect(validation.valid).toBe(false);
+      expect(validation.issues).toContain(
+        "Evidence must be evaluated before examining assumptions"
+      );
+    });
+
+    it("should validate Assess Logic step requires Examine Assumptions", async () => {
+      const { CriticalThinkingFramework } = await import(
+        "../../../framework/frameworks/critical-thinking.js"
+      );
+      const framework = new CriticalThinkingFramework();
+      const assessStep = framework.steps[3];
+
+      const previousResults: StepResult[] = [
+        {
+          stepId: "identify",
+          success: true,
+          output: "Claims identified",
+          insights: [],
+          processingTime: 100,
+          confidence: 0.8,
+        },
+        {
+          stepId: "evaluate",
+          success: true,
+          output: "Evidence evaluated",
+          insights: [],
+          processingTime: 100,
+          confidence: 0.75,
+        },
+      ];
+
+      // Missing examine step result
+      const validation = await assessStep.validate(context, previousResults);
+
+      expect(validation.valid).toBe(false);
+      expect(validation.issues).toContain("Assumptions must be examined before assessing logic");
+    });
+
+    it("should validate Validate Conclusions step requires Assess Logic", async () => {
+      const { CriticalThinkingFramework } = await import(
+        "../../../framework/frameworks/critical-thinking.js"
+      );
+      const framework = new CriticalThinkingFramework();
+      const validateStep = framework.steps[4];
+
+      const previousResults: StepResult[] = [
+        {
+          stepId: "identify",
+          success: true,
+          output: "Claims identified",
+          insights: [],
+          processingTime: 100,
+          confidence: 0.8,
+        },
+        {
+          stepId: "evaluate",
+          success: true,
+          output: "Evidence evaluated",
+          insights: [],
+          processingTime: 100,
+          confidence: 0.75,
+        },
+        {
+          stepId: "examine",
+          success: true,
+          output: "Assumptions examined",
+          insights: [],
+          processingTime: 100,
+          confidence: 0.7,
+        },
+      ];
+
+      // Missing assess step result
+      const validation = await validateStep.validate(context, previousResults);
+
+      expect(validation.valid).toBe(false);
+      expect(validation.issues).toContain("Logic must be assessed before validating conclusions");
+    });
+  });
+
   describe("Adaptation", () => {
     it("should have adapt method", async () => {
       const { CriticalThinkingFramework } = await import(
@@ -2642,6 +2759,127 @@ describe("Root Cause Analysis Framework", () => {
 
       expect(result).toBeDefined();
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe("Step Validation", () => {
+    it("should validate Collect Data step requires Define Problem", async () => {
+      const { RootCauseAnalysisFramework } = await import(
+        "../../../framework/frameworks/root-cause-analysis.js"
+      );
+      const framework = new RootCauseAnalysisFramework();
+      const collectStep = framework.steps[1];
+
+      // Missing previous step result
+      const validation = await collectStep.validate(context, []);
+
+      expect(validation.valid).toBe(false);
+      expect(validation.issues).toContain("Problem must be defined before collecting data");
+    });
+
+    it("should validate Identify Causal Factors step requires Collect Data", async () => {
+      const { RootCauseAnalysisFramework } = await import(
+        "../../../framework/frameworks/root-cause-analysis.js"
+      );
+      const framework = new RootCauseAnalysisFramework();
+      const identifyStep = framework.steps[2];
+
+      const previousResults: StepResult[] = [
+        {
+          stepId: "define",
+          success: true,
+          output: "Problem defined",
+          insights: [],
+          processingTime: 100,
+          confidence: 0.85,
+        },
+      ];
+
+      // Missing collect step result
+      const validation = await identifyStep.validate(context, previousResults);
+
+      expect(validation.valid).toBe(false);
+      expect(validation.issues).toContain(
+        "Data must be collected before identifying causal factors"
+      );
+    });
+
+    it("should validate Determine Root Cause step requires Identify Causal Factors", async () => {
+      const { RootCauseAnalysisFramework } = await import(
+        "../../../framework/frameworks/root-cause-analysis.js"
+      );
+      const framework = new RootCauseAnalysisFramework();
+      const determineStep = framework.steps[3];
+
+      const previousResults: StepResult[] = [
+        {
+          stepId: "define",
+          success: true,
+          output: "Problem defined",
+          insights: [],
+          processingTime: 100,
+          confidence: 0.85,
+        },
+        {
+          stepId: "collect",
+          success: true,
+          output: "Data collected",
+          insights: [],
+          processingTime: 150,
+          confidence: 0.8,
+        },
+      ];
+
+      // Missing identify step result
+      const validation = await determineStep.validate(context, previousResults);
+
+      expect(validation.valid).toBe(false);
+      expect(validation.issues).toContain(
+        "Causal factors must be identified before determining root cause"
+      );
+    });
+
+    it("should validate Recommend Solutions step requires Determine Root Cause", async () => {
+      const { RootCauseAnalysisFramework } = await import(
+        "../../../framework/frameworks/root-cause-analysis.js"
+      );
+      const framework = new RootCauseAnalysisFramework();
+      const recommendStep = framework.steps[4];
+
+      const previousResults: StepResult[] = [
+        {
+          stepId: "define",
+          success: true,
+          output: "Problem defined",
+          insights: [],
+          processingTime: 100,
+          confidence: 0.85,
+        },
+        {
+          stepId: "collect",
+          success: true,
+          output: "Data collected",
+          insights: [],
+          processingTime: 150,
+          confidence: 0.8,
+        },
+        {
+          stepId: "identify",
+          success: true,
+          output: "Causal factors identified",
+          insights: [],
+          processingTime: 120,
+          confidence: 0.75,
+        },
+      ];
+
+      // Missing determine step result
+      const validation = await recommendStep.validate(context, previousResults);
+
+      expect(validation.valid).toBe(false);
+      expect(validation.issues).toContain(
+        "Root cause must be determined before recommending solutions"
+      );
     });
   });
 

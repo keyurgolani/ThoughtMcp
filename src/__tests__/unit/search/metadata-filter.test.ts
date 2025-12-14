@@ -943,42 +943,46 @@ describe("MetadataFilterEngine", () => {
       expect(result.count).toBeGreaterThanOrEqual(1);
     });
 
-    it("should complete complex query within 5000ms for 10k memories", async () => {
-      // Insert 10k test memories in batches to avoid overwhelming connection pool
-      const batchSize = 100;
-      for (let batch = 0; batch < 100; batch++) {
-        const insertPromises = [];
-        for (let i = 0; i < batchSize; i++) {
-          const index = batch * batchSize + i;
-          insertPromises.push(
-            insertTestMemoryWithMetadata(
-              `Test memory ${index}`,
-              {
-                keywords: [`keyword${index % 100}`, "common"],
-                tags: [`tag${index % 50}`, "test"],
-                category: `category${index % 10}`,
-                importance: (index % 10) / 10,
-              },
-              "test-mf-complex-perf"
-            )
-          );
+    it(
+      "should complete complex query within 5000ms for 10k memories",
+      { timeout: 60000 },
+      async () => {
+        // Insert 10k test memories in batches to avoid overwhelming connection pool
+        const batchSize = 100;
+        for (let batch = 0; batch < 100; batch++) {
+          const insertPromises = [];
+          for (let i = 0; i < batchSize; i++) {
+            const index = batch * batchSize + i;
+            insertPromises.push(
+              insertTestMemoryWithMetadata(
+                `Test memory ${index}`,
+                {
+                  keywords: [`keyword${index % 100}`, "common"],
+                  tags: [`tag${index % 50}`, "test"],
+                  category: `category${index % 10}`,
+                  importance: (index % 10) / 10,
+                },
+                "test-mf-complex-perf"
+              )
+            );
+          }
+          await Promise.all(insertPromises);
         }
-        await Promise.all(insertPromises);
+
+        const filters: MetadataFilters = {
+          keywords: ["common"],
+          tags: ["test"],
+          importanceMin: 0.5,
+        };
+
+        const startTime = Date.now();
+        const result: FilterResult = await filterEngine.filter(filters);
+        const executionTime = Date.now() - startTime;
+
+        expect(result.count).toBeGreaterThan(0);
+        expect(executionTime).toBeLessThan(5000); // Adjusted for realistic timing with 10k inserts
+        expect(result.executionTimeMs).toBeLessThan(5000);
       }
-
-      const filters: MetadataFilters = {
-        keywords: ["common"],
-        tags: ["test"],
-        importanceMin: 0.5,
-      };
-
-      const startTime = Date.now();
-      const result: FilterResult = await filterEngine.filter(filters);
-      const executionTime = Date.now() - startTime;
-
-      expect(result.count).toBeGreaterThan(0);
-      expect(executionTime).toBeLessThan(5000); // Adjusted for realistic timing with 10k inserts
-      expect(result.executionTimeMs).toBeLessThan(5000);
-    });
+    );
   });
 });
