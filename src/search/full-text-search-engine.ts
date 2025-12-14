@@ -83,7 +83,8 @@ export class FullTextSearchEngine {
 
       // Build and execute search SQL
       const { sql, params } = this.buildSearchSQL(query, parsedQuery, language);
-      const results = await this.executeSearch(sql, params);
+      // Pass original query for proper matchedTerms extraction (excludes NOT terms)
+      const results = await this.executeSearch(sql, params, query.query);
 
       // Get total count
       const totalResults = await this.getTotalCount(query, parsedQuery, language);
@@ -119,7 +120,8 @@ export class FullTextSearchEngine {
               { ...query, maxResults: totalResults, offset: 0 },
               parsedQuery,
               language
-            ).params
+            ).params,
+            query.query
           ),
           statistics,
         };
@@ -269,19 +271,24 @@ export class FullTextSearchEngine {
    *
    * @param sql - SQL query string
    * @param params - Query parameters
+   * @param originalQuery - Original user query for term extraction
    * @returns Array of search results
    */
   private async executeSearch(
     sql: string,
-    params: (string | number)[]
+    params: (string | number)[],
+    originalQuery?: string
   ): Promise<FullTextSearchResult[]> {
     const client = await this.db.getConnection();
 
     try {
       const result = await client.query(sql, params);
 
-      // Extract matched terms from the query
-      const matchedTerms = this.queryParser.extractTerms(params[1] as string);
+      // Extract matched terms from the original query (excludes NOT terms)
+      // If originalQuery provided, use it; otherwise fall back to extractAllTerms from tsQuery
+      const matchedTerms = originalQuery
+        ? this.queryParser.extractTerms(originalQuery)
+        : this.queryParser.extractAllTerms(params[1] as string);
 
       return result.rows.map((row) => ({
         memoryId: row.memoryId,

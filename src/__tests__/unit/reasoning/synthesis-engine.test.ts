@@ -657,6 +657,147 @@ describe("ResultSynthesisEngine", () => {
     });
   });
 
+  describe("Conflict Severity Highlighting (Requirements 6.1-6.4)", () => {
+    it("should highlight CRITICAL conflicts prominently in conclusion", () => {
+      const results: StreamResult[] = [
+        createMockStreamResult("analytical" as StreamType, "System is safe", 0.95),
+        createMockStreamResult("creative" as StreamType, "System is unsafe", 0.95),
+      ];
+
+      const synthesis = engine.synthesizeResults(results);
+
+      // Should have conflicts detected
+      expect(synthesis.conflicts.length).toBeGreaterThan(0);
+
+      // Critical conflicts should be highlighted in conclusion
+      if (synthesis.conflicts.some((c) => c.severity === "critical")) {
+        expect(synthesis.conclusion).toContain("CRITICAL");
+      }
+    });
+
+    it("should highlight HIGH severity conflicts in conclusion", () => {
+      const results: StreamResult[] = [
+        createMockStreamResult(
+          "analytical" as StreamType,
+          "Prioritize security over usability",
+          0.8
+        ),
+        createMockStreamResult("creative" as StreamType, "Prioritize usability over security", 0.8),
+      ];
+
+      const synthesis = engine.synthesizeResults(results);
+
+      // Should have conflicts detected
+      expect(synthesis.conflicts.length).toBeGreaterThan(0);
+
+      // High severity conflicts should be highlighted
+      if (synthesis.conflicts.some((c) => c.severity === "high")) {
+        expect(synthesis.conclusion).toContain("HIGH-PRIORITY");
+      }
+    });
+
+    it("should include resolution suggestions for conflicts", () => {
+      const results: StreamResult[] = [
+        createMockStreamResult("analytical" as StreamType, "Use quantitative analysis", 0.85),
+        createMockStreamResult("creative" as StreamType, "Use qualitative exploration", 0.85),
+      ];
+
+      const synthesis = engine.synthesizeResults(results);
+
+      // Conflicts should have resolution frameworks
+      synthesis.conflicts.forEach((conflict) => {
+        expect(conflict.resolutionFramework).toBeDefined();
+        expect(conflict.resolutionFramework?.recommendedAction).toBeTruthy();
+      });
+    });
+
+    it("should generate specific conflict descriptions (Requirement 6.2)", () => {
+      const results: StreamResult[] = [
+        createMockStreamResult("analytical" as StreamType, "The data shows 100 users", 0.9),
+        createMockStreamResult("creative" as StreamType, "The data shows 200 users", 0.9),
+      ];
+
+      const synthesis = engine.synthesizeResults(results);
+
+      // Conflicts should have specific descriptions
+      synthesis.conflicts.forEach((conflict) => {
+        expect(conflict.description).toBeTruthy();
+        // Description should not be generic
+        expect(conflict.description).not.toBe("conflict");
+        // Should contain specific information about the disagreement
+        expect(conflict.description.length).toBeGreaterThan(20);
+      });
+    });
+
+    it("should not always return LOW severity (Requirement 6.1)", () => {
+      // Create multiple scenarios with different confidence levels
+      const scenarios = [
+        {
+          results: [
+            createMockStreamResult("analytical" as StreamType, "System is safe", 0.95),
+            createMockStreamResult("creative" as StreamType, "System is unsafe", 0.95),
+          ],
+        },
+        {
+          results: [
+            createMockStreamResult("analytical" as StreamType, "Prioritize security", 0.85),
+            createMockStreamResult("creative" as StreamType, "Prioritize usability", 0.85),
+          ],
+        },
+        {
+          results: [
+            createMockStreamResult("analytical" as StreamType, "Use method A", 0.7),
+            createMockStreamResult("creative" as StreamType, "Use method B", 0.7),
+          ],
+        },
+      ];
+
+      const severities = new Set<string>();
+
+      scenarios.forEach((scenario) => {
+        const synthesis = engine.synthesizeResults(scenario.results);
+        synthesis.conflicts.forEach((conflict) => {
+          severities.add(conflict.severity);
+        });
+      });
+
+      // Should have variety in severity levels, not just LOW
+      expect(severities.size).toBeGreaterThan(1);
+    });
+
+    it("should include resolution suggestions in conclusion for high-severity conflicts", () => {
+      const results: StreamResult[] = [
+        createMockStreamResult(
+          "analytical" as StreamType,
+          "Prioritize security over usability",
+          0.85
+        ),
+        createMockStreamResult(
+          "creative" as StreamType,
+          "Prioritize usability over security",
+          0.85
+        ),
+      ];
+
+      const synthesis = engine.synthesizeResults(results);
+
+      // If there are high-severity conflicts, conclusion should mention resolution
+      const hasHighSeverity = synthesis.conflicts.some(
+        (c) => c.severity === "high" || c.severity === "critical"
+      );
+
+      if (hasHighSeverity) {
+        // Conclusion should contain resolution-related text
+        expect(
+          synthesis.conclusion.toLowerCase().includes("resolution") ||
+            synthesis.conclusion.toLowerCase().includes("resolve") ||
+            synthesis.conclusion.toLowerCase().includes("action") ||
+            synthesis.conclusion.toLowerCase().includes("clarif")
+        ).toBe(true);
+      }
+    });
+  });
+
   describe("Edge Cases", () => {
     it("should handle empty conclusion in coherence assessment", () => {
       const synthesis: SynthesizedResult = {

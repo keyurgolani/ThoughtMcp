@@ -9,8 +9,10 @@
  * - Skeptical and devil's advocate approach
  * - Counter-argument generation
  * - Progress tracking and timeout management
+ * - Problem-specific weaknesses (Requirements 4.3, 15.3)
  */
 
+import { KeyTermExtractor, type KeyTerms } from "../key-term-extractor";
 import type { ReasoningStream, StreamProcessor } from "../stream";
 import { StreamStatus, StreamType, type Insight, type Problem, type StreamResult } from "../types";
 
@@ -19,8 +21,15 @@ import { StreamStatus, StreamType, type Insight, type Problem, type StreamResult
  *
  * Implements the core critical reasoning logic with weakness detection,
  * assumption challenging, risk assessment, and counter-argument generation.
+ * Generates problem-specific weaknesses using key term extraction.
  */
 export class CriticalStreamProcessor implements StreamProcessor {
+  private readonly keyTermExtractor: KeyTermExtractor;
+
+  constructor() {
+    this.keyTermExtractor = new KeyTermExtractor();
+  }
+
   /**
    * Process a problem using critical reasoning
    *
@@ -38,70 +47,70 @@ export class CriticalStreamProcessor implements StreamProcessor {
     }
 
     try {
+      // Extract key terms for problem-specific criticism (Req 4.3, 15.3)
+      const keyTerms = this.keyTermExtractor.extract(problem.description, problem.context);
+      const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the proposal";
+
       // Step 1: Initial skeptical assessment
       reasoning.push(
         `Critically examining: ${problem.description.substring(0, 100)}${problem.description.length > 100 ? "..." : ""}`
       );
 
       // Step 2: Identify weaknesses and flaws
-      const weaknesses = this.identifyWeaknesses(problem);
+      const weaknesses = this.identifyWeaknesses(problem, keyTerms);
       if (weaknesses.length > 0) {
         reasoning.push(
-          `Identified ${weaknesses.length} potential weakness${weaknesses.length > 1 ? "es" : ""} in the proposal`
+          `Identified ${weaknesses.length} potential weakness${weaknesses.length > 1 ? "es" : ""} in ${primaryTerm}`
         );
+        reasoning.push(`Logical gaps in ${primaryTerm} require clarification before proceeding`);
         reasoning.push(
-          `Logical gaps and missing information not addressed in the proposal - these issues require clarification`
-        );
-        reasoning.push(
-          `Implementation challenges include complexity and difficulty in execution - hard to achieve given constraints`
+          `Implementation challenges for ${primaryTerm} include complexity given current constraints`
         );
         insights.push(...weaknesses);
       }
 
       // Step 3: Challenge assumptions
-      const assumptions = this.challengeAssumptions(problem);
+      const assumptions = this.challengeAssumptions(problem, keyTerms);
       if (assumptions.length > 0) {
         reasoning.push(
-          `Questioning ${assumptions.length} underlying assumption${assumptions.length > 1 ? "s" : ""}`
+          `Questioning ${assumptions.length} underlying assumption${assumptions.length > 1 ? "s" : ""} about ${primaryTerm}`
         );
         // Check for optimistic projections
         if (problem.context.includes("%")) {
           reasoning.push(
-            `The 50% projection appears optimistic and may not be realistic - need validation of achievable targets`
+            `Projections for ${primaryTerm} appear optimistic - need validation of achievable targets`
           );
         }
         insights.push(...assumptions);
       }
 
       // Step 4: Assess risks
-      const risks = this.assessRisks(problem);
+      const risks = this.assessRisks(problem, keyTerms);
       if (risks.length > 0) {
         reasoning.push(
-          `Risk assessment reveals ${risks.length} significant concern${risks.length > 1 ? "s" : ""}`
+          `Risk assessment for ${primaryTerm} reveals ${risks.length} significant concern${risks.length > 1 ? "s" : ""}`
         );
         reasoning.push(
-          `Unintended consequences and negative effects could result from this approach - impact may be broader than anticipated`
+          `Unintended consequences from ${primaryTerm} could have broader impact than anticipated`
         );
         reasoning.push(
-          `Worst-case scenario: the proposal could fail completely and backfire, causing more harm than good`
+          `Worst-case scenario: ${primaryTerm} could fail and cause more harm than good`
         );
-        reasoning.push(
-          `Risk mitigation strategies should be developed to prevent and address potential failures`
-        );
+        reasoning.push(`Risk mitigation strategies for ${primaryTerm} should be developed`);
         insights.push(...risks);
       }
 
       // Step 5: Detect logical flaws
-      const flaws = this.detectFlaws(problem);
+      const flaws = this.detectFlaws(problem, keyTerms);
       reasoning.push(
-        `Logical analysis identifies potential flaws and errors in reasoning - checking for fallacies and mistakes`
+        `Logical analysis of ${primaryTerm} identifies potential flaws and errors in reasoning`
       );
 
       // Add specific reasoning for detected flaws
       for (const flaw of flaws) {
         if (flaw.content.toLowerCase().includes("circular")) {
           reasoning.push(
-            `Circular reasoning detected - argument repeats itself without adding substance`
+            `Circular reasoning detected in ${primaryTerm} - argument repeats itself without adding substance`
           );
         }
       }
@@ -111,22 +120,22 @@ export class CriticalStreamProcessor implements StreamProcessor {
       }
 
       // Step 6: Play devil's advocate
-      const counterArguments = this.generateCounterArguments(problem);
+      const counterArguments = this.generateCounterArguments(problem, keyTerms);
       if (counterArguments.length > 0) {
         reasoning.push(
-          `Devil's advocate perspective: ${counterArguments[0].content.substring(0, 80)}...`
+          `Devil's advocate on ${primaryTerm}: ${counterArguments[0].content.substring(0, 80)}...`
         );
         reasoning.push(
-          `Counter-argument: alternatively, we should consider other approaches that may be more effective`
+          `Counter-argument: alternative approaches to ${primaryTerm} may be more effective`
         );
         reasoning.push(
-          `Constructive criticism: instead of this approach, we could improve by addressing root causes and refining the strategy`
+          `Constructive criticism: ${primaryTerm} could improve by addressing root causes`
         );
         insights.push(...counterArguments);
       }
 
       // Step 7: Evaluate evidence quality
-      const evidenceAssessment = this.evaluateEvidence(problem);
+      const evidenceAssessment = this.evaluateEvidence(problem, keyTerms);
       reasoning.push(evidenceAssessment.reasoning);
       if (evidenceAssessment.insight) {
         insights.push(evidenceAssessment.insight);
@@ -135,26 +144,28 @@ export class CriticalStreamProcessor implements StreamProcessor {
       // Step 8: Consider constraints critically
       if (problem.constraints && problem.constraints.length > 0) {
         reasoning.push(
-          `Constraints analysis: ${problem.constraints.join(", ")} - these may be more limiting than acknowledged`
+          `Constraints on ${primaryTerm}: ${problem.constraints.join(", ")} - these may be more limiting than acknowledged`
         );
         reasoning.push(
-          `Challenging conventional wisdom: the standard approach may not be optimal - we should question accepted practices`
+          `Challenging conventional wisdom about ${primaryTerm}: the standard approach may not be optimal`
         );
+        const constraintContent = `Constraints on ${primaryTerm} (${problem.constraints.join(", ")}) may significantly limit feasibility`;
         insights.push({
-          content: `Constraints (${problem.constraints.join(", ")}) may significantly limit feasibility`,
+          content: constraintContent,
           source: StreamType.CRITICAL,
           confidence: 0.75,
           importance: 0.8,
+          referencedTerms: this.keyTermExtractor.findReferencedTerms(constraintContent, keyTerms),
         });
       }
 
       // Step 9: Generate conclusion
-      const conclusion = this.generateConclusion(problem, insights);
+      const conclusion = this.generateConclusion(problem, insights, keyTerms);
       reasoning.push(`Therefore, ${conclusion}`);
 
       // Add balanced perspective
       reasoning.push(
-        `While concerns exist, there could be potential if issues are addressed - might succeed with proper mitigation`
+        `While concerns about ${primaryTerm} exist, there could be potential if issues are addressed`
       );
 
       // Calculate confidence based on thoroughness of criticism
@@ -198,45 +209,51 @@ export class CriticalStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Identify weaknesses in the proposal
+   * Identify weaknesses in the proposal with term reference tracking
    *
    * @param problem - Problem to analyze
-   * @returns Array of weakness insights
+   * @param keyTerms - Extracted key terms for problem-specific weaknesses
+   * @returns Array of weakness insights with referenced terms tracked
    */
-  private identifyWeaknesses(problem: Problem): Insight[] {
+  private identifyWeaknesses(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const weaknesses: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the proposal";
+    const domainTerm = keyTerms.domainTerms[0] || "";
 
     // Check for vague or unclear problem description
     if (problem.description.length < 30) {
+      const content = `${primaryTerm} description is too vague - lacks specific ${domainTerm || "details"} needed for proper evaluation`;
       weaknesses.push({
-        content:
-          "Problem description is too vague - lacks specific details needed for proper evaluation",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.85,
         importance: 0.8,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
     // Check for missing context
     if (!problem.context || problem.context.length < 50) {
+      const content = `Insufficient context for ${primaryTerm} - missing critical ${domainTerm || "information"} for thorough analysis`;
       weaknesses.push({
-        content:
-          "Insufficient context provided - missing critical information for thorough analysis",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.9,
         importance: 0.85,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
     // Check for overly optimistic claims (e.g., "50%" in context)
     const hasOptimisticClaims = /\d+%/.test(problem.context);
     if (hasOptimisticClaims) {
+      const content = `Quantitative projections for ${primaryTerm} may be overly optimistic - need validation with ${domainTerm || "supporting"} data`;
       weaknesses.push({
-        content:
-          "Quantitative projections may be overly optimistic - need validation and supporting data",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.75,
         importance: 0.8,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
@@ -245,23 +262,25 @@ export class CriticalStreamProcessor implements StreamProcessor {
       problem.complexity === "complex" ||
       (problem.constraints && problem.constraints.length > 2)
     ) {
+      const content = `${primaryTerm} implementation complexity is high - ${domainTerm || "resource"} requirements not fully addressed`;
       weaknesses.push({
-        content:
-          "Implementation complexity is high - significant challenges and resource requirements not fully addressed",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.8,
         importance: 0.75,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
     // Check for potential failure points
     if (problem.urgency === "high") {
+      const content = `High urgency for ${primaryTerm} increases risk of rushed ${domainTerm || "decisions"} and inadequate testing`;
       weaknesses.push({
-        content:
-          "High urgency increases risk of rushed decisions and inadequate testing - potential for critical failures",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.75,
         importance: 0.8,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
@@ -269,22 +288,26 @@ export class CriticalStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Challenge assumptions in the proposal
+   * Challenge assumptions in the proposal with term reference tracking
    *
    * @param problem - Problem to analyze
-   * @returns Array of assumption-challenging insights
+   * @param keyTerms - Extracted key terms for problem-specific assumption challenges
+   * @returns Array of assumption-challenging insights with referenced terms tracked
    */
-  private challengeAssumptions(problem: Problem): Insight[] {
+  private challengeAssumptions(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const assumptions: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the proposal";
+    const domainTerm = keyTerms.domainTerms[0] || "";
 
     // Challenge optimistic projections
     if (problem.context.includes("%") || problem.context.toLowerCase().includes("increase")) {
+      const content = `Assumption that ${primaryTerm} will achieve stated ${domainTerm || "metrics"} is unproven - what if actual impact is much lower?`;
       assumptions.push({
-        content:
-          "Assumption that proposed changes will achieve stated metrics is unproven - what if actual impact is much lower?",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.8,
         importance: 0.85,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
@@ -293,12 +316,13 @@ export class CriticalStreamProcessor implements StreamProcessor {
       problem.context.toLowerCase().includes("user") ||
       problem.context.toLowerCase().includes("engagement")
     ) {
+      const content = `${primaryTerm} assumes users will respond positively - but user behavior is unpredictable`;
       assumptions.push({
-        content:
-          "Assumes users will respond positively - but user behavior is unpredictable and may backfire",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.75,
         importance: 0.8,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
@@ -309,12 +333,13 @@ export class CriticalStreamProcessor implements StreamProcessor {
         (c) => c.toLowerCase().includes("month") || c.toLowerCase().includes("timeline")
       )
     ) {
+      const content = `Timeline assumptions for ${primaryTerm} may be unrealistic - hidden ${domainTerm || "complexities"} often emerge`;
       assumptions.push({
-        content:
-          "Timeline assumptions may be unrealistic - hidden complexities often emerge during implementation",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.7,
         importance: 0.75,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
@@ -323,74 +348,84 @@ export class CriticalStreamProcessor implements StreamProcessor {
       problem.constraints &&
       problem.constraints.some((c) => c.includes("$") || c.toLowerCase().includes("budget"))
     ) {
+      const content = `Budget assumptions for ${primaryTerm} may not account for unforeseen ${domainTerm || "costs"} and scope creep`;
       assumptions.push({
-        content: "Budget assumptions may not account for unforeseen costs and scope creep",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.75,
         importance: 0.7,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
-    // General assumption challenge
+    // General assumption challenge with specific terms
+    const generalContent = `Implicit assumption that current ${primaryTerm} approach is optimal - alternative ${domainTerm || "strategies"} may be more effective`;
     assumptions.push({
-      content:
-        "Implicit assumption that current approach is optimal - alternative strategies may be more effective",
+      content: generalContent,
       source: StreamType.CRITICAL,
       confidence: 0.65,
       importance: 0.7,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(generalContent, keyTerms),
     });
 
     return assumptions;
   }
 
   /**
-   * Assess risks in the proposal
+   * Assess risks in the proposal with term reference tracking
    *
    * @param problem - Problem to analyze
-   * @returns Array of risk insights
+   * @param keyTerms - Extracted key terms for problem-specific risk assessment
+   * @returns Array of risk insights with referenced terms tracked
    */
-  private assessRisks(problem: Problem): Insight[] {
+  private assessRisks(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const risks: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the proposal";
+    const domainTerm = keyTerms.domainTerms[0] || "";
 
     // Risk of unintended consequences
+    const unintendedContent = `Risk of unintended consequences: ${primaryTerm} changes may have negative ${domainTerm || "side effects"} not considered`;
     risks.push({
-      content:
-        "Risk of unintended consequences: changes may have negative side effects not considered in initial analysis",
+      content: unintendedContent,
       source: StreamType.CRITICAL,
       confidence: 0.75,
       importance: 0.85,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(unintendedContent, keyTerms),
     });
 
     // Risk of user alienation
     if (problem.constraints && problem.constraints.some((c) => c.toLowerCase().includes("user"))) {
+      const userContent = `Significant risk of alienating existing users with ${primaryTerm} - mitigation strategy unclear`;
       risks.push({
-        content:
-          "Significant risk of alienating existing users - constraint acknowledges this but mitigation strategy unclear",
+        content: userContent,
         source: StreamType.CRITICAL,
         confidence: 0.8,
         importance: 0.9,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(userContent, keyTerms),
       });
     }
 
     // Risk of failure
     if (problem.complexity === "complex" || problem.urgency === "high") {
+      const failureContent = `High risk of ${primaryTerm} failure due to complexity and time pressure - could damage ${domainTerm || "reputation"}`;
       risks.push({
-        content:
-          "High risk of project failure due to complexity and time pressure - worst-case scenario could damage reputation",
+        content: failureContent,
         source: StreamType.CRITICAL,
         confidence: 0.7,
         importance: 0.85,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(failureContent, keyTerms),
       });
     }
 
     // Risk of resource overrun
     if (problem.constraints && problem.constraints.length > 0) {
+      const resourceContent = `Risk of ${primaryTerm} exceeding constraints (${problem.constraints[0]}) - initial estimates often prove insufficient`;
       risks.push({
-        content:
-          "Risk of exceeding constraints (budget, timeline) - initial estimates often prove insufficient",
+        content: resourceContent,
         source: StreamType.CRITICAL,
         confidence: 0.75,
         importance: 0.75,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(resourceContent, keyTerms),
       });
     }
 
@@ -399,12 +434,13 @@ export class CriticalStreamProcessor implements StreamProcessor {
       problem.context.toLowerCase().includes("engagement") ||
       problem.context.toLowerCase().includes("market")
     ) {
+      const competitiveContent = `Risk that competitors may respond to ${primaryTerm} with superior ${domainTerm || "solutions"}`;
       risks.push({
-        content:
-          "Risk that competitors may respond with superior solutions - first-mover advantage may be short-lived",
+        content: competitiveContent,
         source: StreamType.CRITICAL,
         confidence: 0.65,
         importance: 0.7,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(competitiveContent, keyTerms),
       });
     }
 
@@ -412,13 +448,15 @@ export class CriticalStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Detect logical flaws
+   * Detect logical flaws with term reference tracking
    *
    * @param problem - Problem to analyze
-   * @returns Array of flaw insights
+   * @param keyTerms - Extracted key terms for problem-specific flaw detection
+   * @returns Array of flaw insights with referenced terms tracked
    */
-  private detectFlaws(problem: Problem): Insight[] {
+  private detectFlaws(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const flaws: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the argument";
 
     // Check for circular reasoning
     const words = problem.context.toLowerCase().split(/\s+/);
@@ -430,12 +468,13 @@ export class CriticalStreamProcessor implements StreamProcessor {
     const hasCircularBecause = becausePattern.test(problem.context);
 
     if (hasRepetition || hasCircularBecause) {
+      const content = `Circular reasoning in ${primaryTerm} - argument repeats itself without adding substance`;
       flaws.push({
-        content:
-          "Circular reasoning detected - argument repeats itself without adding substance, creating a tautology",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.7,
         importance: 0.75,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
@@ -444,12 +483,13 @@ export class CriticalStreamProcessor implements StreamProcessor {
       problem.context.toLowerCase().includes("either") ||
       problem.context.toLowerCase().includes("must")
     ) {
+      const content = `False dichotomy in ${primaryTerm}: framing suggests only two options when other alternatives may exist`;
       flaws.push({
-        content:
-          "False dichotomy: framing suggests only two options when other alternatives may exist",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.75,
         importance: 0.8,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
@@ -458,12 +498,13 @@ export class CriticalStreamProcessor implements StreamProcessor {
       problem.context.toLowerCase().includes("so ") ||
       problem.context.toLowerCase().includes("therefore")
     ) {
+      const content = `Potential correlation/causation confusion in ${primaryTerm} - relationship doesn't imply causation`;
       flaws.push({
-        content:
-          "Potential correlation/causation confusion - just because two things are related doesn't mean one causes the other",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.7,
         importance: 0.75,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
@@ -473,22 +514,25 @@ export class CriticalStreamProcessor implements StreamProcessor {
       problem.context.toLowerCase().includes("always") ||
       problem.context.toLowerCase().includes("never")
     ) {
+      const content = `Overgeneralization in ${primaryTerm} - sweeping claims rarely hold in all cases`;
       flaws.push({
-        content: "Overgeneralization detected - sweeping claims rarely hold in all cases",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.8,
         importance: 0.75,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
     // If no specific flaws detected, add general flaw concern
     if (flaws.length === 0) {
+      const content = `Logical structure of ${primaryTerm} requires scrutiny - potential flaws in reasoning chain`;
       flaws.push({
-        content:
-          "Logical structure requires scrutiny - potential flaws in reasoning chain need examination",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.65,
         importance: 0.7,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
@@ -496,87 +540,102 @@ export class CriticalStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Generate counter-arguments
+   * Generate counter-arguments with term reference tracking
    *
    * @param problem - Problem to analyze
-   * @returns Array of counter-argument insights
+   * @param keyTerms - Extracted key terms for problem-specific counter-arguments
+   * @returns Array of counter-argument insights with referenced terms tracked
    */
-  private generateCounterArguments(problem: Problem): Insight[] {
+  private generateCounterArguments(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const counterArguments: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the solution";
+    const domainTerm = keyTerms.domainTerms[0] || "";
 
     // Devil's advocate: argue against the proposal
+    const devilContent = `Devil's advocate: what if ${primaryTerm} makes ${domainTerm || "things"} worse rather than better?`;
     counterArguments.push({
-      content:
-        "Devil's advocate: what if the proposed solution makes things worse rather than better?",
+      content: devilContent,
       source: StreamType.CRITICAL,
       confidence: 0.65,
       importance: 0.8,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(devilContent, keyTerms),
     });
 
     // Alternative perspective
+    const altContent = `Alternative perspective on ${primaryTerm}: consider addressing root causes rather than symptoms`;
     counterArguments.push({
-      content:
-        "Alternative perspective: instead of this approach, consider addressing root causes rather than symptoms",
+      content: altContent,
       source: StreamType.CRITICAL,
       confidence: 0.7,
       importance: 0.75,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(altContent, keyTerms),
     });
 
     // Challenge from different angle
     if (problem.goals && problem.goals.length > 0) {
+      const goalContent = `Counter-argument: the goal of "${problem.goals[0]}" for ${primaryTerm} may not be the right objective`;
       counterArguments.push({
-        content: `Counter-argument: the goal of "${problem.goals[0]}" may not be the right objective - need to question whether this is what we should be optimizing for`,
+        content: goalContent,
         source: StreamType.CRITICAL,
         confidence: 0.65,
         importance: 0.7,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(goalContent, keyTerms),
       });
     }
 
     // Constructive criticism
+    const constructiveContent = `Constructive criticism: ${primaryTerm} has merit but needs refinement - suggest pilot testing ${domainTerm || "before full rollout"}`;
     counterArguments.push({
-      content:
-        "Constructive criticism: proposal has merit but needs significant refinement - suggest pilot testing before full rollout",
+      content: constructiveContent,
       source: StreamType.CRITICAL,
       confidence: 0.75,
       importance: 0.8,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(constructiveContent, keyTerms),
     });
 
     return counterArguments;
   }
 
   /**
-   * Evaluate evidence quality
+   * Evaluate evidence quality with term reference tracking
    *
    * @param problem - Problem with context
-   * @returns Evidence assessment
+   * @param keyTerms - Extracted key terms for problem-specific evidence evaluation
+   * @returns Evidence assessment with referenced terms tracked
    */
-  private evaluateEvidence(problem: Problem): {
+  private evaluateEvidence(
+    problem: Problem,
+    keyTerms: KeyTerms
+  ): {
     reasoning: string;
     insight?: Insight;
   } {
     let reasoning = "";
     let insight: Insight | undefined;
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the proposal";
+    const domainTerm = keyTerms.domainTerms[0] || "";
 
     // Check for quantitative data
     const hasNumbers = /\d+%|\d+\.\d+|\d+ (users|customers|percent)/.test(problem.context);
     if (hasNumbers) {
-      reasoning =
-        "Evidence includes quantitative claims but lacks supporting data sources - need validation";
+      reasoning = `Evidence for ${primaryTerm} includes quantitative claims but lacks supporting ${domainTerm || "data"} sources`;
+      const content = `Quantitative claims about ${primaryTerm} lack supporting evidence - ${domainTerm || "data"} sources must be verified`;
       insight = {
-        content:
-          "Quantitative claims lack supporting evidence - data sources and methodology must be verified",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.8,
         importance: 0.85,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       };
     } else {
-      reasoning = "Evidence is primarily qualitative - need quantitative data to support claims";
+      reasoning = `Evidence for ${primaryTerm} is primarily qualitative - need quantitative ${domainTerm || "data"} to support claims`;
+      const content = `Lack of quantitative evidence for ${primaryTerm} weakens the case - need measurable ${domainTerm || "data"}`;
       insight = {
-        content:
-          "Lack of quantitative evidence weakens the case - need measurable data to validate assumptions",
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.75,
         importance: 0.8,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       };
     }
 
@@ -585,9 +644,14 @@ export class CriticalStreamProcessor implements StreamProcessor {
       problem.context.toLowerCase().includes("will") ||
       problem.context.toLowerCase().includes("shows")
     ) {
-      reasoning += ". Potential confirmation bias in evidence selection";
+      reasoning += `. Potential confirmation bias in ${primaryTerm} evidence selection`;
       if (insight) {
-        insight.content += ". Evidence may be cherry-picked to support predetermined conclusion";
+        insight.content += `. Evidence for ${primaryTerm} may be cherry-picked`;
+        // Update referenced terms after content modification
+        insight.referencedTerms = this.keyTermExtractor.findReferencedTerms(
+          insight.content,
+          keyTerms
+        );
       }
     }
 
@@ -595,26 +659,28 @@ export class CriticalStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Generate conclusion from critical analysis
+   * Generate conclusion from critical analysis with validated term references
    *
    * @param problem - Original problem
    * @param insights - Generated insights
-   * @returns Conclusion statement
+   * @param keyTerms - Extracted key terms for problem-specific conclusion
+   * @returns Conclusion statement with guaranteed key term reference
    */
-  private generateConclusion(problem: Problem, insights: Insight[]): string {
+  private generateConclusion(problem: Problem, insights: Insight[], keyTerms: KeyTerms): string {
     const parts: string[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the proposal";
 
     // Count high-importance concerns
     const criticalConcerns = insights.filter((i) => i.importance > 0.8).length;
 
     if (criticalConcerns > 2) {
       parts.push(
-        `${criticalConcerns} critical concerns identified that require immediate attention`
+        `${criticalConcerns} critical concerns about ${primaryTerm} require immediate attention`
       );
     } else if (insights.length > 3) {
-      parts.push("several significant issues require careful consideration");
+      parts.push(`several significant issues with ${primaryTerm} require careful consideration`);
     } else {
-      parts.push("some concerns identified but proposal has potential");
+      parts.push(`some concerns about ${primaryTerm} identified but it has potential`);
     }
 
     // Address the proposal
@@ -622,16 +688,18 @@ export class CriticalStreamProcessor implements StreamProcessor {
       parts.push(`before proceeding with ${problem.goals[0].toLowerCase()}`);
     }
 
-    // Recommend action
+    // Recommend action with specific terms
     if (criticalConcerns > 2) {
-      parts.push("- recommend substantial revision or alternative approach");
+      parts.push(`- recommend substantial revision of ${primaryTerm} or alternative approach`);
     } else {
       parts.push(
-        "- recommend addressing these concerns through pilot testing and iterative refinement"
+        `- recommend addressing ${primaryTerm} concerns through pilot testing and iterative refinement`
       );
     }
 
-    return parts.join(" ");
+    // Validate and ensure conclusion contains at least one key term
+    const conclusion = parts.join(" ");
+    return this.keyTermExtractor.ensureTermReference(conclusion, keyTerms);
   }
 
   /**

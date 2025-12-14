@@ -156,7 +156,7 @@ npm run test:e2e
 - Must have **100% pass rate**
 - Requires **95%+ line coverage, 90%+ branch coverage**
 
-**See:** [Testing Guide](TESTING.md) for details
+**See:** [Testing Guide](testing.md) for details
 
 ## Build Output
 
@@ -552,12 +552,12 @@ This ensures production-ready code at all times.
 
 ## Related Documentation
 
-- **[Development Guide](DEVELOPMENT.md)** - Complete development workflow
-- **[Testing Guide](TESTING.md)** - TDD principles and test utilities
-- **[Database Guide](DATABASE.md)** - PostgreSQL setup and configuration
-- **[Environment Guide](ENVIRONMENT.md)** - Environment variables and configuration
+- **[Development Guide](development.md)** - Complete development workflow
+- **[Testing Guide](testing.md)** - TDD principles and test utilities
+- **[Database Guide](database.md)** - PostgreSQL setup and configuration
+- **[Environment Guide](environment.md)** - Environment variables and configuration
 
 ---
 
-**Last Updated:** 2024-11-10
-**Version:** 2.0.0
+**Last Updated**: December 2025
+**Version**: 0.5.0

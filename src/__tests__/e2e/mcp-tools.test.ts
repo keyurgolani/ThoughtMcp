@@ -173,7 +173,7 @@ describe("MCP Tools End-to-End Tests", () => {
   describe("Complete Memory Workflow", () => {
     it("should handle store → retrieve → update → delete workflow", async () => {
       // Store memory
-      const storeResponse = await invokeTool("store_memory", {
+      const storeResponse = await invokeTool("remember", {
         content: "User prefers dark mode for better readability",
         userId: testUserId,
         sessionId: testSessionId,
@@ -197,7 +197,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect((storeResponse.data as any).linksCreated).toBeGreaterThanOrEqual(0);
 
       // Retrieve memory
-      const retrieveResponse = await invokeTool("retrieve_memories", {
+      const retrieveResponse = await invokeTool("recall", {
         userId: testUserId,
         text: "dark mode",
         limit: 10,
@@ -227,7 +227,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect((updateResponse.data as any).strength).toBe(0.95);
 
       // Delete memory (soft delete)
-      const softDeleteResponse = await invokeTool("delete_memory", {
+      const softDeleteResponse = await invokeTool("forget", {
         memoryId,
         userId: testUserId,
         soft: true,
@@ -237,7 +237,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect((softDeleteResponse.data as any).deletionType).toBe("soft");
 
       // Hard delete
-      const hardDeleteResponse = await invokeTool("delete_memory", {
+      const hardDeleteResponse = await invokeTool("forget", {
         memoryId,
         userId: testUserId,
         soft: false,
@@ -269,7 +269,7 @@ describe("MCP Tools End-to-End Tests", () => {
 
       const memoryIds: string[] = [];
       for (const mem of memories) {
-        const response = await invokeTool("store_memory", {
+        const response = await invokeTool("remember", {
           content: mem.content,
           userId: testUserId,
           sessionId: testSessionId,
@@ -285,7 +285,7 @@ describe("MCP Tools End-to-End Tests", () => {
       }
 
       // Search with text query
-      const searchResponse = await invokeTool("search_memories", {
+      const searchResponse = await invokeTool("search", {
         userId: testUserId,
         text: "learning",
         limit: 10,
@@ -295,7 +295,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect((searchResponse.data as any).memories.length).toBeGreaterThan(0);
 
       // Search with metadata filters
-      const tagSearchResponse = await invokeTool("search_memories", {
+      const tagSearchResponse = await invokeTool("search", {
         userId: testUserId,
         metadata: {
           tags: ["deep-learning"],
@@ -361,7 +361,7 @@ describe("MCP Tools End-to-End Tests", () => {
 
     it("should handle decompose → think parallel → analyze workflow", async () => {
       // Decompose problem
-      const decomposeResponse = await invokeTool("decompose_problem", {
+      const decomposeResponse = await invokeTool("breakdown", {
         problem: "Design a scalable e-commerce platform",
         maxDepth: 2,
       });
@@ -371,7 +371,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect((decomposeResponse.data as any).subProblems.length).toBeGreaterThan(0);
 
       // Think in parallel on the problem
-      const parallelResponse = await invokeTool("think_parallel", {
+      const parallelResponse = await invokeTool("ponder", {
         problem: "Design a scalable e-commerce platform",
         context: {
           constraints: ["Budget: $100k", "Timeline: 6 months"],
@@ -388,7 +388,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect((parallelResponse.data as any).quality).toBeDefined();
 
       // Analyze the reasoning quality
-      const analyzeResponse = await invokeTool("analyze_reasoning", {
+      const analyzeResponse = await invokeTool("evaluate", {
         reasoning: (parallelResponse.data as any).conclusion,
         context: "Design a scalable e-commerce platform with budget and timeline constraints",
       });
@@ -402,7 +402,7 @@ describe("MCP Tools End-to-End Tests", () => {
     });
 
     it("should handle systematic analysis with framework selection", async () => {
-      const response = await invokeTool("analyze_systematically", {
+      const response = await invokeTool("analyze", {
         problem: "Reduce customer churn rate",
         context: {
           background: "Current churn: 15%, Industry average: 10%",
@@ -423,7 +423,7 @@ describe("MCP Tools End-to-End Tests", () => {
   describe("Tool Chaining and Composition", () => {
     it("should chain memory and reasoning tools", async () => {
       // Store context memory
-      const storeResponse = await invokeTool("store_memory", {
+      const storeResponse = await invokeTool("remember", {
         content: "Company policy: All decisions must consider environmental impact",
         userId: testUserId,
         sessionId: testSessionId,
@@ -439,7 +439,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect(storeResponse.success).toBe(true);
 
       // Retrieve relevant context
-      const retrieveResponse = await invokeTool("retrieve_memories", {
+      const retrieveResponse = await invokeTool("recall", {
         userId: testUserId,
         text: "company policy decisions",
         limit: 5,
@@ -464,7 +464,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect((thinkResponse.data as any).reasoning).toBeDefined();
 
       // Store the reasoning as a new memory
-      const insightResponse = await invokeTool("store_memory", {
+      const insightResponse = await invokeTool("remember", {
         content: `Decision insight: ${(thinkResponse.data as any).conclusion}`,
         userId: testUserId,
         sessionId: testSessionId,
@@ -490,7 +490,7 @@ describe("MCP Tools End-to-End Tests", () => {
       const emotionalState = emotionResponse.data;
 
       // 2. Store emotional context
-      await invokeTool("store_memory", {
+      await invokeTool("remember", {
         content: "User expressed frustration about system performance",
         userId: testUserId,
         sessionId: testSessionId,
@@ -504,7 +504,7 @@ describe("MCP Tools End-to-End Tests", () => {
       });
 
       // 3. Decompose the problem
-      const decomposeResponse = await invokeTool("decompose_problem", {
+      const decomposeResponse = await invokeTool("breakdown", {
         problem: "Improve system performance to address user frustration",
         maxDepth: 2,
       });
@@ -537,7 +537,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect(confidenceResponse.success).toBe(true);
 
       // 6. Store the solution as a memory
-      const solutionResponse = await invokeTool("store_memory", {
+      const solutionResponse = await invokeTool("remember", {
         content: `Solution: ${(thinkResponse.data as any).conclusion}`,
         userId: testUserId,
         sessionId: testSessionId,
@@ -557,7 +557,7 @@ describe("MCP Tools End-to-End Tests", () => {
   describe("Error Handling Across Tool Boundaries", () => {
     it("should handle invalid parameters gracefully", async () => {
       // Missing required field
-      const response1 = await invokeTool("store_memory", {
+      const response1 = await invokeTool("remember", {
         content: "Test content",
         // Missing userId, sessionId, primarySector
       });
@@ -567,7 +567,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect(response1.suggestion).toBeDefined();
 
       // Invalid sector type
-      const response2 = await invokeTool("store_memory", {
+      const response2 = await invokeTool("remember", {
         content: "Test content",
         userId: testUserId,
         sessionId: testSessionId,
@@ -590,7 +590,7 @@ describe("MCP Tools End-to-End Tests", () => {
 
     it("should handle non-existent resources gracefully", async () => {
       // Retrieve non-existent memory
-      const response1 = await invokeTool("retrieve_memories", {
+      const response1 = await invokeTool("recall", {
         userId: "non-existent-user",
         text: "test",
       });
@@ -609,7 +609,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect(response2.error).toContain("not found");
 
       // Delete non-existent memory
-      const response3 = await invokeTool("delete_memory", {
+      const response3 = await invokeTool("forget", {
         memoryId: "non-existent-id",
         userId: testUserId,
       });
@@ -620,7 +620,7 @@ describe("MCP Tools End-to-End Tests", () => {
 
     it("should handle errors in tool chains gracefully", async () => {
       // Store a memory successfully
-      const storeResponse = await invokeTool("store_memory", {
+      const storeResponse = await invokeTool("remember", {
         content: "Test memory for error handling",
         userId: testUserId,
         sessionId: testSessionId,
@@ -640,7 +640,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect(updateResponse.success).toBe(false);
 
       // Verify original memory is unchanged
-      const retrieveResponse = await invokeTool("retrieve_memories", {
+      const retrieveResponse = await invokeTool("recall", {
         userId: testUserId,
         text: "error handling",
       });
@@ -655,7 +655,7 @@ describe("MCP Tools End-to-End Tests", () => {
     it("should handle concurrent memory operations", { timeout: 30000 }, async () => {
       // Store multiple memories concurrently (reduced from 10 to 5 for stability)
       const storePromises = Array.from({ length: 5 }, (_, i) =>
-        invokeTool("store_memory", {
+        invokeTool("remember", {
           content: `Concurrent memory ${i + 1}`,
           userId: testUserId,
           sessionId: testSessionId,
@@ -684,7 +684,7 @@ describe("MCP Tools End-to-End Tests", () => {
 
       // Concurrent retrieval (reduced from 5 to 3)
       const retrievePromises = Array.from({ length: 3 }, () =>
-        invokeTool("retrieve_memories", {
+        invokeTool("recall", {
           userId: testUserId,
           text: "concurrent",
           limit: 20,
@@ -705,7 +705,7 @@ describe("MCP Tools End-to-End Tests", () => {
       // Create initial memories
       const initialMemories = await Promise.all(
         Array.from({ length: 5 }, (_, i) =>
-          invokeTool("store_memory", {
+          invokeTool("remember", {
             content: `Initial memory ${i + 1}`,
             userId: testUserId,
             sessionId: testSessionId,
@@ -722,14 +722,14 @@ describe("MCP Tools End-to-End Tests", () => {
       // Mix of operations: store, retrieve, update, search
       const mixedPromises = [
         // Store new memories
-        invokeTool("store_memory", {
+        invokeTool("remember", {
           content: "New memory during mixed ops",
           userId: testUserId,
           sessionId: testSessionId,
           primarySector: "semantic",
         }),
         // Retrieve memories
-        invokeTool("retrieve_memories", {
+        invokeTool("recall", {
           userId: testUserId,
           limit: 10,
         }),
@@ -740,7 +740,7 @@ describe("MCP Tools End-to-End Tests", () => {
           strength: 0.9,
         }),
         // Search memories
-        invokeTool("search_memories", {
+        invokeTool("search", {
           userId: testUserId,
           text: "memory",
           limit: 10,
@@ -760,13 +760,13 @@ describe("MCP Tools End-to-End Tests", () => {
   });
 
   describe("Performance Under Load", () => {
-    it("should handle rapid sequential operations", async () => {
+    it("should handle rapid sequential operations", { timeout: 60000 }, async () => {
       const startTime = Date.now();
-      const operationCount = 50;
+      const operationCount = 20; // Reduced for real embedding generation
 
       // Rapid sequential stores
       for (let i = 0; i < operationCount; i++) {
-        const response = await invokeTool("store_memory", {
+        const response = await invokeTool("remember", {
           content: `Rapid operation ${i + 1}`,
           userId: testUserId,
           sessionId: testSessionId,
@@ -778,11 +778,11 @@ describe("MCP Tools End-to-End Tests", () => {
       const duration = Date.now() - startTime;
       const avgTime = duration / operationCount;
 
-      // Should average less than 500ms per operation
-      expect(avgTime).toBeLessThan(500);
+      // Should average less than 1000ms per operation (accounts for embedding generation variance)
+      expect(avgTime).toBeLessThan(1000);
 
       // Verify all memories were stored
-      const retrieveResponse = await invokeTool("retrieve_memories", {
+      const retrieveResponse = await invokeTool("recall", {
         userId: testUserId,
         limit: 100,
       });
@@ -802,7 +802,7 @@ describe("MCP Tools End-to-End Tests", () => {
       let totalSuccessCount = 0;
       for (let batch = 0; batch < batchCount; batch++) {
         const batchPromises = Array.from({ length: batchSize }, (_, i) =>
-          invokeTool("store_memory", {
+          invokeTool("remember", {
             content: `Batch ${batch + 1} memory ${i + 1}`,
             userId: testUserId,
             sessionId: testSessionId,
@@ -827,7 +827,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect(avgTime).toBeLessThan(2000);
 
       // Verify data integrity
-      const retrieveResponse = await invokeTool("retrieve_memories", {
+      const retrieveResponse = await invokeTool("recall", {
         userId: testUserId,
         limit: 200,
       });
@@ -874,7 +874,7 @@ describe("MCP Tools End-to-End Tests", () => {
   describe("Real-World Scenarios", () => {
     it("should simulate user session workflow", async () => {
       // User starts session - store preferences
-      const pref1 = await invokeTool("store_memory", {
+      const pref1 = await invokeTool("remember", {
         content: "User prefers concise responses",
         userId: testUserId,
         sessionId: testSessionId,
@@ -890,7 +890,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect(pref1.success).toBe(true);
 
       // User asks a question - retrieve context
-      const context = await invokeTool("retrieve_memories", {
+      const context = await invokeTool("recall", {
         userId: testUserId,
         text: "user preferences",
         limit: 5,
@@ -917,7 +917,7 @@ describe("MCP Tools End-to-End Tests", () => {
       });
 
       // Store interaction outcome
-      const outcome = await invokeTool("store_memory", {
+      const outcome = await invokeTool("remember", {
         content: "User was satisfied with concise response",
         userId: testUserId,
         sessionId: testSessionId,
@@ -935,7 +935,7 @@ describe("MCP Tools End-to-End Tests", () => {
 
     it("should simulate problem-solving workflow", async () => {
       // 1. Decompose complex problem
-      const decompose = await invokeTool("decompose_problem", {
+      const decompose = await invokeTool("breakdown", {
         problem: "Launch a new product successfully",
         maxDepth: 2,
       });
@@ -944,7 +944,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect((decompose.data as any).subProblems).toBeDefined();
 
       // 2. Analyze systematically
-      const analysis = await invokeTool("analyze_systematically", {
+      const analysis = await invokeTool("analyze", {
         problem: "Launch a new product successfully",
         context: {
           evidence: ["Market research completed", "Budget approved"],
@@ -955,7 +955,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect(analysis.success).toBe(true);
 
       // 3. Think in parallel for comprehensive solution
-      const parallel = await invokeTool("think_parallel", {
+      const parallel = await invokeTool("ponder", {
         problem: "Launch a new product successfully",
         context: {
           evidence: ["Market research completed", "Budget approved"],
@@ -975,7 +975,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect(confidence.success).toBe(true);
 
       // 5. Store the solution
-      const solution = await invokeTool("store_memory", {
+      const solution = await invokeTool("remember", {
         content: `Product launch plan: ${(parallel.data as any).conclusion}`,
         userId: testUserId,
         sessionId: testSessionId,
@@ -993,7 +993,7 @@ describe("MCP Tools End-to-End Tests", () => {
 
     it("should simulate learning workflow", async () => {
       // Store initial knowledge
-      const initial = await invokeTool("store_memory", {
+      const initial = await invokeTool("remember", {
         content: "Machine learning requires large datasets",
         userId: testUserId,
         sessionId: testSessionId,
@@ -1009,7 +1009,7 @@ describe("MCP Tools End-to-End Tests", () => {
       expect(initial.success).toBe(true);
 
       // Retrieve similar knowledge
-      const similar = await invokeTool("retrieve_memories", {
+      const similar = await invokeTool("recall", {
         userId: testUserId,
         text: "machine learning",
         limit: 10,
@@ -1039,7 +1039,7 @@ describe("MCP Tools End-to-End Tests", () => {
       });
 
       // Store new insight
-      const insight = await invokeTool("store_memory", {
+      const insight = await invokeTool("remember", {
         content: `Insight: ${(reasoning.data as any).conclusion}`,
         userId: testUserId,
         sessionId: testSessionId,

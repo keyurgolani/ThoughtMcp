@@ -6,7 +6,9 @@
  * Requirements: 11.1, 11.2, 11.3, 11.4, 11.5
  */
 
+import { BiasCorrector } from "../bias/bias-corrector.js";
 import { BiasPatternRecognizer } from "../bias/bias-pattern-recognizer.js";
+import { EvidenceExtractor, type ExtractedEvidence } from "../confidence/evidence-extractor.js";
 import { MultiDimensionalConfidenceAssessor } from "../confidence/multi-dimensional-assessor.js";
 import { DatabaseConnectionManager } from "../database/connection-manager.js";
 import { EmbeddingEngine } from "../embeddings/embedding-engine.js";
@@ -15,9 +17,15 @@ import type { EmotionModel } from "../emotion/types.js";
 import { FrameworkRegistry } from "../framework/framework-registry.js";
 import { FrameworkSelector } from "../framework/framework-selector.js";
 import { ProblemClassifier } from "../framework/problem-classifier.js";
+import { ContentValidator } from "../memory/content-validator.js";
 import { MemoryRepository } from "../memory/memory-repository.js";
 import { PerformanceMonitoringSystem } from "../metacognitive/performance-monitoring-system.js";
+import {
+  MemoryAugmentedReasoning,
+  type RetrievedMemory,
+} from "../reasoning/memory-augmented-reasoning.js";
 import { ParallelReasoningOrchestrator } from "../reasoning/orchestrator.js";
+import { ProblemDecomposer } from "../reasoning/problem-decomposer.js";
 import { Logger } from "../utils/logger.js";
 import { ToolRegistry } from "./tool-registry.js";
 import type {
@@ -37,16 +45,22 @@ import type {
 export class CognitiveMCPServer {
   // Cognitive components
   public memoryRepository?: MemoryRepository;
+  public memoryAugmentedReasoning?: MemoryAugmentedReasoning;
   public reasoningOrchestrator?: ParallelReasoningOrchestrator;
   public frameworkSelector?: FrameworkSelector;
   public confidenceAssessor?: MultiDimensionalConfidenceAssessor;
+  public evidenceExtractor?: EvidenceExtractor;
   public biasDetector?: BiasPatternRecognizer;
+  public biasCorrector?: BiasCorrector;
   public emotionAnalyzer?: CircumplexEmotionAnalyzer;
   public performanceMonitor?: PerformanceMonitoringSystem;
 
   // Infrastructure
   private databaseManager?: DatabaseConnectionManager;
   private embeddingEngine?: EmbeddingEngine;
+
+  // Validators
+  private contentValidator: ContentValidator;
 
   // Tool registry
   public toolRegistry: ToolRegistry;
@@ -59,6 +73,7 @@ export class CognitiveMCPServer {
 
   constructor(config: ServerConfig = {}) {
     this.toolRegistry = new ToolRegistry();
+    this.contentValidator = new ContentValidator();
     this.isInitialized = false;
     this.requestCount = 0;
     this.config = {
@@ -122,6 +137,9 @@ export class CognitiveMCPServer {
     // Initialize memory repository
     await this.initializeMemoryRepository();
 
+    // Initialize memory-augmented reasoning (after memory repository)
+    await this.initializeMemoryAugmentedReasoning();
+
     // Initialize reasoning components
     await this.initializeReasoningOrchestrator();
     await this.initializeFrameworkSelector();
@@ -157,35 +175,22 @@ export class CognitiveMCPServer {
   private async initializeEmbeddingEngine(): Promise<void> {
     // Import required dependencies
     const { GenericLRUCache } = await import("../embeddings/cache.js");
+    const { OllamaEmbeddingModel } = await import("../embeddings/models/ollama-model.js");
 
-    // Check if we should use mock model (for testing)
+    // Get embedding configuration from environment
     const embeddingModel = process.env.EMBEDDING_MODEL ?? "nomic-embed-text";
-    const useMock = embeddingModel === "mock";
     const embeddingDimension = parseInt(process.env.EMBEDDING_DIMENSION ?? "768");
 
-    // Create embedding model (mock or real)
-    let model;
-    if (useMock) {
-      // Use mock model for testing
-      const { MockOllamaEmbeddingModel } = await import("../__tests__/utils/mock-embeddings.js");
-      model = new MockOllamaEmbeddingModel({
-        host: "http://localhost:11434", // Accepted for compatibility but not used
-        modelName: "mock",
-        dimension: embeddingDimension,
-        timeout: 30000,
-        maxRetries: 3,
-      });
-    } else {
-      // Use real Ollama model for production
-      const { OllamaEmbeddingModel } = await import("../embeddings/models/ollama-model.js");
-      model = new OllamaEmbeddingModel({
-        host: process.env.OLLAMA_HOST ?? "http://localhost:11434",
-        modelName: embeddingModel,
-        dimension: embeddingDimension,
-        timeout: 30000,
-        maxRetries: 3,
-      });
-    }
+    // Create Ollama embedding model
+    // Note: For testing, use the test utilities directly in test files
+    // The production server always uses the real Ollama model
+    const model = new OllamaEmbeddingModel({
+      host: process.env.OLLAMA_HOST ?? "http://localhost:11434",
+      modelName: embeddingModel,
+      dimension: embeddingDimension,
+      timeout: 30000,
+      maxRetries: 3,
+    });
 
     // Create cache with proper typing
     const cache = new GenericLRUCache<number[]>(10000, 3600000); // 10k entries, 1 hour TTL
@@ -227,6 +232,23 @@ export class CognitiveMCPServer {
   }
 
   /**
+   * Initialize memory-augmented reasoning
+   *
+   * Requirements: 13.1, 13.2, 13.5, 13.6
+   */
+  private async initializeMemoryAugmentedReasoning(): Promise<void> {
+    if (!this.memoryRepository) {
+      throw new Error("Memory repository must be initialized first");
+    }
+
+    this.memoryAugmentedReasoning = new MemoryAugmentedReasoning(this.memoryRepository, {
+      minSalience: 0.5,
+      maxMemories: 10,
+      minStrength: 0.3,
+    });
+  }
+
+  /**
    * Initialize reasoning orchestrator
    */
   private async initializeReasoningOrchestrator(): Promise<void> {
@@ -247,17 +269,19 @@ export class CognitiveMCPServer {
   }
 
   /**
-   * Initialize confidence assessor
+   * Initialize confidence assessor and evidence extractor
    */
   private async initializeConfidenceAssessor(): Promise<void> {
     this.confidenceAssessor = new MultiDimensionalConfidenceAssessor();
+    this.evidenceExtractor = new EvidenceExtractor();
   }
 
   /**
-   * Initialize bias detector
+   * Initialize bias detector and corrector
    */
   private async initializeBiasDetector(): Promise<void> {
     this.biasDetector = new BiasPatternRecognizer();
+    this.biasCorrector = new BiasCorrector();
   }
 
   /**
@@ -303,6 +327,7 @@ export class CognitiveMCPServer {
     this.registerUpdateMemoryTool();
     this.registerDeleteMemoryTool();
     this.registerSearchMemoriesTool();
+    this.registerBatchMemoryTools();
   }
 
   /**
@@ -310,7 +335,7 @@ export class CognitiveMCPServer {
    */
   private registerStoreMemoryTool(): void {
     this.toolRegistry.registerTool({
-      name: "store_memory",
+      name: "remember",
       description:
         "Store a new memory with automatic embedding generation and waypoint graph connections. " +
         "Supports fivery sectors: episodic (temporal/contextual), semantic (factual), " +
@@ -321,7 +346,7 @@ export class CognitiveMCPServer {
         properties: {
           content: {
             type: "string",
-            description: "Memory content to store (required, non-empty)",
+            description: "Memory content to store (required, 10-100,000 characters)",
           },
           userId: {
             type: "string",
@@ -394,6 +419,18 @@ export class CognitiveMCPServer {
             };
           };
 
+          // Validate content length (Requirements: 8.1, 8.2, 8.3)
+          const validationResult = this.contentValidator.validate(input.content);
+          if (!validationResult.valid && validationResult.error) {
+            return {
+              success: false,
+              error: validationResult.error.message,
+              code: validationResult.error.code,
+              details: validationResult.error.details,
+              suggestion: `Content must be between ${validationResult.error.details.minLength} and ${validationResult.error.details.maxLength} characters. Current length: ${validationResult.error.details.actualLength}`,
+            };
+          }
+
           const memory = await this.memoryRepository.create(
             {
               content: input.content,
@@ -437,11 +474,24 @@ export class CognitiveMCPServer {
    */
   private registerRetrieveMemoriesTool(): void {
     this.toolRegistry.registerTool({
-      name: "retrieve_memories",
+      name: "recall",
       description:
-        "Retrieve memories using composite scoring (0.6×similarity + 0.2×salience + 0.1×recency + 0.1×linkWeight). " +
+        "Retrieve memories using composite scoring. " +
+        "When text query is provided: uses similarity-based scoring (0.6×similarity + 0.2×salience + 0.1×recency + 0.1×linkWeight). " +
+        "When no text query: uses salience-based scoring (0.4×salience + 0.3×recency + 0.3×linkWeight). " +
+        "The response includes 'rankingMethod' field indicating which scoring method was used ('similarity' or 'salience'). " +
         "Supports vector similarity search, metadata filtering, and pagination. " +
-        "Example: retrieve_memories({ userId: 'user123', text: 'dark mode preference', limit: 10 })",
+        "\n\n" +
+        "**Similarity Threshold (minSimilarity):**\n" +
+        "Controls how strictly memories must match the query. Use higher values for focused results:\n" +
+        "- 0.7+ : High relevance - only very similar memories (best for specific queries)\n" +
+        "- 0.5 (default): Moderate relevance - balanced results\n" +
+        "- 0.3 : Low relevance - broader results, may include tangentially related memories\n" +
+        "\n" +
+        "**Examples:**\n" +
+        "- Basic: retrieve_memories({ userId: 'user123', text: 'dark mode preference', limit: 10 })\n" +
+        "- Focused: retrieve_memories({ userId: 'user123', text: 'database optimization', minSimilarity: 0.7 })\n" +
+        "- Broad: retrieve_memories({ userId: 'user123', text: 'user settings', minSimilarity: 0.3 })",
       inputSchema: {
         type: "object",
         properties: {
@@ -477,6 +527,15 @@ export class CognitiveMCPServer {
             minimum: 0,
             maximum: 1,
             description: "Minimum salience score (0-1)",
+          },
+          minSimilarity: {
+            type: "number",
+            minimum: 0,
+            maximum: 1,
+            description:
+              "Minimum vector similarity threshold (0-1, default 0.5). " +
+              "Higher values return more relevant but fewer results. " +
+              "Use 0.7+ for focused queries, 0.3 for broader discovery.",
           },
           dateRange: {
             type: "object",
@@ -545,6 +604,7 @@ export class CognitiveMCPServer {
             primarySector?: string;
             minStrength?: number;
             minSalience?: number;
+            minSimilarity?: number;
             dateRange?: { start?: string; end?: string };
             metadata?: {
               keywords?: string[];
@@ -564,6 +624,7 @@ export class CognitiveMCPServer {
               | undefined,
             minStrength: input.minStrength,
             minSalience: input.minSalience,
+            minSimilarity: input.minSimilarity,
             dateRange: input.dateRange
               ? {
                   start: input.dateRange.start ? new Date(input.dateRange.start) : undefined,
@@ -599,6 +660,7 @@ export class CognitiveMCPServer {
               })),
               totalCount: result.totalCount,
               scores: scoresObj,
+              rankingMethod: result.rankingMethod,
             },
           };
         } catch (error) {
@@ -607,7 +669,7 @@ export class CognitiveMCPServer {
             error: error instanceof Error ? error.message : "Memory retrieval failed",
             suggestion:
               "Check that userId is provided. Ensure date ranges are valid ISO 8601 strings. " +
-              "Verify strength and salience values are between 0 and 1",
+              "Verify strength, salience, and similarity values are between 0 and 1",
           };
         }
       },
@@ -746,7 +808,7 @@ export class CognitiveMCPServer {
    */
   private registerDeleteMemoryTool(): void {
     this.toolRegistry.registerTool({
-      name: "delete_memory",
+      name: "forget",
       description:
         "Delete a memory with cascade deletion options. Soft delete (soft=true) sets strength to 0 " +
         "but preserves all data. Hard delete (soft=false) removes the memory and cascades to embeddings, " +
@@ -826,11 +888,27 @@ export class CognitiveMCPServer {
    */
   private registerSearchMemoriesTool(): void {
     this.toolRegistry.registerTool({
-      name: "search_memories",
+      name: "search",
       description:
         "Advanced memory search combining full-text search, vector similarity, and metadata filtering. " +
         "Supports boolean operators (AND, OR, NOT) and phrase matching in text queries. " +
         "Returns ranked results with composite scores. " +
+        "\n\n" +
+        "**Boolean Operators:**\n" +
+        "- AND: Both terms must be present. Example: 'dark AND mode' finds memories containing both 'dark' and 'mode'\n" +
+        "- OR: Either term can be present. Example: 'dark OR light' finds memories containing 'dark' or 'light' or both\n" +
+        "- NOT: Exclude term from results. Example: 'mode NOT dark' finds memories with 'mode' but without 'dark'\n" +
+        "\n" +
+        "**Operator Precedence:** NOT > AND > OR (NOT is evaluated first, then AND, then OR)\n" +
+        "\n" +
+        "**Example Queries:**\n" +
+        "- Simple: 'user preferences'\n" +
+        "- AND: 'dark AND mode AND preference'\n" +
+        "- OR: 'settings OR preferences OR config'\n" +
+        "- NOT: 'theme NOT dark' or 'NOT deprecated'\n" +
+        "- Combined: 'ui AND (dark OR light) NOT deprecated'\n" +
+        "- Phrase: '\"dark mode\"' (exact phrase match)\n" +
+        "\n" +
         "Example: search_memories({ userId: 'user123', text: 'dark mode AND preference', metadata: { tags: ['ui', 'settings'] }, limit: 20 })",
       inputSchema: {
         type: "object",
@@ -842,7 +920,9 @@ export class CognitiveMCPServer {
           text: {
             type: "string",
             description:
-              "Full-text search query with boolean operators (AND, OR, NOT) and phrase matching",
+              "Full-text search query supporting boolean operators (AND, OR, NOT), phrase matching with quotes, " +
+              "and parentheses for grouping. Operator precedence: NOT > AND > OR. " +
+              "Examples: 'term1 AND term2', 'term1 OR term2', 'term1 NOT term2', '\"exact phrase\"'",
           },
           sectors: {
             type: "array",
@@ -1044,6 +1124,278 @@ export class CognitiveMCPServer {
   }
 
   /**
+   * Register batch memory operation tools
+   */
+  private registerBatchMemoryTools(): void {
+    this.registerBatchRememberTool();
+    this.registerBatchRecallTool();
+    this.registerBatchForgetTool();
+  }
+
+  /**
+   * Register batch_remember tool for creating multiple memories
+   */
+  private registerBatchRememberTool(): void {
+    this.toolRegistry.registerTool({
+      name: "batch_remember",
+      description:
+        "Create multiple memories in a single batch operation. " +
+        "More efficient than calling remember multiple times for bulk memory storage. " +
+        "Each memory gets its own embeddings and waypoint connections. " +
+        "\n\n" +
+        "**Example:**\n" +
+        "batch_remember({ userId: 'user123', sessionId: 'session456', memories: [\n" +
+        "  { content: 'User prefers dark mode', primarySector: 'semantic' },\n" +
+        "  { content: 'Completed onboarding flow', primarySector: 'episodic' }\n" +
+        "]})",
+      inputSchema: {
+        type: "object",
+        properties: {
+          userId: { type: "string", description: "User ID for memory isolation (required)" },
+          sessionId: { type: "string", description: "Session ID for context tracking (required)" },
+          memories: {
+            type: "array",
+            description: "Array of memories to create (required)",
+            items: {
+              type: "object",
+              properties: {
+                content: { type: "string", description: "Memory content (10-100,000 characters)" },
+                primarySector: {
+                  type: "string",
+                  enum: ["episodic", "semantic", "procedural", "emotional", "reflective"],
+                  description: "Primary memory sector",
+                },
+                metadata: {
+                  type: "object",
+                  description: "Optional metadata",
+                  properties: {
+                    keywords: { type: "array", items: { type: "string" } },
+                    tags: { type: "array", items: { type: "string" } },
+                    category: { type: "string" },
+                    importance: { type: "number", minimum: 0, maximum: 1 },
+                  },
+                },
+              },
+              required: ["content", "primarySector"],
+            },
+          },
+        },
+        required: ["userId", "sessionId", "memories"],
+      },
+      handler: this.handleBatchRemember.bind(this),
+    });
+  }
+
+  /**
+   * Handle batch_remember tool execution
+   */
+  private async handleBatchRemember(params: unknown): Promise<MCPResponse> {
+    if (!this.memoryRepository) {
+      return {
+        success: false,
+        error: "Memory repository not initialized",
+        suggestion: "Wait for server initialization to complete",
+      };
+    }
+
+    try {
+      const input = params as {
+        userId: string;
+        sessionId: string;
+        memories: Array<{
+          content: string;
+          primarySector: string;
+          metadata?: {
+            keywords?: string[];
+            tags?: string[];
+            category?: string;
+            importance?: number;
+          };
+        }>;
+      };
+
+      const result = await this.memoryRepository.batchCreate({
+        userId: input.userId,
+        sessionId: input.sessionId,
+        memories: input.memories.map((m) => ({
+          content: m.content,
+          primarySector: m.primarySector as import("../memory/types").MemorySectorType,
+          metadata: m.metadata,
+        })),
+      });
+
+      return {
+        success: true,
+        data: {
+          successCount: result.successCount,
+          failureCount: result.failureCount,
+          created: result.created,
+          failures: result.failures,
+          processingTime: result.processingTime,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Batch memory creation failed",
+        suggestion: "Check that all required fields are provided for each memory",
+      };
+    }
+  }
+
+  /**
+   * Register batch_recall tool for retrieving multiple memories
+   *
+   * Requirements: 2.3, 2.4
+   */
+  private registerBatchRecallTool(): void {
+    this.toolRegistry.registerTool({
+      name: "batch_recall",
+      description:
+        "Retrieve multiple memories by their IDs in a single batch operation. " +
+        "More efficient than calling recall multiple times when you know the memory IDs. " +
+        "\n\n" +
+        "**Example:**\n" +
+        "batch_recall({ userId: 'user123', memoryIds: ['mem-1', 'mem-2', 'mem-3'] })",
+      inputSchema: {
+        type: "object",
+        properties: {
+          userId: { type: "string", description: "User ID for memory isolation (required)" },
+          memoryIds: {
+            type: "array",
+            items: { type: "string" },
+            description: "Array of memory IDs to retrieve (required)",
+          },
+          includeDeleted: {
+            type: "boolean",
+            description:
+              "Include soft-deleted memories (strength=0) in results. Default: false - excludes soft-deleted memories",
+          },
+        },
+        required: ["userId", "memoryIds"],
+      },
+      handler: this.handleBatchRecall.bind(this),
+    });
+  }
+
+  /**
+   * Handle batch_recall tool execution
+   *
+   * Requirements: 2.3, 2.4
+   */
+  private async handleBatchRecall(params: unknown): Promise<MCPResponse> {
+    if (!this.memoryRepository) {
+      return {
+        success: false,
+        error: "Memory repository not initialized",
+        suggestion: "Wait for server initialization to complete",
+      };
+    }
+
+    try {
+      const input = params as { userId: string; memoryIds: string[]; includeDeleted?: boolean };
+
+      const result = await this.memoryRepository.batchRetrieve({
+        userId: input.userId,
+        memoryIds: input.memoryIds,
+        includeDeleted: input.includeDeleted,
+      });
+
+      return {
+        success: true,
+        data: {
+          memories: result.memories.map((m) => ({
+            id: m.id,
+            content: m.content,
+            createdAt: m.createdAt.toISOString(),
+            lastAccessed: m.lastAccessed.toISOString(),
+            strength: m.strength,
+            salience: m.salience,
+            primarySector: m.primarySector,
+            metadata: m.metadata,
+          })),
+          notFound: result.notFound,
+          processingTime: result.processingTime,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Batch memory retrieval failed",
+        suggestion: "Check that userId and memoryIds are provided",
+      };
+    }
+  }
+
+  /**
+   * Register batch_forget tool for deleting multiple memories
+   */
+  private registerBatchForgetTool(): void {
+    this.toolRegistry.registerTool({
+      name: "batch_forget",
+      description:
+        "Delete multiple memories in a single batch operation. " +
+        "Supports both soft delete (set strength to 0) and hard delete (remove completely). " +
+        "\n\n" +
+        "**Example:**\n" +
+        "batch_forget({ memoryIds: ['mem-1', 'mem-2'], soft: false })",
+      inputSchema: {
+        type: "object",
+        properties: {
+          memoryIds: {
+            type: "array",
+            items: { type: "string" },
+            description: "Array of memory IDs to delete (required)",
+          },
+          soft: {
+            type: "boolean",
+            description:
+              "Soft delete (true) sets strength=0, hard delete (false) removes record (default: false)",
+          },
+        },
+        required: ["memoryIds"],
+      },
+      handler: this.handleBatchForget.bind(this),
+    });
+  }
+
+  /**
+   * Handle batch_forget tool execution
+   */
+  private async handleBatchForget(params: unknown): Promise<MCPResponse> {
+    if (!this.memoryRepository) {
+      return {
+        success: false,
+        error: "Memory repository not initialized",
+        suggestion: "Wait for server initialization to complete",
+      };
+    }
+
+    try {
+      const input = params as { memoryIds: string[]; soft?: boolean };
+
+      const result = await this.memoryRepository.batchDelete(input.memoryIds, input.soft ?? false);
+
+      return {
+        success: true,
+        data: {
+          successCount: result.successCount,
+          failureCount: result.failureCount,
+          failures: result.failures,
+          processingTime: result.processingTime,
+          deletionType: input.soft ? "soft" : "hard",
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Batch memory deletion failed",
+        suggestion: "Check that memoryIds array is provided",
+      };
+    }
+  }
+
+  /**
    * Register reasoning operation tools
    */
   private registerReasoningTools(): void {
@@ -1055,6 +1407,8 @@ export class CognitiveMCPServer {
 
   /**
    * Register think tool
+   *
+   * Requirements: 13.1, 13.2, 13.3
    */
   private registerThinkTool(): void {
     this.toolRegistry.registerTool({
@@ -1076,6 +1430,12 @@ export class CognitiveMCPServer {
             description:
               "Reasoning mode: analytical (logical), creative (innovative), critical (skeptical), " +
               "synthetic (holistic), parallel (all modes simultaneously)",
+          },
+          userId: {
+            type: "string",
+            description:
+              "User ID for memory-augmented reasoning (optional). When provided, retrieves relevant " +
+              "memories to inform the analysis context.",
           },
           context: {
             type: "object",
@@ -1113,6 +1473,7 @@ export class CognitiveMCPServer {
           const input = params as {
             problem: string;
             mode: "analytical" | "creative" | "critical" | "synthetic" | "parallel";
+            userId?: string;
             context?: {
               background?: string;
               constraints?: string[];
@@ -1120,40 +1481,25 @@ export class CognitiveMCPServer {
             };
           };
 
-          // Create problem object
+          // Augment with memories using helper
+          const { augmentedBackground, memoriesUsed } = await this.augmentWithMemories(
+            input.problem,
+            input.userId,
+            input.context?.background ?? ""
+          );
+
+          // Create problem object with augmented context
           const problem: import("../reasoning/types").Problem = {
             id: `problem-${Date.now()}`,
             description: input.problem,
-            context: input.context?.background ?? "",
+            context: augmentedBackground,
             constraints: input.context?.constraints,
             goals: input.context?.goals,
           };
 
           // Execute based on mode
           if (input.mode === "parallel") {
-            // Import stream classes
-            const { AnalyticalReasoningStream } = await import(
-              "../reasoning/streams/analytical-stream.js"
-            );
-            const { CreativeReasoningStream } = await import(
-              "../reasoning/streams/creative-stream.js"
-            );
-            const { CriticalReasoningStream } = await import(
-              "../reasoning/streams/critical-stream.js"
-            );
-            const { SyntheticReasoningStream } = await import(
-              "../reasoning/streams/synthetic-stream.js"
-            );
-
-            // Create streams
-            const streams = [
-              new AnalyticalReasoningStream(),
-              new CreativeReasoningStream(),
-              new CriticalReasoningStream(),
-              new SyntheticReasoningStream(),
-            ];
-
-            // Execute parallel reasoning
+            const streams = await this.createAllReasoningStreams();
             const result = await this.reasoningOrchestrator.executeStreams(problem, streams);
 
             return {
@@ -1165,45 +1511,27 @@ export class CognitiveMCPServer {
                 conflicts: result.conflicts,
                 confidence: result.confidence,
                 quality: result.quality,
-              },
-            };
-          } else {
-            // Single stream reasoning
-            let StreamClass;
-            switch (input.mode) {
-              case "analytical":
-                StreamClass = (await import("../reasoning/streams/analytical-stream.js"))
-                  .AnalyticalReasoningStream;
-                break;
-              case "creative":
-                StreamClass = (await import("../reasoning/streams/creative-stream.js"))
-                  .CreativeReasoningStream;
-                break;
-              case "critical":
-                StreamClass = (await import("../reasoning/streams/critical-stream.js"))
-                  .CriticalReasoningStream;
-                break;
-              case "synthetic":
-                StreamClass = (await import("../reasoning/streams/synthetic-stream.js"))
-                  .SyntheticReasoningStream;
-                break;
-            }
-
-            const stream = new StreamClass();
-            const result = await stream.process(problem);
-
-            return {
-              success: true,
-              data: {
-                conclusion: result.conclusion,
-                reasoning: result.reasoning,
-                insights: result.insights,
-                confidence: result.confidence,
-                processingTime: result.processingTime,
-                status: result.status,
+                memoriesUsed,
               },
             };
           }
+
+          // Single stream reasoning
+          const stream = await this.getReasoningStreamByMode(input.mode);
+          const result = await stream.process(problem);
+
+          return {
+            success: true,
+            data: {
+              conclusion: result.conclusion,
+              reasoning: result.reasoning,
+              insights: result.insights,
+              confidence: result.confidence,
+              processingTime: result.processingTime,
+              status: result.status,
+              memoriesUsed,
+            },
+          };
         } catch (error) {
           return {
             success: false,
@@ -1218,10 +1546,12 @@ export class CognitiveMCPServer {
 
   /**
    * Register analyze_systematically tool
+   *
+   * Requirements: 13.1, 13.2, 13.3
    */
   private registerAnalyzeSystematicallyTool(): void {
     this.toolRegistry.registerTool({
-      name: "analyze_systematically",
+      name: "analyze",
       description:
         "Analyze problem using systematic thinking framework with dynamic framework selection. " +
         "Automatically selects optimal framework (Scientific Method, Design Thinking, Systems Thinking, etc.) " +
@@ -1247,6 +1577,12 @@ export class CognitiveMCPServer {
               "scenario-planning",
             ],
             description: "Preferred framework (optional, overrides automatic selection)",
+          },
+          userId: {
+            type: "string",
+            description:
+              "User ID for memory-augmented reasoning (optional). When provided, retrieves relevant " +
+              "memories to inform the analysis context.",
           },
           context: {
             type: "object",
@@ -1284,6 +1620,7 @@ export class CognitiveMCPServer {
           const input = params as {
             problem: string;
             preferredFramework?: string;
+            userId?: string;
             context?: {
               background?: string;
               constraints?: string[];
@@ -1291,16 +1628,22 @@ export class CognitiveMCPServer {
             };
           };
 
-          // Create problem object
+          // Augment context with memories using helper method
+          const { augmentedBackground, memoriesUsed } = await this.augmentContextWithMemories(
+            input.problem,
+            input.userId,
+            input.context?.background ?? ""
+          );
+
+          // Create problem and context objects
           const problem: import("../framework/types").Problem = {
             id: `problem-${Date.now()}`,
             description: input.problem,
-            context: input.context?.background ?? "",
+            context: augmentedBackground,
             constraints: input.context?.constraints,
             goals: input.context?.goals,
           };
 
-          // Create context object
           const context: import("../framework/types").Context = {
             problem,
             evidence: [],
@@ -1308,19 +1651,9 @@ export class CognitiveMCPServer {
             goals: input.context?.goals ?? [],
           };
 
-          // Select framework
+          // Select and optionally override framework
           const selection = this.frameworkSelector.selectFramework(problem, context);
-
-          // Use preferred framework if provided
-          let frameworkToUse = selection.primaryFramework;
-          if (input.preferredFramework) {
-            const preferredFramework = selection.alternatives.find(
-              (alt) => alt.framework.id === input.preferredFramework
-            );
-            if (preferredFramework) {
-              frameworkToUse = preferredFramework.framework;
-            }
-          }
+          const frameworkToUse = this.resolveFramework(selection, input.preferredFramework);
 
           // Execute framework
           const result = await frameworkToUse.execute(problem, context);
@@ -1356,6 +1689,7 @@ export class CognitiveMCPServer {
                 },
                 reason: alt.reason,
               })),
+              memoriesUsed,
             },
           };
         } catch (error) {
@@ -1372,10 +1706,12 @@ export class CognitiveMCPServer {
 
   /**
    * Register think_parallel tool
+   *
+   * Requirements: 13.1, 13.2, 13.3
    */
   private registerThinkParallelTool(): void {
     this.toolRegistry.registerTool({
-      name: "think_parallel",
+      name: "ponder",
       description:
         "Execute parallel reasoning streams (analytical, creative, critical, synthetic) with coordination and synthesis. " +
         "All streams run concurrently with synchronization at 25%, 50%, 75% completion. " +
@@ -1393,6 +1729,12 @@ export class CognitiveMCPServer {
             minimum: 1000,
             maximum: 60000,
             description: "Total timeout in milliseconds (default: 30000ms, max: 60000ms)",
+          },
+          userId: {
+            type: "string",
+            description:
+              "User ID for memory-augmented reasoning (optional). When provided, retrieves relevant " +
+              "memories once and shares them across all parallel streams.",
           },
           context: {
             type: "object",
@@ -1430,6 +1772,7 @@ export class CognitiveMCPServer {
           const input = params as {
             problem: string;
             timeout?: number;
+            userId?: string;
             context?: {
               background?: string;
               constraints?: string[];
@@ -1437,11 +1780,44 @@ export class CognitiveMCPServer {
             };
           };
 
-          // Create problem object
+          // Track memories used for response
+          let memoriesUsed: Array<{
+            id: string;
+            content: string;
+            primarySector: string;
+            relevanceScore: number;
+          }> = [];
+
+          // Retrieve relevant memories once if userId is provided
+          // Memories are shared across all parallel streams
+          let augmentedBackground = input.context?.background ?? "";
+          if (input.userId && this.memoryAugmentedReasoning) {
+            const augmentedContext = await this.memoryAugmentedReasoning.augmentProblemContext(
+              input.problem,
+              input.userId
+            );
+
+            if (augmentedContext.hasMemoryContext) {
+              // Prepend memory background to existing background
+              augmentedBackground = augmentedContext.memoryBackground
+                ? `${augmentedContext.memoryBackground}${augmentedBackground ? `\n\n${augmentedBackground}` : ""}`
+                : augmentedBackground;
+
+              // Track memories used
+              memoriesUsed = augmentedContext.memoriesUsed.map((m: RetrievedMemory) => ({
+                id: m.id,
+                content: m.content,
+                primarySector: m.primarySector,
+                relevanceScore: m.relevanceScore,
+              }));
+            }
+          }
+
+          // Create problem object with augmented context
           const problem: import("../reasoning/types").Problem = {
             id: `problem-${Date.now()}`,
             description: input.problem,
-            context: input.context?.background ?? "",
+            context: augmentedBackground,
             constraints: input.context?.constraints,
             goals: input.context?.goals,
           };
@@ -1501,6 +1877,7 @@ export class CognitiveMCPServer {
               })),
               confidence: result.confidence,
               quality: result.quality,
+              memoriesUsed,
             },
           };
         } catch (error) {
@@ -1517,10 +1894,12 @@ export class CognitiveMCPServer {
 
   /**
    * Register decompose_problem tool
+   *
+   * Requirements: 13.1, 13.2, 13.3
    */
   private registerDecomposeProblemTool(): void {
     this.toolRegistry.registerTool({
-      name: "decompose_problem",
+      name: "breakdown",
       description:
         "Decompose problem into hierarchical sub-problems with dependency mapping. " +
         "Breaks complex problems into manageable components and identifies execution order. " +
@@ -1538,6 +1917,12 @@ export class CognitiveMCPServer {
             minimum: 1,
             maximum: 5,
             description: "Maximum decomposition depth (default: 3, max: 5)",
+          },
+          userId: {
+            type: "string",
+            description:
+              "User ID for memory-augmented reasoning (optional). When provided, retrieves relevant " +
+              "memories to inform the decomposition context.",
           },
           context: {
             type: "object",
@@ -1562,6 +1947,7 @@ export class CognitiveMCPServer {
           const input = params as {
             problem: string;
             maxDepth?: number;
+            userId?: string;
             context?: {
               background?: string;
               constraints?: string[];
@@ -1570,12 +1956,56 @@ export class CognitiveMCPServer {
 
           const maxDepth = input.maxDepth ?? 3;
 
-          // Simple problem decomposition algorithm
-          // In a real implementation, this would use more sophisticated analysis
-          const subProblems = this.decomposeRecursively(input.problem, maxDepth, 1);
+          // Track memories used for response
+          let memoriesUsed: Array<{
+            id: string;
+            content: string;
+            primarySector: string;
+            relevanceScore: number;
+          }> = [];
 
-          // Identify dependencies
-          const dependencies = this.identifyDependencies(subProblems);
+          // Retrieve relevant memories if userId is provided
+          let augmentedBackground = input.context?.background ?? "";
+          if (input.userId && this.memoryAugmentedReasoning) {
+            const augmentedContext = await this.memoryAugmentedReasoning.augmentProblemContext(
+              input.problem,
+              input.userId
+            );
+
+            if (augmentedContext.hasMemoryContext) {
+              // Prepend memory background to existing background
+              augmentedBackground = augmentedContext.memoryBackground
+                ? `${augmentedContext.memoryBackground}${augmentedBackground ? `\n\n${augmentedBackground}` : ""}`
+                : augmentedBackground;
+
+              // Track memories used
+              memoriesUsed = augmentedContext.memoriesUsed.map((m: RetrievedMemory) => ({
+                id: m.id,
+                content: m.content,
+                primarySector: m.primarySector,
+                relevanceScore: m.relevanceScore,
+              }));
+            }
+          }
+
+          // Use ProblemDecomposer for meaningful sub-problem names
+          // Requirements: 2.1, 2.2, 2.3, 2.5
+          const decomposer = new ProblemDecomposer();
+          const decompositionResult = decomposer.decompose(input.problem, maxDepth);
+
+          // Convert to expected format with backward compatibility
+          const subProblems = decompositionResult.subProblems.map((sp) => ({
+            id: sp.id,
+            description: sp.name, // Use meaningful name as description
+            depth: sp.depth,
+            parent: sp.parent,
+            name: sp.name,
+            details: sp.description, // Original description as details
+            domain: sp.domain,
+          }));
+
+          // Use dependencies from decomposer (includes relationship descriptions)
+          const dependencies = decompositionResult.dependencies;
 
           // Create dependency graph
           const graph = this.createDependencyGraph(subProblems, dependencies);
@@ -1593,6 +2023,8 @@ export class CognitiveMCPServer {
               executionOrder,
               totalSubProblems: subProblems.length,
               maxDepth: maxDepth,
+              context: augmentedBackground || undefined,
+              memoriesUsed,
             },
           };
         } catch (error) {
@@ -1608,91 +2040,217 @@ export class CognitiveMCPServer {
   }
 
   /**
-   * Decompose problem recursively
+   * Helper to augment problem context with memories
+   * Reduces complexity in tool handlers
    */
-  private decomposeRecursively(
+  private async augmentWithMemories(
     problem: string,
-    maxDepth: number,
-    currentDepth: number
-  ): Array<{ id: string; description: string; depth: number; parent?: string }> {
-    const subProblems: Array<{ id: string; description: string; depth: number; parent?: string }> =
-      [];
+    userId: string | undefined,
+    existingBackground: string
+  ): Promise<{
+    augmentedBackground: string;
+    memoriesUsed: Array<{
+      id: string;
+      content: string;
+      primarySector: string;
+      relevanceScore: number;
+    }>;
+  }> {
+    let augmentedBackground = existingBackground;
+    const memoriesUsed: Array<{
+      id: string;
+      content: string;
+      primarySector: string;
+      relevanceScore: number;
+    }> = [];
 
-    // Base case: max depth reached
-    if (currentDepth > maxDepth) {
-      return subProblems;
-    }
+    if (userId && this.memoryAugmentedReasoning) {
+      const augmentedContext = await this.memoryAugmentedReasoning.augmentProblemContext(
+        problem,
+        userId
+      );
 
-    // Generate sub-problems (simplified heuristic)
-    const problemId = `problem-${currentDepth}-${subProblems.length}`;
+      if (augmentedContext.hasMemoryContext) {
+        augmentedBackground = augmentedContext.memoryBackground
+          ? `${augmentedContext.memoryBackground}${augmentedBackground ? `\n\n${augmentedBackground}` : ""}`
+          : augmentedBackground;
 
-    // Add current problem
-    subProblems.push({
-      id: problemId,
-      description: problem,
-      depth: currentDepth,
-    });
-
-    // If not at max depth, decompose further
-    if (currentDepth < maxDepth) {
-      // Simple decomposition: break into 2-3 sub-problems
-      const numSubProblems = Math.min(3, Math.max(2, Math.floor(problem.length / 30)));
-
-      for (let i = 0; i < numSubProblems; i++) {
-        const subProblemId = `${problemId}-${i}`;
-        subProblems.push({
-          id: subProblemId,
-          description: `Sub-problem ${i + 1} of: ${problem.substring(0, 50)}...`,
-          depth: currentDepth + 1,
-          parent: problemId,
-        });
+        memoriesUsed.push(
+          ...augmentedContext.memoriesUsed.map((m: RetrievedMemory) => ({
+            id: m.id,
+            content: m.content,
+            primarySector: m.primarySector,
+            relevanceScore: m.relevanceScore,
+          }))
+        );
       }
     }
 
-    return subProblems;
+    return { augmentedBackground, memoriesUsed };
   }
 
   /**
-   * Identify dependencies between sub-problems
+   * Helper to create all reasoning streams
    */
-  private identifyDependencies(
-    subProblems: Array<{ id: string; description: string; depth: number; parent?: string }>
-  ): Array<{ from: string; to: string; type: string }> {
-    const dependencies: Array<{ from: string; to: string; type: string }> = [];
+  private async createAllReasoningStreams(): Promise<
+    Array<
+      | import("../reasoning/streams/analytical-stream.js").AnalyticalReasoningStream
+      | import("../reasoning/streams/creative-stream.js").CreativeReasoningStream
+      | import("../reasoning/streams/critical-stream.js").CriticalReasoningStream
+      | import("../reasoning/streams/synthetic-stream.js").SyntheticReasoningStream
+    >
+  > {
+    const { AnalyticalReasoningStream } = await import("../reasoning/streams/analytical-stream.js");
+    const { CreativeReasoningStream } = await import("../reasoning/streams/creative-stream.js");
+    const { CriticalReasoningStream } = await import("../reasoning/streams/critical-stream.js");
+    const { SyntheticReasoningStream } = await import("../reasoning/streams/synthetic-stream.js");
 
-    // Simple heuristic: sub-problems depend on their parent
-    for (const subProblem of subProblems) {
-      if (subProblem.parent) {
-        dependencies.push({
-          from: subProblem.parent,
-          to: subProblem.id,
-          type: "hierarchical",
-        });
+    return [
+      new AnalyticalReasoningStream(),
+      new CreativeReasoningStream(),
+      new CriticalReasoningStream(),
+      new SyntheticReasoningStream(),
+    ];
+  }
+
+  /**
+   * Helper to get a single reasoning stream by mode
+   */
+  private async getReasoningStreamByMode(
+    mode: "analytical" | "creative" | "critical" | "synthetic"
+  ): Promise<
+    | import("../reasoning/streams/analytical-stream.js").AnalyticalReasoningStream
+    | import("../reasoning/streams/creative-stream.js").CreativeReasoningStream
+    | import("../reasoning/streams/critical-stream.js").CriticalReasoningStream
+    | import("../reasoning/streams/synthetic-stream.js").SyntheticReasoningStream
+  > {
+    switch (mode) {
+      case "analytical": {
+        const { AnalyticalReasoningStream } = await import(
+          "../reasoning/streams/analytical-stream.js"
+        );
+        return new AnalyticalReasoningStream();
+      }
+      case "creative": {
+        const { CreativeReasoningStream } = await import("../reasoning/streams/creative-stream.js");
+        return new CreativeReasoningStream();
+      }
+      case "critical": {
+        const { CriticalReasoningStream } = await import("../reasoning/streams/critical-stream.js");
+        return new CriticalReasoningStream();
+      }
+      case "synthetic": {
+        const { SyntheticReasoningStream } = await import(
+          "../reasoning/streams/synthetic-stream.js"
+        );
+        return new SyntheticReasoningStream();
+      }
+    }
+  }
+
+  /**
+   * Helper to resolve framework selection with optional override
+   * Reduces complexity in tool handlers
+   */
+  private resolveFramework(
+    selection: {
+      primaryFramework: import("../framework/types").ThinkingFramework;
+      alternatives: Array<{
+        framework: import("../framework/types").ThinkingFramework;
+        reason: string;
+      }>;
+    },
+    preferredFrameworkId?: string
+  ): import("../framework/types").ThinkingFramework {
+    if (!preferredFrameworkId) {
+      return selection.primaryFramework;
+    }
+    const preferred = selection.alternatives.find(
+      (alt) => alt.framework.id === preferredFrameworkId
+    );
+    return preferred ? preferred.framework : selection.primaryFramework;
+  }
+
+  /**
+   * Helper to augment context with memories
+   * Reduces complexity in tool handlers by extracting memory augmentation logic
+   */
+  private async augmentContextWithMemories(
+    problem: string,
+    userId: string | undefined,
+    existingBackground: string
+  ): Promise<{
+    augmentedBackground: string;
+    memoriesUsed: Array<{
+      id: string;
+      content: string;
+      primarySector: string;
+      relevanceScore: number;
+    }>;
+  }> {
+    let augmentedBackground = existingBackground;
+    let memoriesUsed: Array<{
+      id: string;
+      content: string;
+      primarySector: string;
+      relevanceScore: number;
+    }> = [];
+
+    if (userId && this.memoryAugmentedReasoning) {
+      const augmentedContext = await this.memoryAugmentedReasoning.augmentProblemContext(
+        problem,
+        userId
+      );
+
+      if (augmentedContext.hasMemoryContext && augmentedContext.memoryBackground) {
+        augmentedBackground = augmentedContext.memoryBackground;
+        if (existingBackground) {
+          augmentedBackground += `\n\n${existingBackground}`;
+        }
+
+        memoriesUsed = augmentedContext.memoriesUsed.map((m: RetrievedMemory) => ({
+          id: m.id,
+          content: m.content,
+          primarySector: m.primarySector,
+          relevanceScore: m.relevanceScore,
+        }));
       }
     }
 
-    return dependencies;
+    return { augmentedBackground, memoriesUsed };
   }
 
   /**
    * Create dependency graph
    */
   private createDependencyGraph(
-    subProblems: Array<{ id: string; description: string; depth: number; parent?: string }>,
-    dependencies: Array<{ from: string; to: string; type: string }>
+    subProblems: Array<{
+      id: string;
+      description: string;
+      depth: number;
+      parent?: string;
+      name?: string;
+      details?: string;
+      domain?: string;
+    }>,
+    dependencies: Array<{ from: string; to: string; type: string; description?: string }>
   ): {
-    nodes: Array<{ id: string; label: string }>;
-    edges: Array<{ from: string; to: string; label: string }>;
+    nodes: Array<{ id: string; label: string; name?: string; details?: string; domain?: string }>;
+    edges: Array<{ from: string; to: string; label: string; description?: string }>;
   } {
     return {
       nodes: subProblems.map((sp) => ({
         id: sp.id,
-        label: sp.description,
+        label: sp.name ?? sp.description, // Use name if available
+        name: sp.name,
+        details: sp.details,
+        domain: sp.domain,
       })),
       edges: dependencies.map((dep) => ({
         from: dep.from,
         to: dep.to,
         label: dep.type,
+        description: dep.description, // Include relationship description
       })),
     };
   }
@@ -1809,7 +2367,78 @@ export class CognitiveMCPServer {
             context?: string;
           };
 
+          // Validate reasoning is not empty or whitespace-only
+          if (!input.reasoning || input.reasoning.trim().length === 0) {
+            return {
+              success: true,
+              data: {
+                overallConfidence: 0,
+                evidenceQuality: 0,
+                reasoningCoherence: 0,
+                completeness: 0,
+                uncertaintyLevel: 1.0,
+                uncertaintyType: "epistemic",
+                factors: [
+                  {
+                    dimension: "evidence",
+                    score: 0,
+                    weight: 0.3,
+                    explanation: "No reasoning provided to assess",
+                  },
+                  {
+                    dimension: "coherence",
+                    score: 0,
+                    weight: 0.3,
+                    explanation: "Empty reasoning cannot be evaluated for coherence",
+                  },
+                  {
+                    dimension: "completeness",
+                    score: 0,
+                    weight: 0.25,
+                    explanation: "No content to assess for completeness",
+                  },
+                  {
+                    dimension: "uncertainty",
+                    score: 0,
+                    weight: 0.15,
+                    explanation: "Maximum uncertainty due to missing reasoning",
+                  },
+                ],
+                interpretation:
+                  "Cannot assess confidence: no reasoning provided. Please provide the reasoning text to evaluate.",
+                warnings: ["Empty or whitespace-only reasoning provided"],
+                recommendations: [
+                  "Provide the reasoning text you want to assess",
+                  "Include supporting evidence if available",
+                  "Add context to improve assessment accuracy",
+                ],
+                timestamp: new Date(),
+                processingTime: 1,
+              },
+              metadata: {
+                timestamp: new Date().toISOString(),
+                processingTime: 1,
+                componentsUsed: ["validation"],
+                evidenceSource: "none",
+              },
+            };
+          }
+
           const startTime = Date.now();
+
+          // Use provided evidence or extract from reasoning text
+          let evidence = input.evidence ?? [];
+          let extractedEvidence: ExtractedEvidence[] = [];
+
+          // If no explicit evidence provided, extract from reasoning text
+          if (evidence.length === 0 && this.evidenceExtractor) {
+            const extraction = this.evidenceExtractor.extract(input.reasoning);
+            if (extraction.count > 0) {
+              // Use extracted evidence statements
+              evidence = extraction.evidence.map((e) => e.statement);
+              extractedEvidence = extraction.evidence;
+            }
+          }
 
           // Convert input to ReasoningContext structure
           const reasoningContext = {
@@ -1818,7 +2447,7 @@ export class CognitiveMCPServer {
               description: input.reasoning,
               context: input.context ?? "general",
             },
-            evidence: input.evidence ?? [],
+            evidence,
             constraints: [] as string[],
             goals: ["Assess confidence in reasoning"],
           };
@@ -1827,13 +2456,23 @@ export class CognitiveMCPServer {
 
           const processingTime = Date.now() - startTime;
 
+          // Build response data with extracted evidence if applicable
+          const responseData: { [key: string]: unknown } = { ...assessment };
+          if (extractedEvidence.length > 0) {
+            responseData.extractedEvidence = extractedEvidence;
+          }
+
           return {
             success: true,
-            data: { ...assessment } as { [key: string]: unknown },
+            data: responseData,
             metadata: {
               timestamp: new Date().toISOString(),
               processingTime,
-              componentsUsed: ["confidenceAssessor"],
+              componentsUsed:
+                extractedEvidence.length > 0
+                  ? ["confidenceAssessor", "evidenceExtractor"]
+                  : ["confidenceAssessor"],
+              evidenceSource: extractedEvidence.length > 0 ? "extracted" : "provided",
             },
           };
         } catch (error) {
@@ -1899,25 +2538,8 @@ export class CognitiveMCPServer {
 
           const startTime = Date.now();
 
-          // Convert string reasoning to ReasoningChain structure
-          const reasoningChain = {
-            id: `chain_${Date.now()}`,
-            steps: [
-              {
-                id: "step_1",
-                content: input.reasoning,
-                type: "inference" as const,
-                confidence: 0.8,
-              },
-            ],
-            branches: [],
-            assumptions: [],
-            inferences: [],
-            evidence: [],
-            conclusion: input.reasoning,
-          };
-
-          const biases = this.biasDetector.detectBiases(reasoningChain);
+          // Use text-based detection for raw text input (Requirements 10.1-10.5)
+          const biases = this.biasDetector.detectBiasesFromText(input.reasoning, input.context);
 
           const detectionTime = (Date.now() - startTime) / 1000; // Convert to seconds
 
@@ -1925,17 +2547,32 @@ export class CognitiveMCPServer {
           // Use BiasMonitoringSystem for continuous monitoring capabilities
           const monitoringActive = false;
 
+          // Add correction suggestions to each detected bias (Requirements 10.6, 10.10)
+          const biasesWithCorrections = biases.map((bias) => {
+            const correction = this.biasCorrector?.getSuggestion(bias.type);
+            return {
+              ...bias,
+              correction: correction
+                ? {
+                    suggestion: correction.suggestion,
+                    techniques: correction.techniques,
+                    challengeQuestions: correction.challengeQuestions,
+                  }
+                : undefined,
+            };
+          });
+
           return {
             success: true,
             data: {
-              biases,
+              biases: biasesWithCorrections,
               detectionTime,
               monitoringActive,
             },
             metadata: {
               timestamp: new Date().toISOString(),
               processingTime: Date.now() - startTime,
-              componentsUsed: ["biasDetector"],
+              componentsUsed: ["biasDetector", "biasCorrector"],
             },
           };
         } catch (error) {
@@ -2053,12 +2690,12 @@ export class CognitiveMCPServer {
    */
   private registerAnalyzeReasoningTool(): void {
     // Skip if already registered (e.g., in tests)
-    if (this.toolRegistry.getTool("analyze_reasoning")) {
+    if (this.toolRegistry.getTool("evaluate")) {
       return;
     }
 
     this.toolRegistry.registerTool({
-      name: "analyze_reasoning",
+      name: "evaluate",
       description:
         "Analyze reasoning quality with comprehensive assessment. " +
         "Evaluates coherence, completeness, logical validity, and evidence support. " +
@@ -2255,6 +2892,7 @@ export class CognitiveMCPServer {
     this.performanceMonitor = undefined;
     this.emotionAnalyzer = undefined;
     this.biasDetector = undefined;
+    this.evidenceExtractor = undefined;
     this.confidenceAssessor = undefined;
     this.frameworkSelector = undefined;
     this.reasoningOrchestrator = undefined;
@@ -2519,6 +3157,7 @@ export class CognitiveMCPServer {
       reasoningOrchestrator: this.reasoningOrchestrator ? "healthy" : "unhealthy",
       frameworkSelector: this.frameworkSelector ? "healthy" : "unhealthy",
       confidenceAssessor: this.confidenceAssessor ? "healthy" : "unhealthy",
+      evidenceExtractor: this.evidenceExtractor ? "healthy" : "unhealthy",
       biasDetector: this.biasDetector ? "healthy" : "unhealthy",
       emotionAnalyzer: this.emotionAnalyzer ? "healthy" : "unhealthy",
       performanceMonitor: this.performanceMonitor ? "healthy" : "unhealthy",

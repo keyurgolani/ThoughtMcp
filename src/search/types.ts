@@ -8,6 +8,23 @@
  */
 
 /**
+ * Parsed query result from QueryParser
+ *
+ * Contains the PostgreSQL ts_query string along with separated
+ * include and exclude terms for proper matchedTerms handling.
+ */
+export interface ParsedQuery {
+  /** PostgreSQL ts_query formatted string */
+  tsQuery: string;
+
+  /** Terms to include in search (positive terms) */
+  includeTerms: string[];
+
+  /** Terms to exclude from search (NOT/! terms) */
+  excludeTerms: string[];
+}
+
+/**
  * Ranking mode for search results
  */
 export type RankingMode = "rank" | "rank_cd";

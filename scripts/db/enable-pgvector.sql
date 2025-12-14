@@ -42,34 +42,35 @@ CREATE TABLE IF NOT EXISTS memory_embeddings (
 -- For 100k memories × 5 sectors = 500k embeddings, lists ≈ 707
 
 -- Episodic sector index (temporal, event-based memories)
-CREATE INDEX IF NOT EXISTS idx_embeddings_episodic_vector 
+-- Note: WITH clause must come before WHERE clause in PostgreSQL
+CREATE INDEX IF NOT EXISTS idx_embeddings_episodic_vector
 ON memory_embeddings USING ivfflat (embedding vector_cosine_ops)
-WHERE sector = 'episodic'
-WITH (lists = 100);  -- Will be adjusted as data grows
+WITH (lists = 100)
+WHERE sector = 'episodic';
 
 -- Semantic sector index (factual, conceptual knowledge)
-CREATE INDEX IF NOT EXISTS idx_embeddings_semantic_vector 
+CREATE INDEX IF NOT EXISTS idx_embeddings_semantic_vector
 ON memory_embeddings USING ivfflat (embedding vector_cosine_ops)
-WHERE sector = 'semantic'
-WITH (lists = 100);
+WITH (lists = 100)
+WHERE sector = 'semantic';
 
 -- Procedural sector index (how-to, process knowledge)
-CREATE INDEX IF NOT EXISTS idx_embeddings_procedural_vector 
+CREATE INDEX IF NOT EXISTS idx_embeddings_procedural_vector
 ON memory_embeddings USING ivfflat (embedding vector_cosine_ops)
-WHERE sector = 'procedural'
-WITH (lists = 100);
+WITH (lists = 100)
+WHERE sector = 'procedural';
 
 -- Emotional sector index (affective content)
-CREATE INDEX IF NOT EXISTS idx_embeddings_emotional_vector 
+CREATE INDEX IF NOT EXISTS idx_embeddings_emotional_vector
 ON memory_embeddings USING ivfflat (embedding vector_cosine_ops)
-WHERE sector = 'emotional'
-WITH (lists = 100);
+WITH (lists = 100)
+WHERE sector = 'emotional';
 
 -- Reflective sector index (meta-cognitive insights)
-CREATE INDEX IF NOT EXISTS idx_embeddings_reflective_vector 
+CREATE INDEX IF NOT EXISTS idx_embeddings_reflective_vector
 ON memory_embeddings USING ivfflat (embedding vector_cosine_ops)
-WHERE sector = 'reflective'
-WITH (lists = 100);
+WITH (lists = 100)
+WHERE sector = 'reflective';
 
 -- Additional indexes for efficient querying
 CREATE INDEX IF NOT EXISTS idx_embeddings_memory ON memory_embeddings(memory_id);
@@ -103,7 +104,7 @@ RETURNS TABLE(
 BEGIN
     RETURN QUERY
     WITH similarity_scores AS (
-        SELECT 
+        SELECT
             e.memory_id,
             1 - (e.embedding <=> p_query_embedding) AS similarity_score
         FROM memory_embeddings e
@@ -111,7 +112,7 @@ BEGIN
         AND 1 - (e.embedding <=> p_query_embedding) >= p_similarity_threshold
     ),
     recency_scores AS (
-        SELECT 
+        SELECT
             m.id,
             EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - m.last_accessed)) / 86400.0 AS days_since_access,
             EXP(-0.01 * EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - m.last_accessed)) / 86400.0) AS recency_score
@@ -119,21 +120,21 @@ BEGIN
         WHERE m.user_id = p_user_id
     ),
     link_weights AS (
-        SELECT 
+        SELECT
             ml.target_id AS memory_id,
             AVG(ml.weight) AS avg_link_weight
         FROM memory_links ml
         GROUP BY ml.target_id
     )
-    SELECT 
+    SELECT
         m.id AS memory_id,
         m.content,
         ss.similarity_score AS similarity,
         m.salience,
         rs.recency_score,
-        (0.6 * ss.similarity_score + 
-         0.2 * m.salience + 
-         0.1 * rs.recency_score + 
+        (0.6 * ss.similarity_score +
+         0.2 * m.salience +
+         0.1 * rs.recency_score +
          0.1 * COALESCE(lw.avg_link_weight, 0.0)) AS composite_score,
         m.created_at,
         m.last_accessed
@@ -201,7 +202,7 @@ BEGIN
     REINDEX INDEX CONCURRENTLY idx_embeddings_procedural_vector;
     REINDEX INDEX CONCURRENTLY idx_embeddings_emotional_vector;
     REINDEX INDEX CONCURRENTLY idx_embeddings_reflective_vector;
-    
+
     RETURN 'Vector indexes rebuilt successfully';
 EXCEPTION
     WHEN OTHERS THEN
@@ -218,7 +219,7 @@ RETURNS TABLE(
 ) AS $$
 BEGIN
     RETURN QUERY
-    SELECT 
+    SELECT
         i.indexrelname::TEXT AS index_name,
         pg_size_pretty(pg_relation_size(i.indexrelid)) AS index_size,
         s.n_tup_ins AS tuples

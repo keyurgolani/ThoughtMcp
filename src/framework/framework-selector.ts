@@ -26,6 +26,10 @@ interface FrameworkScore {
   framework: ThinkingFramework;
   score: number;
   reason: string;
+  /** Strengths of this framework for the problem */
+  strengths: string[];
+  /** Weaknesses of this framework for the problem */
+  weaknesses: string[];
 }
 
 /**
@@ -196,6 +200,8 @@ export class FrameworkSelector {
   ): FrameworkScore {
     let score = 0;
     const reasons: string[] = [];
+    const strengths: string[] = [];
+    const weaknesses: string[] = [];
 
     // Use provided weights or defaults
     const w = weights ?? {
@@ -209,16 +215,19 @@ export class FrameworkSelector {
     const complexityScore = this.scoreComplexityMatch(framework.id, classification.complexity);
     score += complexityScore.score * w.complexity;
     if (complexityScore.reason) reasons.push(complexityScore.reason);
+    this.categorizeScoreResult(complexityScore, "complexity", strengths, weaknesses);
 
     // Uncertainty match (weighted)
     const uncertaintyScore = this.scoreUncertaintyMatch(framework.id, classification.uncertainty);
     score += uncertaintyScore.score * w.uncertainty;
     if (uncertaintyScore.reason) reasons.push(uncertaintyScore.reason);
+    this.categorizeScoreResult(uncertaintyScore, "uncertainty", strengths, weaknesses);
 
     // Stakes match (weighted)
     const stakesScore = this.scoreStakesMatch(framework.id, classification.stakes);
     score += stakesScore.score * w.stakes;
     if (stakesScore.reason) reasons.push(stakesScore.reason);
+    this.categorizeScoreResult(stakesScore, "stakes", strengths, weaknesses);
 
     // Time pressure match (weighted)
     const timePressureScore = this.scoreTimePressureMatch(
@@ -227,12 +236,34 @@ export class FrameworkSelector {
     );
     score += timePressureScore.score * w.timePressure;
     if (timePressureScore.reason) reasons.push(timePressureScore.reason);
+    this.categorizeScoreResult(timePressureScore, "time pressure", strengths, weaknesses);
 
     return {
       framework,
       score,
       reason: reasons.join(", "),
+      strengths,
+      weaknesses,
     };
+  }
+
+  /**
+   * Categorize a score result as strength or weakness
+   */
+  private categorizeScoreResult(
+    result: { score: number; reason: string },
+    dimension: string,
+    strengths: string[],
+    weaknesses: string[]
+  ): void {
+    if (!result.reason) return;
+
+    // High scores (>= 0.7) are strengths, low scores (<= 0.4) are weaknesses
+    if (result.score >= 0.7) {
+      strengths.push(`${dimension}: ${result.reason}`);
+    } else if (result.score <= 0.4) {
+      weaknesses.push(`${dimension}: ${result.reason}`);
+    }
   }
 
   /**
@@ -515,30 +546,43 @@ export class FrameworkSelector {
   private createHybridSelection(
     scores: FrameworkScore[],
     hybridInfo: { isHybrid: boolean; count: number; reason: string },
-    _classification: ProblemClassification,
+    classification: ProblemClassification,
     selectionId?: string
   ): FrameworkSelection {
     // Select top N frameworks for hybrid (2-3)
     const hybridFrameworks = scores.slice(0, hybridInfo.count).map((s) => s.framework);
 
-    // Calculate hybrid confidence (average of component scores)
+    // Calculate hybrid confidence with calibration
+    // Hybrid selections have slightly lower confidence due to ambiguity
     const avgScore =
       scores.slice(0, hybridInfo.count).reduce((sum, s) => sum + s.score, 0) / hybridInfo.count;
 
+    // Apply calibration factors for hybrid
+    const classificationFactor = classification.confidence * 0.2;
+    const scoreFactor = avgScore * 0.6;
+
+    // Hybrid selections get a small penalty for ambiguity (0.85 multiplier)
+    let calibratedConfidence = (classificationFactor + scoreFactor + 0.2) * 0.85;
+
+    // Ensure confidence is in valid range [0.4, 0.85] for hybrid
+    // Hybrid is never as confident as single selection
+    calibratedConfidence = Math.max(0.4, Math.min(0.85, calibratedConfidence));
+
     // Primary framework is still the highest scoring one
     const primaryFramework = scores[0].framework;
+    const primaryScore = scores[0];
 
-    // Alternatives are the remaining frameworks
+    // Alternatives with trade-off explanations
     const alternatives: FrameworkAlternative[] = scores.slice(hybridInfo.count).map((s) => ({
       framework: s.framework,
       confidence: s.score,
-      reason: s.reason,
+      reason: this.generateTradeOffExplanation(primaryScore, s),
     }));
 
     return {
       primaryFramework,
       alternatives,
-      confidence: avgScore,
+      confidence: calibratedConfidence,
       reason: hybridInfo.reason,
       isHybrid: true,
       hybridFrameworks,
@@ -552,26 +596,149 @@ export class FrameworkSelector {
    */
   private createSingleSelection(
     scores: FrameworkScore[],
-    _classification: ProblemClassification,
+    classification: ProblemClassification,
     selectionId?: string
   ): FrameworkSelection {
     const primaryFramework = scores[0].framework;
+    const primaryScore = scores[0];
 
-    // Alternatives are the remaining frameworks
+    // Calculate calibrated confidence based on multiple factors
+    const calibratedConfidence = this.calculateCalibratedConfidence(scores, classification);
+
+    // Alternatives with trade-off explanations
     const alternatives: FrameworkAlternative[] = scores.slice(1).map((s) => ({
       framework: s.framework,
       confidence: s.score,
-      reason: s.reason,
+      reason: this.generateTradeOffExplanation(primaryScore, s),
     }));
 
     return {
       primaryFramework,
       alternatives,
-      confidence: scores[0].score,
+      confidence: calibratedConfidence,
       reason: `Selected ${primaryFramework.name}: ${scores[0].reason}`,
       isHybrid: false,
       timestamp: new Date(),
       selectionId,
     };
+  }
+
+  /**
+   * Calculate calibrated confidence based on multiple factors
+   *
+   * Confidence varies based on:
+   * 1. Score gap between top frameworks (larger gap = higher confidence)
+   * 2. Problem classification confidence
+   * 3. How well the framework matches the problem characteristics
+   */
+  private calculateCalibratedConfidence(
+    scores: FrameworkScore[],
+    classification: ProblemClassification
+  ): number {
+    const topScore = scores[0].score;
+    const secondScore = scores.length > 1 ? scores[1].score : 0;
+
+    // Factor 1: Score gap (0-0.3 contribution)
+    // Larger gap between top two frameworks = higher confidence
+    const scoreGap = topScore - secondScore;
+    const gapFactor = Math.min(0.3, scoreGap * 1.5);
+
+    // Factor 2: Classification confidence (0-0.3 contribution)
+    // Higher classification confidence = higher selection confidence
+    const classificationFactor = classification.confidence * 0.3;
+
+    // Factor 3: Absolute score quality (0-0.4 contribution)
+    // Higher absolute score = higher confidence
+    const scoreFactor = topScore * 0.4;
+
+    // Combine factors
+    let confidence = gapFactor + classificationFactor + scoreFactor;
+
+    // Apply penalty for ambiguous situations
+    // If top 3 frameworks are very close, reduce confidence
+    if (scores.length >= 3) {
+      const thirdScore = scores[2].score;
+      if (topScore - thirdScore < 0.1) {
+        confidence *= 0.85; // 15% penalty for ambiguity
+      }
+    }
+
+    // Ensure confidence is in valid range [0.3, 0.95]
+    // Never 1.0 (always some uncertainty) and never too low for a selection
+    return Math.max(0.3, Math.min(0.95, confidence));
+  }
+
+  /**
+   * Generate trade-off explanation comparing alternative to primary framework
+   */
+  private generateTradeOffExplanation(
+    primary: FrameworkScore,
+    alternative: FrameworkScore
+  ): string {
+    const parts: string[] = [];
+
+    // Start with the alternative's basic reason
+    if (alternative.reason) {
+      parts.push(alternative.reason);
+    }
+
+    // Add trade-off comparison
+    const tradeOffs = this.identifyTradeOffs(primary, alternative);
+    if (tradeOffs.length > 0) {
+      parts.push(`Trade-offs vs ${primary.framework.name}: ${tradeOffs.join("; ")}`);
+    }
+
+    // Add when this alternative might be preferred
+    const preferredWhen = this.identifyPreferredScenarios(alternative);
+    if (preferredWhen) {
+      parts.push(`Preferred when: ${preferredWhen}`);
+    }
+
+    return parts.join(". ");
+  }
+
+  /**
+   * Identify trade-offs between primary and alternative framework
+   */
+  private identifyTradeOffs(primary: FrameworkScore, alternative: FrameworkScore): string[] {
+    const tradeOffs: string[] = [];
+
+    // Find areas where alternative is stronger
+    for (const altStrength of alternative.strengths) {
+      const dimension = altStrength.split(":")[0];
+      const primaryHasWeakness = primary.weaknesses.some((w) => w.startsWith(dimension));
+      if (primaryHasWeakness) {
+        tradeOffs.push(`stronger in ${dimension.toLowerCase()}`);
+      }
+    }
+
+    // Find areas where alternative is weaker
+    for (const altWeakness of alternative.weaknesses) {
+      const dimension = altWeakness.split(":")[0];
+      const primaryHasStrength = primary.strengths.some((s) => s.startsWith(dimension));
+      if (primaryHasStrength) {
+        tradeOffs.push(`weaker in ${dimension.toLowerCase()}`);
+      }
+    }
+
+    return tradeOffs;
+  }
+
+  /**
+   * Identify scenarios where alternative framework might be preferred
+   */
+  private identifyPreferredScenarios(alternative: FrameworkScore): string | null {
+    const frameworkId = alternative.framework.id;
+
+    // Framework-specific preferred scenarios
+    const scenarios: Record<string, string> = {
+      "scientific-method": "problem has clear hypothesis to test",
+      "design-thinking": "user experience or creative solution is priority",
+      "systems-thinking": "problem involves complex interdependencies",
+      "critical-thinking": "evaluating options or making decisions",
+      "root-cause-analysis": "diagnosing failures or defects",
+    };
+
+    return scenarios[frameworkId] ?? null;
   }
 }

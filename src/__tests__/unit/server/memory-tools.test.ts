@@ -69,7 +69,7 @@ describe("Memory MCP Tools", () => {
     beforeEach(() => {
       // Register store_memory tool
       server.toolRegistry.registerTool({
-        name: "store_memory",
+        name: "remember",
         description: "Store a new memory with embeddings and waypoint connections",
         inputSchema: {
           type: "object",
@@ -151,7 +151,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.create.mockResolvedValue(mockMemory);
 
-      const result = await server.executeTool("store_memory", {
+      const result = await server.executeTool("remember", {
         content: "Test memory content",
         type: "episodic",
         userId: "user_123",
@@ -211,7 +211,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.create.mockResolvedValue(mockMemory);
 
-      const result = await server.executeTool("store_memory", {
+      const result = await server.executeTool("remember", {
         content: "Test memory with metadata",
         type: "semantic",
         userId: "user_123",
@@ -242,7 +242,7 @@ describe("Memory MCP Tools", () => {
     });
 
     it("should validate required parameters", async () => {
-      const result = await server.executeTool("store_memory", {
+      const result = await server.executeTool("remember", {
         type: "episodic",
         userId: "user_123",
         // Missing content
@@ -253,7 +253,7 @@ describe("Memory MCP Tools", () => {
     });
 
     it("should validate memory type enum", async () => {
-      const result = await server.executeTool("store_memory", {
+      const result = await server.executeTool("remember", {
         content: "Test content",
         type: "invalid_type",
         userId: "user_123",
@@ -286,7 +286,7 @@ describe("Memory MCP Tools", () => {
       mockMemoryRepository.create.mockResolvedValue(mockMemory);
 
       // Tool should accept but repository will validate
-      const result = await server.executeTool("store_memory", {
+      const result = await server.executeTool("remember", {
         content: "Test content",
         type: "episodic",
         userId: "user_123",
@@ -328,7 +328,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.create.mockResolvedValue(mockMemory);
 
-      const result = await server.executeTool("store_memory", {
+      const result = await server.executeTool("remember", {
         content: "Test content",
         type: "episodic",
         userId: "user_123",
@@ -379,7 +379,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.create.mockResolvedValue(mockMemory);
 
-      const result = await server.executeTool("store_memory", {
+      const result = await server.executeTool("remember", {
         content: "Test content",
         type: "episodic",
         userId: "user_123",
@@ -412,7 +412,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.create.mockResolvedValue(mockMemory);
 
-      const result = await server.executeTool("store_memory", {
+      const result = await server.executeTool("remember", {
         content: "Test content",
         type: "episodic",
         userId: "user_123",
@@ -427,7 +427,7 @@ describe("Memory MCP Tools", () => {
     it("should handle repository errors gracefully", async () => {
       mockMemoryRepository.create.mockRejectedValue(new Error("Database connection failed"));
 
-      const result = await server.executeTool("store_memory", {
+      const result = await server.executeTool("remember", {
         content: "Test content",
         type: "episodic",
         userId: "user_123",
@@ -442,7 +442,7 @@ describe("Memory MCP Tools", () => {
     beforeEach(() => {
       // Register retrieve_memories tool
       server.toolRegistry.registerTool({
-        name: "retrieve_memories",
+        name: "recall",
         description: "Retrieve memories by ID or similarity search",
         inputSchema: {
           type: "object",
@@ -516,7 +516,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.retrieve.mockResolvedValue(mockMemory);
 
-      const result = await server.executeTool("retrieve_memories", {
+      const result = await server.executeTool("recall", {
         memoryId: "mem_123",
         userId: "user_123",
       });
@@ -576,7 +576,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.search.mockResolvedValue(mockSearchResult);
 
-      const result = await server.executeTool("retrieve_memories", {
+      const result = await server.executeTool("recall", {
         cue: "test query",
         userId: "user_123",
       });
@@ -624,7 +624,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.search.mockResolvedValue(mockSearchResult);
 
-      const result = await server.executeTool("retrieve_memories", {
+      const result = await server.executeTool("recall", {
         cue: "test query",
         userId: "user_123",
         sectors: ["episodic", "semantic"],
@@ -668,7 +668,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.search.mockResolvedValue(mockSearchResult);
 
-      const result = await server.executeTool("retrieve_memories", {
+      const result = await server.executeTool("recall", {
         cue: "test query",
         userId: "user_123",
         limit: 5,
@@ -714,7 +714,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.search.mockResolvedValue(mockSearchResult);
 
-      const result = await server.executeTool("retrieve_memories", {
+      const result = await server.executeTool("recall", {
         cue: "important query",
         userId: "user_123",
       });
@@ -726,7 +726,7 @@ describe("Memory MCP Tools", () => {
     it("should handle non-existent memory ID", async () => {
       mockMemoryRepository.retrieve.mockResolvedValue(null);
 
-      const result = await server.executeTool("retrieve_memories", {
+      const result = await server.executeTool("recall", {
         memoryId: "nonexistent_id",
         userId: "user_123",
       });
@@ -737,7 +737,7 @@ describe("Memory MCP Tools", () => {
     });
 
     it("should require either memoryId or cue", async () => {
-      const result = await server.executeTool("retrieve_memories", {
+      const result = await server.executeTool("recall", {
         userId: "user_123",
         // Neither memoryId nor cue provided
       });
@@ -749,7 +749,7 @@ describe("Memory MCP Tools", () => {
     it("should handle repository errors", async () => {
       mockMemoryRepository.retrieve.mockRejectedValue(new Error("Database error"));
 
-      const result = await server.executeTool("retrieve_memories", {
+      const result = await server.executeTool("recall", {
         memoryId: "mem_123",
         userId: "user_123",
       });
@@ -998,7 +998,7 @@ describe("Memory MCP Tools", () => {
     beforeEach(() => {
       // Register delete_memory tool
       server.toolRegistry.registerTool({
-        name: "delete_memory",
+        name: "forget",
         description: "Delete a memory (soft or hard delete)",
         inputSchema: {
           type: "object",
@@ -1026,7 +1026,7 @@ describe("Memory MCP Tools", () => {
     it("should perform soft delete by default", async () => {
       mockMemoryRepository.delete.mockResolvedValue(undefined);
 
-      const result = await server.executeTool("delete_memory", {
+      const result = await server.executeTool("forget", {
         memoryId: "mem_123",
         userId: "user_123",
       });
@@ -1039,7 +1039,7 @@ describe("Memory MCP Tools", () => {
     it("should perform hard delete when specified", async () => {
       mockMemoryRepository.delete.mockResolvedValue(undefined);
 
-      const result = await server.executeTool("delete_memory", {
+      const result = await server.executeTool("forget", {
         memoryId: "mem_123",
         userId: "user_123",
         soft: false,
@@ -1058,7 +1058,7 @@ describe("Memory MCP Tools", () => {
         return undefined;
       });
 
-      const result = await server.executeTool("delete_memory", {
+      const result = await server.executeTool("forget", {
         memoryId: "mem_123",
         userId: "user_123",
         soft: false,
@@ -1071,7 +1071,7 @@ describe("Memory MCP Tools", () => {
     it("should verify cascade deletion of connections", async () => {
       mockMemoryRepository.delete.mockResolvedValue(undefined);
 
-      const result = await server.executeTool("delete_memory", {
+      const result = await server.executeTool("forget", {
         memoryId: "mem_123",
         userId: "user_123",
         soft: false,
@@ -1085,7 +1085,7 @@ describe("Memory MCP Tools", () => {
     it("should verify cascade deletion of metadata", async () => {
       mockMemoryRepository.delete.mockResolvedValue(undefined);
 
-      const result = await server.executeTool("delete_memory", {
+      const result = await server.executeTool("forget", {
         memoryId: "mem_123",
         userId: "user_123",
         soft: false,
@@ -1098,7 +1098,7 @@ describe("Memory MCP Tools", () => {
     it("should handle non-existent memory", async () => {
       mockMemoryRepository.delete.mockRejectedValue(new Error("Memory not found"));
 
-      const result = await server.executeTool("delete_memory", {
+      const result = await server.executeTool("forget", {
         memoryId: "nonexistent_id",
         userId: "user_123",
       });
@@ -1108,7 +1108,7 @@ describe("Memory MCP Tools", () => {
     });
 
     it("should validate required parameters", async () => {
-      const result = await server.executeTool("delete_memory", {
+      const result = await server.executeTool("forget", {
         userId: "user_123",
         // Missing memoryId
       });
@@ -1122,7 +1122,7 @@ describe("Memory MCP Tools", () => {
     beforeEach(() => {
       // Register search_memories tool
       server.toolRegistry.registerTool({
-        name: "search_memories",
+        name: "search",
         description: "Search memories with various filters",
         inputSchema: {
           type: "object",
@@ -1201,7 +1201,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.search.mockResolvedValue(mockSearchResult);
 
-      const result = await server.executeTool("search_memories", {
+      const result = await server.executeTool("search", {
         userId: "user_123",
         text: "search text",
       });
@@ -1245,7 +1245,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.search.mockResolvedValue(mockSearchResult);
 
-      const result = await server.executeTool("search_memories", {
+      const result = await server.executeTool("search", {
         userId: "user_123",
         keywords: ["test", "important"],
       });
@@ -1288,7 +1288,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.search.mockResolvedValue(mockSearchResult);
 
-      const result = await server.executeTool("search_memories", {
+      const result = await server.executeTool("search", {
         userId: "user_123",
         tags: ["work", "project"],
       });
@@ -1332,7 +1332,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.search.mockResolvedValue(mockSearchResult);
 
-      const result = await server.executeTool("search_memories", {
+      const result = await server.executeTool("search", {
         userId: "user_123",
         category: "personal",
       });
@@ -1375,7 +1375,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.search.mockResolvedValue(mockSearchResult);
 
-      const result = await server.executeTool("search_memories", {
+      const result = await server.executeTool("search", {
         userId: "user_123",
         minStrength: 0.8,
       });
@@ -1418,7 +1418,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.search.mockResolvedValue(mockSearchResult);
 
-      const result = await server.executeTool("search_memories", {
+      const result = await server.executeTool("search", {
         userId: "user_123",
         dateFrom: "2024-11-01T00:00:00Z",
         dateTo: "2024-11-30T23:59:59Z",
@@ -1466,7 +1466,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.search.mockResolvedValue(mockSearchResult);
 
-      const result = await server.executeTool("search_memories", {
+      const result = await server.executeTool("search", {
         userId: "user_123",
         text: "important project",
         keywords: ["important"],
@@ -1517,7 +1517,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.search.mockResolvedValue(mockSearchResult);
 
-      const result = await server.executeTool("search_memories", {
+      const result = await server.executeTool("search", {
         userId: "user_123",
         text: "search",
         limit: 20,
@@ -1583,7 +1583,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.search.mockResolvedValue(mockSearchResult);
 
-      const result = await server.executeTool("search_memories", {
+      const result = await server.executeTool("search", {
         userId: "user_123",
         text: "relevance test",
       });
@@ -1602,7 +1602,7 @@ describe("Memory MCP Tools", () => {
 
       mockMemoryRepository.search.mockResolvedValue(mockSearchResult);
 
-      const result = await server.executeTool("search_memories", {
+      const result = await server.executeTool("search", {
         userId: "user_123",
         text: "nonexistent query",
       });
@@ -1615,7 +1615,7 @@ describe("Memory MCP Tools", () => {
     it("should handle repository errors", async () => {
       mockMemoryRepository.search.mockRejectedValue(new Error("Search index unavailable"));
 
-      const result = await server.executeTool("search_memories", {
+      const result = await server.executeTool("search", {
         userId: "user_123",
         text: "test",
       });

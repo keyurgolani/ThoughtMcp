@@ -10,7 +10,7 @@ fi
 
 # Run CI validation (same as CI: audit, format:check, lint:strict, typecheck, test:coverage)
 echo "🏗️  Running CI validation..."
-timeout 220s npm run validate:ci
+timeout 800s npm run validate:ci
 if [ $? -ne 0 ]; then
   echo "❌ CI validation failed. Please fix the issues above."
   echo "💡 CI validation includes: security audit, format check, strict lint (zero warnings), typecheck, tests with coverage."

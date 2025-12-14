@@ -8,8 +8,10 @@
  * - Integrative thinking and synthesis
  * - Holistic perspective generation (big picture view)
  * - Progress tracking and timeout management
+ * - Problem-specific patterns (Requirements 4.4, 15.3)
  */
 
+import { KeyTermExtractor, type KeyTerms } from "../key-term-extractor";
 import type { ReasoningStream, StreamProcessor } from "../stream";
 import { StreamStatus, StreamType, type Insight, type Problem, type StreamResult } from "../types";
 
@@ -18,8 +20,15 @@ import { StreamStatus, StreamType, type Insight, type Problem, type StreamResult
  *
  * Implements the core synthetic reasoning logic with pattern recognition,
  * connection discovery, theme extraction, and holistic perspective generation.
+ * Generates problem-specific patterns using key term extraction.
  */
 export class SyntheticStreamProcessor implements StreamProcessor {
+  private readonly keyTermExtractor: KeyTermExtractor;
+
+  constructor() {
+    this.keyTermExtractor = new KeyTermExtractor();
+  }
+
   /**
    * Process a problem using synthetic reasoning
    *
@@ -37,17 +46,19 @@ export class SyntheticStreamProcessor implements StreamProcessor {
     }
 
     try {
+      // Extract key terms for problem-specific patterns (Req 4.4, 15.3)
+      const keyTerms = this.keyTermExtractor.extract(problem.description, problem.context);
+      const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+
       // Step 1: Initial pattern recognition
       reasoning.push(
         `Analyzing patterns and connections in: ${problem.description.substring(0, 100)}${problem.description.length > 100 ? "..." : ""}`
       );
 
       // Step 2: Identify patterns across the problem space
-      const patterns = this.identifyPatterns(problem);
+      const patterns = this.identifyPatterns(problem, keyTerms);
       if (patterns.length > 0) {
-        reasoning.push(
-          `Identified ${patterns.length} recurring patterns and systemic themes across the problem space`
-        );
+        reasoning.push(`Identified ${patterns.length} recurring patterns in ${primaryTerm}`);
         // Add specific pattern details to reasoning
         for (const pattern of patterns) {
           if (
@@ -62,11 +73,9 @@ export class SyntheticStreamProcessor implements StreamProcessor {
       }
 
       // Step 3: Map connections between concepts
-      const connections = this.mapConnections(problem);
+      const connections = this.mapConnections(problem, keyTerms);
       if (connections.length > 0) {
-        reasoning.push(
-          `Mapped ${connections.length} key connections and relationships between different factors`
-        );
+        reasoning.push(`Mapped ${connections.length} key connections in ${primaryTerm}`);
         // Add specific connection details to reasoning
         for (const connection of connections) {
           const content = connection.content.toLowerCase();
@@ -105,11 +114,9 @@ export class SyntheticStreamProcessor implements StreamProcessor {
       }
 
       // Step 4: Extract overarching themes
-      const themes = this.extractThemes(problem);
+      const themes = this.extractThemes(problem, keyTerms);
       if (themes.length > 0) {
-        reasoning.push(
-          `Extracted ${themes.length} unifying themes that tie the situation together`
-        );
+        reasoning.push(`Extracted ${themes.length} unifying themes for ${primaryTerm}`);
         // Add specific theme details to reasoning
         for (const theme of themes) {
           const content = theme.content.toLowerCase();
@@ -137,14 +144,14 @@ export class SyntheticStreamProcessor implements StreamProcessor {
       }
 
       // Step 5: Apply integrative thinking
-      const integratedInsights = this.integrateInformation(problem, [
-        ...patterns,
-        ...connections,
-        ...themes,
-      ]);
+      const integratedInsights = this.integrateInformation(
+        problem,
+        [...patterns, ...connections, ...themes],
+        keyTerms
+      );
       if (integratedInsights.length > 0) {
         reasoning.push(
-          `Synthesized multiple perspectives into ${integratedInsights.length} integrative insights`
+          `Synthesized ${integratedInsights.length} integrative insights for ${primaryTerm}`
         );
         // Add specific integration details to reasoning
         for (const insight of integratedInsights) {
@@ -162,30 +169,28 @@ export class SyntheticStreamProcessor implements StreamProcessor {
       }
 
       // Step 6: Generate holistic perspective
-      const holisticView = this.generateHolisticPerspective(problem, insights);
+      const holisticView = this.generateHolisticPerspective(problem, insights, keyTerms);
       reasoning.push(`Big picture view: ${holisticView.content}`);
       insights.push(holisticView);
 
       // Step 7: Identify leverage points
-      const leveragePoints = this.identifyLeveragePoints(problem, insights);
+      const leveragePoints = this.identifyLeveragePoints(problem, insights, keyTerms);
       if (leveragePoints.length > 0) {
         reasoning.push(
-          `Identified ${leveragePoints.length} critical leverage points for intervention`
+          `Identified ${leveragePoints.length} critical leverage points for ${primaryTerm}`
         );
         insights.push(...leveragePoints);
       }
 
       // Step 8: Consider temporal dynamics
       if (problem.context && problem.context.length > 0) {
-        reasoning.push(
-          `Considering how the system evolves over time and dynamic interactions between elements`
-        );
-        const temporalInsights = this.considerTemporalDynamics(problem);
+        reasoning.push(`Considering how ${primaryTerm} evolves over time`);
+        const temporalInsights = this.considerTemporalDynamics(problem, keyTerms);
         insights.push(...temporalInsights);
       }
 
       // Step 9: Generate conclusion
-      const conclusion = this.generateConclusion(problem, insights);
+      const conclusion = this.generateConclusion(problem, insights, keyTerms);
       reasoning.push(`Therefore, ${conclusion}`);
 
       // Calculate confidence based on synthesis quality
@@ -234,13 +239,16 @@ export class SyntheticStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Identify patterns across disparate information
+   * Identify patterns across disparate information with term reference tracking
    *
    * @param problem - Problem to analyze
-   * @returns Array of pattern insights
+   * @param keyTerms - Extracted key terms for problem-specific patterns
+   * @returns Array of pattern insights with referenced terms tracked
    */
-  private identifyPatterns(problem: Problem): Insight[] {
+  private identifyPatterns(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const patterns: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const domainTerms = keyTerms.domainTerms.slice(0, 2);
 
     // Analyze context for patterns
     const context = problem.context || "";
@@ -252,11 +260,13 @@ export class SyntheticStreamProcessor implements StreamProcessor {
       context.includes("various") ||
       context.includes("several")
     ) {
+      const content = `Pattern in ${primaryTerm}: Multiple interconnected ${domainTerms[0] || "factors"} creating systemic complexity`;
       patterns.push({
-        content: "Pattern detected: Multiple interconnected factors creating systemic complexity",
+        content,
         source: StreamType.SYNTHETIC,
         confidence: 0.75,
         importance: 0.8,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
@@ -266,30 +276,35 @@ export class SyntheticStreamProcessor implements StreamProcessor {
       description.includes("repeated") ||
       context.includes("again")
     ) {
+      const content = `Recurring pattern in ${primaryTerm}: Similar ${domainTerms[0] || "issues"} manifesting across different areas`;
       patterns.push({
-        content: "Recurring pattern: Similar issues manifesting across different areas",
+        content,
         source: StreamType.SYNTHETIC,
         confidence: 0.7,
         importance: 0.75,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
-    // Identify cause-effect patterns - always include for complex problems
+    // Identify cause-effect patterns with specific terms
+    const causeEffectContent = `Cause-effect pattern in ${primaryTerm}: ${domainTerms[0] || "Issues"} lead to ${domainTerms[1] || "consequences"} with cascading effects`;
     patterns.push({
-      content:
-        "Cause-effect pattern: Issues lead to consequences that results in cascading effects",
+      content: causeEffectContent,
       source: StreamType.SYNTHETIC,
       confidence: 0.8,
       importance: 0.85,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(causeEffectContent, keyTerms),
     });
 
     // Look for feedback loops
     if (context.includes("cycle") || context.includes("loop") || context.includes("reinforc")) {
+      const content = `Feedback loop in ${primaryTerm}: Self-reinforcing ${domainTerms[0] || "dynamics"} amplifying effects over time`;
       patterns.push({
-        content: "Feedback loop identified: Self-reinforcing dynamics amplifying effects over time",
+        content,
         source: StreamType.SYNTHETIC,
         confidence: 0.75,
         importance: 0.9,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
@@ -297,48 +312,57 @@ export class SyntheticStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Map connections between concepts
+   * Map connections between concepts with term reference tracking
    *
    * @param problem - Problem to analyze
-   * @returns Array of connection insights
+   * @param keyTerms - Extracted key terms for problem-specific connections
+   * @returns Array of connection insights with referenced terms tracked
    */
-  private mapConnections(problem: Problem): Insight[] {
+  private mapConnections(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const connections: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const domainTerms = keyTerms.domainTerms.slice(0, 2);
+    const terms = keyTerms.terms.slice(0, 3);
 
     // Identify direct connections and relationships
+    const directContent = `Connection mapping in ${primaryTerm}: ${terms.join(", ")} affects overall ${domainTerms[0] || "dynamics"}`;
     connections.push({
-      content:
-        "Connection mapping: Identifying relationships between different problem elements that affects overall dynamics",
+      content: directContent,
       source: StreamType.SYNTHETIC,
       confidence: 0.7,
       importance: 0.75,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(directContent, keyTerms),
     });
 
-    // Look for interdependencies - always include
+    // Look for interdependencies with specific terms
+    const interdepContent = `Interdependencies in ${primaryTerm}: ${domainTerms[0] || "Elements"} and ${domainTerms[1] || "components"} mutually depend on each other`;
     connections.push({
-      content: "Interdependencies found: Elements mutually depend on each other in complex ways",
+      content: interdepContent,
       source: StreamType.SYNTHETIC,
       confidence: 0.75,
       importance: 0.8,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(interdepContent, keyTerms),
     });
 
-    // Identify hidden connections - always include for complex problems
+    // Identify hidden connections with specific terms
+    const hiddenContent = `Hidden connections in ${primaryTerm}: Subtle indirect relationships linking ${terms.slice(0, 2).join(" and ") || "separate issues"}`;
     connections.push({
-      content:
-        "Hidden connections: Subtle indirect relationships linking seemingly separate issues",
+      content: hiddenContent,
       source: StreamType.SYNTHETIC,
       confidence: 0.65,
       importance: 0.85,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(hiddenContent, keyTerms),
     });
 
     // Map influence networks
     if (problem.constraints && problem.constraints.length > 1) {
+      const influenceContent = `Influence network in ${primaryTerm}: Constraints (${problem.constraints.slice(0, 2).join(", ")}) creating interconnected limitations`;
       connections.push({
-        content:
-          "Influence network: Multiple constraints creating interconnected limitation patterns",
+        content: influenceContent,
         source: StreamType.SYNTHETIC,
         confidence: 0.7,
         importance: 0.75,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(influenceContent, keyTerms),
       });
     }
 
@@ -346,155 +370,191 @@ export class SyntheticStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Extract overarching themes
+   * Extract overarching themes with term reference tracking
    *
-   * @param _problem - Problem to analyze (unused in current implementation)
-   * @returns Array of theme insights
+   * @param problem - Problem to analyze
+   * @param keyTerms - Extracted key terms for problem-specific themes
+   * @returns Array of theme insights with referenced terms tracked
    */
-  private extractThemes(_problem: Problem): Insight[] {
+  private extractThemes(_problem: Problem, keyTerms: KeyTerms): Insight[] {
     const themes: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const domainTerms = keyTerms.domainTerms.slice(0, 2);
 
-    // Extract unifying themes
+    // Extract unifying themes with specific terms
+    const unifyingContent = `Unifying theme for ${primaryTerm}: Balancing ${domainTerms[0] || "competing priorities"} and ${domainTerms[1] || "managing complexity"}`;
     themes.push({
-      content:
-        "Unifying theme: The core challenge involves balancing competing priorities and managing complexity",
+      content: unifyingContent,
       source: StreamType.SYNTHETIC,
       confidence: 0.75,
       importance: 0.85,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(unifyingContent, keyTerms),
     });
 
-    // Meta-level insights - always include
+    // Meta-level insights with specific terms
+    const metaContent = `Meta-level insight for ${primaryTerm}: Reflects broader ${domainTerms[0] || "systemic"} patterns requiring strategic thinking`;
     themes.push({
-      content:
-        "Meta-level insight: The situation reflects broader systemic patterns requiring higher level strategic thinking",
+      content: metaContent,
       source: StreamType.SYNTHETIC,
       confidence: 0.7,
       importance: 0.8,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(metaContent, keyTerms),
     });
 
-    // Emergent properties - always include
+    // Emergent properties with specific terms
+    const emergentContent = `Emergent property of ${primaryTerm}: ${domainTerms[0] || "System"} behaviors emerge from ${domainTerms[1] || "component"} interactions`;
     themes.push({
-      content:
-        "Emergent property: The whole system exhibits behaviors that emerge from component interactions, more than the sum of parts",
+      content: emergentContent,
       source: StreamType.SYNTHETIC,
       confidence: 0.75,
       importance: 0.9,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(emergentContent, keyTerms),
     });
 
     return themes;
   }
 
   /**
-   * Integrate information from multiple sources
+   * Integrate information from multiple sources with term reference tracking
    *
    * @param problem - Problem being analyzed
    * @param existingInsights - Insights gathered so far
-   * @returns Array of integrated insights
+   * @param keyTerms - Extracted key terms for problem-specific integration
+   * @returns Array of integrated insights with referenced terms tracked
    */
-  private integrateInformation(problem: Problem, existingInsights: Insight[]): Insight[] {
+  private integrateInformation(
+    problem: Problem,
+    existingInsights: Insight[],
+    keyTerms: KeyTerms
+  ): Insight[] {
     const integrated: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const domainTerms = keyTerms.domainTerms.slice(0, 2);
 
     // Synthesize multiple perspectives
     if (existingInsights.length >= 3) {
+      const synthesisContent = `Synthesis for ${primaryTerm}: Integrating ${domainTerms[0] || "patterns"}, ${domainTerms[1] || "connections"}, and themes reveals coherent view`;
       integrated.push({
-        content:
-          "Synthesis: Integrating patterns, connections, and themes reveals a coherent systemic view",
+        content: synthesisContent,
         source: StreamType.SYNTHETIC,
         confidence: 0.8,
         importance: 0.85,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(synthesisContent, keyTerms),
       });
     }
 
     // Bridge different domains
     if (problem.context && problem.context.length > 100) {
+      const bridgeContent = `Cross-domain integration for ${primaryTerm}: Bridging ${domainTerms.join(" and ") || "different areas"} creates comprehensive understanding`;
       integrated.push({
-        content:
-          "Cross-domain integration: Bridging insights from different areas creates comprehensive understanding",
+        content: bridgeContent,
         source: StreamType.SYNTHETIC,
         confidence: 0.7,
         importance: 0.75,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(bridgeContent, keyTerms),
       });
     }
 
-    // Resolve contradictions - always include
+    // Resolve contradictions with specific terms
+    const paradoxContent = `Paradox resolution for ${primaryTerm}: Tensions between ${domainTerms[0] || "competing demands"} can be balanced through systems-level thinking`;
     integrated.push({
-      content:
-        "Paradox resolution: Apparent tensions and both competing demands can be balanced through systems-level thinking",
+      content: paradoxContent,
       source: StreamType.SYNTHETIC,
       confidence: 0.65,
       importance: 0.8,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(paradoxContent, keyTerms),
     });
 
     return integrated;
   }
 
   /**
-   * Generate holistic perspective
+   * Generate holistic perspective with term reference tracking
    *
    * @param problem - Problem being analyzed
    * @param insights - All gathered insights
-   * @returns Holistic perspective insight
+   * @param keyTerms - Extracted key terms for problem-specific perspective
+   * @returns Holistic perspective insight with referenced terms tracked
    */
-  private generateHolisticPerspective(problem: Problem, insights: Insight[]): Insight {
+  private generateHolisticPerspective(
+    problem: Problem,
+    insights: Insight[],
+    keyTerms: KeyTerms
+  ): Insight {
     const context = problem.context || "";
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const domainTerms = keyTerms.domainTerms.slice(0, 2);
+    const terms = keyTerms.terms.slice(0, 3);
 
-    let content = "The big picture reveals ";
+    let content = `The big picture of ${primaryTerm} reveals `;
 
     // Assess complexity
     if (insights.length >= 5 || context.length > 150) {
-      content += "a complex adaptive system where ";
+      content += `a complex adaptive ${domainTerms[0] || "system"} where `;
     } else {
-      content += "an interconnected situation where ";
+      content += `an interconnected ${domainTerms[0] || "situation"} where `;
     }
 
-    // Add systemic view with detail
-    content += "multiple elements interact dynamically with specific details at various levels, ";
+    // Add systemic view with specific terms
+    content += `${terms.join(", ")} interact dynamically, `;
 
     // Consider boundaries
     if (problem.constraints && problem.constraints.length > 0) {
-      content += `operating within defined boundaries (${problem.constraints.length} key constraints), `;
+      content += `operating within ${problem.constraints[0]}, `;
     }
 
-    // Add temporal dimension
-    content += "evolving over time through feedback mechanisms";
+    // Add temporal dimension with specific terms
+    content += `evolving through ${domainTerms[1] || "feedback"} mechanisms`;
 
     return {
       content,
       source: StreamType.SYNTHETIC,
       confidence: 0.8,
       importance: 0.9,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
     };
   }
 
   /**
-   * Identify leverage points for intervention
+   * Identify leverage points for intervention with term reference tracking
    *
    * @param problem - Problem being analyzed
    * @param insights - All gathered insights
-   * @returns Array of leverage point insights
+   * @param keyTerms - Extracted key terms for problem-specific leverage points
+   * @returns Array of leverage point insights with referenced terms tracked
    */
-  private identifyLeveragePoints(problem: Problem, insights: Insight[]): Insight[] {
+  private identifyLeveragePoints(
+    problem: Problem,
+    insights: Insight[],
+    keyTerms: KeyTerms
+  ): Insight[] {
     const leveragePoints: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const domainTerms = keyTerms.domainTerms.slice(0, 2);
 
     // Find high-impact intervention points
     const highImportanceInsights = insights.filter((i) => i.importance > 0.8);
 
     if (highImportanceInsights.length > 0) {
+      const criticalContent = `Critical leverage point for ${primaryTerm}: Focus on ${highImportanceInsights.length} key ${domainTerms[0] || "areas"} with highest impact`;
       leveragePoints.push({
-        content: `Critical leverage point: Focus on ${highImportanceInsights.length} key areas with highest systemic impact`,
+        content: criticalContent,
         source: StreamType.SYNTHETIC,
         confidence: 0.75,
         importance: 0.85,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(criticalContent, keyTerms),
       });
     }
 
-    // Consider goals
+    // Consider goals with specific terms
     if (problem.goals && problem.goals.length > 0) {
+      const strategicContent = `Strategic leverage for ${primaryTerm}: Align ${domainTerms[0] || "interventions"} with ${problem.goals[0]} to maximize effectiveness`;
       leveragePoints.push({
-        content: `Strategic leverage: Align interventions with core goals to maximize effectiveness`,
+        content: strategicContent,
         source: StreamType.SYNTHETIC,
         confidence: 0.7,
         importance: 0.8,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(strategicContent, keyTerms),
       });
     }
 
@@ -502,29 +562,36 @@ export class SyntheticStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Consider temporal dynamics
+   * Consider temporal dynamics with term reference tracking
    *
    * @param problem - Problem being analyzed
-   * @returns Array of temporal insights
+   * @param keyTerms - Extracted key terms for problem-specific temporal insights
+   * @returns Array of temporal insights with referenced terms tracked
    */
-  private considerTemporalDynamics(problem: Problem): Insight[] {
+  private considerTemporalDynamics(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const temporal: Insight[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const domainTerm = keyTerms.domainTerms[0] || "";
 
-    // Time-based evolution
+    // Time-based evolution with specific terms
+    const evolutionContent = `Temporal dynamics of ${primaryTerm}: ${domainTerm || "The system"} changes over time, requiring adaptive ${domainTerm || "strategies"}`;
     temporal.push({
-      content: "Temporal dynamics: The system changes over time, requiring adaptive strategies",
+      content: evolutionContent,
       source: StreamType.SYNTHETIC,
       confidence: 0.7,
       importance: 0.75,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(evolutionContent, keyTerms),
     });
 
-    // Consider urgency
+    // Consider urgency with specific terms
     if (problem.urgency === "high") {
+      const urgencyContent = `Time pressure on ${primaryTerm}: Rapid ${domainTerm || "evolution"} demands quick yet thoughtful intervention`;
       temporal.push({
-        content: "Time pressure: Rapid evolution demands quick yet thoughtful intervention",
+        content: urgencyContent,
         source: StreamType.SYNTHETIC,
         confidence: 0.75,
         importance: 0.8,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(urgencyContent, keyTerms),
       });
     }
 
@@ -532,43 +599,52 @@ export class SyntheticStreamProcessor implements StreamProcessor {
   }
 
   /**
-   * Generate conclusion from synthetic analysis
+   * Generate conclusion from synthetic analysis with validated term references
    *
    * @param problem - Original problem
    * @param insights - Generated insights
-   * @returns Conclusion statement
+   * @param keyTerms - Extracted key terms for problem-specific conclusion
+   * @returns Conclusion statement with guaranteed key term reference
    */
-  private generateConclusion(problem: Problem, insights: Insight[]): string {
+  private generateConclusion(problem: Problem, insights: Insight[], keyTerms: KeyTerms): string {
     const parts: string[] = [];
+    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the situation";
+    const domainTerms = keyTerms.domainTerms.slice(0, 2);
 
-    // Overall synthesis
-    parts.push("the overall situation represents");
+    // Overall synthesis with specific terms
+    parts.push(`${primaryTerm} represents`);
 
     // Assess complexity
     if (insights.length >= 7) {
-      parts.push("a highly complex system");
+      parts.push(`a highly complex ${domainTerms[0] || "system"}`);
     } else if (insights.length >= 4) {
-      parts.push("a moderately complex system");
+      parts.push(`a moderately complex ${domainTerms[0] || "system"}`);
     } else {
-      parts.push("an interconnected system");
+      parts.push(`an interconnected ${domainTerms[0] || "system"}`);
     }
 
-    // Key themes
+    // Key themes with specific terms
     const highImportanceCount = insights.filter((i) => i.importance > 0.8).length;
     if (highImportanceCount > 0) {
       parts.push(
-        `with ${highImportanceCount} critical leverage point${highImportanceCount > 1 ? "s" : ""}`
+        `with ${highImportanceCount} critical ${domainTerms[1] || "leverage point"}${highImportanceCount > 1 ? "s" : ""}`
       );
     }
 
-    // Strategic direction
+    // Strategic direction with specific terms
     if (problem.goals && problem.goals.length > 0) {
-      parts.push("requiring strategic, systems-level thinking to achieve desired outcomes");
+      parts.push(
+        `requiring strategic ${domainTerms[0] || "systems-level"} thinking to ${problem.goals[0]}`
+      );
     } else {
-      parts.push("requiring holistic understanding and coordinated action");
+      parts.push(
+        `requiring holistic understanding of ${domainTerms.join(" and ") || "all components"}`
+      );
     }
 
-    return parts.join(" ");
+    // Validate and ensure conclusion contains at least one key term
+    const conclusion = parts.join(" ");
+    return this.keyTermExtractor.ensureTermReference(conclusion, keyTerms);
   }
 
   /**

@@ -1,0 +1,98 @@
+# docker-compose.dev.yml - Development environment
+# Used by: Manual development with `docker compose -f docker-compose.dev.yml up`
+#
+# This file is the SINGLE SOURCE OF TRUTH for development container configuration.
+# All values use environment variable substitution from .env files.
+# Named volumes persist data between container restarts.
+#
+# Requirements: 15.1, 16.1, 16.4, 16.5, 17.2
+#
+# Usage:
+#   Start all services:     docker compose -f docker-compose.dev.yml up -d
+#   Start with pgAdmin:     docker compose -f docker-compose.dev.yml --profile tools up -d
+#   Stop services:          docker compose -f docker-compose.dev.yml down
+#   Stop and remove data:   docker compose -f docker-compose.dev.yml down -v
+
+services:
+  # PostgreSQL with pgvector extension for development
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: thoughtmcp-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-thoughtmcp_dev}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev_password}
+      POSTGRES_DB: ${DB_NAME:-thoughtmcp_dev}
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      # Persist database data
+      - postgres_dev_data:/var/lib/postgresql/data
+      # Initialize database with schema
+      - ./scripts/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      # Create pgvector extension
+      - ./scripts/db/enable-pgvector.sql:/docker-entrypoint-initdb.d/02-enable-pgvector.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-thoughtmcp_dev} -d ${DB_NAME:-thoughtmcp_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - thoughtmcp-dev
+
+  # Ollama for local embedding generation
+  ollama:
+    image: ollama/ollama:latest
+    container_name: thoughtmcp-ollama-dev
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      # Persist downloaded models
+      - ollama_dev_models:/root/.ollama
+    healthcheck:
+      # Use ollama list instead of curl since curl is not available in the ollama image
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 15s
+    networks:
+      - thoughtmcp-dev
+
+  # Optional: pgAdmin for database management
+  # Start with: docker compose -f docker-compose.dev.yml --profile tools up -d
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: thoughtmcp-pgadmin-dev
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@thoughtmcp.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_dev_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - thoughtmcp-dev
+    profiles:
+      - tools
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  ollama_dev_models:
+    driver: local
+  pgadmin_dev_data:
+    driver: local
+
+networks:
+  thoughtmcp-dev:
+    driver: bridge

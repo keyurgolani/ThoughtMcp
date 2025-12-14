@@ -16,6 +16,7 @@ export default defineConfig({
       "src/__tests__/examples/**/*.test.ts", // Include examples for validation
       "src/__tests__/validation/**/*.test.ts", // Include validation tests
       "src/__tests__/production/**/*.test.ts", // Include production tests
+      "src/__tests__/property/**/*.test.ts", // Include property-based tests
     ],
     exclude: [
       "node_modules",
@@ -43,6 +44,8 @@ export default defineConfig({
     retry: 0,
 
     // Global setup and teardown
+    // Note: Property tests (src/__tests__/property/**) don't require database setup
+    // They are pure tests that only read files and don't need external services
     globalSetup: ["./src/__tests__/setup/global-setup.ts"],
     globalTeardown: ["./src/__tests__/setup/global-teardown.ts"],
 

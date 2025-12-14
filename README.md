@@ -136,9 +136,152 @@ npm run build
 
 **Build fails if ANY step fails.** Zero tolerance for security vulnerabilities, formatting issues, linting errors, type errors, or test failures.
 
+## Docker Deployment
+
+ThoughtMCP uses a **unified Docker Compose approach** with separate files for development, testing, and production. Docker Compose files are the single source of truth for all container configuration.
+
+### Docker Compose Files
+
+| File                      | Purpose                 | When to Use                          |
+| ------------------------- | ----------------------- | ------------------------------------ |
+| `docker-compose.dev.yml`  | Development environment | Local development with `npm run dev` |
+| `docker-compose.test.yml` | Test containers         | Automated tests or manual test runs  |
+| `docker-compose.prod.yml` | Production deployment   | Deploying the full MCP server stack  |
+
+### Environment Configuration
+
+All configuration comes from `.env` files. Copy the template and configure:
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit with your settings
+nano .env
+```
+
+Key variables in `.env`:
+
+```bash
+# Development Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=thoughtmcp_dev
+DB_USER=thoughtmcp_dev
+DB_PASSWORD=dev_password
+
+# Ollama
+OLLAMA_HOST=http://localhost:11434
+EMBEDDING_MODEL=nomic-embed-text
+
+# Test Configuration (separate ports to avoid conflicts)
+TEST_DB_PORT=5433
+TEST_OLLAMA_PORT=11435
+
+# Container Management
+AUTO_START_CONTAINERS=true    # Auto-start containers for tests
+KEEP_CONTAINERS_RUNNING=false # Keep containers after tests
+```
+
+### Quick Start: Development
+
+```bash
+# 1. Configure environment
+cp .env.example .env
+
+# 2. Start development containers
+docker compose -f docker-compose.dev.yml up -d
+
+# 3. Wait for health checks
+docker compose -f docker-compose.dev.yml ps
+
+# 4. Pull embedding model (first time only)
+docker exec thoughtmcp-ollama-dev ollama pull nomic-embed-text
+
+# 5. Run the MCP server
+npm run dev
+```
+
+### Quick Start: Testing (Auto Containers)
+
+Tests automatically start and stop containers via the TestContainerManager:
+
+```bash
+# Automatic container management (recommended)
+npm test
+
+# Or with explicit setting
+AUTO_START_CONTAINERS=true npm test
+```
+
+For manual container management:
+
+```bash
+# Start test containers manually
+docker compose -f docker-compose.test.yml up -d --wait
+
+# Run tests without auto-start
+AUTO_START_CONTAINERS=false npm test
+
+# Stop test containers
+docker compose -f docker-compose.test.yml down
+```
+
+### Quick Start: Production
+
+```bash
+# 1. Configure production environment
+cp .env.production.example .env.production
+nano .env.production  # Set secure passwords
+
+# 2. Build the MCP server
+npm run build
+
+# 3. Start production stack
+docker compose -f docker-compose.prod.yml up -d
+
+# 4. View logs
+docker compose -f docker-compose.prod.yml logs -f
+```
+
+👉 **[Complete Docker Deployment Guide](docs/docker-deployment.md)**
+
 ### MCP Server Configuration
 
-Configure ThoughtMCP as an MCP server in `.kiro/settings/mcp.json`:
+Configure ThoughtMCP as an MCP server in `.kiro/settings/mcp.json`. There are two connection methods:
+
+**Option 1: Docker Exec (Recommended for Production)**
+
+Connect directly to the running Docker container. The container runs in standby mode, waiting for MCP client connections.
+
+```bash
+# Start the production stack first
+docker compose -f docker-compose.prod.yml up -d
+```
+
+```json
+{
+  "mcpServers": {
+    "thoughtmcp": {
+      "command": "docker",
+      "args": ["exec", "-i", "thoughtmcp-server", "node", "dist/index.js"],
+      "env": {},
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+**Option 2: Local Node Process (Development)**
+
+Run the MCP server locally while connecting to Docker services.
+
+```bash
+# Start dev containers and build
+docker compose -f docker-compose.dev.yml up -d
+npm run build
+```
 
 ```json
 {
@@ -148,8 +291,9 @@ Configure ThoughtMCP as an MCP server in `.kiro/settings/mcp.json`:
       "args": ["/absolute/path/to/ThoughtMcp/dist/index.js"],
       "env": {
         "DATABASE_URL": "postgresql://user:pass@localhost:5432/thoughtmcp_dev",
-        "EMBEDDING_MODEL": "ollama/e5",
-        "EMBEDDING_DIMENSION": "1536",
+        "EMBEDDING_MODEL": "nomic-embed-text",
+        "EMBEDDING_DIMENSION": "768",
+        "OLLAMA_HOST": "http://localhost:11434",
         "LOG_LEVEL": "INFO",
         "NODE_ENV": "development"
       },
@@ -160,20 +304,14 @@ Configure ThoughtMCP as an MCP server in `.kiro/settings/mcp.json`:
 }
 ```
 
-**Required Environment Variables:**
+**Environment Variables (for local node process):**
 
 - `DATABASE_URL` - PostgreSQL connection string
-- `EMBEDDING_MODEL` - Embedding model (ollama/e5, ollama/bge, e5, bge)
-- `EMBEDDING_DIMENSION` - Model-specific dimension (default: 1536)
+- `EMBEDDING_MODEL` - Embedding model (nomic-embed-text, mxbai-embed-large)
+- `EMBEDDING_DIMENSION` - Model-specific dimension (768 for nomic-embed-text)
+- `OLLAMA_HOST` - Ollama server URL
 - `LOG_LEVEL` - Logging level (DEBUG, INFO, WARN, ERROR)
 - `NODE_ENV` - Environment (development, production, test)
-
-**Optional Configuration:**
-
-- `DB_POOL_SIZE` - Connection pool size (default: 20)
-- `CACHE_TTL` - Query cache TTL in seconds (default: 300)
-- `MAX_PROCESSING_TIME` - Max processing time in ms (default: 30000)
-- `OLLAMA_HOST` - Ollama server URL (if using Ollama)
 
 👉 **[Complete Configuration Guide](docs/environment.md)**
 
@@ -227,9 +365,9 @@ ThoughtMCP exposes cognitive capabilities through MCP tools:
 
 | Category          | Tools                                                                                    | Description                                     |
 | ----------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| **Memory**        | `store_memory`, `retrieve_memories`, `update_memory`, `delete_memory`, `search_memories` | Persistent memory with five-sector embeddings   |
-| **Reasoning**     | `think`, `analyze_systematically`, `think_parallel`, `decompose_problem`                 | Multi-stream reasoning with framework selection |
-| **Metacognitive** | `assess_confidence`, `detect_bias`, `detect_emotion`, `analyze_reasoning`                | Self-monitoring and quality assessment          |
+| **Memory**        | `remember`, `recall`, `update_memory`, `forget`, `search` | Persistent memory with five-sector embeddings   |
+| **Reasoning**     | `think`, `analyze`, `ponder`, `breakdown`                 | Multi-stream reasoning with framework selection |
+| **Metacognitive** | `assess_confidence`, `detect_bias`, `detect_emotion`, `evaluate`                | Self-monitoring and quality assessment          |
 
 👉 **[Complete MCP Tools Reference](docs/mcp-tools.md)**
 
@@ -246,12 +384,13 @@ ThoughtMCP exposes cognitive capabilities through MCP tools:
 
 ### 🔧 Configuration & Operations
 
-| Guide                              | Description                     |
-| ---------------------------------- | ------------------------------- |
-| [Environment](docs/environment.md) | Environment variables reference |
-| [Database](docs/database.md)       | PostgreSQL setup and schema     |
-| [Deployment](docs/deployment.md)   | Production deployment guide     |
-| [Monitoring](docs/monitoring.md)   | Observability and alerting      |
+| Guide                                          | Description                     |
+| ---------------------------------------------- | ------------------------------- |
+| [Environment](docs/environment.md)             | Environment variables reference |
+| [Database](docs/database.md)                   | PostgreSQL setup and schema     |
+| [Docker Deployment](docs/docker-deployment.md) | Docker Compose deployment guide |
+| [Deployment](docs/deployment.md)               | Production deployment guide     |
+| [Monitoring](docs/monitoring.md)               | Observability and alerting      |
 
 ### 💻 Development
 

@@ -39,6 +39,7 @@ describe("TemporalDecayEngine - Error Handling", () => {
     const client = await db.getConnection();
     try {
       await client.query(`DELETE FROM memory_reinforcement_history WHERE memory_id LIKE 'test-%'`);
+      await client.query(`DELETE FROM memory_metadata WHERE memory_id LIKE 'test-%'`);
       await client.query(`DELETE FROM memories WHERE id LIKE 'test-%'`);
     } finally {
       db.releaseConnection(client);

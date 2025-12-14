@@ -252,14 +252,14 @@ describe("ConflictResolutionEngine", () => {
             streamType: StreamType.ANALYTICAL,
             claim: "Use method A",
             reasoning: "Method A is slightly better",
-            confidence: 0.6,
+            confidence: 0.5, // Low confidence for LOW severity
           },
           {
             streamId: "creative-stream",
             streamType: StreamType.CREATIVE,
             claim: "Use method B",
             reasoning: "Method B is slightly better",
-            confidence: 0.6,
+            confidence: 0.5, // Low confidence for LOW severity
           },
         ],
         detectedAt: new Date(),
@@ -283,14 +283,14 @@ describe("ConflictResolutionEngine", () => {
             streamType: StreamType.ANALYTICAL,
             claim: "Value is 100",
             reasoning: "Data shows 100",
-            confidence: 0.75,
+            confidence: 0.7, // Moderate confidence for MEDIUM severity
           },
           {
             streamId: "creative-stream",
             streamType: StreamType.CREATIVE,
             claim: "Value is 150",
             reasoning: "Interpretation suggests 150",
-            confidence: 0.75,
+            confidence: 0.7, // Moderate confidence for MEDIUM severity
           },
         ],
         detectedAt: new Date(),
@@ -314,14 +314,14 @@ describe("ConflictResolutionEngine", () => {
             streamType: StreamType.ANALYTICAL,
             claim: "A implies B",
             reasoning: "Logical deduction",
-            confidence: 0.9,
+            confidence: 0.88, // High but not critical confidence for HIGH severity
           },
           {
             streamId: "critical-stream",
             streamType: StreamType.CRITICAL,
             claim: "A but not B",
             reasoning: "Critical analysis",
-            confidence: 0.9,
+            confidence: 0.88, // High but not critical confidence for HIGH severity
           },
         ],
         detectedAt: new Date(),
@@ -679,4 +679,311 @@ describe("ConflictResolutionEngine", () => {
       expect(patterns.length).toBeGreaterThan(0);
     });
   });
+
+  describe("severity calibration based on contradiction degree (Requirement 6.1)", () => {
+    it("should assess higher severity for direct contradictions", () => {
+      // Direct contradiction: safe vs unsafe
+      const directContradiction: Conflict = {
+        id: "direct-conflict",
+        type: ConflictType.FACTUAL,
+        severity: ConflictSeverity.LOW,
+        sourceStreams: ["analytical-stream", "synthetic-stream"],
+        description: "Direct contradiction",
+        evidence: [
+          {
+            streamId: "analytical-stream",
+            streamType: StreamType.ANALYTICAL,
+            claim: "System is safe",
+            reasoning: "All checks passed",
+            confidence: 0.9,
+          },
+          {
+            streamId: "synthetic-stream",
+            streamType: StreamType.SYNTHETIC,
+            claim: "System is unsafe",
+            reasoning: "Vulnerabilities found",
+            confidence: 0.9,
+          },
+        ],
+        detectedAt: new Date(),
+      };
+
+      // Indirect disagreement: different methods
+      const indirectDisagreement: Conflict = {
+        id: "indirect-conflict",
+        type: ConflictType.METHODOLOGICAL,
+        severity: ConflictSeverity.LOW,
+        sourceStreams: ["analytical-stream", "creative-stream"],
+        description: "Indirect disagreement",
+        evidence: [
+          {
+            streamId: "analytical-stream",
+            streamType: StreamType.ANALYTICAL,
+            claim: "Use approach A",
+            reasoning: "Approach A is good",
+            confidence: 0.9,
+          },
+          {
+            streamId: "creative-stream",
+            streamType: StreamType.CREATIVE,
+            claim: "Use approach B",
+            reasoning: "Approach B is good",
+            confidence: 0.9,
+          },
+        ],
+        detectedAt: new Date(),
+      };
+
+      const directSeverity = engine.assessSeverity(directContradiction);
+      const indirectSeverity = engine.assessSeverity(indirectDisagreement);
+
+      // Direct contradictions should have higher or equal severity
+      const directScore = severityToScore(directSeverity);
+      const indirectScore = severityToScore(indirectSeverity);
+      expect(directScore).toBeGreaterThanOrEqual(indirectScore);
+    });
+
+    it("should assess higher severity for factual conflicts than methodological at same confidence", () => {
+      const factualConflict: Conflict = {
+        id: "factual-conflict",
+        type: ConflictType.FACTUAL,
+        severity: ConflictSeverity.LOW,
+        sourceStreams: ["analytical-stream", "creative-stream"],
+        description: "Factual conflict",
+        evidence: [
+          {
+            streamId: "analytical-stream",
+            streamType: StreamType.ANALYTICAL,
+            claim: "Value is 100",
+            reasoning: "Data shows 100",
+            confidence: 0.8,
+          },
+          {
+            streamId: "creative-stream",
+            streamType: StreamType.CREATIVE,
+            claim: "Value is 200",
+            reasoning: "Data shows 200",
+            confidence: 0.8,
+          },
+        ],
+        detectedAt: new Date(),
+      };
+
+      const methodConflict: Conflict = {
+        id: "method-conflict",
+        type: ConflictType.METHODOLOGICAL,
+        severity: ConflictSeverity.LOW,
+        sourceStreams: ["analytical-stream", "creative-stream"],
+        description: "Method conflict",
+        evidence: [
+          {
+            streamId: "analytical-stream",
+            streamType: StreamType.ANALYTICAL,
+            claim: "Use method A",
+            reasoning: "Method A is better",
+            confidence: 0.8,
+          },
+          {
+            streamId: "creative-stream",
+            streamType: StreamType.CREATIVE,
+            claim: "Use method B",
+            reasoning: "Method B is better",
+            confidence: 0.8,
+          },
+        ],
+        detectedAt: new Date(),
+      };
+
+      const factualSeverity = engine.assessSeverity(factualConflict);
+      const methodSeverity = engine.assessSeverity(methodConflict);
+
+      // Factual conflicts should have higher or equal severity
+      const factualScore = severityToScore(factualSeverity);
+      const methodScore = severityToScore(methodSeverity);
+      expect(factualScore).toBeGreaterThanOrEqual(methodScore);
+    });
+
+    it("should vary severity based on confidence levels", () => {
+      const highConfConflict: Conflict = {
+        id: "high-conf-conflict",
+        type: ConflictType.FACTUAL,
+        severity: ConflictSeverity.LOW,
+        sourceStreams: ["analytical-stream", "creative-stream"],
+        description: "High confidence conflict",
+        evidence: [
+          {
+            streamId: "analytical-stream",
+            streamType: StreamType.ANALYTICAL,
+            claim: "Value is 100",
+            reasoning: "Data shows 100",
+            confidence: 0.95,
+          },
+          {
+            streamId: "creative-stream",
+            streamType: StreamType.CREATIVE,
+            claim: "Value is 200",
+            reasoning: "Data shows 200",
+            confidence: 0.95,
+          },
+        ],
+        detectedAt: new Date(),
+      };
+
+      const lowConfConflict: Conflict = {
+        id: "low-conf-conflict",
+        type: ConflictType.FACTUAL,
+        severity: ConflictSeverity.LOW,
+        sourceStreams: ["analytical-stream", "creative-stream"],
+        description: "Low confidence conflict",
+        evidence: [
+          {
+            streamId: "analytical-stream",
+            streamType: StreamType.ANALYTICAL,
+            claim: "Value is 100",
+            reasoning: "Data shows 100",
+            confidence: 0.5,
+          },
+          {
+            streamId: "creative-stream",
+            streamType: StreamType.CREATIVE,
+            claim: "Value is 200",
+            reasoning: "Data shows 200",
+            confidence: 0.5,
+          },
+        ],
+        detectedAt: new Date(),
+      };
+
+      const highSeverity = engine.assessSeverity(highConfConflict);
+      const lowSeverity = engine.assessSeverity(lowConfConflict);
+
+      // Higher confidence should lead to higher or equal severity
+      const highScore = severityToScore(highSeverity);
+      const lowScore = severityToScore(lowSeverity);
+      expect(highScore).toBeGreaterThanOrEqual(lowScore);
+    });
+  });
+
+  describe("description specificity (Requirement 6.2)", () => {
+    it("should generate specific descriptions explaining the nature of disagreement", () => {
+      const results: StreamResult[] = [
+        createMockStreamResult(StreamType.ANALYTICAL, "The data shows 100 users", 0.9),
+        createMockStreamResult(StreamType.CREATIVE, "The data shows 200 users", 0.9),
+      ];
+
+      const conflicts = engine.detectConflicts(results);
+
+      expect(conflicts.length).toBeGreaterThan(0);
+      const conflict = conflicts[0];
+
+      // Description should not be generic
+      expect(conflict.description).not.toBe("FACTUAL conflict between analytical and creative");
+
+      // Description should contain specific claims
+      expect(conflict.description.length).toBeGreaterThan(50);
+
+      // Description should explain the nature of disagreement
+      expect(
+        conflict.description.includes("claims") ||
+          conflict.description.includes("disagreement") ||
+          conflict.description.includes("contradictory")
+      ).toBe(true);
+    });
+
+    it("should include both claims in the description", () => {
+      const results: StreamResult[] = [
+        createMockStreamResult(StreamType.ANALYTICAL, "System is safe", 0.9),
+        createMockStreamResult(StreamType.SYNTHETIC, "System is unsafe", 0.9),
+      ];
+
+      const conflicts = engine.detectConflicts(results);
+
+      expect(conflicts.length).toBeGreaterThan(0);
+      const conflict = conflicts[0];
+
+      // Description should reference both claims
+      expect(
+        conflict.description.toLowerCase().includes("safe") ||
+          conflict.description.toLowerCase().includes("unsafe")
+      ).toBe(true);
+    });
+  });
+
+  describe("resolution suggestions (Requirement 6.4)", () => {
+    it("should provide resolution suggestions for all conflict types", () => {
+      const conflictTypes = [
+        ConflictType.FACTUAL,
+        ConflictType.LOGICAL,
+        ConflictType.METHODOLOGICAL,
+        ConflictType.EVALUATIVE,
+        ConflictType.PREDICTIVE,
+      ];
+
+      for (const type of conflictTypes) {
+        const conflict: Conflict = {
+          id: `${type}-conflict`,
+          type,
+          severity: ConflictSeverity.MEDIUM,
+          sourceStreams: ["stream1", "stream2"],
+          description: `${type} conflict`,
+          evidence: [],
+          detectedAt: new Date(),
+        };
+
+        const framework = engine.generateResolutionFramework(conflict);
+
+        expect(framework).toBeDefined();
+        expect(framework.approach).toBeTruthy();
+        expect(framework.steps.length).toBeGreaterThan(0);
+        expect(framework.considerations.length).toBeGreaterThan(0);
+        expect(framework.recommendedAction).toBeTruthy();
+      }
+    });
+
+    it("should tailor resolution suggestions based on conflict type", () => {
+      const factualConflict: Conflict = {
+        id: "factual",
+        type: ConflictType.FACTUAL,
+        severity: ConflictSeverity.MEDIUM,
+        sourceStreams: ["stream1", "stream2"],
+        description: "Factual conflict",
+        evidence: [],
+        detectedAt: new Date(),
+      };
+
+      const methodConflict: Conflict = {
+        id: "method",
+        type: ConflictType.METHODOLOGICAL,
+        severity: ConflictSeverity.MEDIUM,
+        sourceStreams: ["stream1", "stream2"],
+        description: "Method conflict",
+        evidence: [],
+        detectedAt: new Date(),
+      };
+
+      const factualFramework = engine.generateResolutionFramework(factualConflict);
+      const methodFramework = engine.generateResolutionFramework(methodConflict);
+
+      // Different conflict types should have different approaches
+      expect(factualFramework.approach).not.toBe(methodFramework.approach);
+    });
+  });
 });
+
+/**
+ * Helper function to convert severity to numeric score for comparison
+ */
+function severityToScore(severity: ConflictSeverity): number {
+  switch (severity) {
+    case ConflictSeverity.LOW:
+      return 1;
+    case ConflictSeverity.MEDIUM:
+      return 2;
+    case ConflictSeverity.HIGH:
+      return 3;
+    case ConflictSeverity.CRITICAL:
+      return 4;
+    default:
+      return 0;
+  }
+}

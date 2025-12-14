@@ -11,15 +11,15 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { DatabaseConnectionManager } from "../../database/connection-manager.js";
-import { EmbeddingEngine } from "../../embeddings/embedding-engine.js";
-import { GraphTraversal } from "../../graph/graph-traversal.js";
-import { WaypointGraphBuilder } from "../../graph/waypoint-builder.js";
-import { MemoryRepository } from "../../memory/memory-repository.js";
-import type { MemoryContent, MemoryMetadata } from "../../memory/types.js";
-import { MemorySearchEngine } from "../../search/memory-search-engine.js";
-import { TemporalDecayEngine } from "../../temporal/decay-engine.js";
-import { SectorConfigManager } from "../../temporal/sector-config.js";
+import { DatabaseConnectionManager } from "../../database/connection-manager";
+import { EmbeddingEngine } from "../../embeddings/embedding-engine";
+import { GraphTraversal } from "../../graph/graph-traversal";
+import { WaypointGraphBuilder } from "../../graph/waypoint-builder";
+import { MemoryRepository } from "../../memory/memory-repository";
+import type { Memory, MemoryContent, MemoryMetadata } from "../../memory/types";
+import { MemorySearchEngine } from "../../search/memory-search-engine";
+import { TemporalDecayEngine } from "../../temporal/decay-engine";
+import { SectorConfigManager } from "../../temporal/sector-config";
 
 describe("Memory Lifecycle Integration", () => {
   let dbManager: DatabaseConnectionManager;
@@ -47,7 +47,7 @@ describe("Memory Lifecycle Integration", () => {
 
     // Initialize embedding engine with mock Ollama model for testing
     // Integration tests should not depend on external services
-    const { MockOllamaEmbeddingModel } = await import("../utils/mock-embeddings.js");
+    const { MockOllamaEmbeddingModel } = await import("../utils/mock-embeddings");
     const ollamaModel = new MockOllamaEmbeddingModel({
       host: "http://localhost:11434", // Accepted for compatibility but not used
       modelName: "nomic-embed-text",
@@ -57,13 +57,13 @@ describe("Memory Lifecycle Integration", () => {
     });
 
     // Initialize cache for embedding engine
-    const { EmbeddingCache } = await import("../../embeddings/cache.js");
+    const { EmbeddingCache } = await import("../../embeddings/cache");
     const cache = new EmbeddingCache();
 
     embeddingEngine = new EmbeddingEngine(ollamaModel, cache);
 
     // Initialize embedding storage
-    const { EmbeddingStorage } = await import("../../embeddings/embedding-storage.js");
+    const { EmbeddingStorage } = await import("../../embeddings/embedding-storage");
     const embeddingStorage = new EmbeddingStorage(dbManager);
 
     // Initialize graph components with proper config
@@ -279,7 +279,7 @@ describe("Memory Lifecycle Integration", () => {
       expect(resultIds).toContain(memories[0].id);
 
       // Clean up
-      await Promise.all(memories.map((m) => repository.delete(m.id, false)));
+      await Promise.all(memories.map((m: Memory) => repository.delete(m.id, false)));
     }, 30000);
 
     it("should perform vector similarity search across sectors", async () => {
@@ -705,7 +705,7 @@ describe("Memory Lifecycle Integration", () => {
 
       // Clean up using batch delete
       await repository.batchDelete(
-        created.map((m) => m.id),
+        created.map((m: Memory) => m.id),
         false // hard delete
       );
     }, 30000);

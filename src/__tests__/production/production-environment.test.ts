@@ -16,7 +16,7 @@ import { EmbeddingStorage } from "../../embeddings/embedding-storage";
 import { MemorySector } from "../../embeddings/types";
 import { WaypointGraphBuilder } from "../../graph/waypoint-builder";
 import { MemoryRepository } from "../../memory/memory-repository";
-import type { MemoryContent, MemoryMetadata } from "../../memory/types";
+import type { Memory, MemoryContent, MemoryMetadata } from "../../memory/types";
 import { MockOllamaEmbeddingModel } from "../utils/mock-embeddings";
 
 describe("Production Environment Tests", () => {
@@ -191,7 +191,7 @@ describe("Production Environment Tests", () => {
       const duration = Date.now() - startTime;
 
       // At least 80% should succeed (allow for some pool contention)
-      const successCount = results.filter((r) => r !== null).length;
+      const successCount = results.filter((r: Memory | null) => r !== null).length;
       expect(successCount).toBeGreaterThanOrEqual(8);
       expect(duration).toBeLessThan(15000); // Should complete within 15 seconds
 

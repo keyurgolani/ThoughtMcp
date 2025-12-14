@@ -46,6 +46,7 @@ describe("Metacognitive MCP Tools", () => {
 
     mockBiasDetector = {
       detectBiases: vi.fn(),
+      detectBiasesFromText: vi.fn(),
       monitorContinuously: vi.fn(),
     };
 
@@ -62,9 +63,24 @@ describe("Metacognitive MCP Tools", () => {
     // Create server (but don't initialize to avoid registering real tools)
     server = new CognitiveMCPServer();
 
+    // Create mock bias corrector
+    const mockBiasCorrector = {
+      getSuggestion: vi.fn().mockReturnValue({
+        biasType: "confirmation",
+        suggestion: "Actively seek disconfirming evidence",
+        techniques: ["Search for contradicting evidence", "Ask opposing viewpoints"],
+        challengeQuestions: ["What evidence would prove this wrong?"],
+      }),
+      addCorrections: vi.fn(),
+      getConciseSuggestion: vi.fn(),
+      getAllTemplates: vi.fn().mockReturnValue(new Map()),
+      formatCorrection: vi.fn().mockReturnValue("Formatted correction"),
+    };
+
     // Set up mock components directly without initialization
     server.confidenceAssessor = mockConfidenceAssessor;
     server.biasDetector = mockBiasDetector;
+    server.biasCorrector = mockBiasCorrector;
     server.emotionAnalyzer = mockEmotionAnalyzer;
     server.performanceMonitor = mockPerformanceMonitor;
     (server as any).databaseManager = {
@@ -252,6 +268,107 @@ describe("Metacognitive MCP Tools", () => {
       expect(result.metadata?.timestamp).toBeDefined();
       expect(result.metadata?.processingTime).toBeDefined();
     });
+
+    it("should extract evidence from reasoning when no explicit evidence provided (Requirement 7.3)", async () => {
+      const mockAssessment = {
+        overallConfidence: 0.75,
+        evidenceQuality: 0.7,
+        reasoningCoherence: 0.8,
+        completeness: 0.7,
+        uncertaintyLevel: 0.3,
+        uncertaintyType: "epistemic",
+        factors: [],
+        timestamp: new Date(),
+        processingTime: 10,
+      };
+
+      mockConfidenceAssessor.assessConfidence.mockResolvedValue(mockAssessment);
+
+      // Set up evidence extractor on the server
+      const { EvidenceExtractor } = await import("../../../confidence/evidence-extractor.js");
+      server.evidenceExtractor = new EvidenceExtractor();
+
+      const result = await server.executeTool("assess_confidence", {
+        reasoning:
+          "Research shows that this approach improves performance by 30%. " +
+          "The data indicates consistent results across all test cases. " +
+          "We observed significant improvements in response time.",
+      });
+
+      expect(result.success).toBe(true);
+      // Evidence should be extracted from reasoning text
+      expect((result.data as any).extractedEvidence).toBeDefined();
+      expect((result.data as any).extractedEvidence.length).toBeGreaterThan(0);
+      // Metadata should indicate evidence was extracted
+      expect(result.metadata?.evidenceSource).toBe("extracted");
+      expect(result.metadata?.componentsUsed).toContain("evidenceExtractor");
+    });
+
+    it("should include extracted evidence items in response (Requirement 7.4)", async () => {
+      const mockAssessment = {
+        overallConfidence: 0.8,
+        evidenceQuality: 0.75,
+        reasoningCoherence: 0.85,
+        completeness: 0.8,
+        uncertaintyLevel: 0.2,
+        uncertaintyType: "aleatory",
+        factors: [],
+        timestamp: new Date(),
+        processingTime: 8,
+      };
+
+      mockConfidenceAssessor.assessConfidence.mockResolvedValue(mockAssessment);
+
+      // Set up evidence extractor on the server
+      const { EvidenceExtractor } = await import("../../../confidence/evidence-extractor.js");
+      server.evidenceExtractor = new EvidenceExtractor();
+
+      const result = await server.executeTool("assess_confidence", {
+        reasoning:
+          "Studies found that the new algorithm is 2x faster. " +
+          "According to the documentation, this is the recommended approach.",
+      });
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).extractedEvidence).toBeDefined();
+      // Each extracted evidence should have statement, type, and confidence
+      const extracted = (result.data as any).extractedEvidence;
+      expect(extracted.length).toBeGreaterThan(0);
+      expect(extracted[0].statement).toBeDefined();
+      expect(extracted[0].type).toBeDefined();
+      expect(extracted[0].confidence).toBeDefined();
+    });
+
+    it("should not extract evidence when explicit evidence is provided", async () => {
+      const mockAssessment = {
+        overallConfidence: 0.9,
+        evidenceQuality: 0.9,
+        reasoningCoherence: 0.9,
+        completeness: 0.85,
+        uncertaintyLevel: 0.1,
+        uncertaintyType: "aleatory",
+        factors: [],
+        timestamp: new Date(),
+        processingTime: 5,
+      };
+
+      mockConfidenceAssessor.assessConfidence.mockResolvedValue(mockAssessment);
+
+      // Set up evidence extractor on the server
+      const { EvidenceExtractor } = await import("../../../confidence/evidence-extractor.js");
+      server.evidenceExtractor = new EvidenceExtractor();
+
+      const result = await server.executeTool("assess_confidence", {
+        reasoning: "The optimization will improve performance.",
+        evidence: ["Benchmark shows 40% improvement", "Load tests confirm scalability"],
+      });
+
+      expect(result.success).toBe(true);
+      // Should not have extractedEvidence since explicit evidence was provided
+      expect((result.data as any).extractedEvidence).toBeUndefined();
+      // Metadata should indicate evidence was provided
+      expect(result.metadata?.evidenceSource).toBe("provided");
+    });
   });
 
   describe("detect_bias tool", () => {
@@ -265,11 +382,10 @@ describe("Metacognitive MCP Tools", () => {
           severity: 0.7,
           description: "Seeking only supporting evidence",
           evidence: ["Ignored contradictory data", "Cherry-picked favorable results"],
-          correction: "Consider alternative explanations and contradictory evidence",
         },
       ];
 
-      mockBiasDetector.detectBiases.mockReturnValue(mockBiases);
+      mockBiasDetector.detectBiasesFromText.mockReturnValue(mockBiases);
 
       const result = await server.executeTool("detect_bias", {
         reasoning: "All the data I looked at supports my hypothesis, so it must be correct",
@@ -279,7 +395,9 @@ describe("Metacognitive MCP Tools", () => {
       expect((result.data as any).biases).toHaveLength(1);
       expect((result.data as any).biases[0].type).toBe("confirmation");
       expect((result.data as any).biases[0].severity).toBe(0.7);
+      // Correction is now added by BiasCorrector (Requirements 10.6, 10.10)
       expect((result.data as any).biases[0].correction).toBeDefined();
+      expect((result.data as any).biases[0].correction.suggestion).toBeDefined();
     });
 
     it("should detect anchoring bias", async () => {
@@ -289,11 +407,10 @@ describe("Metacognitive MCP Tools", () => {
           severity: 0.65,
           description: "Over-reliance on initial information",
           evidence: ["First estimate heavily influenced final decision"],
-          correction: "Consider multiple reference points and adjust estimates independently",
         },
       ];
 
-      mockBiasDetector.detectBiases.mockReturnValue(mockBiases);
+      mockBiasDetector.detectBiasesFromText.mockReturnValue(mockBiases);
 
       const result = await server.executeTool("detect_bias", {
         reasoning: "The initial estimate was $100k, so I'll adjust to $95k",
@@ -310,11 +427,10 @@ describe("Metacognitive MCP Tools", () => {
           severity: 0.6,
           description: "Over-weighting recent or memorable events",
           evidence: ["Recent incident influenced risk assessment"],
-          correction: "Consider base rates and statistical evidence",
         },
       ];
 
-      mockBiasDetector.detectBiases.mockReturnValue(mockBiases);
+      mockBiasDetector.detectBiasesFromText.mockReturnValue(mockBiases);
 
       const result = await server.executeTool("detect_bias", {
         reasoning: "Since we just had a security breach, security is our biggest risk",
@@ -331,25 +447,22 @@ describe("Metacognitive MCP Tools", () => {
           severity: 0.7,
           description: "Confirmation bias detected",
           evidence: ["Selective evidence"],
-          correction: "Consider alternatives",
         },
         {
           type: "recency",
           severity: 0.5,
           description: "Recency bias detected",
           evidence: ["Over-weighting recent data"],
-          correction: "Consider historical patterns",
         },
         {
           type: "framing",
           severity: 0.6,
           description: "Framing effects detected",
           evidence: ["Presentation influenced judgment"],
-          correction: "Reframe the problem",
         },
       ];
 
-      mockBiasDetector.detectBiases.mockReturnValue(mockBiases);
+      mockBiasDetector.detectBiasesFromText.mockReturnValue(mockBiases);
 
       const result = await server.executeTool("detect_bias", {
         reasoning: "Recent positive results confirm our approach is working",
@@ -369,11 +482,10 @@ describe("Metacognitive MCP Tools", () => {
           severity: 0.6,
           description: "Bias detected",
           evidence: [],
-          correction: "Correction strategy",
         },
       ];
 
-      mockBiasDetector.detectBiases.mockReturnValue(mockBiases);
+      mockBiasDetector.detectBiasesFromText.mockReturnValue(mockBiases);
 
       const result = await server.executeTool("detect_bias", {
         reasoning: "Test reasoning",
@@ -386,7 +498,7 @@ describe("Metacognitive MCP Tools", () => {
     it("should not enable continuous monitoring (not supported by BiasPatternRecognizer)", async () => {
       const mockBiases: unknown[] = [];
 
-      mockBiasDetector.detectBiases.mockReturnValue(mockBiases);
+      mockBiasDetector.detectBiasesFromText.mockReturnValue(mockBiases);
 
       const result = await server.executeTool("detect_bias", {
         reasoning: "Test reasoning",
@@ -406,11 +518,10 @@ describe("Metacognitive MCP Tools", () => {
           severity: 0.85,
           description: "Severe confirmation bias",
           evidence: ["Strong selective evidence"],
-          correction: "Urgent correction needed",
         },
       ];
 
-      mockBiasDetector.detectBiases.mockReturnValue(mockBiases);
+      mockBiasDetector.detectBiasesFromText.mockReturnValue(mockBiases);
 
       const result = await server.executeTool("detect_bias", {
         reasoning: "Test reasoning",
@@ -428,23 +539,24 @@ describe("Metacognitive MCP Tools", () => {
           severity: 0.7,
           description: "Anchoring bias",
           evidence: ["Initial anchor influenced estimate"],
-          correction: "Use multiple reference points and independent estimates",
         },
       ];
 
-      mockBiasDetector.detectBiases.mockReturnValue(mockBiases);
+      mockBiasDetector.detectBiasesFromText.mockReturnValue(mockBiases);
 
       const result = await server.executeTool("detect_bias", {
         reasoning: "Test reasoning",
       });
 
       expect(result.success).toBe(true);
+      // Correction is now an object with suggestion, techniques, and challengeQuestions (Requirements 10.6, 10.10)
       expect((result.data as any).biases[0].correction).toBeDefined();
-      expect((result.data as any).biases[0].correction.length).toBeGreaterThan(0);
+      expect((result.data as any).biases[0].correction.suggestion).toBeDefined();
+      expect((result.data as any).biases[0].correction.techniques).toBeDefined();
     });
 
     it("should handle no biases detected", async () => {
-      mockBiasDetector.detectBiases.mockReturnValue([]);
+      mockBiasDetector.detectBiasesFromText.mockReturnValue([]);
 
       const result = await server.executeTool("detect_bias", {
         reasoning: "Objective analysis based on comprehensive data",
@@ -465,7 +577,7 @@ describe("Metacognitive MCP Tools", () => {
     });
 
     it("should handle detection errors gracefully", async () => {
-      mockBiasDetector.detectBiases.mockImplementation(() => {
+      mockBiasDetector.detectBiasesFromText.mockImplementation(() => {
         throw new Error("Detection failed");
       });
 
@@ -750,7 +862,7 @@ describe("Metacognitive MCP Tools", () => {
 
       mockBiasDetector.detectBiases.mockReturnValue([]);
 
-      const result = await server.executeTool("analyze_reasoning", {
+      const result = await server.executeTool("evaluate", {
         reasoning: "Based on comprehensive analysis, the proposed solution is optimal",
         context: "Technical decision",
       });
@@ -777,7 +889,7 @@ describe("Metacognitive MCP Tools", () => {
 
       mockBiasDetector.detectBiases.mockReturnValue([]);
 
-      const result = await server.executeTool("analyze_reasoning", {
+      const result = await server.executeTool("evaluate", {
         reasoning: "Well-structured argument with strong evidence",
       });
 
@@ -808,7 +920,7 @@ describe("Metacognitive MCP Tools", () => {
         },
       ]);
 
-      const result = await server.executeTool("analyze_reasoning", {
+      const result = await server.executeTool("evaluate", {
         reasoning: "Weak argument with limited support",
       });
 
@@ -831,7 +943,7 @@ describe("Metacognitive MCP Tools", () => {
 
       mockBiasDetector.detectBiases.mockReturnValue([]);
 
-      const result = await server.executeTool("analyze_reasoning", {
+      const result = await server.executeTool("evaluate", {
         reasoning: "Moderate quality reasoning",
       });
 
@@ -857,7 +969,7 @@ describe("Metacognitive MCP Tools", () => {
       mockConfidenceAssessor.assessConfidence.mockResolvedValue(mockConfidence);
       mockBiasDetector.detectBiases.mockReturnValue([]);
 
-      const result = await server.executeTool("analyze_reasoning", {
+      const result = await server.executeTool("evaluate", {
         reasoning: "Test reasoning",
         includeConfidence: true,
       });
@@ -891,7 +1003,7 @@ describe("Metacognitive MCP Tools", () => {
 
       mockBiasDetector.detectBiases.mockReturnValue(mockBiases);
 
-      const result = await server.executeTool("analyze_reasoning", {
+      const result = await server.executeTool("evaluate", {
         reasoning: "Test reasoning",
         includeBias: true,
       });
@@ -923,7 +1035,7 @@ describe("Metacognitive MCP Tools", () => {
       mockBiasDetector.detectBiases.mockReturnValue([]);
       mockEmotionAnalyzer.analyzeCircumplex.mockReturnValue(mockEmotion);
 
-      const result = await server.executeTool("analyze_reasoning", {
+      const result = await server.executeTool("evaluate", {
         reasoning: "Test reasoning",
         includeEmotion: true,
       });
@@ -947,7 +1059,7 @@ describe("Metacognitive MCP Tools", () => {
 
       mockBiasDetector.detectBiases.mockReturnValue([]);
 
-      const result = await server.executeTool("analyze_reasoning", {
+      const result = await server.executeTool("evaluate", {
         reasoning: "Test reasoning",
         includeConfidence: false,
         includeBias: false,
@@ -962,7 +1074,7 @@ describe("Metacognitive MCP Tools", () => {
     });
 
     it("should validate required parameters", async () => {
-      const result = await server.executeTool("analyze_reasoning", {
+      const result = await server.executeTool("evaluate", {
         context: "Test context",
         // Missing reasoning
       });
@@ -974,7 +1086,7 @@ describe("Metacognitive MCP Tools", () => {
     it("should handle analysis errors gracefully", async () => {
       mockConfidenceAssessor.assessConfidence.mockRejectedValue(new Error("Analysis failed"));
 
-      const result = await server.executeTool("analyze_reasoning", {
+      const result = await server.executeTool("evaluate", {
         reasoning: "Test reasoning",
       });
 
@@ -996,7 +1108,7 @@ describe("Metacognitive MCP Tools", () => {
 
       mockBiasDetector.detectBiases.mockReturnValue([]);
 
-      const result = await server.executeTool("analyze_reasoning", {
+      const result = await server.executeTool("evaluate", {
         reasoning: "Test reasoning",
       });
 
@@ -1010,12 +1122,7 @@ describe("Metacognitive MCP Tools", () => {
   describe("Parameter Validation", () => {
     it("should validate all tools have proper schemas", () => {
       // Note: Tools are already registered by server.initialize()
-      const expectedTools = [
-        "assess_confidence",
-        "detect_bias",
-        "detect_emotion",
-        "analyze_reasoning",
-      ];
+      const expectedTools = ["assess_confidence", "detect_bias", "detect_emotion", "evaluate"];
 
       expectedTools.forEach((toolName) => {
         const tool = server.toolRegistry.getTool(toolName);
@@ -1043,6 +1150,7 @@ describe("Metacognitive MCP Tools", () => {
       });
 
       mockBiasDetector.detectBiases.mockReturnValue([]);
+      mockBiasDetector.detectBiasesFromText.mockReturnValue([]);
 
       mockEmotionAnalyzer.analyzeCircumplex.mockReturnValue({
         valence: 0.5,
@@ -1057,7 +1165,7 @@ describe("Metacognitive MCP Tools", () => {
         { name: "assess_confidence", params: { reasoning: "test" } },
         { name: "detect_bias", params: { reasoning: "test" } },
         { name: "detect_emotion", params: { text: "test" } },
-        { name: "analyze_reasoning", params: { reasoning: "test" } },
+        { name: "evaluate", params: { reasoning: "test" } },
       ];
 
       for (const tool of tools) {

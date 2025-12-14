@@ -64,6 +64,9 @@ export interface MCPResponseMetadata {
   /** Confidence level (0-1) */
   confidence?: number;
 
+  /** Evidence source indicator for assess_confidence tool */
+  evidenceSource?: "extracted" | "provided" | "none";
+
   /** Additional context */
   context?: Record<string, unknown>;
 }

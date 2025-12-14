@@ -232,7 +232,8 @@ describe("MetadataFilterEngine", () => {
         try {
           await client.query("BEGIN");
 
-          // Clean up any existing test-perf-* memories first
+          // Clean up any existing test-perf-* data first (metadata first due to FK)
+          await client.query("DELETE FROM memory_metadata WHERE memory_id LIKE 'test-perf-%'");
           await client.query("DELETE FROM memories WHERE id LIKE 'test-perf-%'");
 
           // Batch insert memories and metadata in chunks of 100

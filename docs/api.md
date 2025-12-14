@@ -35,19 +35,19 @@ ThoughtMCP exposes cognitive capabilities through MCP (Model Context Protocol) t
 
 | Category          | Tool                     | Description                              |
 | ----------------- | ------------------------ | ---------------------------------------- |
-| **Memory**        | `store_memory`           | Store new memory with embeddings         |
-| **Memory**        | `retrieve_memories`      | Retrieve memories with composite scoring |
+| **Memory**        | `remember`           | Store new memory with embeddings         |
+| **Memory**        | `recall`      | Retrieve memories with composite scoring |
 | **Memory**        | `update_memory`          | Update existing memory                   |
-| **Memory**        | `delete_memory`          | Delete memory (soft/hard)                |
-| **Memory**        | `search_memories`        | Full-text and vector search              |
+| **Memory**        | `forget`          | Delete memory (soft/hard)                |
+| **Memory**        | `search`        | Full-text and vector search              |
 | **Reasoning**     | `think`                  | Single or parallel reasoning             |
-| **Reasoning**     | `analyze_systematically` | Framework-based analysis                 |
-| **Reasoning**     | `think_parallel`         | Parallel stream reasoning                |
-| **Reasoning**     | `decompose_problem`      | Problem decomposition                    |
+| **Reasoning**     | `analyze` | Framework-based analysis                 |
+| **Reasoning**     | `ponder`         | Parallel stream reasoning                |
+| **Reasoning**     | `breakdown`      | Problem decomposition                    |
 | **Metacognitive** | `assess_confidence`      | Confidence assessment                    |
 | **Metacognitive** | `detect_bias`            | Bias detection                           |
 | **Metacognitive** | `detect_emotion`         | Emotion analysis                         |
-| **Metacognitive** | `analyze_reasoning`      | Reasoning quality analysis               |
+| **Metacognitive** | `evaluate`      | Reasoning quality analysis               |
 
 For complete tool documentation including schemas and examples, see **[MCP Tools Reference](mcp-tools.md)**.
 

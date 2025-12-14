@@ -104,6 +104,8 @@ export interface Insight {
   confidence: number;
   /** Importance score (0-1) */
   importance: number;
+  /** Key terms from the problem that are referenced in this insight */
+  referencedTerms?: string[];
 }
 
 /**
