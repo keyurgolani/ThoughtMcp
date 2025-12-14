@@ -1,46 +1,68 @@
-# ThoughtMCP Database Guide
+# Database Setup and Management Guide
 
-This guide covers PostgreSQL database setup, configuration, schema, and management for ThoughtMCP.
+This guide covers PostgreSQL database setup, configuration, and management for ThoughtMCP.
 
 ## Quick Start
 
-### Using Docker (Recommended)
+### Using Docker (Recommended for Development)
 
-```bash
-# Start PostgreSQL with pgvector
-docker-compose up -d postgres
+1. **Start PostgreSQL with Docker Compose:**
 
-# Verify database is running
-docker-compose ps
+   ```bash
+   docker-compose up -d postgres
+   ```
 
-# Connect to database
-docker-compose exec postgres psql -U thoughtmcp_dev -d thoughtmcp_dev
-```
+2. **Verify database is running:**
+
+   ```bash
+   docker-compose ps
+   docker-compose logs postgres
+   ```
+
+3. **Connect to database:**
+   ```bash
+   docker-compose exec postgres psql -U thoughtmcp_dev -d thoughtmcp_dev
+   ```
 
 ### Manual PostgreSQL Setup
 
-```bash
-# macOS (Homebrew)
-brew install postgresql@16
-brew install pgvector
-brew services start postgresql@16
+If you prefer to install PostgreSQL manually:
 
-# Ubuntu/Debian
-sudo apt-get install postgresql-16 postgresql-16-pgvector
-sudo systemctl start postgresql
-```
+1. **Install PostgreSQL 16+ with pgvector:**
 
-```sql
--- Create database and user
-CREATE USER thoughtmcp_dev WITH PASSWORD 'dev_password';
-CREATE DATABASE thoughtmcp_dev OWNER thoughtmcp_dev;
-GRANT ALL PRIVILEGES ON DATABASE thoughtmcp_dev TO thoughtmcp_dev;
-```
+   **macOS (Homebrew):**
 
-```bash
-# Initialize schema
-npm run db:setup
-```
+   ```bash
+   brew install postgresql@16
+   brew install pgvector
+   brew services start postgresql@16
+   ```
+
+   **Ubuntu/Debian:**
+
+   ```bash
+   sudo apt-get install postgresql-16 postgresql-16-pgvector
+   sudo systemctl start postgresql
+   ```
+
+2. **Create database and user:**
+
+   ```bash
+   sudo -u postgres psql
+   ```
+
+   ```sql
+   CREATE USER thoughtmcp_dev WITH PASSWORD 'dev_password';
+   CREATE DATABASE thoughtmcp_dev OWNER thoughtmcp_dev;
+   GRANT ALL PRIVILEGES ON DATABASE thoughtmcp_dev TO thoughtmcp_dev;
+   \q
+   ```
+
+3. **Initialize schema:**
+   ```bash
+   psql -U thoughtmcp_dev -d thoughtmcp_dev -f scripts/db/init.sql
+   psql -U thoughtmcp_dev -d thoughtmcp_dev -f scripts/db/enable-pgvector.sql
+   ```
 
 ## Database Schema
 
@@ -50,178 +72,146 @@ npm run db:setup
 
 Stores individual memory units with lifecycle information.
 
-```sql
-CREATE TABLE memories (
-    id TEXT PRIMARY KEY,
-    content TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    access_count INTEGER DEFAULT 0,
-    salience REAL DEFAULT 0.5,
-    decay_rate REAL DEFAULT 0.02,
-    strength REAL DEFAULT 1.0,
-    user_id TEXT NOT NULL,
-    session_id TEXT,
-    primary_sector TEXT NOT NULL,
-    CONSTRAINT valid_salience CHECK (salience >= 0 AND salience <= 1),
-    CONSTRAINT valid_strength CHECK (strength >= 0 AND strength <= 1)
-);
-```
+**Columns:**
 
-**Indexes**:
+- `id` (TEXT, PK): Unique memory identifier
+- `content` (TEXT): Memory content
+- `created_at` (TIMESTAMP): Creation timestamp
+- `last_accessed` (TIMESTAMP): Last access timestamp
+- `access_count` (INTEGER): Number of times accessed
+- `salience` (REAL, 0-1): Memory importance/salience
+- `decay_rate` (REAL): Sector-specific decay rate
+- `strength` (REAL, 0-1): Current memory strength
+- `user_id` (TEXT): User identifier
+- `session_id` (TEXT): Session identifier
+- `primary_sector` (TEXT): Primary memory sector (episodic/semantic/procedural/emotional/reflective)
 
-- `idx_memories_user` on `user_id`
-- `idx_memories_created` on `created_at DESC`
-- `idx_memories_strength` on `strength DESC`
+**Indexes:**
+
+- User, session, timestamps, salience, strength
+- Composite indexes for common query patterns
 
 #### `memory_embeddings`
 
 Stores five-sector embeddings for HMD architecture.
 
-```sql
-CREATE TABLE memory_embeddings (
-    memory_id TEXT NOT NULL,
-    sector TEXT NOT NULL,
-    embedding vector(768),
-    dimension INTEGER NOT NULL,
-    model TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (memory_id, sector),
-    FOREIGN KEY (memory_id) REFERENCES memories(id) ON DELETE CASCADE
-);
-```
+**Columns:**
 
-**Indexes**:
+- `memory_id` (TEXT, FK): Reference to memory
+- `sector` (TEXT): Memory sector
+- `embedding` (vector(768)): Vector embedding
+- `dimension` (INTEGER): Vector dimension
+- `model` (TEXT): Embedding model used
+- `created_at`, `updated_at` (TIMESTAMP): Timestamps
+
+**Indexes:**
 
 - IVFFlat vector indexes for each sector (cosine similarity)
+- Memory ID, sector, model indexes
 
 #### `memory_links`
 
 Stores waypoint graph connections (1-3 links per memory).
 
-```sql
-CREATE TABLE memory_links (
-    source_id TEXT NOT NULL,
-    target_id TEXT NOT NULL,
-    link_type TEXT NOT NULL,
-    weight REAL DEFAULT 0.5,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    traversal_count INTEGER DEFAULT 0,
-    PRIMARY KEY (source_id, target_id),
-    FOREIGN KEY (source_id) REFERENCES memories(id) ON DELETE CASCADE,
-    FOREIGN KEY (target_id) REFERENCES memories(id) ON DELETE CASCADE,
-    CONSTRAINT valid_weight CHECK (weight >= 0 AND weight <= 1),
-    CONSTRAINT no_self_links CHECK (source_id != target_id)
-);
-```
+**Columns:**
+
+- `source_id`, `target_id` (TEXT, PK): Memory IDs
+- `link_type` (TEXT): semantic/temporal/causal/analogical
+- `weight` (REAL, 0-1): Connection strength
+- `created_at` (TIMESTAMP): Creation timestamp
+- `traversal_count` (INTEGER): Usage counter
+
+**Indexes:**
+
+- Source, target, weight, type indexes
 
 #### `memory_metadata`
 
 Stores searchable metadata.
 
-```sql
-CREATE TABLE memory_metadata (
-    memory_id TEXT PRIMARY KEY,
-    keywords TEXT[] NOT NULL DEFAULT '{}',
-    tags TEXT[] NOT NULL DEFAULT '{}',
-    category TEXT,
-    context TEXT,
-    importance REAL DEFAULT 0.5,
-    is_atomic BOOLEAN DEFAULT TRUE,
-    parent_id TEXT,
-    FOREIGN KEY (memory_id) REFERENCES memories(id) ON DELETE CASCADE,
-    CONSTRAINT valid_importance CHECK (importance >= 0 AND importance <= 1)
-);
-```
+**Columns:**
 
-**Indexes**:
+- `memory_id` (TEXT, PK, FK): Reference to memory
+- `keywords` (TEXT[]): Keyword array
+- `tags` (TEXT[]): Tag array
+- `category` (TEXT): Category
+- `context` (TEXT): Context information
+- `importance` (REAL, 0-1): Importance score
+- `is_atomic` (BOOLEAN): Atomic memory flag
+- `parent_id` (TEXT, FK): Parent memory reference
 
-- GIN indexes on `keywords` and `tags` arrays
+**Indexes:**
+
+- GIN indexes for array-based searching (keywords, tags)
+- Category, importance indexes
 
 #### `memory_emotions`
 
 Stores emotional annotations.
 
-```sql
-CREATE TABLE memory_emotions (
-    memory_id TEXT PRIMARY KEY,
-    valence REAL NOT NULL,
-    arousal REAL NOT NULL,
-    dominance REAL NOT NULL,
-    discrete_emotions JSONB NOT NULL,
-    primary_emotion TEXT NOT NULL,
-    confidence REAL NOT NULL,
-    FOREIGN KEY (memory_id) REFERENCES memories(id) ON DELETE CASCADE
-);
-```
+**Columns:**
 
-### Full-Text Search
+- `memory_id` (TEXT, PK, FK): Reference to memory
+- `valence` (REAL, -1 to +1): Emotional valence
+- `arousal` (REAL, 0 to 1): Arousal level
+- `dominance` (REAL, -1 to +1): Dominance dimension
+- `discrete_emotions` (JSONB): Discrete emotion scores
+- `primary_emotion` (TEXT): Primary emotion
+- `confidence` (REAL, 0-1): Detection confidence
 
-```sql
--- Full-text search vector column
-ALTER TABLE memories ADD COLUMN search_vector tsvector;
+**Indexes:**
 
--- GIN index for full-text search
-CREATE INDEX idx_memories_search ON memories USING GIN(search_vector);
+- Valence, arousal, primary emotion indexes
 
--- Trigger to update search vector
-CREATE TRIGGER memories_search_update
-    BEFORE INSERT OR UPDATE ON memories
-    FOR EACH ROW EXECUTE FUNCTION
-    tsvector_update_trigger(search_vector, 'pg_catalog.english', content);
-```
+### Monitoring Tables
 
-## Migrations
+#### `performance_metrics`
 
-### Using TypeScript Migration CLI
+Tracks system performance metrics.
 
-```bash
-# Show migration status
-npx tsx scripts/migrate.ts status
+#### `confidence_calibration`
 
-# Apply pending migrations
-npx tsx scripts/migrate.ts up
+Stores prediction-outcome pairs for calibration learning.
 
-# Rollback to specific version
-npx tsx scripts/migrate.ts down <version>
+#### `bias_detection_log`
 
-# Validate migration files
-npx tsx scripts/migrate.ts validate
+Logs detected biases for analysis.
 
-# Dry-run (preview changes)
-npx tsx scripts/migrate.ts dry-run
-```
+#### `framework_selection_log`
 
-### Migration File Structure
+Tracks framework selection decisions.
 
-```
-src/database/migrations/
-├── 001_initial_schema.sql
-├── 001_initial_schema_down.sql
-├── 002_create_indexes.sql
-├── 002_create_indexes_down.sql
-├── 003_reinforcement_history.sql
-├── 003_reinforcement_history_down.sql
-├── 004_full_text_search.sql
-└── 004_full_text_search_down.sql
-```
+#### `schema_version`
 
-### Creating New Migrations
+Tracks database schema version for migrations.
 
-1. Create up migration: `NNN_description.sql`
-2. Create down migration: `NNN_description_down.sql`
-3. Add to `SchemaMigrationSystem` in `src/database/schema-migration.ts`
-4. Validate with `npx tsx scripts/migrate.ts validate`
+## Database Functions
 
-## Vector Search
+### Vector Search
 
-### Composite Scoring Formula
+#### `find_similar_memories()`
+
+Finds similar memories using vector similarity with composite scoring.
+
+**Parameters:**
+
+- `p_query_embedding`: Query vector
+- `p_sector`: Memory sector to search
+- `p_user_id`: User identifier
+- `p_limit`: Maximum results (default: 10)
+- `p_similarity_threshold`: Minimum similarity (default: 0.7)
+
+**Returns:**
+
+- Memory ID, content, similarity, salience, recency, composite score, timestamps
+
+**Composite Score Formula:**
 
 ```
-score = 0.6 × similarity + 0.2 × salience + 0.1 × recency + 0.1 × link_weight
+0.6 × similarity + 0.2 × salience + 0.1 × recency + 0.1 × link_weight
 ```
 
-### Vector Search Function
+**Example:**
 
 ```sql
 SELECT * FROM find_similar_memories(
@@ -233,37 +223,127 @@ SELECT * FROM find_similar_memories(
 );
 ```
 
-### IVFFlat Index Tuning
+### Utility Functions
 
-For optimal performance, set `lists` to approximately `sqrt(total_rows)`:
+#### `get_memory_statistics(p_user_id)`
+
+Returns memory statistics for a user.
+
+#### `cleanup_orphaned_metadata()`
+
+Removes metadata for deleted memories.
+
+#### `rebuild_vector_indexes()`
+
+Rebuilds vector indexes (useful after bulk inserts).
+
+#### `get_vector_index_stats()`
+
+Returns vector index statistics.
+
+## Migrations
+
+### Using the Migration Tool
+
+The migration tool (`scripts/db/migrate.sh`) manages schema changes.
+
+**Check migration status:**
+
+```bash
+./scripts/db/migrate.sh status
+```
+
+**Apply pending migrations:**
+
+```bash
+./scripts/db/migrate.sh migrate
+```
+
+**Create new migration:**
+
+```bash
+./scripts/db/migrate.sh create "add_new_feature"
+```
+
+**Rollback to version:**
+
+```bash
+./scripts/db/migrate.sh rollback 1
+```
+
+### Migration File Format
+
+Migrations are stored in `scripts/db/migrations/` with format: `<version>_<description>.sql`
+
+Example: `002_add_emotion_tracking.sql`
 
 ```sql
--- For 100k embeddings per sector
-CREATE INDEX idx_embeddings_semantic_vector
-ON memory_embeddings USING ivfflat (embedding vector_cosine_ops)
-WHERE sector = 'semantic'
-WITH (lists = 316);
+-- Migration 2: add_emotion_tracking
+-- Created: 2024-01-15
+
+BEGIN;
+
+-- Add new columns or tables
+ALTER TABLE memories ADD COLUMN emotion_score REAL;
+
+-- Update schema version is handled automatically
+
+COMMIT;
 ```
 
 ## Performance Optimization
 
 ### Index Maintenance
 
+**Analyze tables after bulk operations:**
+
 ```sql
--- Analyze tables after bulk operations
 ANALYZE memories;
 ANALYZE memory_embeddings;
+```
 
--- Rebuild vector indexes
+**Rebuild vector indexes:**
+
+```sql
 SELECT rebuild_vector_indexes();
+```
 
--- Check index usage
-SELECT schemaname, tablename, indexname, idx_scan
+**Check index usage:**
+
+```sql
+SELECT
+    schemaname,
+    tablename,
+    indexname,
+    idx_scan,
+    idx_tup_read,
+    idx_tup_fetch
 FROM pg_stat_user_indexes
+WHERE schemaname = 'public'
 ORDER BY idx_scan DESC;
 ```
 
-### Connection Pool Monitoring
+### Query Optimization
+
+**Monitor slow queries:**
+
+```sql
+-- Enable query logging in postgresql.conf
+log_min_duration_statement = 1000  -- Log queries > 1 second
+
+-- View slow queries
+SELECT
+    query,
+    calls,
+    total_time,
+    mean_time,
+    max_time
+FROM pg_stat_statements
+ORDER BY mean_time DESC
+LIMIT 10;
+```
+
+**Connection pool monitoring:**
 
 ```sql
 SELECT
@@ -274,53 +354,83 @@ FROM pg_stat_activity
 WHERE datname = 'thoughtmcp_dev';
 ```
 
-### Query Performance
+### Vector Index Tuning
+
+**Adjust IVFFlat lists parameter:**
+
+For optimal performance, set `lists` to approximately `sqrt(total_rows)`:
 
 ```sql
--- Monitor slow queries
-EXPLAIN ANALYZE SELECT ...;
+-- For 100k embeddings per sector
+CREATE INDEX idx_embeddings_semantic_vector
+ON memory_embeddings USING ivfflat (embedding vector_cosine_ops)
+WHERE sector = 'semantic'
+WITH (lists = 316);  -- sqrt(100000) ≈ 316
+```
 
--- Check cache hit ratio
-SELECT
-    sum(heap_blks_hit) / (sum(heap_blks_hit) + sum(heap_blks_read)) as ratio
-FROM pg_statio_user_tables;
+**Rebuild indexes after significant data growth:**
+
+```bash
+docker-compose exec postgres psql -U thoughtmcp_dev -d thoughtmcp_dev -c "SELECT rebuild_vector_indexes();"
 ```
 
 ## Backup and Restore
 
 ### Backup
 
-```bash
-# Full database backup
-docker-compose exec postgres pg_dump -U thoughtmcp_dev thoughtmcp_dev > backup.sql
+**Full database backup:**
 
-# Compressed backup
+```bash
+docker-compose exec postgres pg_dump -U thoughtmcp_dev thoughtmcp_dev > backup.sql
+```
+
+**Compressed backup:**
+
+```bash
 docker-compose exec postgres pg_dump -U thoughtmcp_dev thoughtmcp_dev | gzip > backup.sql.gz
+```
+
+**Backup with Docker volume:**
+
+```bash
+docker run --rm -v thoughtmcp_postgres_data:/data -v $(pwd):/backup ubuntu tar czf /backup/postgres-backup.tar.gz /data
 ```
 
 ### Restore
 
+**Restore from SQL dump:**
+
 ```bash
-# Restore from SQL dump
 docker-compose exec -T postgres psql -U thoughtmcp_dev thoughtmcp_dev < backup.sql
+```
+
+**Restore from compressed backup:**
+
+```bash
+gunzip -c backup.sql.gz | docker-compose exec -T postgres psql -U thoughtmcp_dev thoughtmcp_dev
 ```
 
 ## Monitoring
 
 ### Health Checks
 
-```bash
-# Check database connectivity
-docker-compose exec postgres pg_isready -U thoughtmcp_dev -d thoughtmcp_dev
+**Check database connectivity:**
 
-# Check pgvector extension
-psql -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
+```bash
+docker-compose exec postgres pg_isready -U thoughtmcp_dev -d thoughtmcp_dev
 ```
 
-### Table Sizes
+**Check pgvector extension:**
+
+```sql
+SELECT * FROM pg_extension WHERE extname = 'vector';
+```
+
+**Check table sizes:**
 
 ```sql
 SELECT
+    schemaname,
     tablename,
     pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
 FROM pg_tables
@@ -328,62 +438,155 @@ WHERE schemaname = 'public'
 ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 ```
 
+### Performance Metrics
+
+**Memory statistics:**
+
+```sql
+SELECT * FROM get_memory_statistics('user123');
+```
+
+**Vector index statistics:**
+
+```sql
+SELECT * FROM get_vector_index_stats();
+```
+
+**Cache hit ratio:**
+
+```sql
+SELECT
+    sum(heap_blks_read) as heap_read,
+    sum(heap_blks_hit) as heap_hit,
+    sum(heap_blks_hit) / (sum(heap_blks_hit) + sum(heap_blks_read)) as ratio
+FROM pg_statio_user_tables;
+```
+
 ## Troubleshooting
 
 ### Connection Issues
 
-```bash
-docker-compose ps postgres
-docker-compose logs postgres
-docker-compose restart postgres
-```
+**Problem:** Cannot connect to database
+
+**Solutions:**
+
+1. Check PostgreSQL is running:
+
+   ```bash
+   docker-compose ps postgres
+   ```
+
+2. Check logs:
+
+   ```bash
+   docker-compose logs postgres
+   ```
+
+3. Verify credentials in `.env.development`
+
+4. Test connection:
+   ```bash
+   docker-compose exec postgres psql -U thoughtmcp_dev -d thoughtmcp_dev -c "SELECT 1"
+   ```
 
 ### Performance Issues
 
-1. Rebuild vector indexes: `SELECT rebuild_vector_indexes();`
-2. Increase connection pool size: `DB_POOL_SIZE=30`
-3. Enable query caching: `CACHE_TTL=300`
+**Problem:** Slow vector similarity searches
+
+**Solutions:**
+
+1. Rebuild vector indexes:
+
+   ```sql
+   SELECT rebuild_vector_indexes();
+   ```
+
+2. Adjust IVFFlat lists parameter based on data size
+
+3. Increase connection pool size in `.env.development`:
+
+   ```
+   DB_POOL_SIZE=30
+   ```
+
+4. Enable query caching:
+   ```
+   ENABLE_CACHE=true
+   CACHE_TTL=300
+   ```
+
+**Problem:** High memory usage
+
+**Solutions:**
+
+1. Reduce connection pool size
+2. Tune PostgreSQL memory settings in `docker-compose.yml`:
+   ```yaml
+   command: postgres -c shared_buffers=256MB -c effective_cache_size=1GB
+   ```
 
 ### Data Issues
 
-```sql
--- Clean orphaned metadata
-SELECT cleanup_orphaned_metadata();
+**Problem:** Orphaned metadata
 
--- Check dimension consistency
+**Solution:**
+
+```sql
+SELECT cleanup_orphaned_metadata();
+```
+
+**Problem:** Inconsistent vector dimensions
+
+**Solution:**
+
+```sql
+-- Check for dimension mismatches
 SELECT DISTINCT dimension, model, count(*)
 FROM memory_embeddings
 GROUP BY dimension, model;
+
+-- Delete inconsistent embeddings (backup first!)
+DELETE FROM memory_embeddings WHERE dimension != 768;
 ```
 
 ## Production Considerations
 
 ### Security
 
-- Use strong passwords
-- Enable SSL/TLS for connections
-- Restrict network access
-- Regular security updates
+1. **Use strong passwords** for database users
+2. **Enable SSL/TLS** for connections:
+   ```yaml
+   environment:
+     POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+   ```
+3. **Restrict network access** using firewall rules
+4. **Regular security updates** for PostgreSQL
+5. **Audit logging** for sensitive operations
 
 ### High Availability
 
-- Replication for read scaling
-- Automated backups (daily minimum)
-- Monitoring and alerting
-- Connection pooling (PgBouncer)
+1. **Replication** for read scaling
+2. **Automated backups** (daily minimum)
+3. **Monitoring and alerting** for failures
+4. **Connection pooling** (PgBouncer recommended)
+5. **Load balancing** for multiple replicas
 
 ### Scaling
 
-- Vertical: Increase CPU, memory, storage
-- Horizontal: Read replicas, sharding by user_id
+**Vertical Scaling:**
+
+- Increase CPU, memory, storage
+- Tune PostgreSQL configuration
+- Optimize queries and indexes
+
+**Horizontal Scaling:**
+
+- Read replicas for query distribution
+- Sharding by user_id for write scaling
+- Separate databases for different environments
 
 ## See Also
 
-- **[Environment Configuration](./environment.md)** - Database settings
-- **[Development Guide](./development.md)** - Development workflow
-- **[Architecture Guide](./architecture.md)** - System design
-
----
-
-**Last Updated**: December 2025
-**Version**: 0.5.0
+- [Environment Configuration](./ENVIRONMENT.md) - Database connection settings
+- [Development Guide](./DEVELOPMENT.md) - Development workflow
+- [Testing Guide](./TESTING.md) - Database testing practices
