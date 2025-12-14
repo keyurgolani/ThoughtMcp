@@ -1,4 +1,4 @@
-# ThoughtMCP Cognitive Architecture v2.0
+# ThoughtMCP Cognitive Architecture v0.5.0
 
 [![CI](https://github.com/keyurgolani/ThoughtMcp/workflows/CI/badge.svg)](https://github.com/keyurgolani/ThoughtMcp/actions)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
@@ -8,13 +8,13 @@
 
 **Production-Ready AI Cognitive Architecture with Human-Like Memory and Reasoning**
 
-ThoughtMCP v2.0 is a complete rebuild featuring Hierarchical Memory Decomposition (HMD), persistent PostgreSQL storage, parallel reasoning streams, dynamic framework selection, and metacognitive monitoring. Built for production with 95%+ test coverage and sub-200ms retrieval performance.
+ThoughtMCP v0.5.0 is a complete rebuild featuring Hierarchical Memory Decomposition (HMD), persistent PostgreSQL storage, parallel reasoning streams, dynamic framework selection, and metacognitive monitoring. Built for production with 95%+ test coverage and sub-200ms retrieval performance.
 
-> **🚧 Status**: Complete Rebuild in Progress - New PostgreSQL-based architecture with advanced cognitive capabilities
+> **✅ Status**: Production Ready - Complete PostgreSQL-based architecture with advanced cognitive capabilities
 
-## What's New in v2.0?
+## What's New in v0.5.0?
 
-ThoughtMCP v2.0 is a complete architectural rebuild with production-grade capabilities:
+ThoughtMCP v0.5.0 is a complete architectural rebuild with production-grade capabilities:
 
 ### 🧠 **Hierarchical Memory Decomposition (HMD)**
 
@@ -56,7 +56,7 @@ ThoughtMCP v2.0 is a complete architectural rebuild with production-grade capabi
 
 - **95%+ Test Coverage**: Comprehensive unit, integration, e2e, performance, and accuracy tests
 - **99.9% Uptime**: MTTD <5 minutes, MTTR <1 hour
-- **Cost Efficient**: <$10/month per 100k memories using local embeddings
+- **Local Embeddings**: Uses local models (Ollama, E5, BGE) for zero API costs
 - **Horizontal Scaling**: Supports up to 1M memories per user
 
 ## Quick Start
@@ -175,7 +175,7 @@ Configure ThoughtMCP as an MCP server in `.kiro/settings/mcp.json`:
 - `MAX_PROCESSING_TIME` - Max processing time in ms (default: 30000)
 - `OLLAMA_HOST` - Ollama server URL (if using Ollama)
 
-👉 **[Complete Configuration Guide](docs/ENVIRONMENT.md)**
+👉 **[Complete Configuration Guide](docs/environment.md)**
 
 ## Architecture Overview
 
@@ -221,192 +221,46 @@ Configure ThoughtMCP as an MCP server in `.kiro/settings/mcp.json`:
 - **Metacognition**: Confidence calibration, bias detection, emotion analysis
 - **Production Ready**: 95%+ test coverage, sub-200ms retrieval, 99.9% uptime
 
-### 2. Try Your First Example
+## MCP Tools Overview
 
-Ask ThoughtMCP to help with a decision:
+ThoughtMCP exposes cognitive capabilities through MCP tools:
 
-```json
-{
-  "tool": "think",
-  "arguments": {
-    "input": "I'm trying to decide between two job offers. One pays more but has longer hours, the other has better work-life balance but lower pay. How should I approach this decision?",
-    "mode": "deliberative"
-  }
-}
-```
+| Category          | Tools                                                                                    | Description                                     |
+| ----------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| **Memory**        | `store_memory`, `retrieve_memories`, `update_memory`, `delete_memory`, `search_memories` | Persistent memory with five-sector embeddings   |
+| **Reasoning**     | `think`, `analyze_systematically`, `think_parallel`, `decompose_problem`                 | Multi-stream reasoning with framework selection |
+| **Metacognitive** | `assess_confidence`, `detect_bias`, `detect_emotion`, `analyze_reasoning`                | Self-monitoring and quality assessment          |
 
-**What happens:**
-
-- Analyzes your question systematically
-- Considers multiple factors and perspectives
-- Provides structured reasoning with confidence levels
-- Suggests ways to improve the decision-making process
-
-### 3. Build Knowledge Over Time
-
-Store important insights:
-
-```json
-{
-  "tool": "remember",
-  "arguments": {
-    "content": "When choosing between job offers, work-life balance often matters more than salary for long-term satisfaction",
-    "type": "semantic",
-    "importance": 0.8
-  }
-}
-```
-
-Recall relevant knowledge:
-
-```json
-{
-  "tool": "recall",
-  "arguments": {
-    "cue": "job decision work-life balance"
-  }
-}
-```
-
-## The Complete Cognitive Toolkit
-
-### 🧠 **Think** - Human-Like Reasoning
-
-Process complex questions using sophisticated cognitive architecture:
-
-- **Dual-Process Thinking**: System 1 (intuitive) and System 2 (deliberative) processing
-- **Multiple Modes**: Intuitive, deliberative, creative, analytical, and balanced approaches
-- **Metacognitive Monitoring**: Self-assessment with bias detection and quality control
-- **Emotional Processing**: Somatic markers and emotional context integration
-- **Stochastic Neural Processing**: Realistic neural noise and enhancement patterns
-
-### 💾 **Remember** - Build Knowledge
-
-Store experiences and insights with sophisticated memory systems:
-
-- **Episodic Memory**: Specific experiences with emotional context and importance weighting
-- **Semantic Memory**: General knowledge with concept relationships and associations
-- **Memory Consolidation**: Automatic pattern extraction and knowledge integration
-- **Emotional Tagging**: Rich emotional context for better recall and decision-making
-
-### 🔍 **Recall** - Intelligent Retrieval
-
-Retrieve past experiences and knowledge with advanced search capabilities:
-
-- **Similarity Matching**: Vector-based semantic similarity with activation spreading
-- **Context-Aware Search**: Considers current situation and emotional state
-- **Cross-Memory Integration**: Searches both episodic experiences and semantic knowledge
-- **Confidence Scoring**: Provides reliability metrics for retrieved information
-
-### 🔬 **Analyze Reasoning** - Quality Assurance
-
-Comprehensive reasoning quality assessment and improvement:
-
-- **Bias Detection**: Identifies tunnel vision, confirmation bias, and other cognitive errors
-- **Logic Validation**: Evaluates argument structure and evidence support
-- **Confidence Calibration**: Assesses certainty levels and suggests evidence gathering
-- **Improvement Recommendations**: Specific suggestions for better reasoning
-
-### 🎯 **Analyze Systematically** - Framework-Based Problem Solving
-
-Apply proven thinking frameworks automatically:
-
-- **Auto Framework Selection**: Chooses optimal approach (Design Thinking, Scientific Method, Root Cause Analysis, etc.)
-- **Structured Analysis**: Breaks problems into systematic steps with clear methodology
-- **Multiple Perspectives**: Considers alternative approaches and trade-offs
-- **Evidence-Based Recommendations**: Provides reasoning for framework choice and confidence levels
-
-### 🔀 **Think Parallel** - Multi-Stream Reasoning
-
-Process problems through multiple reasoning streams simultaneously:
-
-- **Analytical Stream**: Logical, evidence-based reasoning with systematic evaluation
-- **Creative Stream**: Innovative approaches with unconventional alternatives
-- **Critical Stream**: Bias detection, assumption challenging, and quality assessment
-- **Synthetic Stream**: Integration of perspectives with holistic solution development
-- **Real-Time Coordination**: Streams share insights, resolve conflicts, and build consensus
-
-### 🧩 **Decompose Problem** - Complex Problem Breakdown
-
-Break down complex challenges into manageable, prioritized components:
-
-- **Hierarchical Decomposition**: Multi-level problem breakdown with clear structure
-- **Dependency Mapping**: Identifies relationships and constraints between sub-problems
-- **Priority Ranking**: Determines optimal execution order based on impact and urgency
-- **Critical Path Analysis**: Highlights bottlenecks and key dependencies for efficient execution
-- **Multiple Strategies**: Functional, temporal, stakeholder, and component-based approaches
-
-### 🧠 **Memory Management** - Advanced Memory Operations
-
-Sophisticated memory optimization and management capabilities:
-
-- **Memory Analysis**: Comprehensive usage analysis with optimization recommendations
-- **Smart Forgetting**: Selective forgetting of low-importance and rarely-accessed memories
-- **Memory Recovery**: Advanced recovery of degraded memories using associative cues
-- **Policy Management**: Configurable forgetting policies with user consent controls
-- **Audit Trails**: Complete forgetting audit logs with impact assessment and rollback capabilities
-
-### 🎯 **Analyze Systematically** - Framework-Based Problem Solving
-
-Apply proven thinking frameworks automatically:
-
-- **Auto framework selection**: Chooses optimal approach (Design Thinking, Scientific Method, Root Cause Analysis, etc.)
-- **Structured analysis**: Breaks problems into systematic steps
-- **Multiple perspectives**: Considers alternative approaches
-- **Evidence-based recommendations**: Provides reasoning for framework choice
-
-### 🔀 **Think Parallel** - Multi-Stream Reasoning
-
-Process problems through multiple reasoning streams simultaneously:
-
-- **Analytical stream**: Logical, evidence-based reasoning
-- **Creative stream**: Innovative and unconventional approaches
-- **Critical stream**: Bias detection and assumption challenging
-- **Synthetic stream**: Integration and holistic perspective
-- **Real-time coordination**: Streams share insights and resolve conflicts
-
-### 🧩 **Decompose Problem** - Complex Problem Breakdown
-
-Break down complex challenges into manageable components:
-
-- **Hierarchical decomposition**: Multi-level problem breakdown
-- **Dependency mapping**: Identifies relationships between sub-problems
-- **Priority ranking**: Determines optimal execution order
-- **Critical path analysis**: Highlights bottlenecks and key dependencies
-- **Multiple strategies**: Functional, temporal, stakeholder, and component-based approaches
-
-## Real-World Examples
-
-See ThoughtMCP in action with practical scenarios:
-
-- **[Customer Support Agent](docs/examples/real-world/customer-support.md)** - Solving technical problems systematically
-- **[Personal Finance Advisor](docs/examples/real-world/finance-advisor.md)** - Making complex financial decisions
-- **[Recipe Recommendation](docs/examples/real-world/recipe-recommendation.md)** - Personalized suggestions with constraints
-- **[Study Buddy](docs/examples/real-world/study-buddy.md)** - Helping students learn effectively
-- **[Travel Planning](docs/examples/real-world/travel-planner.md)** - Complex multi-constraint planning
-
-Each example shows:
-
-- The real-world problem
-- Step-by-step tool usage
-- How cognitive thinking improves outcomes
-- Lessons you can apply to your own use cases
+👉 **[Complete MCP Tools Reference](docs/mcp-tools.md)**
 
 ## Documentation
 
-### 📚 **Essential Guides**
+### 📚 Essential Guides
 
-- **[Development Guide](docs/DEVELOPMENT.md)** - Complete development workflow, npm scripts, and best practices
-- **[Testing Guide](docs/TESTING.md)** - TDD workflow, test types, coverage requirements
-- **[Database Guide](docs/DATABASE.md)** - PostgreSQL setup, schema, and pgvector configuration
-- **[Environment Configuration](docs/ENVIRONMENT.md)** - Environment variables and configuration options
-- **[Build Guide](docs/BUILD.md)** - Build system and optimization
+| Guide                                | Description                     |
+| ------------------------------------ | ------------------------------- |
+| [User Guide](docs/user-guide.md)     | Getting started and basic usage |
+| [API Reference](docs/api.md)         | Complete API documentation      |
+| [MCP Tools](docs/mcp-tools.md)       | MCP tool schemas and examples   |
+| [Architecture](docs/architecture.md) | System design and components    |
 
-### 🎯 **Specifications**
+### 🔧 Configuration & Operations
 
-- **[Requirements](. kiro/specs/cognitive-architecture-complete-rebuild/requirements.md)** - Complete system requirements with EARS patterns
-- **[Design Document](.kiro/specs/cognitive-architecture-complete-rebuild/design.md)** - Detailed architecture and component design
-- **[Implementation Tasks](.kiro/specs/cognitive-architecture-complete-rebuild/tasks.md)** - Phase-by-phase implementation plan
+| Guide                              | Description                     |
+| ---------------------------------- | ------------------------------- |
+| [Environment](docs/environment.md) | Environment variables reference |
+| [Database](docs/database.md)       | PostgreSQL setup and schema     |
+| [Deployment](docs/deployment.md)   | Production deployment guide     |
+| [Monitoring](docs/monitoring.md)   | Observability and alerting      |
+
+### 💻 Development
+
+| Guide                                | Description                    |
+| ------------------------------------ | ------------------------------ |
+| [Development](docs/development.md)   | Development workflow and setup |
+| [Testing](docs/testing.md)           | Testing strategies and TDD     |
+| [Contributing](docs/contributing.md) | Contribution guidelines        |
+| [Build](docs/build.md)               | Build system and optimization  |
 
 ### 🚀 **Quick Links**
 
@@ -415,27 +269,7 @@ Each example shows:
 - **[MCP Configuration](#mcp-server-configuration)** - Configure as MCP server
 - **[Contributing](#contributing)** - How to contribute to the project
 
-## 📚 Documentation & Examples
-
-### Comprehensive Documentation
-
-- **[Complete API Reference](docs/api/cognitive-tools.md)** - Detailed documentation for all four cognitive tools
-- **[Cognitive Architecture Guide](docs/architecture/cognitive-architecture-guide.md)** - Deep dive into the human-like reasoning system
-- **[Performance & Benchmarking](docs/performance/benchmarking-guide.md)** - Optimization strategies and performance testing
-
-### Practical Examples
-
-- **[Example Applications](examples/)** - Complete working examples demonstrating all features
-- **[Integration Patterns](examples/README.md#advanced-usage-patterns)** - Real-world integration examples
-- **[Performance Testing](examples/README.md#performance-testing)** - Automated benchmarking tools
-
-### Quick Links
-
-- 🚀 **[Quick Start Guide](docs/getting-started/README.md)** - Get up and running in minutes
-- 🔧 **[Configuration Guide](docs/guides/configuration.md)** - Tune the system for your needs
-- 🏗️ **[Development Setup](docs/development/README.md)** - Contributing to the project
-
-## Why ThoughtMCP v2.0?
+## Why ThoughtMCP v0.5.0?
 
 ### **Production-Grade Architecture**
 
@@ -443,7 +277,7 @@ Each example shows:
 - **Sub-200ms Retrieval**: p50 <100ms, p95 <200ms, p99 <500ms at 100k memories
 - **95%+ Test Coverage**: Comprehensive unit, integration, e2e, performance, and accuracy tests
 - **99.9% Uptime**: MTTD <5 minutes, MTTR <1 hour with graceful degradation
-- **Cost Efficient**: <$10/month per 100k memories using local embeddings
+- **Local Embeddings**: Uses local models (Ollama, E5, BGE) for zero API costs
 
 ### **Advanced Cognitive Capabilities**
 
@@ -463,12 +297,12 @@ Each example shows:
 
 ## Contributing
 
-We welcome contributions! ThoughtMCP v2.0 is a complete rebuild following strict quality standards.
+We welcome contributions! ThoughtMCP v0.5.0 is a complete rebuild following strict quality standards.
 
 ### Development Workflow
 
 1. **Fork and Clone**: Fork the repository and clone locally
-2. **Setup Environment**: Follow [Development Guide](docs/DEVELOPMENT.md)
+2. **Setup Environment**: Follow [Development Guide](docs/development.md)
 3. **Create Branch**: `git checkout -b feature/your-feature`
 4. **Follow TDD**: Write tests first, then implementation
 5. **Run Validation**: `npm run validate` (format, lint, typecheck, test)
@@ -484,11 +318,10 @@ We welcome contributions! ThoughtMCP v2.0 is a complete rebuild following strict
 
 ### Key Resources
 
-- **[Development Guide](docs/DEVELOPMENT.md)** - Complete development workflow
-- **[Testing Guide](docs/TESTING.md)** - TDD principles and test utilities
-- **[Requirements](.kiro/specs/cognitive-architecture-complete-rebuild/requirements.md)** - System requirements
-- **[Design](.kiro/specs/cognitive-architecture-complete-rebuild/design.md)** - Architecture design
-- **[Tasks](.kiro/specs/cognitive-architecture-complete-rebuild/tasks.md)** - Implementation plan
+- **[Development Guide](docs/development.md)** - Complete development workflow
+- **[Testing Guide](docs/testing.md)** - TDD principles and test utilities
+- **[Contributing Guide](docs/contributing.md)** - How to contribute
+- **[Architecture Guide](docs/architecture.md)** - System design and components
 
 ## Community and Support
 
@@ -500,11 +333,11 @@ We welcome contributions! ThoughtMCP v2.0 is a complete rebuild following strict
 
 ## Project Status
 
-- 🚧 **Complete Rebuild in Progress**: New PostgreSQL-based architecture
-- ✅ **Phase 0 Complete**: Workspace cleanup and test framework setup
-- 🔄 **Phase 1-12 In Progress**: HMD memory, reasoning, metacognition, production hardening
-- 📋 **Well Specified**: Complete requirements, design, and implementation plan
-- 🎯 **Production Target**: 95%+ coverage, sub-200ms retrieval, 99.9% uptime
+- ✅ **Production Ready**: Complete PostgreSQL-based cognitive architecture
+- ✅ **All Phases Complete**: HMD memory, reasoning, metacognition, production hardening
+- ✅ **Fully Tested**: 3457 tests, 96%+ statement coverage, 91%+ branch coverage
+- ✅ **All Accuracy Targets Met**: Confidence ±10%, Bias >70%, Emotion >75%, Framework >80%
+- ✅ **Documentation Complete**: User guides, API docs, deployment guides, examples
 
 ## License
 

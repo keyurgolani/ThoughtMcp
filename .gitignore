@@ -360,6 +360,9 @@ temp/
 # Development directory (snapshots, summaries, reports, scripts, notes)
 development/
 
+# Debug tools (development only)
+tools/
+
 # Package manager lock files (keep package-lock.json but ignore others)
 yarn.lock
 pnpm-lock.yaml

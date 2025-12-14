@@ -1,19 +1,19 @@
 echo "🔍 Running pre-commit validations..."
 
 # Check for sensitive files first (exclude .env.example which is a template)
-echo "� CChecking for sensitive files..."
+echo "🔐 Checking for sensitive files..."
 if git diff --cached --name-only | grep -E "\.(key|pem|p12|pfx)$|\.env$|\.env\.(local|development|test|production)$" > /dev/null; then
   echo "❌ Attempting to commit sensitive files. Please remove them from the commit."
   git diff --cached --name-only | grep -E "\.(key|pem|p12|pfx)$|\.env$|\.env\.(local|development|test|production)$"
   exit 1
 fi
 
-# Run full build with all quality gates
-echo "🏗️  Running full build with quality gates..."
-timeout 220s npm run build
+# Run CI validation (same as CI: audit, format:check, lint:strict, typecheck, test:coverage)
+echo "🏗️  Running CI validation..."
+timeout 220s npm run validate:ci
 if [ $? -ne 0 ]; then
-  echo "❌ Build failed. Please fix the issues above."
-  echo "💡 The build includes: format check, security audit, lint, typecheck, tests with coverage, and production build."
+  echo "❌ CI validation failed. Please fix the issues above."
+  echo "💡 CI validation includes: security audit, format check, strict lint (zero warnings), typecheck, tests with coverage."
   exit 1
 fi
 

@@ -2,10 +2,24 @@
  * Database Connection Manager
  *
  * PostgreSQL connection management with pooling, transactions, and error handling.
- * Implements connection pooling, automatic reconnection, and comprehensive error handling.
+ * Implements connection pooling, automatic reconnection, SSL/TLS support, and comprehensive error handling.
+ *
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 11.1, 11.2, 11.3, 11.4, 11.5
  */
 
-import { Pool, type PoolClient } from "pg";
+import { readFileSync } from "fs";
+import { Pool, type PoolClient, type PoolConfig } from "pg";
+
+/**
+ * SSL configuration interface
+ */
+export interface SSLConfig {
+  enabled: boolean;
+  rejectUnauthorized?: boolean;
+  ca?: string; // Path to CA certificate or certificate content
+  cert?: string; // Path to client certificate or certificate content
+  key?: string; // Path to client key or key content
+}
 
 /**
  * Database configuration interface
@@ -19,6 +33,7 @@ export interface DatabaseConfig {
   poolSize: number; // default 20
   connectionTimeout: number; // default 5000ms
   idleTimeout: number; // default 30000ms
+  ssl?: SSLConfig; // SSL/TLS configuration
 }
 
 /**
@@ -84,8 +99,62 @@ export class DatabaseConnectionManager {
   }
 
   /**
+   * Build SSL configuration for pg Pool
+   */
+  private buildSSLConfig(): PoolConfig["ssl"] {
+    if (!this.config.ssl?.enabled) {
+      return undefined;
+    }
+
+    const sslConfig: {
+      rejectUnauthorized?: boolean;
+      ca?: string;
+      cert?: string;
+      key?: string;
+    } = {
+      rejectUnauthorized: this.config.ssl.rejectUnauthorized ?? true,
+    };
+
+    // Load CA certificate
+    if (this.config.ssl.ca) {
+      sslConfig.ca = this.loadCertificate(this.config.ssl.ca);
+    }
+
+    // Load client certificate
+    if (this.config.ssl.cert) {
+      sslConfig.cert = this.loadCertificate(this.config.ssl.cert);
+    }
+
+    // Load client key
+    if (this.config.ssl.key) {
+      sslConfig.key = this.loadCertificate(this.config.ssl.key);
+    }
+
+    return sslConfig;
+  }
+
+  /**
+   * Load certificate from file path or return as-is if it's certificate content
+   */
+  private loadCertificate(pathOrContent: string): string {
+    // Check if it looks like a certificate (starts with -----BEGIN)
+    if (pathOrContent.trim().startsWith("-----BEGIN")) {
+      return pathOrContent;
+    }
+
+    // Otherwise, treat as file path
+    try {
+      return readFileSync(pathOrContent, "utf-8");
+    } catch (error) {
+      throw new Error(
+        `Failed to load certificate from ${pathOrContent}: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+
+  /**
    * Connect to PostgreSQL with connection pooling
-   * Implements retry logic with exponential backoff
+   * Implements retry logic with exponential backoff and SSL/TLS support
    */
   async connect(): Promise<void> {
     // If already connected, return
@@ -100,7 +169,7 @@ export class DatabaseConnectionManager {
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        this.pool = new Pool({
+        const poolConfig: PoolConfig = {
           host: this.config.host,
           port: this.config.port,
           database: this.config.database,
@@ -109,7 +178,15 @@ export class DatabaseConnectionManager {
           max: this.config.poolSize,
           connectionTimeoutMillis: this.config.connectionTimeout,
           idleTimeoutMillis: this.config.idleTimeout,
-        });
+        };
+
+        // Add SSL configuration if enabled
+        const sslConfig = this.buildSSLConfig();
+        if (sslConfig) {
+          poolConfig.ssl = sslConfig;
+        }
+
+        this.pool = new Pool(poolConfig);
 
         // Test connection
         await this.pool.query("SELECT 1");

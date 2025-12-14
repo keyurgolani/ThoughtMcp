@@ -55,9 +55,9 @@ describe("EmbeddingStorage - Store and Retrieve", () => {
 
     // Insert test memory
     await dbManager.pool!.query(
-      `INSERT INTO memories (id, content, user_id, primary_sector)
-       VALUES ($1, $2, $3, $4)`,
-      [testMemoryId, "Test memory content", "test-user", "semantic"]
+      `INSERT INTO memories (id, content, user_id, session_id, primary_sector)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [testMemoryId, "Test memory content", "test-user", "test-session", "semantic"]
     );
   });
 
@@ -588,9 +588,9 @@ describe("EmbeddingStorage - Error Handling", () => {
     const memoryId = "test-memory-update-empty";
 
     await dbManager.pool!.query(
-      `INSERT INTO memories (id, content, user_id, primary_sector)
-       VALUES ($1, $2, $3, $4)`,
-      [memoryId, "Test content", "test-user", "semantic"]
+      `INSERT INTO memories (id, content, user_id, session_id, primary_sector)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [memoryId, "Test content", "test-user", "test-session", "semantic"]
     );
 
     // Store initial embeddings
@@ -617,9 +617,9 @@ describe("EmbeddingStorage - Error Handling", () => {
     const memoryId = "test-memory-update-empty-array";
 
     await dbManager.pool!.query(
-      `INSERT INTO memories (id, content, user_id, primary_sector)
-       VALUES ($1, $2, $3, $4)`,
-      [memoryId, "Test content", "test-user", "semantic"]
+      `INSERT INTO memories (id, content, user_id, session_id, primary_sector)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [memoryId, "Test content", "test-user", "test-session", "semantic"]
     );
 
     // Store initial embeddings
@@ -696,9 +696,9 @@ describe("EmbeddingStorage - Edge Cases", () => {
 
     // Insert memory
     await dbManager.pool!.query(
-      `INSERT INTO memories (id, content, user_id, primary_sector)
-       VALUES ($1, $2, $3, $4)`,
-      [memoryId, "Test content", "test-user", "semantic"]
+      `INSERT INTO memories (id, content, user_id, session_id, primary_sector)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [memoryId, "Test content", "test-user", "test-session", "semantic"]
     );
 
     // Try to store embeddings with invalid dimension (should fail)
@@ -808,9 +808,9 @@ async function insertTestMemoriesWithEmbeddings(
     const memoryId = `test-memory-${String(i).padStart(3, "0")}`;
 
     await dbManager.pool!.query(
-      `INSERT INTO memories (id, content, user_id, primary_sector)
-       VALUES ($1, $2, $3, $4)`,
-      [memoryId, `Test memory content ${i}`, "test-user", "semantic"]
+      `INSERT INTO memories (id, content, user_id, session_id, primary_sector)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [memoryId, `Test memory content ${i}`, "test-user", "test-session", "semantic"]
     );
 
     const embeddings: SectorEmbeddings = {

@@ -44,6 +44,7 @@ export class MemorySearchEngine {
   private metadataFilter: MetadataFilterEngine;
   private similarityFinder: SimilarMemoryFinder;
   private embeddingStorage: EmbeddingStorage;
+  private embeddingEngine?: import("../embeddings/embedding-engine").EmbeddingEngine;
   private resultCache: Map<string, { value: IntegratedSearchResult[]; expiresAt: number }>;
   private config: IntegratedSearchConfig;
   private analytics: SearchAnalytics[] = [];
@@ -53,10 +54,12 @@ export class MemorySearchEngine {
   constructor(
     db: DatabaseConnectionManager,
     embeddingStorage: EmbeddingStorage,
+    embeddingEngine?: import("../embeddings/embedding-engine").EmbeddingEngine,
     config: Partial<IntegratedSearchConfig> = {}
   ) {
     this.db = db;
     this.embeddingStorage = embeddingStorage;
+    this.embeddingEngine = embeddingEngine;
     this.config = { ...DEFAULT_INTEGRATED_SEARCH_CONFIG, ...config };
 
     // Initialize search components
@@ -244,6 +247,10 @@ export class MemorySearchEngine {
 
     if (query.text) {
       strategies.push("full-text");
+      // Also use vector search if we have an embedding engine to generate embeddings
+      if (this.embeddingEngine) {
+        strategies.push("vector");
+      }
     }
 
     if (query.embedding) {
@@ -366,7 +373,45 @@ export class MemorySearchEngine {
    * Execute vector similarity search strategy
    */
   private async executeVectorSearch(query: IntegratedSearchQuery): Promise<StrategyResult[]> {
-    if (!query.embedding) {
+    // Generate embedding from text if not provided
+    let embedding = query.embedding;
+    if (!embedding && query.text && this.embeddingEngine) {
+      const sector = (query.sector as MemorySector) ?? MemorySector.Semantic;
+      // Generate embedding based on sector
+      switch (sector) {
+        case MemorySector.Episodic:
+          // Provide minimal temporal context for search queries
+          embedding = await this.embeddingEngine.generateEpisodicEmbedding(query.text, {
+            timestamp: new Date(),
+            sessionId: "search-query",
+          });
+          break;
+        case MemorySector.Semantic:
+          embedding = await this.embeddingEngine.generateSemanticEmbedding(query.text);
+          break;
+        case MemorySector.Procedural:
+          embedding = await this.embeddingEngine.generateProceduralEmbedding(query.text);
+          break;
+        case MemorySector.Emotional:
+          // Provide neutral emotional context for search queries
+          embedding = await this.embeddingEngine.generateEmotionalEmbedding(query.text, {
+            valence: 0,
+            arousal: 0,
+            dominance: 0,
+          });
+          break;
+        case MemorySector.Reflective:
+          // Provide minimal reflective context for search queries
+          embedding = await this.embeddingEngine.generateReflectiveEmbedding(query.text, [
+            query.text,
+          ]);
+          break;
+        default:
+          embedding = await this.embeddingEngine.generateSemanticEmbedding(query.text);
+      }
+    }
+
+    if (!embedding) {
       return [];
     }
 
@@ -374,13 +419,36 @@ export class MemorySearchEngine {
     const limit = query.limit ?? this.config.defaultLimit;
 
     const results = await this.embeddingStorage.vectorSimilaritySearch(
-      query.embedding,
+      embedding,
       sector,
-      limit,
+      limit * 2, // Get more results to account for userId filtering
       0.0 // No threshold, we'll filter later
     );
 
-    return results.map((result) => ({
+    // Filter by userId if specified
+    let filteredResults = results;
+    if (query.userId) {
+      // Need to fetch memory details to filter by userId
+      const client = await this.db.getConnection();
+      try {
+        const memoryIds = results.map((r) => r.memoryId);
+        if (memoryIds.length > 0) {
+          const userMemories = await client.query(
+            `SELECT id FROM memories WHERE id = ANY($1) AND user_id = $2`,
+            [memoryIds, query.userId]
+          );
+          const validIds = new Set(userMemories.rows.map((r) => r.id));
+          filteredResults = results.filter((r) => validIds.has(r.memoryId));
+        }
+      } finally {
+        this.db.releaseConnection(client);
+      }
+    }
+
+    // Limit to requested number
+    filteredResults = filteredResults.slice(0, limit);
+
+    return filteredResults.map((result) => ({
       strategy: "vector" as SearchStrategy,
       memoryId: result.memoryId,
       score: result.similarity,
@@ -636,21 +704,27 @@ export class MemorySearchEngine {
 
   /**
    * Generate cache key for query
+   * Optimized for performance with deterministic string generation
    */
   private generateCacheKey(query: IntegratedSearchQuery): string {
     // Exclude pagination parameters from cache key
-    const cacheQuery = {
-      text: query.text,
-      embedding: query.embedding ? "present" : undefined,
-      sector: query.sector,
-      metadata: query.metadata,
-      similarTo: query.similarTo,
-      userId: query.userId,
-      minStrength: query.minStrength,
-      minSalience: query.minSalience,
-    };
+    // Use pipe-separated format for faster generation than JSON.stringify
+    const parts: string[] = [
+      query.text ?? "",
+      query.embedding ? "emb" : "",
+      query.sector ?? "",
+      query.similarTo ?? "",
+      query.userId ?? "",
+      query.minStrength?.toString() ?? "",
+      query.minSalience?.toString() ?? "",
+    ];
 
-    return JSON.stringify(cacheQuery);
+    // Add metadata as sorted JSON for consistency
+    if (query.metadata) {
+      parts.push(JSON.stringify(query.metadata));
+    }
+
+    return parts.join("|");
   }
 
   /**
@@ -758,6 +832,31 @@ export class MemorySearchEngine {
       avgResultsCount,
       topQueries,
     };
+  }
+
+  /**
+   * Pre-fetch and cache search results for common queries
+   * Optimizes performance by warming the cache
+   *
+   * @param queries - Array of queries to pre-fetch
+   */
+  async prefetchQueries(queries: IntegratedSearchQuery[]): Promise<void> {
+    if (!this.config.enableCache) {
+      return; // No point in pre-fetching if cache is disabled
+    }
+
+    // Execute queries in parallel with limited concurrency
+    const batchSize = 5;
+    for (let i = 0; i < queries.length; i += batchSize) {
+      const batch = queries.slice(i, i + batchSize);
+      await Promise.all(
+        batch.map((query) =>
+          this.search(query).catch(() => {
+            // Ignore errors during pre-fetching
+          })
+        )
+      );
+    }
   }
 
   /**

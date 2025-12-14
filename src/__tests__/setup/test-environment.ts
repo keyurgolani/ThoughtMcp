@@ -53,8 +53,9 @@ export const testEnv = {
 
   // Embedding configuration
   embedding: {
-    model: process.env.EMBEDDING_MODEL ?? "mock",
-    dimension: parseInt(process.env.EMBEDDING_DIMENSION ?? "1536", 10),
+    model: process.env.EMBEDDING_MODEL ?? "nomic-embed-text",
+    dimension: parseInt(process.env.EMBEDDING_DIMENSION ?? "768", 10),
+    ollamaHost: process.env.OLLAMA_HOST ?? "http://localhost:11434",
   },
 
   // Test configuration

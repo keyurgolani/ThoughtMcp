@@ -139,7 +139,8 @@ export class QueryParser {
         return token;
       }
 
-      // For word sequences, add implicit AND
+      // For word sequences, add implicit AND for precision
+      // Using AND ensures results contain all search terms
       const words = token
         .trim()
         .split(/\s+/)

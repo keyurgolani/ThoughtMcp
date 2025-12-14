@@ -1,0 +1,29 @@
+{
+  "mcpServers": {
+thoughtmcp": {
+      "command": "node",
+      "args": ["/absolute/path/to/ThoughtMcp/dist/index.js"],
+      "env": {
+        "NODE_ENV": "development",
+        "DB_HOST": "localhost",
+        "DB_PORT": "5432",
+        "DB_NAME": "thoughtmcp_dev",
+        "DB_USER": "thoughtmcp_dev",
+        "DB_PASSWORD": "dev_password",
+        "EMBEDDING_MODEL": "nomic-embed-text",
+        "EMBEDDING_DIMENSION": "768",
+        "OLLAMA_HOST": "http://localhost:11434",
+        "LOG_LEVEL": "INFO",
+        "BUILD_TIMESTAMP": "2025-12-07T00:00:00Z"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "store_memory",
+        "retrieve_memories",
+        "search_memories",
+        "think",
+        "assess_confidence"
+      ]
+    }
+  }
+}

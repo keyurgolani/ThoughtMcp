@@ -21,13 +21,21 @@ describe("MemorySearchEngine - Integrated Search", () => {
   let mockDb: any;
   let mockEmbeddingStorage: any;
   let searchEngine: MemorySearchEngine;
+  let mockClient: any;
 
   beforeEach(() => {
+    // Mock database client
+    mockClient = {
+      query: vi.fn(),
+    };
+
     // Mock database connection manager
     mockDb = {
       pool: {
         query: vi.fn(),
       },
+      getConnection: vi.fn().mockResolvedValue(mockClient),
+      releaseConnection: vi.fn(),
     };
 
     // Mock embedding storage
@@ -36,7 +44,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     };
 
     // Create search engine with default config
-    searchEngine = new MemorySearchEngine(mockDb, mockEmbeddingStorage);
+    searchEngine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined);
   });
 
   afterEach(() => {
@@ -562,7 +570,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
 
   describe("Search Analytics", () => {
     it("should track search analytics when enabled", async () => {
-      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         enableAnalytics: true,
       });
 
@@ -581,7 +589,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should track strategies used", async () => {
-      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         enableAnalytics: true,
       });
 
@@ -602,7 +610,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should filter analytics by date range", async () => {
-      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         enableAnalytics: true,
       });
 
@@ -671,7 +679,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should have timeout configuration", () => {
-      const engineWithTimeout = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineWithTimeout = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         maxExecutionTimeMs: 10, // Very short timeout
       });
 
@@ -682,7 +690,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
 
   describe("Configuration", () => {
     it("should accept custom weights configuration", () => {
-      const engineWithWeights = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineWithWeights = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         weights: {
           fullText: 0.5,
           vector: 0.3,
@@ -696,7 +704,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should accept parallel execution configuration", () => {
-      const engineParallel = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineParallel = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         parallelExecution: true,
       });
 
@@ -705,7 +713,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should accept sequential execution configuration", () => {
-      const engineSequential = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineSequential = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         parallelExecution: false,
       });
 
@@ -716,7 +724,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
 
   describe("Configuration Options", () => {
     it("should accept enableCache configuration", () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         enableCache: false,
       });
 
@@ -726,7 +734,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should accept cacheTTL configuration", () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         cacheTTL: 600, // 10 minutes
       });
 
@@ -734,7 +742,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should accept defaultLimit configuration", () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         defaultLimit: 20,
       });
 
@@ -742,7 +750,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should accept maxLimit configuration", () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         maxLimit: 500,
       });
 
@@ -750,7 +758,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should accept maxExecutionTimeMs configuration", () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         maxExecutionTimeMs: 5000,
       });
 
@@ -758,7 +766,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should accept enableAnalytics configuration", () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         enableAnalytics: false,
       });
 
@@ -768,7 +776,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should accept analyticsRetentionDays configuration", () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         analyticsRetentionDays: 90,
       });
 
@@ -776,7 +784,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should accept custom strategy weights", () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         weights: {
           fullText: 0.4,
           vector: 0.4,
@@ -789,7 +797,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should merge partial config with defaults", () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         enableCache: false,
         // Other options should use defaults
       });
@@ -903,7 +911,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
 
   describe("Analytics Tracking", () => {
     it("should track strategy usage in analytics", () => {
-      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         enableAnalytics: true,
       });
 
@@ -917,7 +925,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should track top queries", () => {
-      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         enableAnalytics: true,
       });
 
@@ -927,7 +935,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should calculate average execution time", () => {
-      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         enableAnalytics: true,
       });
 
@@ -937,7 +945,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should calculate cache hit rate", () => {
-      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         enableAnalytics: true,
       });
 
@@ -948,7 +956,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should calculate average results count", () => {
-      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineWithAnalytics = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         enableAnalytics: true,
       });
 
@@ -1010,16 +1018,21 @@ describe("MemorySearchEngine - Integrated Search", () => {
         },
       ]);
 
-      mockDb.pool.query.mockResolvedValue({
+      // Mock userId filter query on the client
+      mockClient.query.mockResolvedValueOnce({
+        rows: [{ id: "mem-1" }], // userId filter result
+      });
+
+      // Mock fetchMemoryData query on pool
+      mockDb.pool.query.mockResolvedValueOnce({
         rows: [
           {
-            id: "mem-1",
             content: "Vector search content",
             created_at: new Date(),
             salience: 0.8,
             strength: 0.9,
           },
-        ],
+        ], // fetchMemoryData result
       });
 
       const results = await searchEngine.search(query);
@@ -1241,7 +1254,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should execute strategies in parallel when configured", async () => {
-      const engineParallel = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineParallel = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         parallelExecution: true,
       });
 
@@ -1251,30 +1264,44 @@ describe("MemorySearchEngine - Integrated Search", () => {
         embedding: new Array(1536).fill(0.1),
       };
 
-      mockDb.pool.query
-        .mockResolvedValueOnce({
-          rows: [
-            {
-              memory_id: "mem-1",
-              rank: 0.9,
-              headline: "Test",
-              matched_terms: '["test"]',
-            },
-          ],
-        })
-        .mockResolvedValueOnce({ rows: [{ count: "1" }] })
-        .mockResolvedValueOnce({ rows: [{ index_used: true }] })
-        .mockResolvedValueOnce({
-          rows: [
-            {
-              id: "mem-1",
-              content: "Parallel content",
-              created_at: new Date(),
-              salience: 0.8,
-              strength: 0.9,
-            },
-          ],
-        });
+      // Mock client queries - use mockImplementation to handle different query types
+      mockClient.query.mockImplementation((sql: string) => {
+        if (sql.includes("ts_rank")) {
+          // Full-text search query
+          return Promise.resolve({
+            rows: [
+              {
+                memory_id: "mem-1",
+                rank: 0.9,
+                headline: "Test",
+                matched_terms: '["test"]',
+              },
+            ],
+          });
+        } else if (sql.includes("COUNT(*)")) {
+          // Count query
+          return Promise.resolve({ rows: [{ count: "1" }] });
+        } else if (sql.includes("pg_indexes")) {
+          // Index check query
+          return Promise.resolve({ rows: [{ index_used: true }] });
+        } else if (sql.includes("user_id")) {
+          // userId filter for vector search
+          return Promise.resolve({ rows: [{ id: "mem-1" }] });
+        }
+        return Promise.resolve({ rows: [] });
+      });
+
+      // Mock fetchMemoryData on pool
+      mockDb.pool.query.mockResolvedValue({
+        rows: [
+          {
+            content: "Parallel content",
+            created_at: new Date(),
+            salience: 0.8,
+            strength: 0.9,
+          },
+        ],
+      });
 
       mockEmbeddingStorage.vectorSimilaritySearch.mockResolvedValue([
         {
@@ -1291,7 +1318,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should execute strategies sequentially when configured", async () => {
-      const engineSequential = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineSequential = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         parallelExecution: false,
       });
 
@@ -1301,7 +1328,8 @@ describe("MemorySearchEngine - Integrated Search", () => {
         embedding: new Array(1536).fill(0.1),
       };
 
-      mockDb.pool.query
+      // Mock full-text search queries on client (uses getConnection)
+      mockClient.query
         .mockResolvedValueOnce({
           rows: [
             {
@@ -1315,16 +1343,20 @@ describe("MemorySearchEngine - Integrated Search", () => {
         .mockResolvedValueOnce({ rows: [{ count: "1" }] })
         .mockResolvedValueOnce({ rows: [{ index_used: true }] })
         .mockResolvedValueOnce({
-          rows: [
-            {
-              id: "mem-1",
-              content: "Sequential content",
-              created_at: new Date(),
-              salience: 0.8,
-              strength: 0.9,
-            },
-          ],
+          rows: [{ id: "mem-1" }], // userId filter for vector search
         });
+
+      // Mock fetchMemoryData on pool
+      mockDb.pool.query.mockResolvedValueOnce({
+        rows: [
+          {
+            content: "Sequential content",
+            created_at: new Date(),
+            salience: 0.8,
+            strength: 0.9,
+          },
+        ],
+      });
 
       mockEmbeddingStorage.vectorSimilaritySearch.mockResolvedValue([
         {
@@ -1341,7 +1373,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should have timeout configuration for parallel execution", () => {
-      const engineWithTimeout = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineWithTimeout = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         parallelExecution: true,
         maxExecutionTimeMs: 10000,
       });
@@ -1351,7 +1383,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should have timeout configuration for sequential execution", () => {
-      const engineWithTimeout = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineWithTimeout = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         parallelExecution: false,
         maxExecutionTimeMs: 10000,
       });
@@ -1369,29 +1401,44 @@ describe("MemorySearchEngine - Integrated Search", () => {
         embedding: new Array(1536).fill(0.1),
       };
 
-      mockDb.pool.query
-        .mockResolvedValueOnce({
-          rows: [
-            {
-              memory_id: "mem-1",
-              rank: 0.8,
-              headline: "Test",
-              matched_terms: ["test"],
-            },
-          ],
-        })
-        .mockResolvedValueOnce({ rows: [{ count: "1" }] })
-        .mockResolvedValueOnce({ rows: [{ index_used: true }] })
-        .mockResolvedValueOnce({
-          rows: [
-            {
-              content: "Content",
-              created_at: new Date(),
-              salience: 0.8,
-              strength: 0.9,
-            },
-          ],
-        });
+      // Mock client queries - use mockImplementation to handle different query types
+      mockClient.query.mockImplementation((sql: string) => {
+        if (sql.includes("ts_rank")) {
+          // Full-text search query
+          return Promise.resolve({
+            rows: [
+              {
+                memory_id: "mem-1",
+                rank: 0.8,
+                headline: "Test",
+                matched_terms: ["test"],
+              },
+            ],
+          });
+        } else if (sql.includes("COUNT(*)")) {
+          // Count query
+          return Promise.resolve({ rows: [{ count: "1" }] });
+        } else if (sql.includes("pg_indexes")) {
+          // Index check query
+          return Promise.resolve({ rows: [{ index_used: true }] });
+        } else if (sql.includes("user_id")) {
+          // userId filter for vector search
+          return Promise.resolve({ rows: [{ id: "mem-1" }] });
+        }
+        return Promise.resolve({ rows: [] });
+      });
+
+      // Mock fetchMemoryData on pool
+      mockDb.pool.query.mockResolvedValue({
+        rows: [
+          {
+            content: "Content",
+            created_at: new Date(),
+            salience: 0.8,
+            strength: 0.9,
+          },
+        ],
+      });
 
       mockEmbeddingStorage.vectorSimilaritySearch.mockResolvedValue([
         {
@@ -1463,7 +1510,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should support custom strategy weights configuration", async () => {
-      const engineWithWeights = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engineWithWeights = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         weights: {
           fullText: 0.8,
           vector: 0.1,
@@ -1519,7 +1566,11 @@ describe("MemorySearchEngine - Integrated Search", () => {
     });
 
     it("should handle database not connected error gracefully", async () => {
-      const engineWithoutDb = new MemorySearchEngine({ pool: null } as any, mockEmbeddingStorage);
+      const engineWithoutDb = new MemorySearchEngine(
+        { pool: null } as any,
+        mockEmbeddingStorage,
+        undefined
+      );
 
       const query: IntegratedSearchQuery = {
         userId: "user-1",
@@ -1860,7 +1911,13 @@ describe("MemorySearchEngine - Integrated Search", () => {
         },
       ]);
 
-      mockDb.pool.query.mockResolvedValue({
+      // Mock userId filter on client
+      mockClient.query.mockResolvedValueOnce({
+        rows: [{ id: "mem-1" }],
+      });
+
+      // Mock fetchMemoryData on pool
+      mockDb.pool.query.mockResolvedValueOnce({
         rows: [
           {
             content: "Vector content",
@@ -1879,7 +1936,7 @@ describe("MemorySearchEngine - Integrated Search", () => {
 
     it("should cover composite score calculation with all strategy types", () => {
       // Test that composite score calculation handles all strategy types
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         weights: {
           fullText: 0.4,
           vector: 0.3,

@@ -8,19 +8,26 @@ export default defineConfig({
     // Node environment with PostgreSQL support
     environment: "node",
 
-    // Test file patterns
+    // Test file patterns - exclude performance tests from default run (require database)
     include: [
       "src/__tests__/unit/**/*.test.ts",
       "src/__tests__/integration/**/*.test.ts",
       "src/__tests__/e2e/**/*.test.ts",
       "src/__tests__/examples/**/*.test.ts", // Include examples for validation
       "src/__tests__/validation/**/*.test.ts", // Include validation tests
+      "src/__tests__/production/**/*.test.ts", // Include production tests
     ],
-    exclude: ["node_modules", "dist", "coverage"],
+    exclude: [
+      "node_modules",
+      "dist",
+      "coverage",
+      "src/__tests__/performance/**", // Performance tests require database, run separately
+      "src/__tests__/accuracy/**", // Accuracy tests require database, run separately
+    ],
 
-    // Separate performance and accuracy tests (run manually)
-    // Performance: src/__tests__/performance/**/*.perf.test.ts
-    // Accuracy: src/__tests__/accuracy/**/*.accuracy.test.ts
+    // Performance and accuracy tests run separately with database:
+    // npm run test:performance - runs src/__tests__/performance/**/*.perf.test.ts
+    // npm run test:accuracy - runs src/__tests__/accuracy/**/*.accuracy.test.ts
 
     // Test timeouts
     testTimeout: 10000, // 10s default for unit tests

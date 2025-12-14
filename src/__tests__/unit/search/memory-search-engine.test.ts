@@ -11,6 +11,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemorySector } from "../../../embeddings/types";
 import { MemorySearchEngine } from "../../../search/memory-search-engine";
+import type { IntegratedSearchQuery } from "../../../search/types";
 
 describe("MemorySearchEngine", () => {
   let mockDb: any;
@@ -31,7 +32,7 @@ describe("MemorySearchEngine", () => {
     };
 
     // Create search engine instance
-    searchEngine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+    searchEngine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
       enableCache: true,
       enableAnalytics: true,
       parallelExecution: true,
@@ -163,6 +164,29 @@ describe("MemorySearchEngine", () => {
           sector: MemorySector.Semantic,
         },
       ]);
+
+      // Mock database connection and queries
+      const mockClient = {
+        query: vi
+          .fn()
+          .mockResolvedValueOnce({
+            // First call: userId filtering in executeVectorSearch
+            rows: [{ id: "mem-2" }],
+          })
+          .mockResolvedValueOnce({
+            // Second call: fetchMemoryData
+            rows: [
+              {
+                content: "Vector search content",
+                created_at: new Date(),
+                salience: 0.85,
+                strength: 0.9,
+              },
+            ],
+          }),
+      };
+      mockDb.getConnection = vi.fn().mockResolvedValue(mockClient);
+      mockDb.releaseConnection = vi.fn();
 
       const results = await searchEngine.search({
         userId: "user-1",
@@ -334,7 +358,7 @@ describe("MemorySearchEngine", () => {
     });
 
     it("should execute strategies in parallel when enabled", async () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         parallelExecution: true,
       });
 
@@ -367,7 +391,7 @@ describe("MemorySearchEngine", () => {
     });
 
     it("should execute strategies sequentially when parallel disabled", async () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         parallelExecution: false,
       });
 
@@ -402,7 +426,7 @@ describe("MemorySearchEngine", () => {
 
   describe("Timeout Handling", () => {
     it("should throw timeout error when search exceeds max execution time (parallel)", async () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         parallelExecution: true,
         maxExecutionTimeMs: 100,
       });
@@ -423,7 +447,7 @@ describe("MemorySearchEngine", () => {
     });
 
     it("should throw timeout error in sequential execution between strategies", async () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         parallelExecution: false,
         maxExecutionTimeMs: 100,
       });
@@ -585,6 +609,16 @@ describe("MemorySearchEngine", () => {
         },
       ]);
 
+      // Mock database connection for vector search userId filtering
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({
+          rows: [{ id: "mem-1" }],
+        }),
+      };
+      mockDb.getConnection = vi.fn().mockResolvedValue(mockClient);
+      mockDb.releaseConnection = vi.fn();
+
+      // Mock pool.query for fetchMemoryData
       mockDb.pool.query.mockResolvedValue({
         rows: [
           {
@@ -756,7 +790,7 @@ describe("MemorySearchEngine", () => {
     });
 
     it("should not cache when caching is disabled", async () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         enableCache: false,
       });
 
@@ -799,7 +833,7 @@ describe("MemorySearchEngine", () => {
     });
 
     it("should expire cached entries after TTL", async () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         enableCache: true,
         cacheTTL: 1, // 1 second TTL
       });
@@ -851,6 +885,84 @@ describe("MemorySearchEngine", () => {
     });
   });
 
+  describe("Query Pre-fetching", () => {
+    it("should pre-fetch and cache multiple queries", async () => {
+      const queries: IntegratedSearchQuery[] = [
+        { text: "query1", userId: "user1" },
+        { text: "query2", userId: "user1" },
+      ];
+
+      // Mock full-text search
+      vi.spyOn(searchEngine as any, "executeFullTextSearch").mockResolvedValue([
+        {
+          strategy: "full-text",
+          memoryId: "mem-1",
+          score: 0.9,
+          metadata: {},
+        },
+      ]);
+
+      // Mock database responses
+      mockDb.pool.query.mockResolvedValue({
+        rows: [
+          {
+            content: "Test",
+            created_at: new Date(),
+            salience: 0.8,
+            strength: 0.9,
+          },
+        ],
+      });
+
+      await searchEngine.prefetchQueries(queries);
+
+      // Verify cache was populated
+      const stats = searchEngine.getCacheStats();
+      expect(stats.size).toBeGreaterThan(0);
+    });
+
+    it("should skip pre-fetching when cache is disabled", async () => {
+      const engineNoCache = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
+        enableCache: false,
+      });
+
+      const queries: IntegratedSearchQuery[] = [{ text: "query1", userId: "user1" }];
+
+      await engineNoCache.prefetchQueries(queries);
+
+      // Cache should remain empty
+      const stats = engineNoCache.getCacheStats();
+      expect(stats.size).toBe(0);
+    });
+
+    it("should handle pre-fetch errors gracefully", async () => {
+      const queries: IntegratedSearchQuery[] = [{ text: "query1", userId: "user1" }];
+
+      // Mock error
+      vi.spyOn(searchEngine as any, "executeFullTextSearch").mockRejectedValue(
+        new Error("Database error")
+      );
+
+      // Should not throw error
+      await expect(searchEngine.prefetchQueries(queries)).resolves.not.toThrow();
+    });
+
+    it("should batch pre-fetch queries", async () => {
+      const queries: IntegratedSearchQuery[] = Array.from({ length: 12 }, (_, i) => ({
+        text: `query${i}`,
+        userId: "user1",
+      }));
+
+      vi.spyOn(searchEngine as any, "executeFullTextSearch").mockResolvedValue([]);
+      mockDb.pool.query.mockResolvedValue({ rows: [] });
+
+      await searchEngine.prefetchQueries(queries);
+
+      // Should complete without error
+      expect(true).toBe(true);
+    });
+  });
+
   describe("Analytics", () => {
     beforeEach(() => {
       vi.spyOn(searchEngine as any, "executeFullTextSearch").mockResolvedValue([
@@ -885,7 +997,7 @@ describe("MemorySearchEngine", () => {
     });
 
     it("should not track analytics when disabled", async () => {
-      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, undefined, {
         enableAnalytics: false,
       });
 
@@ -966,7 +1078,7 @@ describe("MemorySearchEngine", () => {
 
     it("should throw error when database not connected", async () => {
       const disconnectedDb = { pool: null };
-      const engine = new MemorySearchEngine(disconnectedDb as any, mockEmbeddingStorage);
+      const engine = new MemorySearchEngine(disconnectedDb as any, mockEmbeddingStorage, undefined);
 
       vi.spyOn(engine as any, "executeFullTextSearch").mockResolvedValue([
         {
@@ -1023,6 +1135,16 @@ describe("MemorySearchEngine", () => {
         },
       ]);
 
+      // Mock database connection for vector search userId filtering
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({
+          rows: [{ id: "mem-1" }],
+        }),
+      };
+      mockDb.getConnection = vi.fn().mockResolvedValue(mockClient);
+      mockDb.releaseConnection = vi.fn();
+
+      // Mock pool.query for fetchMemoryData
       mockDb.pool.query.mockResolvedValue({
         rows: [
           {

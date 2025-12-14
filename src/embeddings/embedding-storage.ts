@@ -167,6 +167,7 @@ export class EmbeddingStorage {
 
     // Use pgvector's cosine similarity operator (<=>)
     // Lower distance = higher similarity, so we convert: similarity = 1 - distance
+    // Note: This searches across all users - filtering by userId should be done at a higher level
     const result = await this.dbManager.pool.query(
       `SELECT
          memory_id,

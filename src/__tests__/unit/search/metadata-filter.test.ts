@@ -167,6 +167,7 @@ describe("MetadataFilterEngine", () => {
     it("should filter memories by single keyword", async () => {
       const filters: MetadataFilters = {
         keywords: ["machine"],
+        userId: "test-mf-user",
       };
 
       const result: FilterResult = await filterEngine.filter(filters);
@@ -191,6 +192,7 @@ describe("MetadataFilterEngine", () => {
       const filters: MetadataFilters = {
         keywords: ["machine", "python"],
         keywordOperator: "OR",
+        userId: "test-mf-user",
       };
 
       const result: FilterResult = await filterEngine.filter(filters);
@@ -229,6 +231,9 @@ describe("MetadataFilterEngine", () => {
         const client = await db.getConnection();
         try {
           await client.query("BEGIN");
+
+          // Clean up any existing test-perf-* memories first
+          await client.query("DELETE FROM memories WHERE id LIKE 'test-perf-%'");
 
           // Batch insert memories and metadata in chunks of 100
           const batchSize = 100;

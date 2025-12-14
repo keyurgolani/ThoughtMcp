@@ -12,7 +12,7 @@ export { EmbeddingEngine } from "./embedding-engine";
 export { EmbeddingStorage } from "./embedding-storage";
 
 // Cache
-export { EmbeddingCache, generateCacheKey } from "./cache";
+export { EmbeddingCache, GenericLRUCache, generateCacheKey } from "./cache";
 
 // Models
 export { BaseEmbeddingModel } from "./models/base-model";

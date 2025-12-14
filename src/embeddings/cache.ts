@@ -129,3 +129,125 @@ export function generateCacheKey(sector: MemorySector, content: string, context?
 
   return contextHash ? `${sector}:${contentHash}:${contextHash}` : `${sector}:${contentHash}`;
 }
+
+/**
+ * Generic cache entry for any value type
+ */
+interface GenericCacheEntry<T> {
+  value: T;
+  timestamp: number;
+  ttl: number;
+}
+
+/**
+ * Generic LRU cache for any value type with TTL support
+ */
+export class GenericLRUCache<T> {
+  private cache: Map<string, GenericCacheEntry<T>>;
+  public readonly maxSize: number;
+  public readonly defaultTTL: number;
+  private hits: number = 0;
+  private misses: number = 0;
+
+  constructor(maxSize: number = 10000, defaultTTL: number = 300000) {
+    this.cache = new Map();
+    this.maxSize = maxSize;
+    this.defaultTTL = defaultTTL;
+  }
+
+  /**
+   * Store value in cache with optional TTL
+   */
+  set(key: string, value: T, ttl?: number): void {
+    if (this.cache.size >= this.maxSize && !this.cache.has(key)) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) {
+        this.cache.delete(firstKey);
+      }
+    }
+
+    const entry: GenericCacheEntry<T> = {
+      value,
+      timestamp: Date.now(),
+      ttl: ttl ?? this.defaultTTL,
+    };
+
+    this.cache.delete(key);
+    this.cache.set(key, entry);
+  }
+
+  /**
+   * Retrieve value from cache
+   */
+  get(key: string): T | null {
+    const entry = this.cache.get(key);
+
+    if (!entry) {
+      this.misses++;
+      return null;
+    }
+
+    const now = Date.now();
+    if (now - entry.timestamp > entry.ttl) {
+      this.cache.delete(key);
+      this.misses++;
+      return null;
+    }
+
+    this.cache.delete(key);
+    this.cache.set(key, entry);
+    this.hits++;
+
+    return entry.value;
+  }
+
+  /**
+   * Check if key exists and is valid
+   */
+  has(key: string): boolean {
+    const entry = this.cache.get(key);
+
+    if (!entry) {
+      return false;
+    }
+
+    const now = Date.now();
+    if (now - entry.timestamp > entry.ttl) {
+      this.cache.delete(key);
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Clear all cache entries
+   */
+  clear(): void {
+    this.cache.clear();
+    this.hits = 0;
+    this.misses = 0;
+  }
+
+  /**
+   * Get current cache size
+   */
+  size(): number {
+    return this.cache.size;
+  }
+
+  /**
+   * Get cache metrics
+   */
+  getMetrics(): { hits: number; misses: number; hitRate: number; size: number } {
+    const total = this.hits + this.misses;
+    const hitRate = total > 0 ? this.hits / total : 0;
+
+    return {
+      hits: this.hits,
+      misses: this.misses,
+      hitRate,
+      size: this.cache.size,
+    };
+  }
+}
