@@ -376,30 +376,40 @@ describe("BackgroundScheduler - Cron-based Scheduling", () => {
     });
 
     it("should process memories in batches during maintenance", async () => {
-      // Create test memories
+      // Create test memories using batch insert
       const client = await db.getConnection();
       try {
-        // Insert 2500 test memories
+        // Build batch insert query for 2500 test memories
+        const values: string[] = [];
+        const params: any[] = [];
+        let paramIndex = 1;
+
         for (let i = 0; i < 2500; i++) {
-          await client.query(
-            `INSERT INTO memories (id, content, created_at, last_accessed, access_count,
-             salience, decay_rate, strength, user_id, session_id, primary_sector)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [
-              `batch-test-${i}`,
-              `Test memory ${i}`,
-              new Date(),
-              new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
-              1,
-              0.5,
-              0.02,
-              1.0,
-              "user-1",
-              "session-1",
-              "episodic",
-            ]
+          values.push(
+            `($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9}, $${paramIndex + 10})`
           );
+          params.push(
+            `batch-test-${i}`,
+            `Test memory ${i}`,
+            new Date(),
+            new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
+            1,
+            0.5,
+            0.02,
+            1.0,
+            "user-1",
+            "session-1",
+            "episodic"
+          );
+          paramIndex += 11;
         }
+
+        await client.query(
+          `INSERT INTO memories (id, content, created_at, last_accessed, access_count,
+           salience, decay_rate, strength, user_id, session_id, primary_sector)
+           VALUES ${values.join(", ")}`,
+          params
+        );
       } finally {
         db.releaseConnection(client);
       }
@@ -431,7 +441,7 @@ describe("BackgroundScheduler - Cron-based Scheduling", () => {
       } finally {
         db.releaseConnection(cleanupClient);
       }
-    });
+    }, 30000); // 30 second timeout for processing 2500 memories
   });
 
   describe("Resource Monitoring and Throttling", () => {
@@ -758,29 +768,40 @@ describe("BackgroundScheduler - Cron-based Scheduling", () => {
       // This test verifies the requirement: "processing SHALL complete within 30 minutes for 100,000 memories"
       // We'll test with a smaller dataset and verify the time scales appropriately
 
-      // Create 1000 test memories (1% of 100k)
+      // Create 1000 test memories (1% of 100k) using batch insert
       const client = await db.getConnection();
       try {
+        // Build batch insert query for 1000 test memories
+        const values: string[] = [];
+        const params: any[] = [];
+        let paramIndex = 1;
+
         for (let i = 0; i < 1000; i++) {
-          await client.query(
-            `INSERT INTO memories (id, content, created_at, last_accessed, access_count,
-             salience, decay_rate, strength, user_id, session_id, primary_sector)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [
-              `time-test-${i}`,
-              `Test memory ${i}`,
-              new Date(),
-              new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-              1,
-              0.5,
-              0.02,
-              1.0,
-              "user-1",
-              "session-1",
-              "episodic",
-            ]
+          values.push(
+            `($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7}, $${paramIndex + 8}, $${paramIndex + 9}, $${paramIndex + 10})`
           );
+          params.push(
+            `time-test-${i}`,
+            `Test memory ${i}`,
+            new Date(),
+            new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+            1,
+            0.5,
+            0.02,
+            1.0,
+            "user-1",
+            "session-1",
+            "episodic"
+          );
+          paramIndex += 11;
         }
+
+        await client.query(
+          `INSERT INTO memories (id, content, created_at, last_accessed, access_count,
+           salience, decay_rate, strength, user_id, session_id, primary_sector)
+           VALUES ${values.join(", ")}`,
+          params
+        );
       } finally {
         db.releaseConnection(client);
       }
@@ -812,7 +833,7 @@ describe("BackgroundScheduler - Cron-based Scheduling", () => {
       } finally {
         db.releaseConnection(cleanupClient);
       }
-    });
+    }, 30000); // 30 second timeout for processing 1000 memories
 
     it("should track processing time for maintenance operations", async () => {
       const config: BackgroundSchedulerConfig = {

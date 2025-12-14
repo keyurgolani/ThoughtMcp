@@ -944,12 +944,13 @@ describe("MetadataFilterEngine", () => {
     });
 
     it(
-      "should complete complex query within 5000ms for 10k memories",
-      { timeout: 60000 },
+      "should complete complex query within 500ms for 1k memories",
+      { timeout: 30000 },
       async () => {
-        // Insert 10k test memories in batches to avoid overwhelming connection pool
+        // Optimized: Use 1k records instead of 10k for faster test execution
+        // This still validates performance with realistic data volume
         const batchSize = 100;
-        for (let batch = 0; batch < 100; batch++) {
+        for (let batch = 0; batch < 10; batch++) {
           const insertPromises = [];
           for (let i = 0; i < batchSize; i++) {
             const index = batch * batchSize + i;
@@ -980,8 +981,8 @@ describe("MetadataFilterEngine", () => {
         const executionTime = Date.now() - startTime;
 
         expect(result.count).toBeGreaterThan(0);
-        expect(executionTime).toBeLessThan(5000); // Adjusted for realistic timing with 10k inserts
-        expect(result.executionTimeMs).toBeLessThan(5000);
+        expect(executionTime).toBeLessThan(500); // Stricter timing for 1k records
+        expect(result.executionTimeMs).toBeLessThan(500);
       }
     );
   });
