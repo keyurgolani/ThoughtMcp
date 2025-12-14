@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# Environment files
+.env
+.env.*
+
+# Logs
+*.log
+
+# Database files
+*.db
+*.sqlite
+
+# Generated files
+*.generated.ts
+*.generated.js
+
+# Documentation build
+docs/build/
+
+# Test artifacts
+test-results/
+test-reports/
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

@@ -13,12 +13,15 @@ ui/dist-node/
 # Environment variables
 .env
 .env.local
+.env.development
 .env.development.local
+.env.test
 .env.test.local
+.env.production
 .env.production.local
 
 # IDE files
-.vscode/
+# Keep .vscode/ for shared development settings
 .idea/
 *.swp
 *.swo
@@ -353,6 +356,9 @@ tmp/
 temp/
 *.tmp
 *.temp
+
+# Development directory (snapshots, summaries, reports, scripts, notes)
+development/
 
 # Package manager lock files (keep package-lock.json but ignore others)
 yarn.lock

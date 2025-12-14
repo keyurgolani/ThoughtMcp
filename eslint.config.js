@@ -24,6 +24,7 @@ export default [
       "@typescript-eslint": tseslint,
     },
     rules: {
+      // TypeScript-specific rules
       "@typescript-eslint/no-unused-vars": [
         "error",
         {
@@ -31,11 +32,23 @@ export default [
           varsIgnorePattern: "^_",
         },
       ],
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "error", // Strict: no 'any' type
       "@typescript-eslint/no-non-null-assertion": "warn",
       "@typescript-eslint/prefer-nullish-coalescing": "error",
       "@typescript-eslint/prefer-optional-chain": "error",
       "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      "@typescript-eslint/explicit-function-return-type": [
+        "error",
+        {
+          allowExpressions: true,
+          allowTypedFunctionExpressions: true,
+        },
+      ],
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/no-misused-promises": "error",
+
+      // General code quality
       "prefer-const": "error",
       "no-var": "error",
       "no-unused-vars": "off",
@@ -49,6 +62,12 @@ export default [
       "prefer-arrow-callback": "error",
       "arrow-spacing": "error",
       "no-duplicate-imports": "error",
+
+      // Cognitive architecture specific rules
+      "max-lines-per-function": ["warn", { max: 100, skipBlankLines: true, skipComments: true }],
+      "max-depth": ["error", 4],
+      complexity: ["warn", 15],
+      "max-params": ["warn", 5],
     },
   },
   // Allow console statements in examples, tests, and utility files where appropriate
@@ -68,6 +87,12 @@ export default [
     },
   },
   {
-    ignores: ["dist/**", "node_modules/**", "coverage/**"],
+    ignores: [
+      "dist/**",
+      "node_modules/**",
+      "coverage/**",
+      ".vitest/**",
+      "src/__tests__/templates/**/*.template.ts",
+    ],
   },
 ];

@@ -1,95 +1,20 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 echo "🔍 Running pre-commit validations..."
 
-# Check if we're in strict mode (set STRICT_PRECOMMIT=1 to enable)
-STRICT_MODE=${STRICT_PRECOMMIT:-0}
-
-# Run linting (strict mode treats warnings as errors)
-if [ "$STRICT_MODE" = "1" ]; then
-  echo "📝 Checking code style (strict mode - no warnings allowed)..."
-  npm run lint:strict
-else
-  echo "📝 Checking code style..."
-  npm run lint
-fi
-
-if [ $? -ne 0 ]; then
-  echo "❌ Linting failed. Please fix the issues above."
-  if [ "$STRICT_MODE" = "0" ]; then
-    echo "💡 Tip: Set STRICT_PRECOMMIT=1 to treat warnings as errors"
-  fi
-  exit 1
-fi
-
-# Run type checking
-echo "🔍 Type checking..."
-npm run type-check
-if [ $? -ne 0 ]; then
-  echo "❌ Type checking failed. Please fix the type errors above."
-  exit 1
-fi
-
-# Check for 'any' types in staged TypeScript files
-echo "🔍 Checking for 'any' types in staged files..."
-ANY_COUNT=$(git diff --cached --name-only | grep "\.ts$" | xargs grep -n ": any\|as any\|any\[\]" 2>/dev/null | wc -l)
-if [ $ANY_COUNT -gt 0 ]; then
-  echo "⚠️  Found $ANY_COUNT 'any' types in staged TypeScript files:"
-  git diff --cached --name-only | grep "\.ts$" | xargs grep -n ": any\|as any\|any\[\]" 2>/dev/null | head -5
-  if [ "$STRICT_MODE" = "1" ]; then
-    echo "❌ Strict mode: 'any' types not allowed. Please specify proper types."
-    exit 1
-  else
-    echo "💡 Consider replacing 'any' with specific types for better type safety."
-  fi
-fi
-
-# Run tests on affected files
-echo "🧪 Running tests..."
-npm run test:run
-if [ $? -ne 0 ]; then
-  echo "❌ Tests failed. Please fix the failing tests above."
-  exit 1
-fi
-
-# Check for sensitive files
-echo "🔒 Checking for sensitive files..."
-if git diff --cached --name-only | grep -E "\.(key|pem|p12|pfx)$|\.env$|\.env\." > /dev/null; then
+# Check for sensitive files first (exclude .env.example which is a template)
+echo "� CChecking for sensitive files..."
+if git diff --cached --name-only | grep -E "\.(key|pem|p12|pfx)$|\.env$|\.env\.(local|development|test|production)$" > /dev/null; then
   echo "❌ Attempting to commit sensitive files. Please remove them from the commit."
-  git diff --cached --name-only | grep -E "\.(key|pem|p12|pfx)$|\.env$|\.env\."
+  git diff --cached --name-only | grep -E "\.(key|pem|p12|pfx)$|\.env$|\.env\.(local|development|test|production)$"
   exit 1
 fi
 
-# Check for console.log/debugger statements
-echo "🐛 Checking for debug statements..."
-DEBUG_COUNT=$(git diff --cached | grep -E "^\+.*\b(console\.(log|debug|info|warn|error)|debugger)\b" | wc -l)
-if [ $DEBUG_COUNT -gt 0 ]; then
-  echo "⚠️  Found $DEBUG_COUNT debug statements in staged changes:"
-  git diff --cached | grep -E "^\+.*\b(console\.(log|debug|info|warn|error)|debugger)\b" | head -3
-  if [ "$STRICT_MODE" = "1" ]; then
-    echo "❌ Strict mode: Debug statements not allowed in commits."
-    exit 1
-  else
-    echo "💡 Consider removing debug statements before committing."
-  fi
-fi
-
-# Check for TODO/FIXME in staged files
-echo "📋 Checking for TODO/FIXME comments..."
-TODO_COUNT=$(git diff --cached | grep -E "^\+.*\b(TODO|FIXME|XXX|HACK)\b" | wc -l)
-if [ $TODO_COUNT -gt 0 ]; then
-  echo "⚠️  Found $TODO_COUNT TODO/FIXME comments in staged changes:"
-  git diff --cached | grep -E "^\+.*\b(TODO|FIXME|XXX|HACK)\b" | head -5
-  echo "💡 Consider addressing these before committing or create issues to track them."
-fi
-
-# Check for proper commit message format (if available)
-if [ -f ".gitmessage" ]; then
-  echo "📝 Commit message template available. Use 'git commit' without -m for guided format."
+# Run full build with all quality gates
+echo "🏗️  Running full build with quality gates..."
+timeout 180s npm run build
+if [ $? -ne 0 ]; then
+  echo "❌ Build failed. Please fix the issues above."
+  echo "💡 The build includes: format check, security audit, lint, typecheck, tests with coverage, and production build."
+  exit 1
 fi
 
 echo "✅ Pre-commit validations passed!"
-if [ "$STRICT_MODE" = "1" ]; then
-  echo "🔒 Strict mode was enabled - all quality checks passed!"
-fi
