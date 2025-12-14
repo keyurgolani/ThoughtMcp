@@ -221,33 +221,92 @@ describe("MetadataFilterEngine", () => {
       expect(result.count).toBe(0);
     });
 
-    it("should complete keyword filtering within 200ms for 1000 memories", async () => {
-      // Insert 1000 test memories
-      const insertPromises = [];
-      for (let i = 0; i < 1000; i++) {
-        insertPromises.push(
-          insertTestMemoryWithMetadata(`Test memory ${i}`, {
-            keywords: [`keyword${i % 10}`, "common"],
-            tags: ["test"],
-            category: "test",
-            importance: 0.5,
-          })
-        );
+    it(
+      "should complete keyword filtering within 200ms for 1000 memories",
+      { timeout: 60000 },
+      async () => {
+        // Optimized batch insert: Insert 1000 memories using a single transaction
+        const client = await db.getConnection();
+        try {
+          await client.query("BEGIN");
+
+          // Batch insert memories and metadata in chunks of 100
+          const batchSize = 100;
+          for (let batch = 0; batch < 10; batch++) {
+            const memoryValues: string[] = [];
+            const metadataValues: string[] = [];
+            const memoryParams: any[] = [];
+            const metadataParams: any[] = [];
+
+            for (let i = 0; i < batchSize; i++) {
+              const index = batch * batchSize + i;
+              const memoryId = `test-perf-${index}`;
+
+              // Memory insert values
+              const memoryOffset = i * 7;
+              memoryValues.push(
+                `($${memoryOffset + 1}, $${memoryOffset + 2}, $${memoryOffset + 3}, $${memoryOffset + 4}, $${memoryOffset + 5}, $${memoryOffset + 6}, $${memoryOffset + 7})`
+              );
+              memoryParams.push(
+                memoryId,
+                `Test memory ${index}`,
+                "test-mf-user",
+                "test-session",
+                "semantic",
+                0.5,
+                1.0
+              );
+
+              // Metadata insert values
+              const metadataOffset = i * 5;
+              metadataValues.push(
+                `($${metadataOffset + 1}, $${metadataOffset + 2}, $${metadataOffset + 3}, $${metadataOffset + 4}, $${metadataOffset + 5})`
+              );
+              metadataParams.push(
+                memoryId,
+                [`keyword${index % 10}`, "common"],
+                ["test"],
+                "test",
+                0.5
+              );
+            }
+
+            // Batch insert memories
+            await client.query(
+              `INSERT INTO memories (id, content, user_id, session_id, primary_sector, salience, strength)
+             VALUES ${memoryValues.join(", ")}`,
+              memoryParams
+            );
+
+            // Batch insert metadata
+            await client.query(
+              `INSERT INTO memory_metadata (memory_id, keywords, tags, category, importance)
+             VALUES ${metadataValues.join(", ")}`,
+              metadataParams
+            );
+          }
+
+          await client.query("COMMIT");
+        } catch (error) {
+          await client.query("ROLLBACK");
+          throw error;
+        } finally {
+          db.releaseConnection(client);
+        }
+
+        const filters: MetadataFilters = {
+          keywords: ["common"],
+        };
+
+        const startTime = Date.now();
+        const result: FilterResult = await filterEngine.filter(filters);
+        const executionTime = Date.now() - startTime;
+
+        expect(result.count).toBeGreaterThan(0);
+        expect(executionTime).toBeLessThan(200);
+        expect(result.executionTimeMs).toBeLessThan(200);
       }
-      await Promise.all(insertPromises);
-
-      const filters: MetadataFilters = {
-        keywords: ["common"],
-      };
-
-      const startTime = Date.now();
-      const result: FilterResult = await filterEngine.filter(filters);
-      const executionTime = Date.now() - startTime;
-
-      expect(result.count).toBeGreaterThan(0);
-      expect(executionTime).toBeLessThan(200); // Adjusted for realistic timing
-      expect(result.executionTimeMs).toBeLessThan(200);
-    });
+    );
   });
 
   describe("Tag Array Filtering", () => {

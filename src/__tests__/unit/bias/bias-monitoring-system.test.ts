@@ -181,6 +181,41 @@ describe("BiasMonitoringSystem - Continuous Reasoning Analysis", () => {
       expect(metrics.totalChains).toBe(1);
     });
 
+    it("should handle null reasoning chain gracefully", async () => {
+      // Test with null reasoning chain
+      await expect(monitoringSystem.monitorContinuously(null as any)).resolves.not.toThrow();
+
+      // Metrics should still update
+      const metrics = monitoringSystem.getMetrics();
+      expect(metrics.totalChains).toBe(1);
+      expect(metrics.averageProcessingTime).toBeGreaterThan(0);
+    });
+
+    it("should handle undefined reasoning chain gracefully", async () => {
+      // Test with undefined reasoning chain
+      await expect(monitoringSystem.monitorContinuously(undefined as any)).resolves.not.toThrow();
+
+      // Metrics should still update
+      const metrics = monitoringSystem.getMetrics();
+      expect(metrics.totalChains).toBe(1);
+      expect(metrics.averageProcessingTime).toBeGreaterThan(0);
+    });
+
+    it("should handle processing time array overflow with invalid chains", async () => {
+      // Create fresh monitoring system
+      const freshSystem = new BiasMonitoringSystem(recognizer);
+
+      // Process 105 invalid chains to trigger array shift (limit is 100)
+      for (let i = 0; i < 105; i++) {
+        await freshSystem.monitorContinuously(null as any);
+      }
+
+      // Metrics should track all chains
+      const metrics = freshSystem.getMetrics();
+      expect(metrics.totalChains).toBe(105);
+      expect(metrics.averageProcessingTime).toBeGreaterThan(0);
+    });
+
     it("should handle detection errors without crashing", async () => {
       const chain = createTestReasoningChain();
 
@@ -201,6 +236,31 @@ describe("BiasMonitoringSystem - Continuous Reasoning Analysis", () => {
       // Metrics should still update
       const metrics = faultySystem.getMetrics();
       expect(metrics.totalChains).toBe(1);
+    });
+
+    it("should handle processing time array overflow during errors", async () => {
+      const chain = createTestReasoningChain();
+
+      // Create monitoring system with mock recognizer that throws
+      const mockRecognizer = {
+        detectBiases: vi.fn(() => {
+          throw new Error("Detection failed");
+        }),
+        assessBiasSeverity: vi.fn(),
+        identifyBiasPatterns: vi.fn(),
+      } as unknown as BiasPatternRecognizer;
+
+      const faultySystem = new BiasMonitoringSystem(mockRecognizer);
+
+      // Process 105 chains to trigger array shift in catch block (limit is 100)
+      for (let i = 0; i < 105; i++) {
+        await faultySystem.monitorContinuously(chain);
+      }
+
+      // Metrics should track all chains even with errors
+      const metrics = faultySystem.getMetrics();
+      expect(metrics.totalChains).toBe(105);
+      expect(metrics.averageProcessingTime).toBeGreaterThan(0);
     });
 
     it("should allow monitoring to be stopped", async () => {

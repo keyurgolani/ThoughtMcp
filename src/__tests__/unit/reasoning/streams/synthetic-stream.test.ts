@@ -42,6 +42,22 @@ describe("SyntheticStreamProcessor", () => {
       expect(result.reasoning.some((r) => r.includes("pattern"))).toBe(true);
     });
 
+    it("should add pattern analysis reasoning for cause-effect patterns", async () => {
+      const problem: Problem = {
+        id: "test-pattern-cause",
+        description: "System with clear cause and effect relationships",
+        context: "Multiple factors with various patterns",
+        constraints: [],
+        goals: [],
+      };
+
+      const result = await processor.process(problem);
+
+      expect(result.status).toBe(StreamStatus.COMPLETED);
+      // Verify pattern analysis reasoning is added (covers line 75-76)
+      expect(result.reasoning.some((r) => r.includes("Pattern analysis:"))).toBe(true);
+    });
+
     it("should identify cause-effect patterns", async () => {
       const problem: Problem = {
         id: "test-2",
@@ -552,6 +568,167 @@ describe("SyntheticStreamProcessor", () => {
       expect(result.conclusion).toContain("leverage");
     });
   });
+
+  describe("process - Additional Coverage for Uncovered Branches", () => {
+    it("should add connection insight for affects/relates/influences keywords", async () => {
+      const problem: Problem = {
+        id: "test-connection-affects",
+        description: "Factor X affects Y which relates to Z and influences outcome",
+        context: "Multiple interconnected factors with various relationships",
+        constraints: [],
+        goals: [],
+      };
+
+      const result = await processor.process(problem);
+
+      expect(result.status).toBe(StreamStatus.COMPLETED);
+      // Verify connection insight reasoning is added (covers line 75-76)
+      expect(result.reasoning.some((r) => r.includes("Connection insight:"))).toBe(true);
+    });
+
+    it("should add emergent insight reasoning for themes", async () => {
+      const problem: Problem = {
+        id: "test-emergent-theme",
+        description: "System with emergent properties",
+        context: "The whole exhibits behaviors that emerge from interactions",
+        constraints: [],
+        goals: [],
+      };
+
+      const result = await processor.process(problem);
+
+      expect(result.status).toBe(StreamStatus.COMPLETED);
+      // Verify emergent insight reasoning is added
+      expect(result.reasoning.some((r) => r.includes("Emergent insight:"))).toBe(true);
+    });
+
+    it("should add integration reasoning for paradoxes", async () => {
+      const problem: Problem = {
+        id: "test-integration-paradox",
+        description: "Problem with paradoxical elements",
+        context: "Multiple patterns, connections, and themes with paradoxical tensions",
+        constraints: [],
+        goals: [],
+      };
+
+      const result = await processor.process(problem);
+
+      expect(result.status).toBe(StreamStatus.COMPLETED);
+      // Verify integration reasoning is added (covers line 457-458)
+      expect(result.reasoning.some((r) => r.includes("Integration:"))).toBe(true);
+    });
+
+    it("should generate holistic perspective without constraints", async () => {
+      const problem: Problem = {
+        id: "test-holistic-no-constraints",
+        description: "Simple problem",
+        context: "Basic", // Very short context (< 150 chars)
+        constraints: [],
+        goals: [],
+      };
+
+      const result = await processor.process(problem);
+
+      expect(result.status).toBe(StreamStatus.COMPLETED);
+      // Verify holistic perspective is generated (covers line 447-448)
+      // The holistic view should be in insights with "big picture"
+      const holisticInsight = result.insights.find((i) => i.content.includes("big picture"));
+      expect(holisticInsight).toBeDefined();
+      // With short context, should use "interconnected situation" or "complex adaptive system"
+      expect(
+        holisticInsight?.content.includes("interconnected situation") ||
+          holisticInsight?.content.includes("complex adaptive system")
+      ).toBe(true);
+    });
+
+    it("should include boundary details in holistic perspective with constraints", async () => {
+      const problem: Problem = {
+        id: "test-holistic-boundaries",
+        description: "Complex system with defined boundaries",
+        context:
+          "Very rich context with multiple layers, stakeholders, and dynamic relationships that evolve",
+        constraints: ["budget limit", "time constraint"],
+        goals: [],
+      };
+
+      const result = await processor.process(problem);
+
+      expect(result.status).toBe(StreamStatus.COMPLETED);
+      // Verify boundaries are mentioned in reasoning (covers line 551-554)
+      expect(result.reasoning.some((r) => r.includes("boundaries"))).toBe(true);
+    });
+
+    it("should include leverage point details in conclusion with multiple high-importance insights", async () => {
+      const problem: Problem = {
+        id: "test-conclusion-leverage-details",
+        description: "Problem with multiple critical leverage points",
+        context:
+          "Rich context with systemic patterns, cause-effect relationships, hidden dependencies, emergent properties, meta-level themes, and integrative insights",
+        constraints: [],
+        goals: ["goal1"],
+      };
+
+      const result = await processor.process(problem);
+
+      expect(result.status).toBe(StreamStatus.COMPLETED);
+      // Verify leverage points are mentioned in conclusion (covers line 694-704)
+      expect(result.conclusion).toContain("leverage");
+      expect(result.conclusion).toContain("strategic");
+    });
+
+    it("should apply context length penalty for very short context", async () => {
+      const problem: Problem = {
+        id: "test-confidence-short-context",
+        description: "Problem with very short context",
+        context: "Short", // Less than 20 chars
+        constraints: [],
+        goals: [],
+      };
+
+      const result = await processor.process(problem);
+
+      expect(result.status).toBe(StreamStatus.COMPLETED);
+      // Verify confidence is reduced for very short context (covers line 752-754)
+      // Base 0.75 - 0.25 penalty = 0.5, but can get boosts from insights
+      // So we just verify it's less than base confidence with good context
+      expect(result.confidence).toBeLessThan(0.85);
+    });
+
+    it("should apply context length penalty for limited context", async () => {
+      const problem: Problem = {
+        id: "test-confidence-limited-context",
+        description: "Problem with limited context",
+        context: "This is limited context text", // Between 20-50 chars
+        constraints: [],
+        goals: [],
+      };
+
+      const result = await processor.process(problem);
+
+      expect(result.status).toBe(StreamStatus.COMPLETED);
+      // Verify confidence is reduced for limited context
+      // Base 0.75 - 0.15 penalty = 0.6, but can get boosts from insights
+      // So we just verify it's less than base confidence with good context
+      expect(result.confidence).toBeLessThan(0.9);
+    });
+
+    it("should generate conclusion without leverage points when no high-importance insights", async () => {
+      const problem: Problem = {
+        id: "test-conclusion-no-leverage",
+        description: "Simple problem",
+        context: "Basic context",
+        constraints: [],
+        goals: [],
+      };
+
+      const result = await processor.process(problem);
+
+      expect(result.status).toBe(StreamStatus.COMPLETED);
+      // Verify conclusion is generated without leverage points (covers line 684-694)
+      expect(result.conclusion).toBeTruthy();
+      expect(result.conclusion).toContain("system");
+    });
+  });
 });
 
 describe("SyntheticReasoningStream", () => {
@@ -731,12 +908,82 @@ describe("SyntheticReasoningStream", () => {
       expect(result.status).toBe(StreamStatus.CANCELLED);
     });
 
+    it("should handle late cancellation after processing completes", async () => {
+      const problem: Problem = {
+        id: "test-late-cancel",
+        description: "Test problem for late cancellation",
+        context: "Test context",
+        constraints: [],
+        goals: [],
+      };
+
+      // Mock processor to complete after a delay
+      vi.spyOn(stream.processor, "process").mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => {
+              resolve({
+                streamId: "test",
+                streamType: StreamType.SYNTHETIC,
+                conclusion: "Completed",
+                reasoning: ["Step 1", "Step 2"],
+                insights: [
+                  {
+                    content: "Test insight",
+                    source: StreamType.SYNTHETIC,
+                    confidence: 0.8,
+                    importance: 0.7,
+                  },
+                ],
+                confidence: 0.8,
+                processingTime: 50,
+                status: StreamStatus.COMPLETED,
+              });
+            }, 50);
+          })
+      );
+
+      const processPromise = stream.process(problem);
+
+      // Cancel immediately - this will set cancelled flag before processing completes
+      stream.cancel();
+
+      const result = await processPromise;
+
+      // Should be cancelled even if processing completed
+      expect(result.status).toBe(StreamStatus.CANCELLED);
+      expect(result.confidence).toBe(0);
+      expect(result.conclusion).toBe("");
+      // Should preserve reasoning and insights from completed processing
+      expect(result.reasoning).toBeDefined();
+      expect(result.insights).toBeDefined();
+    });
+
     it("should be safe to call multiple times", () => {
       expect(() => {
         stream.cancel();
         stream.cancel();
         stream.cancel();
       }).not.toThrow();
+    });
+  });
+
+  describe("error handling in processWithProgress", () => {
+    it("should handle errors thrown during processing", async () => {
+      const problem: Problem = {
+        id: "test-error-processing",
+        description: "Test problem that will cause error",
+        context: "Test context",
+        constraints: [],
+        goals: [],
+      };
+
+      // Mock processor to throw an error
+      vi.spyOn(stream.processor, "process").mockRejectedValue(
+        new Error("Processing failed unexpectedly")
+      );
+
+      await expect(stream.process(problem)).rejects.toThrow("Processing failed unexpectedly");
     });
   });
 });

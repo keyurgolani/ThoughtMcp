@@ -5,6 +5,9 @@
  * caching, and analytics tracking.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable max-lines-per-function */
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemorySector } from "../../../embeddings/types";
 import { MemorySearchEngine } from "../../../search/memory-search-engine";
@@ -213,6 +216,100 @@ describe("MemorySearchEngine", () => {
     });
   });
 
+  describe("Direct Strategy Execution Methods", () => {
+    beforeEach(() => {
+      mockDb.pool.query.mockResolvedValue({
+        rows: [
+          {
+            content: "Test content",
+            created_at: new Date(),
+            salience: 0.8,
+            strength: 0.9,
+          },
+        ],
+      });
+    });
+
+    it("should execute metadata filter and return results", async () => {
+      const mockMetadataFilter = {
+        filter: vi.fn().mockResolvedValue({
+          memoryIds: ["mem-1", "mem-2"],
+          total: 2,
+        }),
+      };
+
+      (searchEngine as any).metadataFilter = mockMetadataFilter;
+
+      const results = await (searchEngine as any).executeMetadataFilter({
+        userId: "user-1",
+        metadata: { keywords: ["test"] },
+        limit: 10,
+      });
+
+      expect(results).toHaveLength(2);
+      expect(results[0].strategy).toBe("metadata");
+      expect(results[0].score).toBe(1.0);
+      expect(mockMetadataFilter.filter).toHaveBeenCalledWith({
+        keywords: ["test"],
+        userId: "user-1",
+        limit: 10,
+        offset: 0,
+      });
+    });
+
+    it("should return empty array when no metadata in query", async () => {
+      const results = await (searchEngine as any).executeMetadataFilter({
+        userId: "user-1",
+        text: "test",
+      });
+
+      expect(results).toEqual([]);
+    });
+
+    it("should execute similarity search and return results", async () => {
+      const mockSimilarityFinder = {
+        findSimilar: vi.fn().mockResolvedValue([
+          {
+            memoryId: "mem-1",
+            similarity: {
+              overall: 0.85,
+              factors: { keyword: 0.9, tag: 0.8 },
+            },
+            explanation: "Similar keywords and tags",
+          },
+        ]),
+      };
+
+      (searchEngine as any).similarityFinder = mockSimilarityFinder;
+
+      const results = await (searchEngine as any).executeSimilaritySearch({
+        userId: "user-1",
+        similarTo: "mem-source",
+        limit: 5,
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].strategy).toBe("similarity");
+      expect(results[0].memoryId).toBe("mem-1");
+      expect(results[0].score).toBe(0.85);
+      expect(results[0].metadata.explanation).toBe("Similar keywords and tags");
+      expect(mockSimilarityFinder.findSimilar).toHaveBeenCalledWith("mem-source", {
+        limit: 5,
+        minSimilarity: 0.0,
+        includeExplanation: true,
+      });
+    });
+
+    it("should return empty array when no similarTo in query", async () => {
+      const results = await (searchEngine as any).executeSimilaritySearch({
+        userId: "user-1",
+        text: "test",
+      });
+
+      expect(results).toEqual([]);
+    });
+  });
+
   describe("Parallel vs Sequential Execution", () => {
     beforeEach(() => {
       vi.spyOn(searchEngine as any, "executeFullTextSearch").mockResolvedValue([
@@ -304,7 +401,7 @@ describe("MemorySearchEngine", () => {
   });
 
   describe("Timeout Handling", () => {
-    it("should throw timeout error when search exceeds max execution time", async () => {
+    it("should throw timeout error when search exceeds max execution time (parallel)", async () => {
       const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
         parallelExecution: true,
         maxExecutionTimeMs: 100,
@@ -318,6 +415,37 @@ describe("MemorySearchEngine", () => {
         engine.search({
           userId: "user-1",
           text: "test",
+        })
+      ).rejects.toMatchObject({
+        name: "IntegratedSearchTimeoutError",
+        message: "Search exceeded maximum execution time of 100ms",
+      });
+    });
+
+    it("should throw timeout error in sequential execution between strategies", async () => {
+      const engine = new MemorySearchEngine(mockDb, mockEmbeddingStorage, {
+        parallelExecution: false,
+        maxExecutionTimeMs: 100,
+      });
+
+      // Mock executeStrategy to take time on first call, then timeout check triggers before second
+      let firstCall = true;
+      vi.spyOn(engine as any, "executeStrategy").mockImplementation(async () => {
+        if (firstCall) {
+          firstCall = false;
+          // First strategy takes 110ms, exceeding the 100ms timeout
+          await new Promise((resolve) => setTimeout(resolve, 110));
+          return ["full-text", []];
+        }
+        // Second strategy should never execute due to timeout
+        return ["vector", []];
+      });
+
+      await expect(
+        engine.search({
+          userId: "user-1",
+          text: "test",
+          embedding: new Array(1536).fill(0.1), // Two strategies to trigger sequential loop
         })
       ).rejects.toMatchObject({
         name: "IntegratedSearchTimeoutError",

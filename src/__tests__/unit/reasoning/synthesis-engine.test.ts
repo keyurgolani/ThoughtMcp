@@ -611,6 +611,52 @@ describe("ResultSynthesisEngine", () => {
     });
   });
 
+  describe("extractRecommendations", () => {
+    it("should extract recommendations from conclusions with 'should'", () => {
+      const results: StreamResult[] = [
+        createMockStreamResult("analytical" as StreamType, "We should implement this approach"),
+      ];
+
+      const synthesis = engine.synthesizeResults(results);
+
+      expect(synthesis.recommendations.length).toBeGreaterThan(0);
+      expect(synthesis.recommendations[0].description).toContain("should");
+    });
+
+    it("should extract recommendations from conclusions with 'recommend'", () => {
+      const results: StreamResult[] = [
+        createMockStreamResult("creative" as StreamType, "I recommend trying this solution"),
+      ];
+
+      const synthesis = engine.synthesizeResults(results);
+
+      expect(synthesis.recommendations.length).toBeGreaterThan(0);
+      expect(synthesis.recommendations[0].description).toContain("recommend");
+    });
+
+    it("should extract recommendations from conclusions with 'suggest'", () => {
+      const results: StreamResult[] = [
+        createMockStreamResult("critical" as StreamType, "I suggest we consider this option"),
+      ];
+
+      const synthesis = engine.synthesizeResults(results);
+
+      expect(synthesis.recommendations.length).toBeGreaterThan(0);
+      expect(synthesis.recommendations[0].description).toContain("suggest");
+    });
+
+    it("should not extract recommendations from conclusions without action words", () => {
+      const results: StreamResult[] = [
+        createMockStreamResult("analytical" as StreamType, "This is a factual observation"),
+      ];
+
+      const synthesis = engine.synthesizeResults(results);
+
+      // Should have no recommendations extracted from conclusion
+      expect(synthesis.recommendations).toHaveLength(0);
+    });
+  });
+
   describe("Edge Cases", () => {
     it("should handle empty conclusion in coherence assessment", () => {
       const synthesis: SynthesizedResult = {

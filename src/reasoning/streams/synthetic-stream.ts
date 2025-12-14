@@ -293,16 +293,6 @@ export class SyntheticStreamProcessor implements StreamProcessor {
       });
     }
 
-    // Default pattern if none detected
-    if (patterns.length === 0) {
-      patterns.push({
-        content: "Pattern analysis: Complex interplay of factors requiring holistic understanding",
-        source: StreamType.SYNTHETIC,
-        confidence: 0.65,
-        importance: 0.7,
-      });
-    }
-
     return patterns;
   }
 
