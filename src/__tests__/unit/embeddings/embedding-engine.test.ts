@@ -9,11 +9,14 @@
  * - Emotional embedding generation from affective content
  * - Reflective embedding generation from meta-insights
  * - Embedding dimension consistency
+ * - Request deduplication
+ * - Batch operations
+ * - Cache efficiency
  *
  * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EmbeddingCache } from "../../../embeddings/cache";
 import { EmbeddingEngine } from "../../../embeddings/embedding-engine";
 import {
@@ -23,6 +26,32 @@ import {
   type TemporalContext,
 } from "../../../embeddings/types";
 import { MockOllamaEmbeddingModel } from "../../utils/mock-embeddings";
+
+// Helper function for cosine similarity calculation
+function calculateCosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) {
+    throw new Error("Embeddings must have same dimension");
+  }
+
+  let dotProduct = 0;
+  let magnitudeA = 0;
+  let magnitudeB = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i];
+    magnitudeA += a[i] * a[i];
+    magnitudeB += b[i] * b[i];
+  }
+
+  magnitudeA = Math.sqrt(magnitudeA);
+  magnitudeB = Math.sqrt(magnitudeB);
+
+  if (magnitudeA === 0 || magnitudeB === 0) {
+    return 0;
+  }
+
+  return dotProduct / (magnitudeA * magnitudeB);
+}
 
 describe("EmbeddingEngine - Episodic Embeddings", () => {
   let engine: EmbeddingEngine;
@@ -39,35 +68,27 @@ describe("EmbeddingEngine - Episodic Embeddings", () => {
   });
 
   it("should generate episodic embedding from temporal content", async () => {
-    // Requirement 2.1: Generate episodic embeddings from temporal content
     const content = "Met with the team at the office to discuss Q4 planning";
     const context: TemporalContext = {
       timestamp: new Date("2024-11-10T14:00:00Z"),
       sessionId: "test-session-1",
-      duration: 3600, // 1 hour in seconds
+      duration: 3600,
       location: "Office Conference Room A",
       participants: ["Alice", "Bob", "Charlie"],
     };
 
     const embedding = await engine.generateEpisodicEmbedding(content, context);
 
-    // Verify embedding is generated
     expect(embedding).toBeDefined();
     expect(Array.isArray(embedding)).toBe(true);
-
-    // Verify dimension consistency
     expect(embedding.length).toBe(expectedDimension);
-
-    // Verify embedding contains valid numbers
     expect(embedding.every((val) => typeof val === "number" && !isNaN(val))).toBe(true);
 
-    // Verify embedding is normalized (unit vector)
     const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
     expect(magnitude).toBeCloseTo(1.0, 5);
   });
 
   it("should generate different embeddings for different temporal contexts", async () => {
-    // Requirement 2.1: Temporal context should influence embedding
     const content = "Team meeting";
 
     const context1: TemporalContext = {
@@ -85,13 +106,11 @@ describe("EmbeddingEngine - Episodic Embeddings", () => {
     const embedding1 = await engine.generateEpisodicEmbedding(content, context1);
     const embedding2 = await engine.generateEpisodicEmbedding(content, context2);
 
-    // Embeddings should be different due to different contexts
     const similarity = calculateCosineSimilarity(embedding1, embedding2);
     expect(similarity).toBeLessThan(1.0);
   });
 
-  it("should handle episodict with minimal context", async () => {
-    // Requirement 2.1: Should work with minimal temporal context
+  it("should handle episodic with minimal context", async () => {
     const content = "Quick standup meeting";
     const context: TemporalContext = {
       timestamp: new Date(),
@@ -120,56 +139,43 @@ describe("EmbeddingEngine - Semantic Embeddings", () => {
   });
 
   it("should generate semantic embedding from factual content", async () => {
-    // Requirement 2.2: Generate semantic embeddings from factual content
     const content =
       "PostgreSQL is a powerful, open-source relational database management system that supports advanced data types and performance optimization features.";
 
     const embedding = await engine.generateSemanticEmbedding(content);
 
-    // Verify embedding is generated
     expect(embedding).toBeDefined();
     expect(Array.isArray(embedding)).toBe(true);
-
-    // Verify dimension consistency
     expect(embedding.length).toBe(expectedDimension);
-
-    // Verify embedding contains valid numbers
     expect(embedding.every((val) => typeof val === "number" && !isNaN(val))).toBe(true);
 
-    // Verify embedding is normalized
     const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
     expect(magnitude).toBeCloseTo(1.0, 5);
   });
 
   it("should generate similar embeddings for semantically similar content", async () => {
-    // Requirement 2.2: Semantic similarity should be reflected in embeddings
     const content1 = "Machine learning is a subset of artificial intelligence";
     const content2 = "AI includes machine learning as one of its core components";
 
     const embedding1 = await engine.generateSemanticEmbedding(content1);
     const embedding2 = await engine.generateSemanticEmbedding(content2);
 
-    // Semantically similar content should have high similarity
     const similarity = calculateCosineSimilarity(embedding1, embedding2);
     expect(similarity).toBeGreaterThan(0.7);
   });
 
   it("should generate different embeddings for semantically different content", async () => {
-    // Requirement 2.2: Different semantic content should have different embeddings
     const content1 = "Database management systems store and retrieve data efficiently";
     const content2 = "Quantum computing uses quantum bits for parallel computation";
 
     const embedding1 = await engine.generateSemanticEmbedding(content1);
     const embedding2 = await engine.generateSemanticEmbedding(content2);
 
-    // Semantically different content should have lower similarity
-    // Note: Mock embeddings are deterministic based on content hash, so similarity may be higher than real embeddings
     const similarity = calculateCosineSimilarity(embedding1, embedding2);
-    expect(similarity).toBeLessThan(0.9); // Adjusted for mock behavior
+    expect(similarity).toBeLessThan(0.9);
   });
 
   it("should handle short factual statements", async () => {
-    // Requirement 2.2: Should work with short factual content
     const content = "Water boils at 100 degrees Celsius";
 
     const embedding = await engine.generateSemanticEmbedding(content);
@@ -194,7 +200,6 @@ describe("EmbeddingEngine - Procedural Embeddings", () => {
   });
 
   it("should generate procedural embedding from process descriptions", async () => {
-    // Requirement 2.3: Generate procedural embeddings from process descriptions
     const content = `To deploy the application:
 1. Build the Docker image using 'docker build -t app:latest .'
 2. Push the image to the registry with 'docker push app:latest'
@@ -203,23 +208,16 @@ describe("EmbeddingEngine - Procedural Embeddings", () => {
 
     const embedding = await engine.generateProceduralEmbedding(content);
 
-    // Verify embedding is generated
     expect(embedding).toBeDefined();
     expect(Array.isArray(embedding)).toBe(true);
-
-    // Verify dimension consistency
     expect(embedding.length).toBe(expectedDimension);
-
-    // Verify embedding contains valid numbers
     expect(embedding.every((val) => typeof val === "number" && !isNaN(val))).toBe(true);
 
-    // Verify embedding is normalized
     const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
     expect(magnitude).toBeCloseTo(1.0, 5);
   });
 
   it("should generate similar embeddings for similar procedures", async () => {
-    // Requirement 2.3: Similar procedures should have similar embeddings
     const content1 =
       "To make coffee: 1. Boil water 2. Add coffee grounds 3. Pour water 4. Wait 5 minutes";
     const content2 =
@@ -228,27 +226,22 @@ describe("EmbeddingEngine - Procedural Embeddings", () => {
     const embedding1 = await engine.generateProceduralEmbedding(content1);
     const embedding2 = await engine.generateProceduralEmbedding(content2);
 
-    // Similar procedures should have high similarity
     const similarity = calculateCosineSimilarity(embedding1, embedding2);
     expect(similarity).toBeGreaterThan(0.7);
   });
 
   it("should generate different embeddings for different procedures", async () => {
-    // Requirement 2.3: Different procedures should have different embeddings
     const content1 = "To bake a cake: Mix ingredients, pour into pan, bake at 350°F for 30 minutes";
     const content2 = "To change a tire: Loosen lug nuts, jack up car, remove wheel, install spare";
 
     const embedding1 = await engine.generateProceduralEmbedding(content1);
     const embedding2 = await engine.generateProceduralEmbedding(content2);
 
-    // Different procedures should have lower similarity
-    // Note: Mock embeddings are deterministic based on content hash, so similarity may be higher than real embeddings
     const similarity = calculateCosineSimilarity(embedding1, embedding2);
-    expect(similarity).toBeLessThan(0.9); // Adjusted for mock behavior
+    expect(similarity).toBeLessThan(0.9);
   });
 
   it("should handle procedural content with implicit steps", async () => {
-    // Requirement 2.3: Should work with implicit procedural knowledge
     const content =
       "When debugging, first reproduce the issue, then isolate the cause, and finally apply a fix";
 
@@ -274,35 +267,27 @@ describe("EmbeddingEngine - Emotional Embeddings", () => {
   });
 
   it("should generate emotional embedding from affective content", async () => {
-    // Requirement 2.4: Generate emotional embeddings from affective content
     const content =
       "I'm thrilled about the project launch! The team worked incredibly hard and the results exceeded all expectations.";
     const emotion: EmotionState = {
-      valence: 0.9, // Very positive
-      arousal: 0.8, // High energy
-      dominance: 0.6, // Feeling in control
+      valence: 0.9,
+      arousal: 0.8,
+      dominance: 0.6,
       primaryEmotion: "joy",
     };
 
     const embedding = await engine.generateEmotionalEmbedding(content, emotion);
 
-    // Verify embedding is generated
     expect(embedding).toBeDefined();
     expect(Array.isArray(embedding)).toBe(true);
-
-    // Verify dimension consistency
     expect(embedding.length).toBe(expectedDimension);
-
-    // Verify embedding contains valid numbers
     expect(embedding.every((val) => typeof val === "number" && !isNaN(val))).toBe(true);
 
-    // Verify embedding is normalized
     const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
     expect(magnitude).toBeCloseTo(1.0, 5);
   });
 
   it("should generate different embeddings for different emotional states", async () => {
-    // Requirement 2.4: Different emotions should produce different embeddings
     const content = "The project outcome was unexpected";
 
     const joyEmotion: EmotionState = {
@@ -322,13 +307,11 @@ describe("EmbeddingEngine - Emotional Embeddings", () => {
     const embedding1 = await engine.generateEmotionalEmbedding(content, joyEmotion);
     const embedding2 = await engine.generateEmotionalEmbedding(content, sadnessEmotion);
 
-    // Different emotional states should produce different embeddings
     const similarity = calculateCosineSimilarity(embedding1, embedding2);
-    expect(similarity).toBeLessThan(0.9); // Adjusted threshold - same content with different emotions still similar
+    expect(similarity).toBeLessThan(0.9);
   });
 
   it("should generate similar embeddings for similar emotional states", async () => {
-    // Requirement 2.4: Similar emotions should have similar embeddings
     const content1 = "I'm excited about the new opportunity";
     const content2 = "I'm enthusiastic about this chance";
 
@@ -349,13 +332,11 @@ describe("EmbeddingEngine - Emotional Embeddings", () => {
     const embedding1 = await engine.generateEmotionalEmbedding(content1, emotion1);
     const embedding2 = await engine.generateEmotionalEmbedding(content2, emotion2);
 
-    // Similar emotional states should have high similarity
     const similarity = calculateCosineSimilarity(embedding1, embedding2);
     expect(similarity).toBeGreaterThan(0.7);
   });
 
   it("should handle neutral emotional content", async () => {
-    // Requirement 2.4: Should work with neutral emotional states
     const content = "The meeting is scheduled for 2 PM";
     const emotion: EmotionState = {
       valence: 0.0,
@@ -386,7 +367,6 @@ describe("EmbeddingEngine - Reflective Embeddings", () => {
   });
 
   it("should generate reflective embedding from meta-insights", async () => {
-    // Requirement 2.5: Generate reflective embeddings from meta-insights
     const content =
       "Looking back at the project, I realize that early planning prevented many issues";
     const insights = [
@@ -397,23 +377,16 @@ describe("EmbeddingEngine - Reflective Embeddings", () => {
 
     const embedding = await engine.generateReflectiveEmbedding(content, insights);
 
-    // Verify embedding is generated
     expect(embedding).toBeDefined();
     expect(Array.isArray(embedding)).toBe(true);
-
-    // Verify dimension consistency
     expect(embedding.length).toBe(expectedDimension);
-
-    // Verify embedding contains valid numbers
     expect(embedding.every((val) => typeof val === "number" && !isNaN(val))).toBe(true);
 
-    // Verify embedding is normalized
     const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
     expect(magnitude).toBeCloseTo(1.0, 5);
   });
 
   it("should generate different embeddings for different insights", async () => {
-    // Requirement 2.5: Different insights should produce different embeddings
     const content = "Reflecting on the experience";
 
     const insights1 = ["Communication is key", "Team collaboration matters"];
@@ -422,13 +395,11 @@ describe("EmbeddingEngine - Reflective Embeddings", () => {
     const embedding1 = await engine.generateReflectiveEmbedding(content, insights1);
     const embedding2 = await engine.generateReflectiveEmbedding(content, insights2);
 
-    // Different insights should produce different embeddings
     const similarity = calculateCosineSimilarity(embedding1, embedding2);
-    expect(similarity).toBeLessThan(0.85); // Adjusted threshold - reflective content can have overlap
+    expect(similarity).toBeLessThan(0.85);
   });
 
   it("should generate similar embeddings for related insights", async () => {
-    // Requirement 2.5: Related insights should have similar embeddings
     const content1 = "I learned that testing early catches bugs sooner";
     const insights1 = ["Early testing is valuable", "Prevention beats cure"];
 
@@ -438,13 +409,11 @@ describe("EmbeddingEngine - Reflective Embeddings", () => {
     const embedding1 = await engine.generateReflectiveEmbedding(content1, insights1);
     const embedding2 = await engine.generateReflectiveEmbedding(content2, insights2);
 
-    // Related insights should have high similarity
     const similarity = calculateCosineSimilarity(embedding1, embedding2);
     expect(similarity).toBeGreaterThan(0.6);
   });
 
   it("should handle reflective content with minimal insights", async () => {
-    // Requirement 2.5: Should work with minimal insights
     const content = "This experience taught me patience";
     const insights = ["Patience is important"];
 
@@ -469,7 +438,6 @@ describe("EmbeddingEngine - Dimension Consistency", () => {
   });
 
   it("should return consistent dimension across all sector types", async () => {
-    // Requirement 2.1-2.5: All embeddings must have consistent dimensions
     const content = "Test content for dimension consistency";
     const context: TemporalContext = { timestamp: new Date(), sessionId: "test-session-9" };
     const emotion: EmotionState = {
@@ -496,15 +464,11 @@ describe("EmbeddingEngine - Dimension Consistency", () => {
   });
 
   it("should respect configured embedding dimension", async () => {
-    // Requirement 2.1-2.5: Dimension should match configuration (1536 or custom)
     const dimension = engine.getModelDimension();
-
-    // Common dimensions: 768 (Ollama), 1024 (E5/BGE), 1536 (OpenAI)
     expect([768, 1024, 1536]).toContain(dimension);
   });
 
   it("should generate embeddings with consistent dimension in batch operations", async () => {
-    // Requirement 2.1-2.5: Batch operations should maintain dimension consistency
     const memories: MemoryContent[] = [
       { text: "Memory 1", sector: MemorySector.Semantic },
       {
@@ -543,7 +507,6 @@ describe("EmbeddingEngine - All Sector Generation", () => {
   });
 
   it("should generate embeddings for all five sectors", async () => {
-    // Requirement 2.1-2.5: Should generate all five sector embeddings
     const memory: MemoryContent = {
       text: "Yesterday I learned a new debugging technique that helped me fix a critical bug. I felt relieved and realized that systematic approaches work better than random trial and error.",
       sector: MemorySector.Episodic,
@@ -563,21 +526,18 @@ describe("EmbeddingEngine - All Sector Generation", () => {
 
     const embeddings = await engine.generateAllSectorEmbeddings(memory);
 
-    // Verify all sectors are present
     expect(embeddings.episodic).toBeDefined();
     expect(embeddings.semantic).toBeDefined();
     expect(embeddings.procedural).toBeDefined();
     expect(embeddings.emotional).toBeDefined();
     expect(embeddings.reflective).toBeDefined();
 
-    // Verify all are arrays
     expect(Array.isArray(embeddings.episodic)).toBe(true);
     expect(Array.isArray(embeddings.semantic)).toBe(true);
     expect(Array.isArray(embeddings.procedural)).toBe(true);
     expect(Array.isArray(embeddings.emotional)).toBe(true);
     expect(Array.isArray(embeddings.reflective)).toBe(true);
 
-    // Verify dimensions
     const expectedDim = engine.getModelDimension();
     expect(embeddings.episodic.length).toBe(expectedDim);
     expect(embeddings.semantic.length).toBe(expectedDim);
@@ -587,7 +547,6 @@ describe("EmbeddingEngine - All Sector Generation", () => {
   });
 
   it("should generate different embeddings for each sector", async () => {
-    // Requirement 2.1-2.5: Each sector should capture different aspects
     const memory: MemoryContent = {
       text: "Team meeting about project planning",
       sector: MemorySector.Episodic,
@@ -598,7 +557,6 @@ describe("EmbeddingEngine - All Sector Generation", () => {
 
     const embeddings = await engine.generateAllSectorEmbeddings(memory);
 
-    // Each sector should be different (not identical)
     const sectors = [
       embeddings.episodic,
       embeddings.semantic,
@@ -607,11 +565,9 @@ describe("EmbeddingEngine - All Sector Generation", () => {
       embeddings.reflective,
     ];
 
-    // Compare all pairs - they should not be identical
     for (let i = 0; i < sectors.length; i++) {
       for (let j = i + 1; j < sectors.length; j++) {
         const similarity = calculateCosineSimilarity(sectors[i], sectors[j]);
-        // Sectors should be different but may have some similarity
         expect(similarity).toBeLessThan(1.0);
       }
     }
@@ -632,7 +588,6 @@ describe("EmbeddingEngine - Batch Operations", () => {
   });
 
   it("should generate embeddings for multiple memories in batch", async () => {
-    // Requirement 2.1-2.5: Support batch generation for efficiency
     const memories: MemoryContent[] = [
       { text: "First memory", sector: MemorySector.Semantic },
       {
@@ -648,7 +603,6 @@ describe("EmbeddingEngine - Batch Operations", () => {
     expect(embeddings).toBeDefined();
     expect(embeddings.length).toBe(3);
 
-    // Each should have all five sectors
     embeddings.forEach((sectorEmbeddings) => {
       expect(sectorEmbeddings.episodic).toBeDefined();
       expect(sectorEmbeddings.semantic).toBeDefined();
@@ -659,7 +613,6 @@ describe("EmbeddingEngine - Batch Operations", () => {
   });
 
   it("should handle empty batch gracefully", async () => {
-    // Requirement 2.1-2.5: Handle edge cases
     const memories: MemoryContent[] = [];
 
     const embeddings = await engine.batchGenerateEmbeddings(memories);
@@ -669,7 +622,6 @@ describe("EmbeddingEngine - Batch Operations", () => {
   });
 
   it("should handle single item batch", async () => {
-    // Requirement 2.1-2.5: Handle edge cases
     const memories: MemoryContent[] = [{ text: "Single memory", sector: MemorySector.Semantic }];
 
     const embeddings = await engine.batchGenerateEmbeddings(memories);
@@ -677,6 +629,22 @@ describe("EmbeddingEngine - Batch Operations", () => {
     expect(embeddings).toBeDefined();
     expect(embeddings.length).toBe(1);
     expect(embeddings[0].semantic).toBeDefined();
+  });
+
+  it("should benefit from caching in batch operations", async () => {
+    const memories: MemoryContent[] = [
+      { text: "Unique content 1", sector: MemorySector.Semantic },
+      { text: "Duplicate content", sector: MemorySector.Semantic },
+      { text: "Unique content 2", sector: MemorySector.Semantic },
+      { text: "Duplicate content", sector: MemorySector.Semantic },
+      { text: "Duplicate content", sector: MemorySector.Semantic },
+    ];
+
+    const results = await engine.batchGenerateEmbeddings(memories);
+
+    expect(results).toHaveLength(5);
+    expect(results[1].semantic).toEqual(results[3].semantic);
+    expect(results[1].semantic).toEqual(results[4].semantic);
   });
 });
 
@@ -694,7 +662,6 @@ describe("EmbeddingEngine - Model Management", () => {
   });
 
   it("should load a different model and clear cache", async () => {
-    // Generate an embedding to populate cache
     const content = "Test content";
     const context: TemporalContext = {
       timestamp: new Date(),
@@ -703,7 +670,6 @@ describe("EmbeddingEngine - Model Management", () => {
 
     await engine.generateEpisodicEmbedding(content, context);
 
-    // Load a new model
     const newModel = new MockOllamaEmbeddingModel({
       host: "http://localhost:11434",
       modelName: "mxbai-embed-large",
@@ -712,7 +678,6 @@ describe("EmbeddingEngine - Model Management", () => {
 
     engine.loadModel(newModel);
 
-    // Verify model dimension changed
     expect(engine.getModelDimension()).toBe(1024);
   });
 
@@ -745,28 +710,115 @@ describe("EmbeddingEngine - Model Management", () => {
   });
 });
 
-// Helper function for cosine similarity calculation
-function calculateCosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) {
-    throw new Error("Embeddings must have same dimension");
-  }
+describe("EmbeddingEngine - Request Deduplication", () => {
+  let engine: EmbeddingEngine;
+  let model: MockOllamaEmbeddingModel;
 
-  let dotProduct = 0;
-  let magnitudeA = 0;
-  let magnitudeB = 0;
+  beforeEach(() => {
+    model = new MockOllamaEmbeddingModel({
+      host: "http://localhost:11434",
+      modelName: "nomic-embed-text",
+      dimension: 768,
+    });
+    const cache = new EmbeddingCache(10000, 3600000);
+    engine = new EmbeddingEngine(model, cache);
+  });
 
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i] * b[i];
-    magnitudeA += a[i] * a[i];
-    magnitudeB += b[i] * b[i];
-  }
+  it("should deduplicate concurrent requests for same content", async () => {
+    const generateSpy = vi.spyOn(model, "generate");
 
-  magnitudeA = Math.sqrt(magnitudeA);
-  magnitudeB = Math.sqrt(magnitudeB);
+    const content = "Duplicate request test content";
 
-  if (magnitudeA === 0 || magnitudeB === 0) {
-    return 0;
-  }
+    const promises = Array.from({ length: 5 }, () => engine.generateSemanticEmbedding(content));
 
-  return dotProduct / (magnitudeA * magnitudeB);
-}
+    const results = await Promise.all(promises);
+
+    expect(results).toHaveLength(5);
+    results.forEach((result) => {
+      expect(result).toEqual(results[0]);
+    });
+
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("should deduplicate concurrent requests across different sectors", async () => {
+    const generateSpy = vi.spyOn(model, "generate");
+
+    const memory: MemoryContent = {
+      text: "Multi-sector deduplication test",
+      sector: MemorySector.Semantic,
+      context: {
+        timestamp: new Date(),
+        sessionId: "test-session",
+      },
+      emotion: {
+        valence: 0.5,
+        arousal: 0.5,
+        dominance: 0.0,
+      },
+      insights: ["Test insight"],
+    };
+
+    const promises = Array.from({ length: 3 }, () => engine.generateAllSectorEmbeddings(memory));
+
+    const results = await Promise.all(promises);
+
+    expect(results).toHaveLength(3);
+    results.forEach((result) => {
+      expect(result).toEqual(results[0]);
+    });
+
+    expect(generateSpy.mock.calls.length).toBeLessThanOrEqual(5);
+  });
+
+  it("should not deduplicate requests for different content", async () => {
+    const generateSpy = vi.spyOn(model, "generate");
+
+    const promises = [
+      engine.generateSemanticEmbedding("Content A"),
+      engine.generateSemanticEmbedding("Content B"),
+      engine.generateSemanticEmbedding("Content C"),
+    ];
+
+    await Promise.all(promises);
+
+    expect(generateSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it("should handle deduplication with cache misses and hits", async () => {
+    const content = "Cache and deduplication test";
+
+    await engine.generateSemanticEmbedding(content);
+
+    const generateSpy = vi.spyOn(model, "generate");
+
+    const promises = Array.from({ length: 5 }, () => engine.generateSemanticEmbedding(content));
+
+    await Promise.all(promises);
+
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("EmbeddingEngine - Cache Efficiency", () => {
+  let engine: EmbeddingEngine;
+
+  beforeEach(() => {
+    const model = new MockOllamaEmbeddingModel({
+      host: "http://localhost:11434",
+      modelName: "nomic-embed-text",
+      dimension: 768,
+    });
+    const cache = new EmbeddingCache(10000, 3600000);
+    engine = new EmbeddingEngine(model, cache);
+  });
+
+  it("should use cache for repeated requests", async () => {
+    const content = "Cache test content";
+
+    const embedding1 = await engine.generateSemanticEmbedding(content);
+    const embedding2 = await engine.generateSemanticEmbedding(content);
+
+    expect(embedding1).toEqual(embedding2);
+  });
+});

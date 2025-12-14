@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { BiasLearningSystem } from "../../../bias/bias-learning-system";
 import type { BiasFeedback, DetectedBias } from "../../../bias/types";
 import { BiasType } from "../../../bias/types";
+import { seededRandom, TIME } from "../../utils/test-helpers";
 
 // Test fixtures and helpers
 function createMockDetectedBias(overrides?: Partial<DetectedBias>): DetectedBias {
@@ -45,6 +46,7 @@ describe("BiasLearningSystem", () => {
 
   beforeEach(() => {
     learningSystem = new BiasLearningSystem();
+    seededRandom.reset();
   });
 
   afterEach(() => {
@@ -227,23 +229,29 @@ describe("BiasLearningSystem", () => {
     });
 
     it("should track accuracy improvement over time with feedback", () => {
-      // Add early feedback (lower accuracy)
+      // Add early feedback (lower accuracy) - 8 days ago
+      // Note: Using Date.now() here because getImprovementRate compares against current time
+      const now = Date.now();
       learningSystem.integrateFeedback(
         createMockFeedback({
           correct: true,
-          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 8),
+          timestamp: new Date(now - 8 * TIME.DAY),
         })
       );
       learningSystem.integrateFeedback(
         createMockFeedback({
           correct: false,
-          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 8),
+          timestamp: new Date(now - 8 * TIME.DAY),
         })
       );
 
       // Add recent feedback (higher accuracy)
-      learningSystem.integrateFeedback(createMockFeedback({ correct: true }));
-      learningSystem.integrateFeedback(createMockFeedback({ correct: true }));
+      learningSystem.integrateFeedback(
+        createMockFeedback({ correct: true, timestamp: new Date(now) })
+      );
+      learningSystem.integrateFeedback(
+        createMockFeedback({ correct: true, timestamp: new Date(now) })
+      );
 
       const improvement = learningSystem.getImprovementRate("week");
       expect(improvement).toBeGreaterThanOrEqual(0);
@@ -366,19 +374,23 @@ describe("BiasLearningSystem", () => {
     });
 
     it("should calculate improvement rate for day period", () => {
-      // Add feedback from yesterday
+      // Note: Using Date.now() here because getImprovementRate compares against current time
+      const now = Date.now();
+      // Add feedback from yesterday (25 hours ago)
       for (let i = 0; i < 5; i++) {
         learningSystem.integrateFeedback(
           createMockFeedback({
             correct: false,
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 25), // 25 hours ago
+            timestamp: new Date(now - 25 * TIME.HOUR),
           })
         );
       }
 
       // Add recent feedback (today)
       for (let i = 0; i < 5; i++) {
-        learningSystem.integrateFeedback(createMockFeedback({ correct: true }));
+        learningSystem.integrateFeedback(
+          createMockFeedback({ correct: true, timestamp: new Date(now) })
+        );
       }
 
       const improvement = learningSystem.getImprovementRate("day");
@@ -386,19 +398,23 @@ describe("BiasLearningSystem", () => {
     });
 
     it("should calculate improvement rate for week period", () => {
+      // Note: Using Date.now() here because getImprovementRate compares against current time
+      const now = Date.now();
       // Add feedback from 8 days ago
       for (let i = 0; i < 5; i++) {
         learningSystem.integrateFeedback(
           createMockFeedback({
             correct: false,
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 8),
+            timestamp: new Date(now - 8 * TIME.DAY),
           })
         );
       }
 
       // Add recent feedback (this week)
       for (let i = 0; i < 5; i++) {
-        learningSystem.integrateFeedback(createMockFeedback({ correct: true }));
+        learningSystem.integrateFeedback(
+          createMockFeedback({ correct: true, timestamp: new Date(now) })
+        );
       }
 
       const improvement = learningSystem.getImprovementRate("week");
@@ -406,19 +422,23 @@ describe("BiasLearningSystem", () => {
     });
 
     it("should calculate improvement rate for month period", () => {
+      // Note: Using Date.now() here because getImprovementRate compares against current time
+      const now = Date.now();
       // Add feedback from 31 days ago
       for (let i = 0; i < 5; i++) {
         learningSystem.integrateFeedback(
           createMockFeedback({
             correct: false,
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 31),
+            timestamp: new Date(now - 31 * TIME.DAY),
           })
         );
       }
 
       // Add recent feedback (this month)
       for (let i = 0; i < 5; i++) {
-        learningSystem.integrateFeedback(createMockFeedback({ correct: true }));
+        learningSystem.integrateFeedback(
+          createMockFeedback({ correct: true, timestamp: new Date(now) })
+        );
       }
 
       const improvement = learningSystem.getImprovementRate("month");
@@ -426,9 +446,11 @@ describe("BiasLearningSystem", () => {
     });
 
     it("should converge to optimal thresholds", () => {
-      // Simulate learning over time
+      // Simulate learning over time with deterministic random
       for (let i = 0; i < 50; i++) {
-        learningSystem.integrateFeedback(createMockFeedback({ correct: Math.random() > 0.3 }));
+        learningSystem.integrateFeedback(
+          createMockFeedback({ correct: seededRandom.next() > 0.3 })
+        );
       }
 
       const learningMetrics = learningSystem.getLearningMetrics();
@@ -462,19 +484,23 @@ describe("BiasLearningSystem", () => {
     });
 
     it("should track improvement metrics (false positive/negative reduction)", () => {
-      // Early period with more false positives
+      // Note: Using Date.now() here because getImprovementRate compares against current time
+      const now = Date.now();
+      // Early period with more false positives (8 days ago)
       for (let i = 0; i < 5; i++) {
         learningSystem.integrateFeedback(
           createMockFeedback({
             correct: false,
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 8),
+            timestamp: new Date(now - 8 * TIME.DAY),
           })
         );
       }
 
       // Recent period with fewer false positives
       for (let i = 0; i < 5; i++) {
-        learningSystem.integrateFeedback(createMockFeedback({ correct: true }));
+        learningSystem.integrateFeedback(
+          createMockFeedback({ correct: true, timestamp: new Date(now) })
+        );
       }
 
       const improvement = learningSystem.getImprovementRate("week");

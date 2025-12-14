@@ -41,161 +41,36 @@ export class SyntheticStreamProcessor implements StreamProcessor {
     const insights: Insight[] = [];
 
     // Validate problem - throw for truly invalid problems
-    if (!problem || !problem.id || !problem.description) {
+    if (!problem?.id || !problem.description) {
       throw new Error("Invalid problem: missing required fields");
     }
 
     try {
       // Extract key terms for problem-specific patterns (Req 4.4, 15.3)
       const keyTerms = this.keyTermExtractor.extract(problem.description, problem.context);
-      const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+      const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the system";
 
       // Step 1: Initial pattern recognition
       reasoning.push(
         `Analyzing patterns and connections in: ${problem.description.substring(0, 100)}${problem.description.length > 100 ? "..." : ""}`
       );
 
-      // Step 2: Identify patterns across the problem space
-      const patterns = this.identifyPatterns(problem, keyTerms);
-      if (patterns.length > 0) {
-        reasoning.push(`Identified ${patterns.length} recurring patterns in ${primaryTerm}`);
-        // Add specific pattern details to reasoning
-        for (const pattern of patterns) {
-          if (
-            pattern.content.toLowerCase().includes("cause") ||
-            pattern.content.toLowerCase().includes("effect")
-          ) {
-            reasoning.push(`Pattern analysis: ${pattern.content.substring(0, 100)}`);
-            break;
-          }
-        }
-        insights.push(...patterns);
-      }
-
-      // Step 3: Map connections between concepts
-      const connections = this.mapConnections(problem, keyTerms);
-      if (connections.length > 0) {
-        reasoning.push(`Mapped ${connections.length} key connections in ${primaryTerm}`);
-        // Add specific connection details to reasoning
-        for (const connection of connections) {
-          const content = connection.content.toLowerCase();
-          if (
-            content.includes("affects") ||
-            content.includes("relates") ||
-            content.includes("influences")
-          ) {
-            reasoning.push(`Connection insight: ${connection.content.substring(0, 100)}`);
-            break;
-          }
-        }
-        for (const connection of connections) {
-          const content = connection.content.toLowerCase();
-          if (
-            content.includes("hidden") ||
-            content.includes("subtle") ||
-            content.includes("indirect")
-          ) {
-            reasoning.push(`Hidden relationship: ${connection.content.substring(0, 100)}`);
-            break;
-          }
-        }
-        for (const connection of connections) {
-          const content = connection.content.toLowerCase();
-          if (
-            content.includes("interdepend") ||
-            content.includes("depend") ||
-            content.includes("mutual")
-          ) {
-            reasoning.push(`Interdependency: ${connection.content.substring(0, 100)}`);
-            break;
-          }
-        }
-        insights.push(...connections);
-      }
-
-      // Step 4: Extract overarching themes
-      const themes = this.extractThemes(problem, keyTerms);
-      if (themes.length > 0) {
-        reasoning.push(`Extracted ${themes.length} unifying themes for ${primaryTerm}`);
-        // Add specific theme details to reasoning
-        for (const theme of themes) {
-          const content = theme.content.toLowerCase();
-          if (
-            content.includes("meta") ||
-            content.includes("higher level") ||
-            content.includes("broader")
-          ) {
-            reasoning.push(`Meta-level theme: ${theme.content.substring(0, 100)}`);
-            break;
-          }
-        }
-        for (const theme of themes) {
-          const content = theme.content.toLowerCase();
-          if (
-            content.includes("emergent") ||
-            content.includes("emerge") ||
-            content.includes("whole")
-          ) {
-            reasoning.push(`Emergent insight: ${theme.content.substring(0, 100)}`);
-            break;
-          }
-        }
-        insights.push(...themes);
-      }
-
-      // Step 5: Apply integrative thinking
-      const integratedInsights = this.integrateInformation(
-        problem,
-        [...patterns, ...connections, ...themes],
-        keyTerms
-      );
-      if (integratedInsights.length > 0) {
-        reasoning.push(
-          `Synthesized ${integratedInsights.length} integrative insights for ${primaryTerm}`
-        );
-        // Add specific integration details to reasoning
-        for (const insight of integratedInsights) {
-          const content = insight.content.toLowerCase();
-          if (
-            content.includes("paradox") ||
-            content.includes("tension") ||
-            content.includes("both")
-          ) {
-            reasoning.push(`Integration: ${insight.content.substring(0, 100)}`);
-            break;
-          }
-        }
-        insights.push(...integratedInsights);
-      }
+      // Steps 2-5: Core synthesis analysis
+      this.performCoreSynthesis(problem, keyTerms, primaryTerm, reasoning, insights);
 
       // Step 6: Generate holistic perspective
       const holisticView = this.generateHolisticPerspective(problem, insights, keyTerms);
       reasoning.push(`Big picture view: ${holisticView.content}`);
       insights.push(holisticView);
 
-      // Step 7: Identify leverage points
-      const leveragePoints = this.identifyLeveragePoints(problem, insights, keyTerms);
-      if (leveragePoints.length > 0) {
-        reasoning.push(
-          `Identified ${leveragePoints.length} critical leverage points for ${primaryTerm}`
-        );
-        insights.push(...leveragePoints);
-      }
-
-      // Step 8: Consider temporal dynamics
-      if (problem.context && problem.context.length > 0) {
-        reasoning.push(`Considering how ${primaryTerm} evolves over time`);
-        const temporalInsights = this.considerTemporalDynamics(problem, keyTerms);
-        insights.push(...temporalInsights);
-      }
+      // Steps 7-8: Leverage points and temporal dynamics
+      this.analyzeLeverageAndTemporal(problem, keyTerms, primaryTerm, reasoning, insights);
 
       // Step 9: Generate conclusion
       const conclusion = this.generateConclusion(problem, insights, keyTerms);
       reasoning.push(`Therefore, ${conclusion}`);
 
-      // Calculate confidence based on synthesis quality
       const confidence = this.calculateConfidence(problem, insights);
-
       const processingTime = Math.max(1, Date.now() - startTime);
 
       // Return top insights
@@ -238,6 +113,160 @@ export class SyntheticStreamProcessor implements StreamProcessor {
     return StreamType.SYNTHETIC;
   }
 
+  private performCoreSynthesis(
+    problem: Problem,
+    keyTerms: KeyTerms,
+    primaryTerm: string,
+    reasoning: string[],
+    insights: Insight[]
+  ): void {
+    // Step 2: Identify patterns
+    const patterns = this.identifyPatterns(problem, keyTerms);
+    this.addPatternReasoning(patterns, primaryTerm, reasoning, insights);
+
+    // Step 3: Map connections
+    const connections = this.mapConnections(problem, keyTerms);
+    this.addConnectionReasoning(connections, primaryTerm, reasoning, insights);
+
+    // Step 4: Extract themes
+    const themes = this.extractThemes(problem, keyTerms);
+    this.addThemeReasoning(themes, primaryTerm, reasoning, insights);
+
+    // Step 5: Integrate information
+    const integratedInsights = this.integrateInformation(
+      problem,
+      [...patterns, ...connections, ...themes],
+      keyTerms
+    );
+    this.addIntegrationReasoning(integratedInsights, primaryTerm, reasoning, insights);
+  }
+
+  private addPatternReasoning(
+    patterns: Insight[],
+    primaryTerm: string,
+    reasoning: string[],
+    insights: Insight[]
+  ): void {
+    if (patterns.length > 0) {
+      reasoning.push(`Identified ${patterns.length} recurring patterns in ${primaryTerm}`);
+      this.addFirstMatchingReasoning(patterns, ["cause", "effect"], "Pattern analysis", reasoning);
+      insights.push(...patterns);
+    }
+  }
+
+  private addConnectionReasoning(
+    connections: Insight[],
+    primaryTerm: string,
+    reasoning: string[],
+    insights: Insight[]
+  ): void {
+    if (connections.length > 0) {
+      reasoning.push(`Mapped ${connections.length} key connections in ${primaryTerm}`);
+      this.addFirstMatchingReasoning(
+        connections,
+        ["affects", "relates", "influences"],
+        "Connection insight",
+        reasoning
+      );
+      this.addFirstMatchingReasoning(
+        connections,
+        ["hidden", "subtle", "indirect"],
+        "Hidden relationship",
+        reasoning
+      );
+      this.addFirstMatchingReasoning(
+        connections,
+        ["interdepend", "depend", "mutual"],
+        "Interdependency",
+        reasoning
+      );
+      insights.push(...connections);
+    }
+  }
+
+  private addThemeReasoning(
+    themes: Insight[],
+    primaryTerm: string,
+    reasoning: string[],
+    insights: Insight[]
+  ): void {
+    if (themes.length > 0) {
+      reasoning.push(`Extracted ${themes.length} unifying themes for ${primaryTerm}`);
+      this.addFirstMatchingReasoning(
+        themes,
+        ["meta", "higher level", "broader"],
+        "Meta-level theme",
+        reasoning
+      );
+      this.addFirstMatchingReasoning(
+        themes,
+        ["emergent", "emerge", "whole"],
+        "Emergent insight",
+        reasoning
+      );
+      insights.push(...themes);
+    }
+  }
+
+  private addIntegrationReasoning(
+    integratedInsights: Insight[],
+    primaryTerm: string,
+    reasoning: string[],
+    insights: Insight[]
+  ): void {
+    if (integratedInsights.length > 0) {
+      reasoning.push(
+        `Synthesized ${integratedInsights.length} integrative insights for ${primaryTerm}`
+      );
+      this.addFirstMatchingReasoning(
+        integratedInsights,
+        ["paradox", "tension", "both"],
+        "Integration",
+        reasoning
+      );
+      insights.push(...integratedInsights);
+    }
+  }
+
+  private addFirstMatchingReasoning(
+    items: Insight[],
+    keywords: string[],
+    prefix: string,
+    reasoning: string[]
+  ): void {
+    for (const item of items) {
+      const content = item.content.toLowerCase();
+      if (keywords.some((kw) => content.includes(kw))) {
+        reasoning.push(`${prefix}: ${item.content.substring(0, 100)}`);
+        return;
+      }
+    }
+  }
+
+  private analyzeLeverageAndTemporal(
+    problem: Problem,
+    keyTerms: KeyTerms,
+    primaryTerm: string,
+    reasoning: string[],
+    insights: Insight[]
+  ): void {
+    // Step 7: Identify leverage points
+    const leveragePoints = this.identifyLeveragePoints(problem, insights, keyTerms);
+    if (leveragePoints.length > 0) {
+      reasoning.push(
+        `Identified ${leveragePoints.length} critical leverage points for ${primaryTerm}`
+      );
+      insights.push(...leveragePoints);
+    }
+
+    // Step 8: Consider temporal dynamics
+    if (problem.context && problem.context.length > 0) {
+      reasoning.push(`Considering how ${primaryTerm} evolves over time`);
+      const temporalInsights = this.considerTemporalDynamics(problem, keyTerms);
+      insights.push(...temporalInsights);
+    }
+  }
+
   /**
    * Identify patterns across disparate information with term reference tracking
    *
@@ -247,68 +276,90 @@ export class SyntheticStreamProcessor implements StreamProcessor {
    */
   private identifyPatterns(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const patterns: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the system";
     const domainTerms = keyTerms.domainTerms.slice(0, 2);
+    const context = problem.context ?? "";
 
-    // Analyze context for patterns
-    const context = problem.context || "";
-    const description = problem.description || "";
-
-    // Look for systemic patterns
-    if (
-      context.includes("multiple") ||
-      context.includes("various") ||
-      context.includes("several")
-    ) {
-      const content = `Pattern in ${primaryTerm}: Multiple interconnected ${domainTerms[0] || "factors"} creating systemic complexity`;
-      patterns.push({
-        content,
-        source: StreamType.SYNTHETIC,
-        confidence: 0.75,
-        importance: 0.8,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
-      });
-    }
-
-    // Look for recurring themes
-    if (
-      description.includes("recurring") ||
-      description.includes("repeated") ||
-      context.includes("again")
-    ) {
-      const content = `Recurring pattern in ${primaryTerm}: Similar ${domainTerms[0] || "issues"} manifesting across different areas`;
-      patterns.push({
-        content,
-        source: StreamType.SYNTHETIC,
-        confidence: 0.7,
-        importance: 0.75,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
-      });
-    }
-
-    // Identify cause-effect patterns with specific terms
-    const causeEffectContent = `Cause-effect pattern in ${primaryTerm}: ${domainTerms[0] || "Issues"} lead to ${domainTerms[1] || "consequences"} with cascading effects`;
-    patterns.push({
-      content: causeEffectContent,
-      source: StreamType.SYNTHETIC,
-      confidence: 0.8,
-      importance: 0.85,
-      referencedTerms: this.keyTermExtractor.findReferencedTerms(causeEffectContent, keyTerms),
-    });
-
-    // Look for feedback loops
-    if (context.includes("cycle") || context.includes("loop") || context.includes("reinforc")) {
-      const content = `Feedback loop in ${primaryTerm}: Self-reinforcing ${domainTerms[0] || "dynamics"} amplifying effects over time`;
-      patterns.push({
-        content,
-        source: StreamType.SYNTHETIC,
-        confidence: 0.75,
-        importance: 0.9,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
-      });
-    }
+    this.checkSystemicPatterns(context, primaryTerm, domainTerms, keyTerms, patterns);
+    this.checkRecurringPatterns(problem, primaryTerm, domainTerms, keyTerms, patterns);
+    this.addCauseEffectPattern(primaryTerm, domainTerms, keyTerms, patterns);
+    this.checkFeedbackLoops(context, primaryTerm, domainTerms, keyTerms, patterns);
 
     return patterns;
+  }
+
+  private checkSystemicPatterns(
+    context: string,
+    primaryTerm: string,
+    domainTerms: string[],
+    keyTerms: KeyTerms,
+    patterns: Insight[]
+  ): void {
+    const hasSystemicIndicators =
+      context.includes("multiple") || context.includes("various") || context.includes("several");
+    if (hasSystemicIndicators) {
+      const content = `Pattern in ${primaryTerm}: Multiple interconnected ${domainTerms[0] ?? "factors"} creating systemic complexity`;
+      patterns.push(this.createPatternInsight(content, 0.75, 0.8, keyTerms));
+    }
+  }
+
+  private checkRecurringPatterns(
+    problem: Problem,
+    primaryTerm: string,
+    domainTerms: string[],
+    keyTerms: KeyTerms,
+    patterns: Insight[]
+  ): void {
+    const context = problem.context ?? "";
+    const description = problem.description ?? "";
+    const hasRecurringIndicators =
+      description.includes("recurring") ||
+      description.includes("repeated") ||
+      context.includes("again");
+    if (hasRecurringIndicators) {
+      const content = `Recurring pattern in ${primaryTerm}: Similar ${domainTerms[0] ?? "issues"} manifesting across different areas`;
+      patterns.push(this.createPatternInsight(content, 0.7, 0.75, keyTerms));
+    }
+  }
+
+  private addCauseEffectPattern(
+    primaryTerm: string,
+    domainTerms: string[],
+    keyTerms: KeyTerms,
+    patterns: Insight[]
+  ): void {
+    const causeEffectContent = `Cause-effect pattern in ${primaryTerm}: ${domainTerms[0] ?? "Issues"} lead to ${domainTerms[1] ?? "consequences"} with cascading effects`;
+    patterns.push(this.createPatternInsight(causeEffectContent, 0.8, 0.85, keyTerms));
+  }
+
+  private checkFeedbackLoops(
+    context: string,
+    primaryTerm: string,
+    domainTerms: string[],
+    keyTerms: KeyTerms,
+    patterns: Insight[]
+  ): void {
+    const hasFeedbackIndicators =
+      context.includes("cycle") || context.includes("loop") || context.includes("reinforc");
+    if (hasFeedbackIndicators) {
+      const content = `Feedback loop in ${primaryTerm}: Self-reinforcing ${domainTerms[0] ?? "dynamics"} amplifying effects over time`;
+      patterns.push(this.createPatternInsight(content, 0.75, 0.9, keyTerms));
+    }
+  }
+
+  private createPatternInsight(
+    content: string,
+    confidence: number,
+    importance: number,
+    keyTerms: KeyTerms
+  ): Insight {
+    return {
+      content,
+      source: StreamType.SYNTHETIC,
+      confidence,
+      importance,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
+    };
   }
 
   /**
@@ -320,12 +371,12 @@ export class SyntheticStreamProcessor implements StreamProcessor {
    */
   private mapConnections(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const connections: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the system";
     const domainTerms = keyTerms.domainTerms.slice(0, 2);
     const terms = keyTerms.terms.slice(0, 3);
 
     // Identify direct connections and relationships
-    const directContent = `Connection mapping in ${primaryTerm}: ${terms.join(", ")} affects overall ${domainTerms[0] || "dynamics"}`;
+    const directContent = `Connection mapping in ${primaryTerm}: ${terms.join(", ")} affects overall ${domainTerms[0] ?? "dynamics"}`;
     connections.push({
       content: directContent,
       source: StreamType.SYNTHETIC,
@@ -335,7 +386,7 @@ export class SyntheticStreamProcessor implements StreamProcessor {
     });
 
     // Look for interdependencies with specific terms
-    const interdepContent = `Interdependencies in ${primaryTerm}: ${domainTerms[0] || "Elements"} and ${domainTerms[1] || "components"} mutually depend on each other`;
+    const interdepContent = `Interdependencies in ${primaryTerm}: ${domainTerms[0] ?? "Elements"} and ${domainTerms[1] ?? "components"} mutually depend on each other`;
     connections.push({
       content: interdepContent,
       source: StreamType.SYNTHETIC,
@@ -345,7 +396,7 @@ export class SyntheticStreamProcessor implements StreamProcessor {
     });
 
     // Identify hidden connections with specific terms
-    const hiddenContent = `Hidden connections in ${primaryTerm}: Subtle indirect relationships linking ${terms.slice(0, 2).join(" and ") || "separate issues"}`;
+    const hiddenContent = `Hidden connections in ${primaryTerm}: Subtle indirect relationships linking ${terms.slice(0, 2).join(" and ") ?? "separate issues"}`;
     connections.push({
       content: hiddenContent,
       source: StreamType.SYNTHETIC,
@@ -378,11 +429,11 @@ export class SyntheticStreamProcessor implements StreamProcessor {
    */
   private extractThemes(_problem: Problem, keyTerms: KeyTerms): Insight[] {
     const themes: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the system";
     const domainTerms = keyTerms.domainTerms.slice(0, 2);
 
     // Extract unifying themes with specific terms
-    const unifyingContent = `Unifying theme for ${primaryTerm}: Balancing ${domainTerms[0] || "competing priorities"} and ${domainTerms[1] || "managing complexity"}`;
+    const unifyingContent = `Unifying theme for ${primaryTerm}: Balancing ${domainTerms[0] ?? "competing priorities"} and ${domainTerms[1] ?? "managing complexity"}`;
     themes.push({
       content: unifyingContent,
       source: StreamType.SYNTHETIC,
@@ -392,7 +443,7 @@ export class SyntheticStreamProcessor implements StreamProcessor {
     });
 
     // Meta-level insights with specific terms
-    const metaContent = `Meta-level insight for ${primaryTerm}: Reflects broader ${domainTerms[0] || "systemic"} patterns requiring strategic thinking`;
+    const metaContent = `Meta-level insight for ${primaryTerm}: Reflects broader ${domainTerms[0] ?? "systemic"} patterns requiring strategic thinking`;
     themes.push({
       content: metaContent,
       source: StreamType.SYNTHETIC,
@@ -402,7 +453,7 @@ export class SyntheticStreamProcessor implements StreamProcessor {
     });
 
     // Emergent properties with specific terms
-    const emergentContent = `Emergent property of ${primaryTerm}: ${domainTerms[0] || "System"} behaviors emerge from ${domainTerms[1] || "component"} interactions`;
+    const emergentContent = `Emergent property of ${primaryTerm}: ${domainTerms[0] ?? "System"} behaviors emerge from ${domainTerms[1] ?? "component"} interactions`;
     themes.push({
       content: emergentContent,
       source: StreamType.SYNTHETIC,
@@ -428,12 +479,12 @@ export class SyntheticStreamProcessor implements StreamProcessor {
     keyTerms: KeyTerms
   ): Insight[] {
     const integrated: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the system";
     const domainTerms = keyTerms.domainTerms.slice(0, 2);
 
     // Synthesize multiple perspectives
     if (existingInsights.length >= 3) {
-      const synthesisContent = `Synthesis for ${primaryTerm}: Integrating ${domainTerms[0] || "patterns"}, ${domainTerms[1] || "connections"}, and themes reveals coherent view`;
+      const synthesisContent = `Synthesis for ${primaryTerm}: Integrating ${domainTerms[0] ?? "patterns"}, ${domainTerms[1] ?? "connections"}, and themes reveals coherent view`;
       integrated.push({
         content: synthesisContent,
         source: StreamType.SYNTHETIC,
@@ -456,7 +507,7 @@ export class SyntheticStreamProcessor implements StreamProcessor {
     }
 
     // Resolve contradictions with specific terms
-    const paradoxContent = `Paradox resolution for ${primaryTerm}: Tensions between ${domainTerms[0] || "competing demands"} can be balanced through systems-level thinking`;
+    const paradoxContent = `Paradox resolution for ${primaryTerm}: Tensions between ${domainTerms[0] ?? "competing demands"} can be balanced through systems-level thinking`;
     integrated.push({
       content: paradoxContent,
       source: StreamType.SYNTHETIC,
@@ -481,8 +532,8 @@ export class SyntheticStreamProcessor implements StreamProcessor {
     insights: Insight[],
     keyTerms: KeyTerms
   ): Insight {
-    const context = problem.context || "";
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const context = problem.context ?? "";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the system";
     const domainTerms = keyTerms.domainTerms.slice(0, 2);
     const terms = keyTerms.terms.slice(0, 3);
 
@@ -490,9 +541,9 @@ export class SyntheticStreamProcessor implements StreamProcessor {
 
     // Assess complexity
     if (insights.length >= 5 || context.length > 150) {
-      content += `a complex adaptive ${domainTerms[0] || "system"} where `;
+      content += `a complex adaptive ${domainTerms[0] ?? "system"} where `;
     } else {
-      content += `an interconnected ${domainTerms[0] || "situation"} where `;
+      content += `an interconnected ${domainTerms[0] ?? "situation"} where `;
     }
 
     // Add systemic view with specific terms
@@ -504,7 +555,7 @@ export class SyntheticStreamProcessor implements StreamProcessor {
     }
 
     // Add temporal dimension with specific terms
-    content += `evolving through ${domainTerms[1] || "feedback"} mechanisms`;
+    content += `evolving through ${domainTerms[1] ?? "feedback"} mechanisms`;
 
     return {
       content,
@@ -529,14 +580,14 @@ export class SyntheticStreamProcessor implements StreamProcessor {
     keyTerms: KeyTerms
   ): Insight[] {
     const leveragePoints: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the system";
     const domainTerms = keyTerms.domainTerms.slice(0, 2);
 
     // Find high-impact intervention points
     const highImportanceInsights = insights.filter((i) => i.importance > 0.8);
 
     if (highImportanceInsights.length > 0) {
-      const criticalContent = `Critical leverage point for ${primaryTerm}: Focus on ${highImportanceInsights.length} key ${domainTerms[0] || "areas"} with highest impact`;
+      const criticalContent = `Critical leverage point for ${primaryTerm}: Focus on ${highImportanceInsights.length} key ${domainTerms[0] ?? "areas"} with highest impact`;
       leveragePoints.push({
         content: criticalContent,
         source: StreamType.SYNTHETIC,
@@ -548,7 +599,7 @@ export class SyntheticStreamProcessor implements StreamProcessor {
 
     // Consider goals with specific terms
     if (problem.goals && problem.goals.length > 0) {
-      const strategicContent = `Strategic leverage for ${primaryTerm}: Align ${domainTerms[0] || "interventions"} with ${problem.goals[0]} to maximize effectiveness`;
+      const strategicContent = `Strategic leverage for ${primaryTerm}: Align ${domainTerms[0] ?? "interventions"} with ${problem.goals[0]} to maximize effectiveness`;
       leveragePoints.push({
         content: strategicContent,
         source: StreamType.SYNTHETIC,
@@ -570,8 +621,8 @@ export class SyntheticStreamProcessor implements StreamProcessor {
    */
   private considerTemporalDynamics(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const temporal: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the system";
-    const domainTerm = keyTerms.domainTerms[0] || "";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the system";
+    const domainTerm = keyTerms.domainTerms[0] ?? "";
 
     // Time-based evolution with specific terms
     const evolutionContent = `Temporal dynamics of ${primaryTerm}: ${domainTerm || "The system"} changes over time, requiring adaptive ${domainTerm || "strategies"}`;
@@ -608,7 +659,7 @@ export class SyntheticStreamProcessor implements StreamProcessor {
    */
   private generateConclusion(problem: Problem, insights: Insight[], keyTerms: KeyTerms): string {
     const parts: string[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the situation";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the situation";
     const domainTerms = keyTerms.domainTerms.slice(0, 2);
 
     // Overall synthesis with specific terms
@@ -616,25 +667,25 @@ export class SyntheticStreamProcessor implements StreamProcessor {
 
     // Assess complexity
     if (insights.length >= 7) {
-      parts.push(`a highly complex ${domainTerms[0] || "system"}`);
+      parts.push(`a highly complex ${domainTerms[0] ?? "system"}`);
     } else if (insights.length >= 4) {
-      parts.push(`a moderately complex ${domainTerms[0] || "system"}`);
+      parts.push(`a moderately complex ${domainTerms[0] ?? "system"}`);
     } else {
-      parts.push(`an interconnected ${domainTerms[0] || "system"}`);
+      parts.push(`an interconnected ${domainTerms[0] ?? "system"}`);
     }
 
     // Key themes with specific terms
     const highImportanceCount = insights.filter((i) => i.importance > 0.8).length;
     if (highImportanceCount > 0) {
       parts.push(
-        `with ${highImportanceCount} critical ${domainTerms[1] || "leverage point"}${highImportanceCount > 1 ? "s" : ""}`
+        `with ${highImportanceCount} critical ${domainTerms[1] ?? "leverage point"}${highImportanceCount > 1 ? "s" : ""}`
       );
     }
 
     // Strategic direction with specific terms
     if (problem.goals && problem.goals.length > 0) {
       parts.push(
-        `requiring strategic ${domainTerms[0] || "systems-level"} thinking to ${problem.goals[0]}`
+        `requiring strategic ${domainTerms[0] ?? "systems-level"} thinking to ${problem.goals[0]}`
       );
     } else {
       parts.push(

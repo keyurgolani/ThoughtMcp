@@ -41,7 +41,7 @@ export class CreativeStreamProcessor implements StreamProcessor {
     const insights: Insight[] = [];
 
     // Validate problem - throw for truly invalid problems
-    if (!problem || !problem.id || !problem.description) {
+    if (!problem?.id || !problem.description) {
       throw new Error("Invalid problem: missing required fields");
     }
 
@@ -159,17 +159,17 @@ export class CreativeStreamProcessor implements StreamProcessor {
    */
   private generateCreativeIdeas(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const ideas: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the challenge";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the challenge";
     const domainTerms = keyTerms.domainTerms.slice(0, 2);
-    const actionVerb = keyTerms.actionVerbs[0] || "transform";
+    const actionVerb = keyTerms.actionVerbs[0] ?? "transform";
 
     // Generate problem-specific ideas using extracted terms
     const ideaTemplates = [
-      `Create a novel ${domainTerms[0] || "approach"} for ${primaryTerm} that leverages ${domainTerms[1] || "existing strengths"}`,
-      `Imagine ${primaryTerm} reimagined with ${problem.goals?.[0] || "enhanced capabilities"}`,
+      `Create a novel ${domainTerms[0] ?? "approach"} for ${primaryTerm} that leverages ${domainTerms[1] ?? "existing strengths"}`,
+      `Imagine ${primaryTerm} reimagined with ${problem.goals?.[0] ?? "enhanced capabilities"}`,
       `Design a unique method to ${actionVerb} ${primaryTerm} using unconventional techniques`,
-      `Develop an innovative ${domainTerms[0] || "strategy"} that addresses ${primaryTerm} from a fresh angle`,
-      `Invent a creative way to ${problem.goals?.[0] || `improve ${primaryTerm}`} by combining disparate concepts`,
+      `Develop an innovative ${domainTerms[0] ?? "strategy"} that addresses ${primaryTerm} from a fresh angle`,
+      `Invent a creative way to ${problem.goals?.[0] ?? `improve ${primaryTerm}`} by combining disparate concepts`,
     ];
 
     for (const template of ideaTemplates) {
@@ -194,8 +194,8 @@ export class CreativeStreamProcessor implements StreamProcessor {
    */
   private applyAnalogy(_problem: Problem, keyTerms: KeyTerms): Insight[] {
     const insights: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "this challenge";
-    const domainTerm = keyTerms.domainTerms[0] || "";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "this challenge";
+    const domainTerm = keyTerms.domainTerms[0] ?? "";
 
     // Generate problem-specific analogies
     let analogy: string;
@@ -235,8 +235,8 @@ export class CreativeStreamProcessor implements StreamProcessor {
    */
   private applyReframing(_problem: Problem, keyTerms: KeyTerms): Insight[] {
     const insights: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "this situation";
-    const actionVerb = keyTerms.actionVerbs[0] || "improve";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "this situation";
+    const actionVerb = keyTerms.actionVerbs[0] ?? "improve";
 
     // Generate problem-specific reframing
     const perspectives = [
@@ -267,13 +267,13 @@ export class CreativeStreamProcessor implements StreamProcessor {
    */
   private applyLateralThinking(_problem: Problem, keyTerms: KeyTerms): Insight[] {
     const insights: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "this";
-    const domainTerm = keyTerms.domainTerms[0] || "";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "this";
+    const domainTerm = keyTerms.domainTerms[0] ?? "";
 
     // Generate problem-specific "what if" scenarios
     const lateralQuestions = [
       `What if we did the exact opposite with ${primaryTerm} - instead of adding, what if we removed?`,
-      `Suppose we had unlimited ${domainTerm || "resources"} for ${primaryTerm} - what would we try first?`,
+      `Suppose we had unlimited ${domainTerm !== "" ? domainTerm : "resources"} for ${primaryTerm} - what would we try first?`,
       `What if ${primaryTerm} didn't need to exist at all - what would replace it?`,
       `Imagine we could redesign ${primaryTerm} from scratch with today's technology - what would be different?`,
     ];
@@ -301,7 +301,7 @@ export class CreativeStreamProcessor implements StreamProcessor {
    */
   private combineIdeas(ideas: Insight[], _problem: Problem, keyTerms: KeyTerms): Insight[] {
     const combined: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the solution";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the solution";
     const domainTerms = keyTerms.domainTerms.slice(0, 2);
 
     if (ideas.length >= 2) {
@@ -401,7 +401,7 @@ export class CreativeStreamProcessor implements StreamProcessor {
    */
   private adaptToConstraints(_ideas: Insight[], problem: Problem, keyTerms: KeyTerms): Insight[] {
     const adapted: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the solution";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the solution";
 
     if (problem.constraints && problem.constraints.length > 0) {
       const constraint = problem.constraints[0];
@@ -415,7 +415,7 @@ export class CreativeStreamProcessor implements StreamProcessor {
       });
 
       // Show optimistic, possibility-focused thinking with specific terms
-      const optimisticContent = `Despite ${constraint}, ${primaryTerm} can achieve goals through creative ${keyTerms.domainTerms[0] || "resource"} allocation`;
+      const optimisticContent = `Despite ${constraint}, ${primaryTerm} can achieve goals through creative ${keyTerms.domainTerms[0] ?? "resource"} allocation`;
       adapted.push({
         content: optimisticContent,
         source: StreamType.CREATIVE,
@@ -438,7 +438,7 @@ export class CreativeStreamProcessor implements StreamProcessor {
    */
   private generateConclusion(problem: Problem, ideas: Insight[], keyTerms: KeyTerms): string {
     const parts: string[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the challenge";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the challenge";
 
     // Count highly novel ideas
     const highNoveltyCount = ideas.filter((i) => i.importance > 0.7).length;

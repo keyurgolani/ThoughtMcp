@@ -2078,29 +2078,50 @@ export class MemoryRepository {
     input: import("./types").BatchCreateInput
   ): Promise<import("./types").BatchCreateResult> {
     const startTime = Date.now();
+
+    // Process all memories in parallel for better performance
+    const results = await Promise.all(
+      input.memories.map(async (memoryInput) => {
+        try {
+          const memory = await this.create(
+            {
+              content: memoryInput.content,
+              userId: input.userId,
+              sessionId: input.sessionId,
+              primarySector: memoryInput.primarySector,
+            },
+            memoryInput.metadata
+          );
+
+          return {
+            success: true as const,
+            memoryId: memory.id,
+            content: memoryInput.content.substring(0, 100),
+          };
+        } catch (error) {
+          return {
+            success: false as const,
+            content: memoryInput.content.substring(0, 100),
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+      })
+    );
+
+    // Separate successes and failures
     const created: Array<{ memoryId: string; content: string }> = [];
     const failures: Array<{ content: string; error: string }> = [];
 
-    for (const memoryInput of input.memories) {
-      try {
-        const memory = await this.create(
-          {
-            content: memoryInput.content,
-            userId: input.userId,
-            sessionId: input.sessionId,
-            primarySector: memoryInput.primarySector,
-          },
-          memoryInput.metadata
-        );
-
+    for (const result of results) {
+      if (result.success) {
         created.push({
-          memoryId: memory.id,
-          content: memoryInput.content.substring(0, 100),
+          memoryId: result.memoryId,
+          content: result.content,
         });
-      } catch (error) {
+      } else {
         failures.push({
-          content: memoryInput.content.substring(0, 100),
-          error: error instanceof Error ? error.message : String(error),
+          content: result.content,
+          error: result.error,
         });
       }
     }

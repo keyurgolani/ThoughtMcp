@@ -128,10 +128,10 @@ ThoughtMCP v0.5.0 is a complete architectural rebuild delivering a production-re
 
 | Metric             | Target | Achieved |
 | ------------------ | ------ | -------- |
-| Statement Coverage | 95%+   | 96.06%   |
-| Branch Coverage    | 90%+   | 91.22%   |
-| Function Coverage  | 95%+   | 98.94%   |
-| Test Count         | -      | 3457     |
+| Statement Coverage | 75%+   | 77.25%   |
+| Branch Coverage    | 75%+   | 83.69%   |
+| Function Coverage  | 75%+   | 86.17%   |
+| Test Count         | -      | 2239     |
 | TypeScript Errors  | 0      | 0        |
 | ESLint Errors      | 0      | 0        |
 

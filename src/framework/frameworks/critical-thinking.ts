@@ -164,7 +164,7 @@ export class CriticalThinkingFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const identifyResult = previousResults.find((r) => r.stepId === "identify");
-        if (!identifyResult || !identifyResult.success) {
+        if (!identifyResult?.success) {
           return {
             valid: false,
             issues: ["Claims must be identified before evaluating evidence"],
@@ -228,7 +228,7 @@ export class CriticalThinkingFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const evaluateResult = previousResults.find((r) => r.stepId === "evaluate");
-        if (!evaluateResult || !evaluateResult.success) {
+        if (!evaluateResult?.success) {
           return {
             valid: false,
             issues: ["Evidence must be evaluated before examining assumptions"],
@@ -292,7 +292,7 @@ export class CriticalThinkingFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const examineResult = previousResults.find((r) => r.stepId === "examine");
-        if (!examineResult || !examineResult.success) {
+        if (!examineResult?.success) {
           return {
             valid: false,
             issues: ["Assumptions must be examined before assessing logic"],
@@ -357,7 +357,7 @@ export class CriticalThinkingFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const assessResult = previousResults.find((r) => r.stepId === "assess");
-        if (!assessResult || !assessResult.success) {
+        if (!assessResult?.success) {
           return {
             valid: false,
             issues: ["Logic must be assessed before validating conclusions"],

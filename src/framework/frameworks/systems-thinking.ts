@@ -162,7 +162,7 @@ export class SystemsThinkingFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const boundaryResult = previousResults.find((r) => r.stepId === "boundary");
-        if (!boundaryResult || !boundaryResult.success) {
+        if (!boundaryResult?.success) {
           return {
             valid: false,
             issues: ["System boundary must be defined before identifying components"],
@@ -231,7 +231,7 @@ export class SystemsThinkingFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const componentsResult = previousResults.find((r) => r.stepId === "components");
-        if (!componentsResult || !componentsResult.success) {
+        if (!componentsResult?.success) {
           return {
             valid: false,
             issues: ["Components must be identified before mapping relationships"],
@@ -295,7 +295,7 @@ export class SystemsThinkingFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const relationshipsResult = previousResults.find((r) => r.stepId === "relationships");
-        if (!relationshipsResult || !relationshipsResult.success) {
+        if (!relationshipsResult?.success) {
           return {
             valid: false,
             issues: ["Relationships must be mapped before analyzing feedback loops"],
@@ -363,7 +363,7 @@ export class SystemsThinkingFramework extends BaseFramework {
       },
       validate: async (_context: Context, previousResults: StepResult[]) => {
         const feedbackResult = previousResults.find((r) => r.stepId === "feedback");
-        if (!feedbackResult || !feedbackResult.success) {
+        if (!feedbackResult?.success) {
           return {
             valid: false,
             issues: ["Feedback loops must be analyzed before finding leverage points"],

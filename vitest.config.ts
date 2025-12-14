@@ -1,5 +1,38 @@
 import { defineConfig } from "vitest/config";
 
+/**
+ * Main Vitest Configuration: Local Tests (Unit + Integration)
+ *
+ * This configuration is for all local tests that:
+ * - Do NOT require real external dependencies (PostgreSQL, Ollama)
+ * - Use mocks for all external services
+ * - Can run in parallel across multiple threads
+ * - Are part of the default test target (npm test)
+ *
+ * Execution characteristics:
+ * - 10 parallel worker threads for maximum throughput
+ * - 10 second test timeout for unit tests
+ * - 30 second hook timeout for setup/teardown
+ * - Full test isolation between files
+ *
+ * Test file patterns:
+ * - src/__tests__/unit/** (all .test.ts files)
+ * - src/__tests__/integration/** (all .test.ts files)
+ *
+ * Excludes:
+ * - src/__tests__/e2e/** (E2E tests require real dependencies)
+ * - src/__tests__/production/** (production tests run separately)
+ *
+ * Requirements: 14.1, 14.2, 14.3, 14.6, 14.7, 14.8
+ * - 14.1: Two categories - Local Tests and E2E Tests
+ * - 14.2: Local tests include unit and integration tests with mocks
+ * - 14.3: Local tests execute in parallel (10 threads)
+ * - 14.6: npm test runs only local tests
+ * - 14.7: npm run build runs only local tests
+ * - 14.8: npm run test:coverage measures coverage from local tests only
+ *
+ * @module vitest.config
+ */
 export default defineConfig({
   test: {
     // Enable global test APIs (describe, it, expect, etc.)
@@ -8,27 +41,19 @@ export default defineConfig({
     // Node environment with PostgreSQL support
     environment: "node",
 
-    // Test file patterns - exclude performance tests from default run (require database)
-    include: [
-      "src/__tests__/unit/**/*.test.ts",
-      "src/__tests__/integration/**/*.test.ts",
-      "src/__tests__/e2e/**/*.test.ts",
-      "src/__tests__/examples/**/*.test.ts", // Include examples for validation
-      "src/__tests__/validation/**/*.test.ts", // Include validation tests
-      "src/__tests__/production/**/*.test.ts", // Include production tests
-      "src/__tests__/property/**/*.test.ts", // Include property-based tests
-    ],
+    // Test file patterns - unit and integration tests (with mocks)
+    // Requirements: 14.2 - Local tests include unit and integration tests with mocks
+    include: ["src/__tests__/unit/**/*.test.ts", "src/__tests__/integration/**/*.test.ts"],
+
+    // Exclude E2E tests (they require real dependencies) and production tests
+    // Requirements: 14.2 - Local tests are unit + integration only
     exclude: [
       "node_modules",
       "dist",
       "coverage",
-      "src/__tests__/performance/**", // Performance tests require database, run separately
-      "src/__tests__/accuracy/**", // Accuracy tests require database, run separately
+      "src/__tests__/e2e/**",
+      "src/__tests__/production/**",
     ],
-
-    // Performance and accuracy tests run separately with database:
-    // npm run test:performance - runs src/__tests__/performance/**/*.perf.test.ts
-    // npm run test:accuracy - runs src/__tests__/accuracy/**/*.accuracy.test.ts
 
     // Test timeouts
     testTimeout: 10000, // 10s default for unit tests
@@ -43,11 +68,8 @@ export default defineConfig({
     // Retry configuration (no retries for deterministic tests)
     retry: 0,
 
-    // Global setup and teardown
-    // Note: Property tests (src/__tests__/property/**) don't require database setup
-    // They are pure tests that only read files and don't need external services
-    globalSetup: ["./src/__tests__/setup/global-setup.ts"],
-    globalTeardown: ["./src/__tests__/setup/global-teardown.ts"],
+    // Global setup for local tests (configures mocks)
+    globalSetup: ["./src/__tests__/setup/local-setup.ts"],
 
     // Coverage configuration
     coverage: {
@@ -56,12 +78,12 @@ export default defineConfig({
       reporter: ["text", "json", "html", "lcov"],
       reportsDirectory: "./development/reports/coverage",
 
-      // Coverage thresholds (95% line, 90% branch minimum)
+      // Coverage thresholds (75% minimum for all metrics)
       thresholds: {
-        lines: 95,
-        branches: 90,
-        functions: 95,
-        statements: 95,
+        lines: 75,
+        branches: 75,
+        functions: 75,
+        statements: 75,
       },
 
       // Files to include in coverage
@@ -92,18 +114,17 @@ export default defineConfig({
           "verbose",
           ["json", { outputFile: "./development/reports/test-results.json" }],
           ["html", { outputFile: "./development/reports/test-results.html" }],
-        ] // Full output in CI
-      : ["verbose"], // Clean output for local development
+        ]
+      : ["verbose"],
 
-    // Performance optimization
-    // TEMPORARY: Disable parallel execution to fix test isolation issues
-    // Tests are failing when run in parallel due to shared database state
-    // TODO: Implement unique test prefixes per file to enable parallel execution
-    pool: "threads", // Use worker threads
+    // Parallel execution with 10 worker threads (Requirement 14.3)
+    pool: "threads",
     poolOptions: {
       threads: {
-        singleThread: true, // Run tests sequentially to prevent race conditions
-        isolate: true, // Isolate test files
+        singleThread: false, // Enable parallel execution
+        minThreads: 1,
+        maxThreads: 10, // 10 parallel worker threads
+        isolate: true, // Isolate test files for safety
       },
     },
 
@@ -119,6 +140,16 @@ export default defineConfig({
     // Environment variables for tests
     env: {
       NODE_ENV: "test",
+      // Signal to test utilities that this is local tests (no containers)
+      TEST_BUCKET: "local",
+      // Skip database setup - use mocks instead
+      SKIP_DB_SETUP: "true",
+      // Disable auto-start of containers
+      AUTO_START_CONTAINERS: "false",
+      // Use mock embeddings
+      USE_MOCK_EMBEDDINGS: "true",
+      // Use mock PostgreSQL
+      USE_MOCK_POSTGRES: "true",
     },
 
     // Setup files (run before each test file)

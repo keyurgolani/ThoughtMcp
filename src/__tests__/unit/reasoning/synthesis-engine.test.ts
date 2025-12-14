@@ -1,11 +1,16 @@
 /**
  * Tests for ResultSynthesisEngine
  *
- * Following TDD methodology - these tests are written first and should fail
- * until the synthesis engine implementation is complete.
+ * Consolidated tests for synthesis engine functionality including:
+ * - Core synthesis operations
+ * - Insight attribution and ranking
+ * - Recommendation ranking
+ * - Quality assessment
+ * - Conflict detection integration with ConflictResolutionEngine
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
+import { ConflictResolutionEngine } from "../../../reasoning/conflict-resolution-engine";
 import { ResultSynthesisEngine } from "../../../reasoning/synthesis-engine";
 import type {
   Insight,
@@ -14,6 +19,11 @@ import type {
   StreamStatus,
   StreamType,
   SynthesizedResult,
+} from "../../../reasoning/types";
+import {
+  ConflictType,
+  StreamStatus as StreamStatusEnum,
+  StreamType as StreamTypeEnum,
 } from "../../../reasoning/types";
 
 describe("ResultSynthesisEngine", () => {
@@ -417,8 +427,8 @@ describe("ResultSynthesisEngine", () => {
     });
   });
 
-  // Note: Conflict detection tests moved to synthesis-engine-integration.test.ts
-  // Conflicts are now detected by ConflictResolutionEngine before synthesis
+  // Note: Conflict detection is handled by ConflictResolutionEngine
+  // Integration tests for conflict detection are in the ConflictResolutionEngine Integration section
 
   describe("assessSynthesisQuality", () => {
     it("should assess overall quality score", () => {
@@ -970,6 +980,211 @@ describe("ResultSynthesisEngine", () => {
       const synthesis = engine.synthesizeResults(results);
 
       expect(synthesis.metadata.streamsUsed).toHaveLength(1);
+    });
+  });
+
+  // Integration tests with ConflictResolutionEngine
+  describe("ConflictResolutionEngine Integration", () => {
+    let conflictEngine: ConflictResolutionEngine;
+
+    beforeEach(() => {
+      conflictEngine = new ConflictResolutionEngine();
+    });
+
+    it("should detect conflicts before synthesis using ConflictResolutionEngine", () => {
+      const results: StreamResult[] = [
+        {
+          streamId: "analytical-1",
+          streamType: StreamTypeEnum.ANALYTICAL,
+          status: StreamStatusEnum.COMPLETED,
+          conclusion: "Prioritize security over usability",
+          reasoning: ["Security analysis", "Risk assessment"],
+          insights: [],
+          confidence: 0.9,
+          processingTime: 100,
+        },
+        {
+          streamId: "creative-1",
+          streamType: StreamTypeEnum.CREATIVE,
+          status: StreamStatusEnum.COMPLETED,
+          conclusion: "Prioritize usability over security",
+          reasoning: ["User experience", "Adoption concerns"],
+          insights: [],
+          confidence: 0.85,
+          processingTime: 100,
+        },
+      ];
+
+      // Detect conflicts using ConflictResolutionEngine
+      const conflicts = conflictEngine.detectConflicts(results);
+
+      // Should detect at least one conflict
+      expect(conflicts.length).toBeGreaterThan(0);
+      // Conflict type should be one of the valid types
+      expect([
+        ConflictType.FACTUAL,
+        ConflictType.LOGICAL,
+        ConflictType.METHODOLOGICAL,
+        ConflictType.EVALUATIVE,
+        ConflictType.PREDICTIVE,
+      ]).toContain(conflicts[0].type);
+    });
+
+    it("should preserve resolution frameworks in conflicts", () => {
+      const results: StreamResult[] = [
+        {
+          streamId: "analytical-1",
+          streamType: StreamTypeEnum.ANALYTICAL,
+          status: StreamStatusEnum.COMPLETED,
+          conclusion: "Market will grow by 10%",
+          reasoning: ["Historical trends"],
+          insights: [],
+          confidence: 0.9,
+          processingTime: 100,
+        },
+        {
+          streamId: "critical-1",
+          streamType: StreamTypeEnum.CRITICAL,
+          status: StreamStatusEnum.COMPLETED,
+          conclusion: "Market will decline by 5%",
+          reasoning: ["Risk analysis"],
+          insights: [],
+          confidence: 0.85,
+          processingTime: 100,
+        },
+      ];
+
+      const synthesis = engine.synthesizeResults(results);
+
+      // Should have conflicts with resolution frameworks
+      expect(synthesis.conflicts.length).toBeGreaterThan(0);
+      const conflict = synthesis.conflicts[0];
+      expect(conflict.resolutionFramework).toBeDefined();
+      expect(conflict.resolutionFramework?.approach).toBeDefined();
+      expect(conflict.resolutionFramework?.steps).toBeDefined();
+      expect(conflict.resolutionFramework?.considerations).toBeDefined();
+      expect(conflict.resolutionFramework?.recommendedAction).toBeDefined();
+    });
+
+    it("should use resolution frameworks to guide synthesis conclusion", () => {
+      const results: StreamResult[] = [
+        {
+          streamId: "analytical-1",
+          streamType: StreamTypeEnum.ANALYTICAL,
+          status: StreamStatusEnum.COMPLETED,
+          conclusion: "Use quantitative method",
+          reasoning: ["Data-driven approach"],
+          insights: [],
+          confidence: 0.9,
+          processingTime: 100,
+        },
+        {
+          streamId: "creative-1",
+          streamType: StreamTypeEnum.CREATIVE,
+          status: StreamStatusEnum.COMPLETED,
+          conclusion: "Use qualitative method",
+          reasoning: ["Exploratory approach"],
+          insights: [],
+          confidence: 0.85,
+          processingTime: 100,
+        },
+      ];
+
+      const synthesis = engine.synthesizeResults(results);
+
+      // Conclusion should acknowledge conflicts
+      expect(synthesis.conclusion).toContain("conflict");
+    });
+
+    it("should adjust quality assessment based on conflict severity", () => {
+      // High severity conflicts
+      const highConflictResults: StreamResult[] = [
+        {
+          streamId: "analytical-1",
+          streamType: StreamTypeEnum.ANALYTICAL,
+          status: StreamStatusEnum.COMPLETED,
+          conclusion: "System is completely safe",
+          reasoning: ["Safety analysis"],
+          insights: [],
+          confidence: 0.95,
+          processingTime: 100,
+        },
+        {
+          streamId: "critical-1",
+          streamType: StreamTypeEnum.CRITICAL,
+          status: StreamStatusEnum.COMPLETED,
+          conclusion: "System is completely unsafe",
+          reasoning: ["Risk assessment"],
+          insights: [],
+          confidence: 0.95,
+          processingTime: 100,
+        },
+      ];
+
+      const highConflictSynthesis = engine.synthesizeResults(highConflictResults);
+
+      // Low severity conflicts
+      const lowConflictResults: StreamResult[] = [
+        {
+          streamId: "analytical-1",
+          streamType: StreamTypeEnum.ANALYTICAL,
+          status: StreamStatusEnum.COMPLETED,
+          conclusion: "Approach A is slightly better",
+          reasoning: ["Minor advantage"],
+          insights: [],
+          confidence: 0.6,
+          processingTime: 100,
+        },
+        {
+          streamId: "creative-1",
+          streamType: StreamTypeEnum.CREATIVE,
+          status: StreamStatusEnum.COMPLETED,
+          conclusion: "Approach B is slightly better",
+          reasoning: ["Minor advantage"],
+          insights: [],
+          confidence: 0.6,
+          processingTime: 100,
+        },
+      ];
+
+      const lowConflictSynthesis = engine.synthesizeResults(lowConflictResults);
+
+      // High conflict should have lower consistency score
+      expect(highConflictSynthesis.quality.consistency).toBeLessThan(
+        lowConflictSynthesis.quality.consistency
+      );
+    });
+
+    it("should handle agreeing streams with no conflicts", () => {
+      const results: StreamResult[] = [
+        {
+          streamId: "analytical-1",
+          streamType: StreamTypeEnum.ANALYTICAL,
+          status: StreamStatusEnum.COMPLETED,
+          conclusion: "Solution A is optimal",
+          reasoning: ["Analysis complete"],
+          insights: [],
+          confidence: 0.9,
+          processingTime: 100,
+        },
+        {
+          streamId: "creative-1",
+          streamType: StreamTypeEnum.CREATIVE,
+          status: StreamStatusEnum.COMPLETED,
+          conclusion: "Solution A is optimal",
+          reasoning: ["Creative exploration"],
+          insights: [],
+          confidence: 0.85,
+          processingTime: 100,
+        },
+      ];
+
+      const synthesis = engine.synthesizeResults(results);
+
+      // Should have no conflicts
+      expect(synthesis.conflicts).toHaveLength(0);
+      // Should have high consistency
+      expect(synthesis.quality.consistency).toBeGreaterThan(0.9);
     });
   });
 });

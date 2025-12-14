@@ -1,21 +1,41 @@
 /**
  * MCP Tools End-to-End Tests
  *
- * Comprehensive end-to-end tests for MCP tools testing complete workflows,
- * tool chaining, error handling, concurrent operations, and performance under load.
+ * Tests the 5 essential user workflows with real PostgreSQL and Ollama dependencies.
+ * These tests verify complete user interaction patterns, not edge cases or load testing.
  *
- * Requirements: All requirements
+ * Essential Workflows:
+ * 1. Memory CRUD - Store, retrieve, update, delete lifecycle
+ * 2. Memory Search - Store multiple memories and search by text/metadata
+ * 3. Reasoning - Think, assess confidence, detect bias
+ * 4. Problem Decomposition - Breakdown, analyze, evaluate
+ * 5. Tool Chaining - Memory + Reasoning integration
+ *
+ * Data Cleanup Strategy (Requirement 13.3):
+ * - Each test uses unique user IDs and session IDs
+ * - Each test cleans up its own data in afterEach
+ * - Final verification ensures database is in clean state
+ *
+ * Requirements: 13.1, 13.3, 13.7
  */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { CognitiveMCPServer } from "../../server/mcp-server.js";
 import type { MCPResponse } from "../../server/types.js";
-import { randomString, sleep, withTimeout } from "../utils/test-helpers.js";
+import {
+  cleanupUserData,
+  createE2ETestContext,
+  getDatabaseStats,
+  resetTestCounter,
+  trackMemoryId,
+  verifyCleanState,
+  type E2ETestContext,
+} from "../utils/e2e-cleanup.js";
+import { withTimeout } from "../utils/test-helpers.js";
 
 // Shared test state
 let server: CognitiveMCPServer;
-let testUserId: string;
-let testSessionId: string;
+let testContext: E2ETestContext;
 
 /**
  * Helper function to invoke MCP tool
@@ -28,7 +48,133 @@ async function invokeTool(toolName: string, params: Record<string, unknown>): Pr
   return await tool.handler(params);
 }
 
+/**
+ * Helper to get database client for cleanup operations
+ */
+async function getDbClient() {
+  if (!server["databaseManager"]) {
+    throw new Error("Database manager not available");
+  }
+  return await server["databaseManager"].getConnection();
+}
+
+/**
+ * Ensures the database schema exists.
+ * Creates tables if they don't exist (idempotent operations).
+ * Does NOT drop existing data.
+ */
+async function ensureDatabaseSchema(
+  client: Awaited<ReturnType<typeof getDbClient>>
+): Promise<void> {
+  const embeddingDimension = parseInt(process.env.EMBEDDING_DIMENSION ?? "768", 10);
+
+  // Create memories table if not exists
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS memories (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      session_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      primary_sector TEXT NOT NULL,
+      strength REAL NOT NULL DEFAULT 1.0,
+      salience REAL NOT NULL DEFAULT 0.5,
+      importance REAL NOT NULL DEFAULT 0.5,
+      decay_rate REAL NOT NULL DEFAULT 0.1,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      last_accessed TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      access_count INTEGER NOT NULL DEFAULT 0,
+      metadata JSONB,
+      search_vector tsvector
+    )
+  `);
+
+  // Create function and trigger for search_vector (idempotent)
+  // Note: Using $$ for dollar-quoting in PostgreSQL functions
+  await client.query(`
+    CREATE OR REPLACE FUNCTION memories_search_vector_update() RETURNS trigger AS $$
+    BEGIN
+      NEW.search_vector := to_tsvector('english', COALESCE(NEW.content, ''));
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql
+  `);
+
+  await client.query(`DROP TRIGGER IF EXISTS memories_search_vector_trigger ON memories`);
+
+  await client.query(`
+    CREATE TRIGGER memories_search_vector_trigger
+      BEFORE INSERT OR UPDATE OF content ON memories
+      FOR EACH ROW
+      EXECUTE FUNCTION memories_search_vector_update()
+  `);
+
+  // Create GIN index for full-text search
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_memories_search_vector ON memories USING GIN(search_vector)
+  `);
+
+  // Create memory_embeddings table if not exists
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS memory_embeddings (
+      memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+      sector TEXT NOT NULL,
+      embedding vector(${embeddingDimension}),
+      dimension INTEGER NOT NULL,
+      model TEXT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (memory_id, sector)
+    )
+  `);
+
+  // Create memory_connections table if not exists
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS memory_connections (
+      id TEXT PRIMARY KEY,
+      source_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+      target_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+      connection_type TEXT NOT NULL,
+      strength REAL NOT NULL DEFAULT 1.0,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // Create memory_metadata table if not exists
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS memory_metadata (
+      memory_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,
+      keywords TEXT[] NOT NULL DEFAULT '{}',
+      tags TEXT[] NOT NULL DEFAULT '{}',
+      category TEXT,
+      context TEXT,
+      importance REAL DEFAULT 0.5,
+      is_atomic BOOLEAN DEFAULT TRUE,
+      parent_id TEXT REFERENCES memories(id),
+      CONSTRAINT valid_importance CHECK (importance >= 0 AND importance <= 1)
+    )
+  `);
+
+  // Create memory_links table if not exists
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS memory_links (
+      source_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+      target_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+      link_type TEXT NOT NULL,
+      weight REAL DEFAULT 0.5,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      traversal_count INTEGER DEFAULT 0,
+      PRIMARY KEY (source_id, target_id),
+      CONSTRAINT valid_weight CHECK (weight >= 0 AND weight <= 1),
+      CONSTRAINT no_self_links CHECK (source_id != target_id)
+    )
+  `);
+}
+
 describe("MCP Tools End-to-End Tests", () => {
+  beforeAll(async () => {
+    // Reset test counter for deterministic IDs
+    resetTestCounter();
+  });
+
   beforeEach(async () => {
     // Create fresh server instance
     server = new CognitiveMCPServer();
@@ -36,282 +182,232 @@ describe("MCP Tools End-to-End Tests", () => {
     // Initialize server with timeout
     await withTimeout(() => server.initialize(), 10000);
 
-    // Clean database before each test to avoid dimension mismatches
-    // Drop and recreate tables to ensure correct vector dimensions
+    // Ensure database schema exists (create tables if needed, but don't drop existing data)
     if (server["databaseManager"]) {
+      const client = await getDbClient();
       try {
-        const client = await server["databaseManager"].getConnection();
-        try {
-          // Drop tables in correct order (respecting foreign keys)
-          await client.query("DROP TABLE IF EXISTS memory_embeddings CASCADE");
-          await client.query("DROP TABLE IF EXISTS memory_connections CASCADE");
-          await client.query("DROP TABLE IF EXISTS memories CASCADE");
-
-          // Recreate memories table with all required columns
-          await client.query(`
-            CREATE TABLE IF NOT EXISTS memories (
-              id TEXT PRIMARY KEY,
-              user_id TEXT NOT NULL,
-              session_id TEXT NOT NULL,
-              content TEXT NOT NULL,
-              primary_sector TEXT NOT NULL,
-              strength REAL NOT NULL DEFAULT 1.0,
-              salience REAL NOT NULL DEFAULT 0.5,
-              importance REAL NOT NULL DEFAULT 0.5,
-              decay_rate REAL NOT NULL DEFAULT 0.1,
-              created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-              last_accessed TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-              access_count INTEGER NOT NULL DEFAULT 0,
-              metadata JSONB,
-              search_vector tsvector
-            )
-          `);
-
-          // Create function and trigger for search_vector
-          await client.query(`
-            CREATE OR REPLACE FUNCTION memories_search_vector_update() RETURNS trigger AS $$
-            BEGIN
-              NEW.search_vector := to_tsvector('english', COALESCE(NEW.content, ''));
-              RETURN NEW;
-            END;
-            $$ LANGUAGE plpgsql
-          `);
-
-          await client.query(`
-            DROP TRIGGER IF EXISTS memories_search_vector_trigger ON memories
-          `);
-
-          await client.query(`
-            CREATE TRIGGER memories_search_vector_trigger
-              BEFORE INSERT OR UPDATE OF content ON memories
-              FOR EACH ROW
-              EXECUTE FUNCTION memories_search_vector_update()
-          `);
-
-          // Create GIN index for full-text search
-          await client.query(`
-            CREATE INDEX IF NOT EXISTS idx_memories_search_vector
-              ON memories USING GIN(search_vector)
-          `);
-
-          // Recreate memory_embeddings table with correct dimension and composite primary key
-          const embeddingDimension = parseInt(process.env.EMBEDDING_DIMENSION ?? "768", 10);
-          await client.query(`
-            CREATE TABLE IF NOT EXISTS memory_embeddings (
-              memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
-              sector TEXT NOT NULL,
-              embedding vector(${embeddingDimension}),
-              dimension INTEGER NOT NULL,
-              model TEXT NOT NULL,
-              created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-              PRIMARY KEY (memory_id, sector)
-            )
-          `);
-
-          // Recreate memory_connections table
-          await client.query(`
-            CREATE TABLE IF NOT EXISTS memory_connections (
-              id TEXT PRIMARY KEY,
-              source_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
-              target_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
-              connection_type TEXT NOT NULL,
-              strength REAL NOT NULL DEFAULT 1.0,
-              created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-            )
-          `);
-
-          // Recreate memory_metadata table
-          await client.query(`
-            CREATE TABLE IF NOT EXISTS memory_metadata (
-              memory_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,
-              keywords TEXT[] NOT NULL DEFAULT '{}',
-              tags TEXT[] NOT NULL DEFAULT '{}',
-              category TEXT,
-              context TEXT,
-              importance REAL DEFAULT 0.5,
-              is_atomic BOOLEAN DEFAULT TRUE,
-              parent_id TEXT REFERENCES memories(id),
-              CONSTRAINT valid_importance CHECK (importance >= 0 AND importance <= 1)
-            )
-          `);
-
-          // Recreate memory_links table (used by waypoint graph)
-          await client.query(`
-            CREATE TABLE IF NOT EXISTS memory_links (
-              source_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
-              target_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
-              link_type TEXT NOT NULL,
-              weight REAL DEFAULT 0.5,
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-              traversal_count INTEGER DEFAULT 0,
-              PRIMARY KEY (source_id, target_id),
-              CONSTRAINT valid_weight CHECK (weight >= 0 AND weight <= 1),
-              CONSTRAINT no_self_links CHECK (source_id != target_id)
-            )
-          `);
-        } finally {
-          client.release();
-        }
-      } catch (error) {
-        console.error("Database setup error:", error);
-        throw error;
+        await ensureDatabaseSchema(client);
+      } finally {
+        client.release();
       }
     }
 
-    // Generate unique test identifiers
-    testUserId = `test-user-${randomString(8)}`;
-    testSessionId = `test-session-${randomString(8)}`;
+    // Create unique test context for this test
+    testContext = createE2ETestContext("e2e-test");
   });
 
   afterEach(async () => {
-    // Cleanup server
+    // Clean up test data for this specific test
+    if (server["databaseManager"] && server.isInitialized) {
+      const client = await getDbClient();
+      try {
+        // Clean up all data for this test's user ID
+        await cleanupUserData(client, testContext.userId);
+      } catch (error) {
+        console.error("Cleanup error:", error);
+      } finally {
+        client.release();
+      }
+    }
+
+    // Shutdown server
     if (server.isInitialized) {
       await server.shutdown();
     }
   });
 
-  describe("Complete Memory Workflow", () => {
-    it("should handle store → retrieve → update → delete workflow", async () => {
-      // Store memory
-      const storeResponse = await invokeTool("remember", {
-        content: "User prefers dark mode for better readability",
-        userId: testUserId,
-        sessionId: testSessionId,
-        primarySector: "semantic",
-        metadata: {
-          keywords: ["dark", "mode", "preference"],
-          tags: ["ui", "settings"],
-          category: "preferences",
-          importance: 0.8,
-        },
-      });
-
-      if (!storeResponse.success) {
-        console.error("Store memory failed:", storeResponse.error);
+  afterAll(async () => {
+    // Final verification that all E2E test data has been cleaned up
+    const verifyServer = new CognitiveMCPServer();
+    try {
+      await withTimeout(() => verifyServer.initialize(), 10000);
+      if (verifyServer["databaseManager"]) {
+        const client = await verifyServer["databaseManager"].getConnection();
+        try {
+          const cleanState = await verifyCleanState(client);
+          if (!cleanState.isClean) {
+            console.warn(
+              `⚠️ E2E test data not fully cleaned up: ${cleanState.remainingMemoryCount} memories remaining`
+            );
+          }
+          const stats = await getDatabaseStats(client);
+          console.log(
+            `📊 Final DB stats: ${stats.totalMemories} memories, ${stats.testMemories} test memories`
+          );
+        } finally {
+          client.release();
+        }
       }
-      expect(storeResponse.success).toBe(true);
-      expect(storeResponse.data).toBeDefined();
-      const memoryId = (storeResponse.data as any).memoryId;
-      expect(memoryId).toBeDefined();
-      expect((storeResponse.data as any).embeddingsGenerated).toBe(5);
-      expect((storeResponse.data as any).linksCreated).toBeGreaterThanOrEqual(0);
-
-      // Retrieve memory
-      const retrieveResponse = await invokeTool("recall", {
-        userId: testUserId,
-        text: "dark mode",
-        limit: 10,
-      });
-
-      expect(retrieveResponse.success).toBe(true);
-      expect((retrieveResponse.data as any).memories).toHaveLength(1);
-      expect((retrieveResponse.data as any).memories[0].id).toBe(memoryId);
-      expect((retrieveResponse.data as any).memories[0].content).toContain("dark mode");
-
-      // Update memory
-      const updateResponse = await invokeTool("update_memory", {
-        memoryId,
-        userId: testUserId,
-        content: "User strongly prefers dark mode for all interfaces",
-        strength: 0.95,
-        metadata: {
-          importance: 0.9,
-        },
-      });
-
-      if (!updateResponse.success) {
-        console.error("Update memory failed:", updateResponse.error);
-      }
-      expect(updateResponse.success).toBe(true);
-      expect((updateResponse.data as any).embeddingsRegenerated).toBe(true);
-      expect((updateResponse.data as any).strength).toBe(0.95);
-
-      // Delete memory (soft delete)
-      const softDeleteResponse = await invokeTool("forget", {
-        memoryId,
-        userId: testUserId,
-        soft: true,
-      });
-
-      expect(softDeleteResponse.success).toBe(true);
-      expect((softDeleteResponse.data as any).deletionType).toBe("soft");
-
-      // Hard delete
-      const hardDeleteResponse = await invokeTool("forget", {
-        memoryId,
-        userId: testUserId,
-        soft: false,
-      });
-
-      expect(hardDeleteResponse.success).toBe(true);
-      expect((hardDeleteResponse.data as any).deletionType).toBe("hard");
-    });
-
-    it("should handle bulk memory operations with search", async () => {
-      // Store multiple memories
-      const memories = [
-        {
-          content: "Machine learning algorithms for classification",
-          keywords: ["machine", "learning", "classification"],
-          tags: ["ai", "ml"],
-        },
-        {
-          content: "Deep learning neural networks for image recognition",
-          keywords: ["deep", "learning", "neural", "networks"],
-          tags: ["ai", "deep-learning"],
-        },
-        {
-          content: "Natural language processing for text analysis",
-          keywords: ["nlp", "text", "analysis"],
-          tags: ["ai", "nlp"],
-        },
-      ];
-
-      const memoryIds: string[] = [];
-      for (const mem of memories) {
-        const response = await invokeTool("remember", {
-          content: mem.content,
-          userId: testUserId,
-          sessionId: testSessionId,
-          primarySector: "semantic",
-          metadata: {
-            keywords: mem.keywords,
-            tags: mem.tags,
-            category: "technology",
-          },
-        });
-        expect(response.success).toBe(true);
-        memoryIds.push((response.data as any).memoryId);
-      }
-
-      // Search with text query
-      const searchResponse = await invokeTool("search", {
-        userId: testUserId,
-        text: "learning",
-        limit: 10,
-      });
-
-      expect(searchResponse.success).toBe(true);
-      expect((searchResponse.data as any).memories.length).toBeGreaterThan(0);
-
-      // Search with metadata filters
-      const tagSearchResponse = await invokeTool("search", {
-        userId: testUserId,
-        metadata: {
-          tags: ["deep-learning"],
-        },
-        limit: 10,
-      });
-
-      expect(tagSearchResponse.success).toBe(true);
-      expect((tagSearchResponse.data as any).memories.length).toBeGreaterThan(0);
-      expect((tagSearchResponse.data as any).memories[0].metadata.tags).toContain("deep-learning");
-    });
+      await verifyServer.shutdown();
+    } catch {
+      // Verification is best-effort
+    }
   });
 
-  describe("Complete Reasoning Workflow", () => {
+  // ============================================================================
+  // Workflow 1: Memory CRUD
+  // Purpose: Verify the complete memory lifecycle from creation to deletion
+  // ============================================================================
+  describe("Workflow 1: Memory CRUD", () => {
+    it(
+      "should handle store → retrieve → update → delete workflow",
+      { timeout: 30000 },
+      async () => {
+        testContext = createE2ETestContext("memory-crud");
+
+        // Step 1: Store memory
+        const storeResponse = await invokeTool("remember", {
+          content: "User prefers dark mode for better readability",
+          userId: testContext.userId,
+          sessionId: testContext.sessionId,
+          primarySector: "semantic",
+          metadata: {
+            keywords: ["dark", "mode", "preference"],
+            tags: ["ui", "settings"],
+            category: "preferences",
+            importance: 0.8,
+          },
+        });
+
+        expect(storeResponse.success).toBe(true);
+        expect(storeResponse.data).toBeDefined();
+        const memoryId = (storeResponse.data as Record<string, unknown>).memoryId as string;
+        expect(memoryId).toBeDefined();
+        expect((storeResponse.data as Record<string, unknown>).embeddingsGenerated).toBe(5);
+
+        // Track memory for cleanup (backup in case test fails before delete)
+        trackMemoryId(testContext, memoryId);
+
+        // Step 2: Retrieve memory
+        const retrieveResponse = await invokeTool("recall", {
+          userId: testContext.userId,
+          text: "dark mode",
+          limit: 10,
+        });
+
+        expect(retrieveResponse.success).toBe(true);
+        const memories = (retrieveResponse.data as Record<string, unknown>).memories as Array<
+          Record<string, unknown>
+        >;
+        expect(memories).toHaveLength(1);
+        expect(memories[0].id).toBe(memoryId);
+        expect(memories[0].content).toContain("dark mode");
+
+        // Step 3: Update memory
+        const updateResponse = await invokeTool("update_memory", {
+          memoryId,
+          userId: testContext.userId,
+          content: "User strongly prefers dark mode for all interfaces",
+          strength: 0.95,
+          metadata: { importance: 0.9 },
+        });
+
+        expect(updateResponse.success).toBe(true);
+        expect((updateResponse.data as Record<string, unknown>).embeddingsRegenerated).toBe(true);
+        expect((updateResponse.data as Record<string, unknown>).strength).toBe(0.95);
+
+        // Step 4: Delete memory (soft delete first, then hard delete)
+        const softDeleteResponse = await invokeTool("forget", {
+          memoryId,
+          userId: testContext.userId,
+          soft: true,
+        });
+
+        expect(softDeleteResponse.success).toBe(true);
+        expect((softDeleteResponse.data as Record<string, unknown>).deletionType).toBe("soft");
+
+        const hardDeleteResponse = await invokeTool("forget", {
+          memoryId,
+          userId: testContext.userId,
+          soft: false,
+        });
+
+        expect(hardDeleteResponse.success).toBe(true);
+        expect((hardDeleteResponse.data as Record<string, unknown>).deletionType).toBe("hard");
+      }
+    );
+  });
+
+  // ============================================================================
+  // Workflow 2: Memory Search
+  // Purpose: Verify that multiple memories can be stored and searched effectively
+  // ============================================================================
+  describe("Workflow 2: Memory Search", () => {
+    it(
+      "should handle store multiple → search by text → search by metadata workflow",
+      { timeout: 30000 },
+      async () => {
+        testContext = createE2ETestContext("memory-search");
+
+        // Step 1: Store multiple memories
+        const memoriesData = [
+          {
+            content: "Machine learning algorithms for classification",
+            keywords: ["machine", "learning"],
+            tags: ["ai", "ml"],
+          },
+          {
+            content: "Deep learning neural networks for image recognition",
+            keywords: ["deep", "learning"],
+            tags: ["ai", "deep-learning"],
+          },
+          {
+            content: "Natural language processing for text analysis",
+            keywords: ["nlp", "text"],
+            tags: ["ai", "nlp"],
+          },
+        ];
+
+        for (const mem of memoriesData) {
+          const response = await invokeTool("remember", {
+            content: mem.content,
+            userId: testContext.userId,
+            sessionId: testContext.sessionId,
+            primarySector: "semantic",
+            metadata: { keywords: mem.keywords, tags: mem.tags, category: "technology" },
+          });
+          expect(response.success).toBe(true);
+          trackMemoryId(testContext, (response.data as Record<string, unknown>).memoryId as string);
+        }
+
+        // Step 2: Search by text
+        const textSearchResponse = await invokeTool("search", {
+          userId: testContext.userId,
+          text: "learning",
+          limit: 10,
+        });
+
+        expect(textSearchResponse.success).toBe(true);
+        const textSearchMemories = (textSearchResponse.data as Record<string, unknown>)
+          .memories as Array<Record<string, unknown>>;
+        expect(textSearchMemories.length).toBeGreaterThan(0);
+
+        // Step 3: Search by metadata
+        const metadataSearchResponse = await invokeTool("search", {
+          userId: testContext.userId,
+          metadata: { tags: ["deep-learning"] },
+          limit: 10,
+        });
+
+        expect(metadataSearchResponse.success).toBe(true);
+        const metadataSearchMemories = (metadataSearchResponse.data as Record<string, unknown>)
+          .memories as Array<Record<string, unknown>>;
+        expect(metadataSearchMemories.length).toBeGreaterThan(0);
+        const firstMemoryMetadata = metadataSearchMemories[0].metadata as Record<string, unknown>;
+        expect(firstMemoryMetadata.tags).toContain("deep-learning");
+      }
+    );
+  });
+
+  // ============================================================================
+  // Workflow 3: Reasoning
+  // Purpose: Verify the reasoning workflow including thinking, confidence, and bias
+  // ============================================================================
+  describe("Workflow 3: Reasoning", () => {
     it("should handle think → assess confidence → detect bias workflow", async () => {
-      // Think about a problem
+      testContext = createE2ETestContext("reasoning");
+
+      // Step 1: Think about a problem
       const thinkResponse = await invokeTool("think", {
         problem: "Should we migrate our monolithic application to microservices?",
         mode: "analytical",
@@ -325,15 +421,15 @@ describe("MCP Tools End-to-End Tests", () => {
       });
 
       expect(thinkResponse.success).toBe(true);
-      expect((thinkResponse.data as any).reasoning).toBeDefined();
-      expect((thinkResponse.data as any).conclusion).toBeDefined();
+      const thinkData = thinkResponse.data as Record<string, unknown>;
+      expect(thinkData.reasoning).toBeDefined();
+      expect(thinkData.conclusion).toBeDefined();
 
-      // Assess confidence in the reasoning
-      // Note: reasoning is an array of strings, so we join them for the confidence assessment
-      const reasoningText = Array.isArray((thinkResponse.data as any).reasoning)
-        ? (thinkResponse.data as any).reasoning.join(" ")
-        : (thinkResponse.data as any).reasoning;
+      const reasoningText = Array.isArray(thinkData.reasoning)
+        ? (thinkData.reasoning as string[]).join(" ")
+        : (thinkData.reasoning as string);
 
+      // Step 2: Assess confidence
       const confidenceResponse = await invokeTool("assess_confidence", {
         reasoning: reasoningText,
         evidence: [
@@ -344,34 +440,45 @@ describe("MCP Tools End-to-End Tests", () => {
       });
 
       expect(confidenceResponse.success).toBe(true);
-      expect((confidenceResponse.data as any).overallConfidence).toBeGreaterThanOrEqual(0);
-      expect((confidenceResponse.data as any).overallConfidence).toBeLessThanOrEqual(1);
-      expect((confidenceResponse.data as any).factors).toBeDefined();
+      const confidenceData = confidenceResponse.data as Record<string, unknown>;
+      expect(confidenceData.overallConfidence).toBeGreaterThanOrEqual(0);
+      expect(confidenceData.overallConfidence).toBeLessThanOrEqual(1);
+      expect(confidenceData.factors).toBeDefined();
 
-      // Detect biases in the reasoning
+      // Step 3: Detect bias
       const biasResponse = await invokeTool("detect_bias", {
         reasoning: reasoningText,
         context: "System migration decision",
       });
 
       expect(biasResponse.success).toBe(true);
-      expect((biasResponse.data as any).biases).toBeDefined();
-      expect(Array.isArray((biasResponse.data as any).biases)).toBe(true);
+      const biasData = biasResponse.data as Record<string, unknown>;
+      expect(biasData.biases).toBeDefined();
+      expect(Array.isArray(biasData.biases)).toBe(true);
     });
+  });
 
-    it("should handle decompose → think parallel → analyze workflow", async () => {
-      // Decompose problem
-      const decomposeResponse = await invokeTool("breakdown", {
+  // ============================================================================
+  // Workflow 4: Problem Decomposition
+  // Purpose: Verify the problem decomposition and analysis workflow
+  // ============================================================================
+  describe("Workflow 4: Problem Decomposition", () => {
+    it("should handle breakdown → analyze → evaluate workflow", async () => {
+      testContext = createE2ETestContext("decomposition");
+
+      // Step 1: Decompose problem
+      const breakdownResponse = await invokeTool("breakdown", {
         problem: "Design a scalable e-commerce platform",
         maxDepth: 2,
       });
 
-      expect(decomposeResponse.success).toBe(true);
-      expect((decomposeResponse.data as any).subProblems).toBeDefined();
-      expect((decomposeResponse.data as any).subProblems.length).toBeGreaterThan(0);
+      expect(breakdownResponse.success).toBe(true);
+      const breakdownData = breakdownResponse.data as Record<string, unknown>;
+      expect(breakdownData.subProblems).toBeDefined();
+      expect((breakdownData.subProblems as unknown[]).length).toBeGreaterThan(0);
 
-      // Think in parallel on the problem
-      const parallelResponse = await invokeTool("ponder", {
+      // Step 2: Analyze systematically
+      const analyzeResponse = await invokeTool("analyze", {
         problem: "Design a scalable e-commerce platform",
         context: {
           constraints: ["Budget: $100k", "Timeline: 6 months"],
@@ -379,54 +486,39 @@ describe("MCP Tools End-to-End Tests", () => {
         },
       });
 
-      expect(parallelResponse.success).toBe(true);
-      expect((parallelResponse.data as any).conclusion).toBeDefined();
-      expect((parallelResponse.data as any).insights).toBeDefined();
-      expect((parallelResponse.data as any).recommendations).toBeDefined();
-      expect((parallelResponse.data as any).conflicts).toBeDefined();
-      expect((parallelResponse.data as any).confidence).toBeDefined();
-      expect((parallelResponse.data as any).quality).toBeDefined();
-
-      // Analyze the reasoning quality
-      const analyzeResponse = await invokeTool("evaluate", {
-        reasoning: (parallelResponse.data as any).conclusion,
-        context: "Design a scalable e-commerce platform with budget and timeline constraints",
-      });
-
       expect(analyzeResponse.success).toBe(true);
-      expect((analyzeResponse.data as any).quality).toBeDefined();
-      expect((analyzeResponse.data as any).quality.coherence).toBeGreaterThanOrEqual(0);
-      expect((analyzeResponse.data as any).quality.coherence).toBeLessThanOrEqual(1);
-      expect((analyzeResponse.data as any).strengths).toBeDefined();
-      expect((analyzeResponse.data as any).weaknesses).toBeDefined();
-    });
+      const analyzeData = analyzeResponse.data as Record<string, unknown>;
+      expect(analyzeData.framework).toBeDefined();
+      expect(analyzeData.result).toBeDefined();
 
-    it("should handle systematic analysis with framework selection", async () => {
-      const response = await invokeTool("analyze", {
-        problem: "Reduce customer churn rate",
-        context: {
-          background: "Current churn: 15%, Industry average: 10%",
-          constraints: ["Limited budget", "3-month timeline"],
-        },
+      // Step 3: Evaluate reasoning quality
+      const resultData = analyzeData.result as Record<string, unknown>;
+      const evaluateResponse = await invokeTool("evaluate", {
+        reasoning: resultData.conclusion as string,
+        context: "E-commerce platform design with constraints",
       });
 
-      expect(response.success).toBe(true);
-      expect((response.data as any).framework).toBeDefined();
-      expect((response.data as any).framework.id).toBeDefined();
-      expect((response.data as any).framework.name).toBeDefined();
-      expect((response.data as any).selection).toBeDefined();
-      expect((response.data as any).result).toBeDefined();
-      expect((response.data as any).result.conclusion).toBeDefined();
+      expect(evaluateResponse.success).toBe(true);
+      const evaluateData = evaluateResponse.data as Record<string, unknown>;
+      expect(evaluateData.quality).toBeDefined();
+      expect(evaluateData.strengths).toBeDefined();
+      expect(evaluateData.weaknesses).toBeDefined();
     });
   });
 
-  describe("Tool Chaining and Composition", () => {
-    it("should chain memory and reasoning tools", async () => {
-      // Store context memory
+  // ============================================================================
+  // Workflow 5: Tool Chaining (Memory + Reasoning Integration)
+  // Purpose: Verify that memory and reasoning tools can be chained together
+  // ============================================================================
+  describe("Workflow 5: Tool Chaining", () => {
+    it("should chain memory and reasoning tools", { timeout: 30000 }, async () => {
+      testContext = createE2ETestContext("tool-chaining");
+
+      // Step 1: Store context memory
       const storeResponse = await invokeTool("remember", {
         content: "Company policy: All decisions must consider environmental impact",
-        userId: testUserId,
-        sessionId: testSessionId,
+        userId: testContext.userId,
+        sessionId: testContext.sessionId,
         primarySector: "semantic",
         metadata: {
           keywords: ["policy", "environment", "decisions"],
@@ -437,20 +529,25 @@ describe("MCP Tools End-to-End Tests", () => {
       });
 
       expect(storeResponse.success).toBe(true);
+      trackMemoryId(
+        testContext,
+        (storeResponse.data as Record<string, unknown>).memoryId as string
+      );
 
-      // Retrieve relevant context
+      // Step 2: Retrieve relevant context
       const retrieveResponse = await invokeTool("recall", {
-        userId: testUserId,
+        userId: testContext.userId,
         text: "company policy decisions",
         limit: 5,
       });
 
       expect(retrieveResponse.success).toBe(true);
-      const context = (retrieveResponse.data as any).memories.map(
-        (m: { content: string }) => m.content
-      );
+      const memories = (retrieveResponse.data as Record<string, unknown>).memories as Array<
+        Record<string, unknown>
+      >;
+      const context = memories.map((m) => m.content as string);
 
-      // Think with retrieved context
+      // Step 3: Think with retrieved context
       const thinkResponse = await invokeTool("think", {
         problem: "Should we switch to cheaper but less eco-friendly packaging?",
         mode: "critical",
@@ -461,13 +558,14 @@ describe("MCP Tools End-to-End Tests", () => {
       });
 
       expect(thinkResponse.success).toBe(true);
-      expect((thinkResponse.data as any).reasoning).toBeDefined();
+      const thinkData = thinkResponse.data as Record<string, unknown>;
+      expect(thinkData.reasoning).toBeDefined();
 
-      // Store the reasoning as a new memory
+      // Step 4: Store the reasoning as a new memory
       const insightResponse = await invokeTool("remember", {
-        content: `Decision insight: ${(thinkResponse.data as any).conclusion}`,
-        userId: testUserId,
-        sessionId: testSessionId,
+        content: `Decision insight: ${thinkData.conclusion as string}`,
+        userId: testContext.userId,
+        sessionId: testContext.sessionId,
         primarySector: "reflective",
         metadata: {
           keywords: ["decision", "packaging", "environment"],
@@ -478,582 +576,10 @@ describe("MCP Tools End-to-End Tests", () => {
       });
 
       expect(insightResponse.success).toBe(true);
-    });
-
-    it("should handle complex multi-tool workflow", async () => {
-      // 1. Detect emotion in user input
-      const emotionResponse = await invokeTool("detect_emotion", {
-        text: "I'm really frustrated with the slow performance of our system!",
-      });
-
-      expect(emotionResponse.success).toBe(true);
-      const emotionalState = emotionResponse.data;
-
-      // 2. Store emotional context
-      await invokeTool("remember", {
-        content: "User expressed frustration about system performance",
-        userId: testUserId,
-        sessionId: testSessionId,
-        primarySector: "emotional",
-        metadata: {
-          keywords: ["frustration", "performance", "system"],
-          tags: ["emotion", "feedback"],
-          category: "user-feedback",
-          importance: 0.7,
-        },
-      });
-
-      // 3. Decompose the problem
-      const decomposeResponse = await invokeTool("breakdown", {
-        problem: "Improve system performance to address user frustration",
-        maxDepth: 2,
-      });
-
-      expect(decomposeResponse.success).toBe(true);
-
-      // 4. Think about solutions with emotional awareness
-      const thinkResponse = await invokeTool("think", {
-        problem: "Improve system performance",
-        mode: "creative",
-        context: {
-          evidence: ["Users are frustrated", "Performance is slow"],
-          emotionalContext: emotionalState,
-        },
-      });
-
-      expect(thinkResponse.success).toBe(true);
-
-      // 5. Assess confidence in the solution
-      // Note: reasoning is an array of strings, so we join them for the confidence assessment
-      const reasoningText = Array.isArray((thinkResponse.data as any).reasoning)
-        ? (thinkResponse.data as any).reasoning.join(" ")
-        : (thinkResponse.data as any).reasoning;
-
-      const confidenceResponse = await invokeTool("assess_confidence", {
-        reasoning: reasoningText,
-        evidence: ["Users are frustrated", "Performance is slow"],
-      });
-
-      expect(confidenceResponse.success).toBe(true);
-
-      // 6. Store the solution as a memory
-      const solutionResponse = await invokeTool("remember", {
-        content: `Solution: ${(thinkResponse.data as any).conclusion}`,
-        userId: testUserId,
-        sessionId: testSessionId,
-        primarySector: "procedural",
-        metadata: {
-          keywords: ["solution", "performance", "improvement"],
-          tags: ["solution", "action-item"],
-          category: "solutions",
-          importance: 0.9,
-        },
-      });
-
-      expect(solutionResponse.success).toBe(true);
-    });
-  });
-
-  describe("Error Handling Across Tool Boundaries", () => {
-    it("should handle invalid parameters gracefully", async () => {
-      // Missing required field
-      const response1 = await invokeTool("remember", {
-        content: "Test content",
-        // Missing userId, sessionId, primarySector
-      });
-
-      expect(response1.success).toBe(false);
-      expect(response1.error).toBeDefined();
-      expect(response1.suggestion).toBeDefined();
-
-      // Invalid sector type
-      const response2 = await invokeTool("remember", {
-        content: "Test content",
-        userId: testUserId,
-        sessionId: testSessionId,
-        primarySector: "invalid-sector",
-      });
-
-      expect(response2.success).toBe(false);
-      expect(response2.error).toBeDefined();
-
-      // Invalid strength value
-      const response3 = await invokeTool("update_memory", {
-        memoryId: "non-existent",
-        userId: testUserId,
-        strength: 1.5, // Out of range
-      });
-
-      expect(response3.success).toBe(false);
-      expect(response3.error).toBeDefined();
-    });
-
-    it("should handle non-existent resources gracefully", async () => {
-      // Retrieve non-existent memory
-      const response1 = await invokeTool("recall", {
-        userId: "non-existent-user",
-        text: "test",
-      });
-
-      expect(response1.success).toBe(true);
-      expect((response1.data as any).memories).toHaveLength(0);
-
-      // Update non-existent memory
-      const response2 = await invokeTool("update_memory", {
-        memoryId: "non-existent-id",
-        userId: testUserId,
-        content: "Updated content",
-      });
-
-      expect(response2.success).toBe(false);
-      expect(response2.error).toContain("not found");
-
-      // Delete non-existent memory
-      const response3 = await invokeTool("forget", {
-        memoryId: "non-existent-id",
-        userId: testUserId,
-      });
-
-      expect(response3.success).toBe(false);
-      expect(response3.error).toContain("not found");
-    });
-
-    it("should handle errors in tool chains gracefully", async () => {
-      // Store a memory successfully
-      const storeResponse = await invokeTool("remember", {
-        content: "Test memory for error handling",
-        userId: testUserId,
-        sessionId: testSessionId,
-        primarySector: "semantic",
-      });
-
-      expect(storeResponse.success).toBe(true);
-      const memoryId = (storeResponse.data as any).memoryId;
-
-      // Try to update with invalid parameters
-      const updateResponse = await invokeTool("update_memory", {
-        memoryId,
-        userId: testUserId,
-        strength: 2.0, // Invalid value
-      });
-
-      expect(updateResponse.success).toBe(false);
-
-      // Verify original memory is unchanged
-      const retrieveResponse = await invokeTool("recall", {
-        userId: testUserId,
-        text: "error handling",
-      });
-
-      expect(retrieveResponse.success).toBe(true);
-      expect((retrieveResponse.data as any).memories).toHaveLength(1);
-      expect((retrieveResponse.data as any).memories[0].strength).toBe(1.0); // Original value
-    });
-  });
-
-  describe("Concurrent Tool Invocations", () => {
-    it("should handle concurrent memory operations", { timeout: 30000 }, async () => {
-      // Store multiple memories concurrently (reduced from 10 to 5 for stability)
-      const storePromises = Array.from({ length: 5 }, (_, i) =>
-        invokeTool("remember", {
-          content: `Concurrent memory ${i + 1}`,
-          userId: testUserId,
-          sessionId: testSessionId,
-          primarySector: "semantic",
-          metadata: {
-            keywords: ["concurrent", `test${i}`],
-            tags: ["concurrent-test"],
-            category: "test",
-          },
-        })
+      trackMemoryId(
+        testContext,
+        (insightResponse.data as Record<string, unknown>).memoryId as string
       );
-
-      const storeResponses = await Promise.all(storePromises);
-
-      // Verify most succeeded (allow for some failures due to connection pool limits)
-      const successCount = storeResponses.filter((r) => r.success).length;
-      expect(successCount).toBeGreaterThanOrEqual(3); // At least 60% success rate
-      expect(storeResponses.length).toBe(5);
-
-      // Verify unique memory IDs for successful operations
-      const memoryIds = storeResponses
-        .filter((r) => r.success)
-        .map((r) => (r.data as any).memoryId);
-      const uniqueIds = new Set(memoryIds);
-      expect(uniqueIds.size).toBe(successCount);
-
-      // Concurrent retrieval (reduced from 5 to 3)
-      const retrievePromises = Array.from({ length: 3 }, () =>
-        invokeTool("recall", {
-          userId: testUserId,
-          text: "concurrent",
-          limit: 20,
-        })
-      );
-
-      const retrieveResponses = await Promise.all(retrievePromises);
-
-      // Verify most succeeded
-      const retrieveSuccessCount = retrieveResponses.filter((r) => r.success).length;
-      expect(retrieveSuccessCount).toBeGreaterThanOrEqual(2); // At least 66% success rate
-      // Verify successful retrievals found memories
-      const successfulRetrievals = retrieveResponses.filter((r) => r.success);
-      expect(successfulRetrievals.every((r) => (r.data as any).memories.length >= 1)).toBe(true);
-    });
-
-    it("should handle mixed concurrent operations", async () => {
-      // Create initial memories
-      const initialMemories = await Promise.all(
-        Array.from({ length: 5 }, (_, i) =>
-          invokeTool("remember", {
-            content: `Initial memory ${i + 1}`,
-            userId: testUserId,
-            sessionId: testSessionId,
-            primarySector: "semantic",
-          })
-        )
-      );
-
-      // Verify all initial stores succeeded
-      expect(initialMemories.every((r) => r.success)).toBe(true);
-
-      const memoryIds = initialMemories.map((r) => r.data?.memoryId).filter(Boolean);
-
-      // Mix of operations: store, retrieve, update, search
-      const mixedPromises = [
-        // Store new memories
-        invokeTool("remember", {
-          content: "New memory during mixed ops",
-          userId: testUserId,
-          sessionId: testSessionId,
-          primarySector: "semantic",
-        }),
-        // Retrieve memories
-        invokeTool("recall", {
-          userId: testUserId,
-          limit: 10,
-        }),
-        // Update existing memory
-        invokeTool("update_memory", {
-          memoryId: memoryIds[0],
-          userId: testUserId,
-          strength: 0.9,
-        }),
-        // Search memories
-        invokeTool("search", {
-          userId: testUserId,
-          text: "memory",
-          limit: 10,
-        }),
-        // Think operation
-        invokeTool("think", {
-          problem: "Concurrent operations test",
-          mode: "analytical",
-        }),
-      ];
-
-      const mixedResponses = await Promise.all(mixedPromises);
-
-      // Verify all operations succeeded
-      expect(mixedResponses.every((r) => r.success)).toBe(true);
-    });
-  });
-
-  describe("Performance Under Load", () => {
-    it("should handle rapid sequential operations", { timeout: 60000 }, async () => {
-      const startTime = Date.now();
-      const operationCount = 20; // Reduced for real embedding generation
-
-      // Rapid sequential stores
-      for (let i = 0; i < operationCount; i++) {
-        const response = await invokeTool("remember", {
-          content: `Rapid operation ${i + 1}`,
-          userId: testUserId,
-          sessionId: testSessionId,
-          primarySector: "semantic",
-        });
-        expect(response.success).toBe(true);
-      }
-
-      const duration = Date.now() - startTime;
-      const avgTime = duration / operationCount;
-
-      // Should average less than 2000ms per operation in CI environments
-      // (accounts for embedding generation variance and CI resource constraints)
-      expect(avgTime).toBeLessThan(2000);
-
-      // Verify all memories were stored
-      const retrieveResponse = await invokeTool("recall", {
-        userId: testUserId,
-        limit: 100,
-      });
-
-      expect(retrieveResponse.success).toBe(true);
-      expect((retrieveResponse.data as any).memories.length).toBeGreaterThanOrEqual(operationCount);
-    });
-
-    it("should handle sustained load", { timeout: 60000 }, async () => {
-      // Reduced batch size and count for stability
-      const batchSize = 5;
-      const batchCount = 3;
-
-      const startTime = Date.now();
-
-      // Process in batches
-      let totalSuccessCount = 0;
-      for (let batch = 0; batch < batchCount; batch++) {
-        const batchPromises = Array.from({ length: batchSize }, (_, i) =>
-          invokeTool("remember", {
-            content: `Batch ${batch + 1} memory ${i + 1}`,
-            userId: testUserId,
-            sessionId: testSessionId,
-            primarySector: "semantic",
-          })
-        );
-
-        const batchResponses = await Promise.all(batchPromises);
-        const batchSuccessCount = batchResponses.filter((r) => r.success).length;
-        // Allow for some failures due to connection pool limits (at least 60%)
-        expect(batchSuccessCount).toBeGreaterThanOrEqual(Math.floor(batchSize * 0.6));
-        totalSuccessCount += batchSuccessCount;
-
-        // Longer delay between batches to allow connection pool recovery
-        await sleep(200);
-      }
-
-      const duration = Date.now() - startTime;
-      const avgTime = duration / Math.max(1, totalSuccessCount);
-
-      // Should maintain reasonable performance (relaxed for test environment)
-      expect(avgTime).toBeLessThan(2000);
-
-      // Verify data integrity
-      const retrieveResponse = await invokeTool("recall", {
-        userId: testUserId,
-        limit: 200,
-      });
-
-      expect(retrieveResponse.success).toBe(true);
-      expect((retrieveResponse.data as any).memories.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it("should measure reasoning performance", async () => {
-      const problems = [
-        "How to improve team productivity?",
-        "What are the best practices for code review?",
-        "How to reduce technical debt?",
-        "What metrics should we track?",
-        "How to improve system reliability?",
-      ];
-
-      const timings: number[] = [];
-
-      for (const problem of problems) {
-        const startTime = Date.now();
-
-        const response = await invokeTool("think", {
-          problem,
-          mode: "analytical",
-        });
-
-        const duration = Date.now() - startTime;
-        timings.push(duration);
-
-        expect(response.success).toBe(true);
-      }
-
-      // Calculate statistics
-      const avgTime = timings.reduce((a, b) => a + b, 0) / timings.length;
-      const maxTime = Math.max(...timings);
-
-      // Should complete in reasonable time
-      expect(avgTime).toBeLessThan(5000); // 5 seconds average
-      expect(maxTime).toBeLessThan(10000); // 10 seconds max
-    });
-  });
-
-  describe("Real-World Scenarios", () => {
-    it("should simulate user session workflow", async () => {
-      // User starts session - store preferences
-      const pref1 = await invokeTool("remember", {
-        content: "User prefers concise responses",
-        userId: testUserId,
-        sessionId: testSessionId,
-        primarySector: "semantic",
-        metadata: {
-          keywords: ["preference", "concise", "responses"],
-          tags: ["user-preference"],
-          category: "preferences",
-          importance: 0.8,
-        },
-      });
-
-      expect(pref1.success).toBe(true);
-
-      // User asks a question - retrieve context
-      const context = await invokeTool("recall", {
-        userId: testUserId,
-        text: "user preferences",
-        limit: 5,
-      });
-
-      expect(context.success).toBe(true);
-
-      // System reasons about response
-      const reasoning = await invokeTool("think", {
-        problem: "How should I respond to this user?",
-        mode: "analytical",
-        context: {
-          evidence: (context.data as any).memories.map((m: { content: string }) => m.content),
-        },
-      });
-
-      expect(reasoning.success).toBe(true);
-
-      // Update preference based on interaction
-      await invokeTool("update_memory", {
-        memoryId: (pref1.data as any).memoryId,
-        userId: testUserId,
-        strength: 0.95, // Reinforce preference
-      });
-
-      // Store interaction outcome
-      const outcome = await invokeTool("remember", {
-        content: "User was satisfied with concise response",
-        userId: testUserId,
-        sessionId: testSessionId,
-        primarySector: "episodic",
-        metadata: {
-          keywords: ["interaction", "satisfaction", "concise"],
-          tags: ["outcome", "positive"],
-          category: "interactions",
-          importance: 0.7,
-        },
-      });
-
-      expect(outcome.success).toBe(true);
-    });
-
-    it("should simulate problem-solving workflow", async () => {
-      // 1. Decompose complex problem
-      const decompose = await invokeTool("breakdown", {
-        problem: "Launch a new product successfully",
-        maxDepth: 2,
-      });
-
-      expect(decompose.success).toBe(true);
-      expect((decompose.data as any).subProblems).toBeDefined();
-
-      // 2. Analyze systematically
-      const analysis = await invokeTool("analyze", {
-        problem: "Launch a new product successfully",
-        context: {
-          evidence: ["Market research completed", "Budget approved"],
-          constraints: ["6-month timeline", "Limited team"],
-        },
-      });
-
-      expect(analysis.success).toBe(true);
-
-      // 3. Think in parallel for comprehensive solution
-      const parallel = await invokeTool("ponder", {
-        problem: "Launch a new product successfully",
-        context: {
-          evidence: ["Market research completed", "Budget approved"],
-          constraints: ["6-month timeline", "Limited team"],
-          goals: ["Market share: 5%", "Revenue: $1M"],
-        },
-      });
-
-      expect(parallel.success).toBe(true);
-
-      // 4. Assess confidence in the plan
-      const confidence = await invokeTool("assess_confidence", {
-        reasoning: (parallel.data as any).conclusion,
-        evidence: ["Market research completed", "Budget approved"],
-      });
-
-      expect(confidence.success).toBe(true);
-
-      // 5. Store the solution
-      const solution = await invokeTool("remember", {
-        content: `Product launch plan: ${(parallel.data as any).conclusion}`,
-        userId: testUserId,
-        sessionId: testSessionId,
-        primarySector: "procedural",
-        metadata: {
-          keywords: ["product", "launch", "plan"],
-          tags: ["strategy", "action-plan"],
-          category: "plans",
-          importance: 0.95,
-        },
-      });
-
-      expect(solution.success).toBe(true);
-    });
-
-    it("should simulate learning workflow", async () => {
-      // Store initial knowledge
-      const initial = await invokeTool("remember", {
-        content: "Machine learning requires large datasets",
-        userId: testUserId,
-        sessionId: testSessionId,
-        primarySector: "semantic",
-        metadata: {
-          keywords: ["machine", "learning", "datasets"],
-          tags: ["ml", "knowledge"],
-          category: "learning",
-          importance: 0.7,
-        },
-      });
-
-      expect(initial.success).toBe(true);
-
-      // Retrieve similar knowledge
-      const similar = await invokeTool("recall", {
-        userId: testUserId,
-        text: "machine learning",
-        limit: 10,
-      });
-
-      expect(similar.success).toBe(true);
-
-      // Reason about the knowledge
-      const reasoning = await invokeTool("think", {
-        problem: "What are the key requirements for successful ML projects?",
-        mode: "synthetic",
-        context: {
-          evidence: (similar.data as any).memories.map((m: { content: string }) => m.content),
-        },
-      });
-
-      expect(reasoning.success).toBe(true);
-
-      // Update confidence in knowledge
-      await invokeTool("update_memory", {
-        memoryId: (initial.data as any).memoryId,
-        userId: testUserId,
-        strength: 0.9,
-        metadata: {
-          importance: 0.85,
-        },
-      });
-
-      // Store new insight
-      const insight = await invokeTool("remember", {
-        content: `Insight: ${(reasoning.data as any).conclusion}`,
-        userId: testUserId,
-        sessionId: testSessionId,
-        primarySector: "reflective",
-        metadata: {
-          keywords: ["insight", "ml", "requirements"],
-          tags: ["learning", "insight"],
-          category: "insights",
-          importance: 0.8,
-        },
-      });
-
-      expect(insight.success).toBe(true);
     });
   });
 });

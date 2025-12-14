@@ -63,7 +63,7 @@ describe("CircumplexEmotionAnalyzer", () => {
       expect(valence).toBeLessThan(-0.7);
     });
 
-    it("should handle empty string", () => {
+    it("should return zero valence for empty string", () => {
       const valence = analyzer.detectValence("");
 
       expect(valence).toBe(0);
@@ -141,7 +141,7 @@ describe("CircumplexEmotionAnalyzer", () => {
       expect(arousal).toBeLessThan(0.4);
     });
 
-    it("should handle empty string", () => {
+    it("should return zero arousal for empty string", () => {
       const arousal = analyzer.detectArousal("");
 
       expect(arousal).toBe(0);
@@ -211,7 +211,7 @@ describe("CircumplexEmotionAnalyzer", () => {
       expect(dominance).toBeLessThan(-0.5);
     });
 
-    it("should handle empty string", () => {
+    it("should return zero dominance for empty string", () => {
       const dominance = analyzer.detectDominance("");
 
       expect(dominance).toBe(0);
@@ -374,11 +374,11 @@ describe("CircumplexEmotionAnalyzer", () => {
   describe("Performance", () => {
     it("should complete analysis within 200ms for typical text", () => {
       const text = "I'm happy and excited about this wonderful opportunity!";
-      const startTime = Date.now();
+      const startTime = performance.now();
 
       analyzer.analyzeCircumplex(text);
 
-      const endTime = Date.now();
+      const endTime = performance.now();
       const duration = endTime - startTime;
 
       expect(duration).toBeLessThan(200);
@@ -386,11 +386,11 @@ describe("CircumplexEmotionAnalyzer", () => {
 
     it("should complete analysis within 200ms for long text", () => {
       const longText = "I'm happy and excited! ".repeat(50);
-      const startTime = Date.now();
+      const startTime = performance.now();
 
       analyzer.analyzeCircumplex(longText);
 
-      const endTime = Date.now();
+      const endTime = performance.now();
       const duration = endTime - startTime;
 
       expect(duration).toBeLessThan(200);
@@ -399,13 +399,13 @@ describe("CircumplexEmotionAnalyzer", () => {
     it("should handle multiple analyses efficiently", () => {
       const texts = ["I'm happy!", "I'm sad.", "I'm excited!", "I'm calm.", "I'm confident!"];
 
-      const startTime = Date.now();
+      const startTime = performance.now();
 
       texts.forEach((text) => {
         analyzer.analyzeCircumplex(text);
       });
 
-      const endTime = Date.now();
+      const endTime = performance.now();
       const duration = endTime - startTime;
 
       // Should complete 5 analyses in under 1 second
@@ -421,9 +421,9 @@ describe("CircumplexEmotionAnalyzer", () => {
       const state1 = analyzer.analyzeCircumplex(text);
 
       // Second call should use cache
-      const startTime = Date.now();
+      const startTime = performance.now();
       const state2 = analyzer.analyzeCircumplex(text);
-      const duration = Date.now() - startTime;
+      const duration = performance.now() - startTime;
 
       expect(state1.valence).toBe(state2.valence);
       expect(state1.arousal).toBe(state2.arousal);

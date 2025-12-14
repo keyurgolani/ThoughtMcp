@@ -353,6 +353,9 @@ test-results/
 test-reports/
 junit.xml
 
+# Test bucket container state files
+.bucket*-container-state.json
+
 # Temporary files and development artifacts
 tmp/
 temp/

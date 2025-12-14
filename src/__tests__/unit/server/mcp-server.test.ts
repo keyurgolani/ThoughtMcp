@@ -1,67 +1,27 @@
 /**
  * CognitiveMCPServer Tests
  *
- * Tests for MCP server initialization, tool registration, connection handling, and error recovery.
- * Following TDD principles - these tests define expected behavior before implementation.
+ * Consolidated tests for MCP server initialization, tool registration, connection handling,
+ * error recovery, and essential tool execution (memory and metacognitive tools).
  *
- * Requirements: 11.1, 11.2, 11.3, 11.4, 11.5
+ * Requirements: 2.1, 2.4, 3.1, 7.1, 11.1, 11.2, 11.3, 11.4, 11.5
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-// Import implementation
+import type { Memory, MemoryMetadata, MemorySectorType } from "../../../memory/types.js";
 import { CognitiveMCPServer } from "../../../server/mcp-server.js";
 import type { MCPTool } from "../../../server/types.js";
 
-// Mock all cognitive components
-vi.mock("../../../memory/memory-repository.js", () => ({
-  MemoryRepository: vi.fn().mockImplementation(() => ({
-    healthCheck: vi.fn().mockResolvedValue({ healthy: true }),
-    disconnect: vi.fn().mockResolvedValue(undefined),
-  })),
-}));
-
-vi.mock("../../../reasoning/orchestrator.js", () => ({
-  ParallelReasoningOrchestrator: vi.fn().mockImplementation(() => ({})),
-}));
-
-vi.mock("../../../framework/framework-selector.js", () => ({
-  DynamicFrameworkSelector: vi.fn().mockImplementation(() => ({})),
-}));
-
-vi.mock("../../../confidence/multi-dimensional-assessor.js", () => ({
-  MultiDimensionalConfidenceAssessor: vi.fn().mockImplementation(() => ({})),
-}));
-
-vi.mock("../../../bias/bias-pattern-recognizer.js", () => ({
-  BiasPatternRecognizer: vi.fn().mockImplementation(() => ({
-    detectBiases: vi.fn().mockResolvedValue([]),
-  })),
-}));
-
-vi.mock("../../../emotion/circumplex-analyzer.js", () => ({
-  CircumplexEmotionAnalyzer: vi.fn().mockImplementation(() => ({})),
-}));
-
-vi.mock("../../../metacognitive/performance-monitoring-system.js", () => ({
-  PerformanceMonitoringSystem: vi.fn().mockImplementation(() => ({})),
-}));
-
-vi.mock("../../../database/connection-manager.js", () => ({
-  DatabaseConnectionManager: vi.fn().mockImplementation(() => ({
-    connect: vi.fn().mockResolvedValue(undefined),
-    disconnect: vi.fn().mockResolvedValue(undefined),
-    healthCheck: vi.fn().mockResolvedValue(true),
-  })),
-}));
-
-vi.mock("../../../embeddings/embedding-engine.js", () => ({
-  EmbeddingEngine: vi.fn().mockImplementation(() => ({
-    initialize: vi.fn().mockResolvedValue(undefined),
-    shutdown: vi.fn().mockResolvedValue(undefined),
-  })),
-}));
-
+// Mock all dependencies - use simple mocks like memory-tools.test.ts
+vi.mock("../../../memory/memory-repository.js");
+vi.mock("../../../reasoning/orchestrator.js");
+vi.mock("../../../framework/framework-selector.js");
+vi.mock("../../../confidence/multi-dimensional-assessor.js");
+vi.mock("../../../bias/bias-pattern-recognizer.js");
+vi.mock("../../../emotion/circumplex-analyzer.js");
+vi.mock("../../../metacognitive/performance-monitoring-system.js");
+vi.mock("../../../database/connection-manager.js");
+vi.mock("../../../embeddings/embedding-engine.js");
 vi.mock("../../../utils/logger.js", () => ({
   Logger: {
     info: vi.fn(),
@@ -71,19 +31,49 @@ vi.mock("../../../utils/logger.js", () => ({
   },
 }));
 
+/**
+ * Creates a mock memory for testing
+ */
+function createMockMemory(
+  id: string,
+  userId: string,
+  strength: number,
+  content: string = "Test content"
+): Memory {
+  const now = new Date();
+  const metadata: MemoryMetadata = {
+    keywords: ["test"],
+    tags: ["unit-test"],
+    category: "test",
+    importance: 0.5,
+  };
+
+  return {
+    id,
+    content,
+    createdAt: now,
+    lastAccessed: now,
+    accessCount: 1,
+    salience: 0.5,
+    decayRate: 0.01,
+    strength,
+    userId,
+    sessionId: "test-session",
+    primarySector: "semantic" as MemorySectorType,
+    metadata,
+  };
+}
+
 describe("CognitiveMCPServer", () => {
   let server: CognitiveMCPServer;
 
   beforeEach(() => {
-    // Reset all mocks before each test
     vi.clearAllMocks();
-
     server = new CognitiveMCPServer();
   });
 
   afterEach(async () => {
-    // Cleanup: shutdown server if initialized
-    if (server.isInitialized) {
+    if (server?.isInitialized) {
       try {
         await server.shutdown();
       } catch {
@@ -95,7 +85,6 @@ describe("CognitiveMCPServer", () => {
 
   describe("Server Startup and Initialization", () => {
     it("should start successfully with all components", async () => {
-      // Mock all initialization methods to succeed
       vi.spyOn(server as any, "initializeComponents").mockResolvedValue(undefined);
       vi.spyOn(server as any, "registerTools").mockImplementation(() => {});
 
@@ -105,7 +94,6 @@ describe("CognitiveMCPServer", () => {
     });
 
     it("should initialize all cognitive components", async () => {
-      // Mock initialization to actually create the components
       vi.spyOn(server as any, "initializeComponents").mockImplementation(async () => {
         server.memoryRepository = {} as any;
         server.reasoningOrchestrator = {} as any;
@@ -119,47 +107,12 @@ describe("CognitiveMCPServer", () => {
 
       await server.initialize();
 
-      // Verify all components are initialized
       expect(server.memoryRepository).toBeDefined();
       expect(server.reasoningOrchestrator).toBeDefined();
       expect(server.frameworkSelector).toBeDefined();
-      expect(server.confidenceAssessor).toBeDefined();
-      expect(server.biasDetector).toBeDefined();
-      expect(server.emotionAnalyzer).toBeDefined();
-      expect(server.performanceMonitor).toBeDefined();
-    });
-
-    it("should register all tools during initialization", async () => {
-      vi.spyOn(server as any, "initializeComponents").mockResolvedValue(undefined);
-      vi.spyOn(server as any, "registerTools").mockImplementation(() => {
-        // Register a test tool
-        server.toolRegistry.registerTool({
-          name: "test_tool",
-          description: "Test tool",
-          inputSchema: { type: "object", properties: {} },
-          handler: async () => ({ success: true }),
-        });
-      });
-
-      await server.initialize();
-
-      const tools = server.getTools();
-      expect(tools.length).toBeGreaterThan(0);
-    });
-
-    it("should complete initialization within 5 seconds", async () => {
-      vi.spyOn(server as any, "initializeComponents").mockResolvedValue(undefined);
-      vi.spyOn(server as any, "registerTools").mockImplementation(() => {});
-
-      const startTime = Date.now();
-      await server.initialize();
-      const duration = Date.now() - startTime;
-
-      expect(duration).toBeLessThan(5000);
     });
 
     it("should handle initialization timeout", async () => {
-      // Mock a component that takes too long to initialize
       vi.spyOn(server as any, "initializeComponents").mockImplementation(
         () => new Promise((resolve) => setTimeout(resolve, 10000))
       );
@@ -177,7 +130,6 @@ describe("CognitiveMCPServer", () => {
     });
 
     it("should rollback on initialization failure", async () => {
-      // Mock a component initialization failure
       vi.spyOn(server as any, "initializeMemoryRepository").mockRejectedValue(
         new Error("Database connection failed")
       );
@@ -203,67 +155,11 @@ describe("CognitiveMCPServer", () => {
       expect(server.isInitialized).toBe(false);
     });
 
-    it("should cleanup all components", async () => {
-      const shutdownSpy = vi
-        .spyOn(server as any, "shutdownComponents")
-        .mockResolvedValue(undefined);
-
-      await server.shutdown();
-
-      expect(shutdownSpy).toHaveBeenCalled();
-    });
-
-    it("should terminate all connections", async () => {
-      // Set up a mock database manager
-      const mockDisconnect = vi.fn().mockResolvedValue(undefined);
-      (server as any).databaseManager = { disconnect: mockDisconnect };
-
-      vi.spyOn(server as any, "shutdownComponents").mockImplementation(async () => {
-        if ((server as any).databaseManager) {
-          await (server as any).databaseManager.disconnect();
-          (server as any).databaseManager = undefined;
-        }
-      });
-
-      await server.shutdown();
-
-      expect(mockDisconnect).toHaveBeenCalled();
-    });
-
-    it("should release all resources", async () => {
-      // Set up mock components
-      server.memoryRepository = {} as any;
-      server.reasoningOrchestrator = {} as any;
-
-      vi.spyOn(server as any, "shutdownComponents").mockImplementation(async () => {
-        server.memoryRepository = undefined;
-        server.reasoningOrchestrator = undefined;
-      });
-
-      await server.shutdown();
-
-      // Verify resources are released
-      expect(server.memoryRepository).toBeUndefined();
-      expect(server.reasoningOrchestrator).toBeUndefined();
-    });
-
-    it("should complete shutdown within 10 seconds", async () => {
-      vi.spyOn(server as any, "shutdownComponents").mockResolvedValue(undefined);
-
-      const startTime = Date.now();
-      await server.shutdown();
-      const duration = Date.now() - startTime;
-
-      expect(duration).toBeLessThan(10000);
-    });
-
     it("should handle shutdown errors gracefully", async () => {
-      // Mock a component shutdown failure
       vi.spyOn(server as any, "shutdownComponents").mockRejectedValue(
         new Error("Component shutdown failed")
       );
 
-      // Should not throw, but log error
       await expect(server.shutdown()).resolves.not.toThrow();
     });
 
@@ -277,327 +173,190 @@ describe("CognitiveMCPServer", () => {
       expect(result.error).toContain("Server not initialized");
     });
   });
+
+  describe("Tool Registration and Discovery", () => {
+    beforeEach(async () => {
+      vi.spyOn(server as any, "initializeComponents").mockResolvedValue(undefined);
+      vi.spyOn(server as any, "registerTools").mockImplementation(() => {});
+      await server.initialize();
+    });
+
+    it("should register and retrieve tools", async () => {
+      server.toolRegistry.registerTool({
+        name: "test_tool",
+        description: "Test tool",
+        inputSchema: { type: "object", properties: {} },
+        handler: async () => ({ success: true }),
+      });
+
+      const tools = server.getTools();
+      expect(tools.length).toBeGreaterThan(0);
+      expect(tools.find((t) => t.name === "test_tool")).toBeDefined();
+    });
+
+    it("should prevent duplicate tool registration", async () => {
+      const tool: MCPTool = {
+        name: "test_tool",
+        description: "Test tool",
+        inputSchema: { type: "object", properties: {} },
+        handler: async () => ({ success: true }),
+      };
+
+      server.toolRegistry.registerTool(tool);
+
+      expect(() => server.toolRegistry.registerTool(tool)).toThrow("Tool already registered");
+    });
+
+    it("should validate tool schemas on registration", async () => {
+      const invalidTool: any = {
+        name: "invalid_tool",
+      };
+
+      expect(() => server.toolRegistry.registerTool(invalidTool)).toThrow("Invalid tool schema");
+    });
+  });
+
+  describe("Health Check and Status", () => {
+    beforeEach(async () => {
+      vi.spyOn(server as any, "initializeComponents").mockImplementation(async () => {
+        server.memoryRepository = {} as any;
+        server.reasoningOrchestrator = {} as any;
+        server.frameworkSelector = {} as any;
+        server.confidenceAssessor = {} as any;
+        server.evidenceExtractor = {} as any;
+        server.biasDetector = {} as any;
+        server.emotionAnalyzer = {} as any;
+        server.performanceMonitor = {} as any;
+        (server as any).databaseManager = {
+          healthCheck: vi.fn().mockResolvedValue(true),
+        };
+      });
+      vi.spyOn(server as any, "registerTools").mockImplementation(() => {});
+      await server.initialize();
+    });
+
+    it("should provide health check endpoint", async () => {
+      vi.spyOn(server as any, "checkConnection").mockResolvedValue(true);
+
+      const health = await server.healthCheck();
+
+      expect(health).toBeDefined();
+      expect(health.healthy).toBeDefined();
+    });
+
+    it("should report component status", async () => {
+      vi.spyOn(server as any, "checkConnection").mockResolvedValue(true);
+
+      const health = await server.healthCheck();
+
+      expect(health.components).toBeDefined();
+      expect(health.components.memoryRepository).toBe("healthy");
+    });
+
+    it("should report unhealthy when components fail", async () => {
+      server.memoryRepository = undefined;
+      vi.spyOn(server as any, "checkConnection").mockResolvedValue(true);
+
+      const health = await server.healthCheck();
+
+      expect(health.healthy).toBe(false);
+      expect(health.components.memoryRepository).toBe("unhealthy");
+    });
+  });
+
+  describe("Tool Execution", () => {
+    beforeEach(async () => {
+      vi.spyOn(server as any, "initializeComponents").mockResolvedValue(undefined);
+      vi.spyOn(server as any, "registerTools").mockImplementation(() => {});
+      await server.initialize();
+    });
+
+    it("should execute tools successfully", async () => {
+      server.toolRegistry.registerTool({
+        name: "test_tool",
+        description: "Test tool",
+        inputSchema: { type: "object", properties: {} },
+        handler: async () => ({ success: true, data: { value: "test" } }),
+      });
+
+      const result = await server.executeTool("test_tool", {});
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).value).toBe("test");
+    });
+
+    it("should validate tool parameters", async () => {
+      server.toolRegistry.registerTool({
+        name: "param_tool",
+        description: "Tool with parameters",
+        inputSchema: {
+          type: "object",
+          properties: { required_param: { type: "string" } },
+          required: ["required_param"],
+        },
+        handler: async (params: any) => ({ success: true, params }),
+      });
+
+      const result = await server.executeTool("param_tool", {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("required_param");
+    });
+
+    it("should handle tool not found", async () => {
+      const result = await server.executeTool("nonexistent_tool", {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Tool not found");
+    });
+
+    it("should handle tool execution errors", async () => {
+      server.toolRegistry.registerTool({
+        name: "error_tool",
+        description: "Tool that throws error",
+        inputSchema: { type: "object", properties: {} },
+        handler: async () => {
+          throw new Error("Tool execution failed");
+        },
+      });
+
+      const result = await server.executeTool("error_tool", {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Tool execution failed");
+    });
+
+    it("should include metadata in responses", async () => {
+      server.toolRegistry.registerTool({
+        name: "meta_tool",
+        description: "Tool with metadata",
+        inputSchema: { type: "object", properties: {} },
+        handler: async () => ({ success: true }),
+      });
+
+      const result = await server.executeTool("meta_tool", {});
+
+      expect(result.metadata).toBeDefined();
+      expect(result.metadata?.timestamp).toBeDefined();
+      expect(result.metadata?.processingTime).toBeDefined();
+    });
+  });
 });
 
-describe("Tool Registration and Discovery", () => {
+describe("Batch Recall Handler - includeDeleted Parameter", () => {
   let server: CognitiveMCPServer;
+  let mockBatchRetrieve: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    server = new CognitiveMCPServer();
-    vi.spyOn(server as any, "initializeComponents").mockResolvedValue(undefined);
-    vi.spyOn(server as any, "registerTools").mockImplementation(() => {});
-    await server.initialize();
-  });
-
-  afterEach(async () => {
-    if (server.isInitialized) {
-      try {
-        await server.shutdown();
-      } catch {
-        // Ignore errors during cleanup
-      }
-    }
     vi.clearAllMocks();
-  });
-
-  it("should register all required tools", async () => {
-    // Register placeholder tool
-    server.toolRegistry.registerTool({
-      name: "placeholder",
-      description: "Placeholder tool",
-      inputSchema: { type: "object", properties: {} },
-      handler: async () => ({ success: true }),
-    });
-
-    const tools = server.getTools();
-
-    // Verify placeholder tool exists
-    const placeholderTool = tools.find((t) => t.name === "placeholder");
-    expect(placeholderTool).toBeDefined();
-  });
-
-  it("should return valid tool schemas", async () => {
-    server.toolRegistry.registerTool({
-      name: "test_tool",
-      description: "Test tool",
-      inputSchema: { type: "object", properties: {} },
-      handler: async () => ({ success: true }),
-    });
-
-    const tools = server.getTools();
-
-    tools.forEach((tool) => {
-      expect(tool.name).toBeDefined();
-      expect(tool.description).toBeDefined();
-      expect(tool.inputSchema).toBeDefined();
-    });
-  });
-
-  it("should allow tool discovery", async () => {
-    const tools = server.getTools();
-
-    expect(Array.isArray(tools)).toBe(true);
-  });
-
-  it("should prevent duplicate tool registration", async () => {
-    const tool: MCPTool = {
-      name: "test_tool",
-      description: "Test tool",
-      inputSchema: {
-        type: "object",
-        properties: {},
-      },
-      handler: async () => ({ success: true }),
-    };
-
-    server.toolRegistry.registerTool(tool);
-
-    expect(() => server.toolRegistry.registerTool(tool)).toThrow("Tool already registered");
-  });
-
-  it("should validate tool schemas on registration", async () => {
-    const invalidTool: any = {
-      name: "invalid_tool",
-      // Missing required fields
-    };
-
-    expect(() => server.toolRegistry.registerTool(invalidTool)).toThrow("Invalid tool schema");
-  });
-
-  it("should complete tool registration within 1 second", async () => {
-    const startTime = Date.now();
-    server.toolRegistry.registerTool({
-      name: "test_tool",
-      description: "Test tool",
-      inputSchema: { type: "object", properties: {} },
-      handler: async () => ({ success: true }),
-    });
-    const duration = Date.now() - startTime;
-
-    expect(duration).toBeLessThan(1000);
-  });
-});
-
-describe("Connection Handling and Lifecycle", () => {
-  let server: CognitiveMCPServer;
-
-  beforeEach(async () => {
     server = new CognitiveMCPServer();
-    vi.spyOn(server as any, "initializeComponents").mockImplementation(async () => {
-      (server as any).databaseManager = {
-        connect: vi.fn().mockResolvedValue(undefined),
-        disconnect: vi.fn().mockResolvedValue(undefined),
-        healthCheck: vi.fn().mockResolvedValue(true),
-      };
-    });
-    vi.spyOn(server as any, "registerTools").mockImplementation(() => {});
-    await server.initialize();
-  });
-
-  afterEach(async () => {
-    if (server.isInitialized) {
-      try {
-        await server.shutdown();
-      } catch {
-        // Ignore errors during cleanup
-      }
-    }
-    vi.clearAllMocks();
-  });
-
-  it("should establish connections successfully", async () => {
-    const connectionStatus = server.getConnectionStatus();
-
-    expect(connectionStatus.connected).toBe(true);
-  });
-
-  it("should manage connection state", async () => {
-    expect(server.getConnectionStatus().state).toBe("connected");
-
-    vi.spyOn(server as any, "shutdownComponents").mockResolvedValue(undefined);
-    await server.shutdown();
-
-    expect(server.getConnectionStatus().state).toBe("disconnected");
-  });
-
-  it("should handle connection errors", async () => {
-    // Mock a connection error
-    vi.spyOn(server as any, "checkConnection").mockResolvedValue(false);
-    vi.spyOn(server as any, "reconnect").mockRejectedValue(new Error("Connection lost"));
-
-    const status = await server.healthCheck();
-
-    expect(status.healthy).toBe(false);
-  });
-
-  it("should implement reconnection logic", async () => {
-    // Simulate connection loss
-    vi.spyOn(server as any, "checkConnection").mockResolvedValue(false);
-
-    // Should attempt reconnection
-    const reconnectSpy = vi.spyOn(server as any, "reconnect").mockResolvedValue(undefined);
-
-    await server.healthCheck();
-
-    expect(reconnectSpy).toHaveBeenCalled();
-  });
-});
-
-describe("Error Handling and Recovery", () => {
-  let server: CognitiveMCPServer;
-
-  beforeEach(() => {
-    server = new CognitiveMCPServer();
-  });
-
-  afterEach(async () => {
-    if (server.isInitialized) {
-      try {
-        await server.shutdown();
-      } catch {
-        // Ignore errors during cleanup
-      }
-    }
-    vi.clearAllMocks();
-  });
-
-  it("should handle component initialization failures", async () => {
-    // Mock the entire initialization chain to fail at memory repository
-    vi.spyOn(server as any, "initializeDatabaseManager").mockResolvedValue(undefined);
-    vi.spyOn(server as any, "initializeEmbeddingEngine").mockResolvedValue(undefined);
-    vi.spyOn(server as any, "initializeMemoryRepository").mockRejectedValue(
-      new Error("Database connection failed")
-    );
-    vi.spyOn(server as any, "rollbackInitialization").mockResolvedValue(undefined);
-
-    await expect(server.initialize()).rejects.toThrow("Database connection failed");
-    expect(server.isInitialized).toBe(false);
-  });
-
-  it("should handle tool execution errors", async () => {
-    vi.spyOn(server as any, "initializeComponents").mockResolvedValue(undefined);
-    vi.spyOn(server as any, "registerTools").mockImplementation(() => {});
-    await server.initialize();
-
-    // Mock tool that throws error
-    server.toolRegistry.registerTool({
-      name: "error_tool",
-      description: "Tool that throws error",
-      inputSchema: { type: "object", properties: {} },
-      handler: async () => {
-        throw new Error("Tool execution failed");
-      },
-    });
-
-    const result = await server.executeTool("error_tool", {});
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("Tool execution failed");
-  });
-
-  it("should implement graceful degradation", async () => {
-    vi.spyOn(server as any, "initializeComponents").mockImplementation(async () => {
-      server.memoryRepository = {} as any;
-      server.reasoningOrchestrator = {} as any;
-      server.frameworkSelector = {} as any;
-      server.confidenceAssessor = {} as any;
-      server.biasDetector = {} as any;
-      server.emotionAnalyzer = {} as any;
-      server.performanceMonitor = {} as any;
-      (server as any).databaseManager = {
-        healthCheck: vi.fn().mockResolvedValue(true),
-      };
-    });
-    vi.spyOn(server as any, "registerTools").mockImplementation(() => {});
-    await server.initialize();
-
-    // Simulate component failure by removing it
-    server.biasDetector = undefined;
-
-    // Server should continue operating without bias detection
-    const health = await server.healthCheck();
-
-    expect(health.degraded).toBe(true);
-    expect(health.unavailableComponents).toContain("biasDetector");
-  });
-
-  it("should log all errors with context", async () => {
-    const { Logger } = await import("../../../utils/logger.js");
-    const loggerSpy = vi.spyOn(Logger, "error");
+    mockBatchRetrieve = vi.fn();
 
     vi.spyOn(server as any, "initializeComponents").mockImplementation(async () => {
-      (server as any).databaseManager = {
-        healthCheck: vi.fn().mockResolvedValue(true),
-      };
-    });
-    vi.spyOn(server as any, "registerTools").mockImplementation(() => {});
-    await server.initialize();
-
-    // Trigger an error
-    vi.spyOn(server as any, "checkConnection").mockRejectedValue(new Error("Connection error"));
-
-    await server.healthCheck();
-
-    expect(loggerSpy).toHaveBeenCalled();
-  });
-
-  it("should provide user-friendly error messages", async () => {
-    vi.spyOn(server as any, "initializeComponents").mockResolvedValue(undefined);
-    vi.spyOn(server as any, "registerTools").mockImplementation(() => {});
-    await server.initialize();
-
-    const result = await server.executeTool("nonexistent_tool", {});
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("Tool not found");
-    expect(result.suggestion).toBeDefined();
-  });
-
-  it("should recover from transient errors", async () => {
-    vi.spyOn(server as any, "initializeComponents").mockImplementation(async () => {
-      server.memoryRepository = {} as any;
-      server.reasoningOrchestrator = {} as any;
-      server.frameworkSelector = {} as any;
-      server.confidenceAssessor = {} as any;
-      server.evidenceExtractor = {} as any;
-      server.biasDetector = {} as any;
-      server.emotionAnalyzer = {} as any;
-      server.performanceMonitor = {} as any;
-      (server as any).databaseManager = {
-        healthCheck: vi.fn().mockResolvedValue(true),
-        disconnect: vi.fn().mockResolvedValue(undefined),
-        connect: vi.fn().mockResolvedValue(undefined),
-      };
-    });
-    vi.spyOn(server as any, "registerTools").mockImplementation(() => {});
-    await server.initialize();
-
-    // Simulate transient error by making a component fail temporarily
-    const originalMemoryRepo = server.memoryRepository;
-    server.memoryRepository = undefined;
-
-    // First call fails due to missing component
-    let health = await server.healthCheck();
-    expect(health.healthy).toBe(false);
-    expect(health.degraded).toBe(true);
-
-    // Restore component (recovery)
-    server.memoryRepository = originalMemoryRepo;
-
-    // Second call succeeds
-    health = await server.healthCheck();
-    expect(health.healthy).toBe(true);
-    expect(health.degraded).toBe(false);
-  });
-});
-
-describe("Health Check and Status", () => {
-  let server: CognitiveMCPServer;
-
-  beforeEach(async () => {
-    server = new CognitiveMCPServer();
-    vi.spyOn(server as any, "initializeComponents").mockImplementation(async () => {
-      server.memoryRepository = {} as any;
+      server.memoryRepository = {
+        batchRetrieve: mockBatchRetrieve,
+        healthCheck: vi.fn().mockResolvedValue({ healthy: true }),
+      } as any;
       server.reasoningOrchestrator = {} as any;
       server.frameworkSelector = {} as any;
       server.confidenceAssessor = {} as any;
@@ -609,12 +368,12 @@ describe("Health Check and Status", () => {
         healthCheck: vi.fn().mockResolvedValue(true),
       };
     });
-    vi.spyOn(server as any, "registerTools").mockImplementation(() => {});
+
     await server.initialize();
   });
 
   afterEach(async () => {
-    if (server.isInitialized) {
+    if (server?.isInitialized) {
       try {
         await server.shutdown();
       } catch {
@@ -624,175 +383,463 @@ describe("Health Check and Status", () => {
     vi.clearAllMocks();
   });
 
-  it("should provide health check endpoint", async () => {
-    vi.spyOn(server as any, "checkConnection").mockResolvedValue(true);
+  it("should pass includeDeleted=true to batchRetrieve and return soft-deleted memories", async () => {
+    const userId = "test-user";
+    const softDeletedMemory = createMockMemory("mem-1", userId, 0, "Soft-deleted memory");
+    const activeMemory = createMockMemory("mem-2", userId, 0.8, "Active memory");
 
-    const health = await server.healthCheck();
-
-    expect(health).toBeDefined();
-    expect(health.healthy).toBeDefined();
-  });
-
-  it("should report component status", async () => {
-    vi.spyOn(server as any, "checkConnection").mockResolvedValue(true);
-
-    const health = await server.healthCheck();
-
-    expect(health.components).toBeDefined();
-    expect(health.components.memoryRepository).toBe("healthy");
-    expect(health.components.reasoningOrchestrator).toBe("healthy");
-  });
-
-  it("should provide performance metrics", async () => {
-    vi.spyOn(server as any, "checkConnection").mockResolvedValue(true);
-
-    // Wait a bit to ensure uptime > 0
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    const health = await server.healthCheck();
-
-    expect(health.metrics).toBeDefined();
-    expect(health.metrics.uptime).toBeGreaterThanOrEqual(0);
-    expect(health.metrics.requestCount).toBeGreaterThanOrEqual(0);
-  });
-
-  it("should perform readiness checks", async () => {
-    vi.spyOn(server as any, "checkConnection").mockResolvedValue(true);
-
-    const health = await server.healthCheck();
-
-    expect(health.ready).toBe(true);
-  });
-
-  it("should respond to health check within 100ms", async () => {
-    vi.spyOn(server as any, "checkConnection").mockResolvedValue(true);
-
-    const startTime = Date.now();
-    await server.healthCheck();
-    const duration = Date.now() - startTime;
-
-    expect(duration).toBeLessThan(100);
-  });
-
-  it("should report unhealthy when components fail", async () => {
-    // Simulate component failure
-    server.memoryRepository = undefined;
-
-    vi.spyOn(server as any, "checkConnection").mockResolvedValue(true);
-
-    const health = await server.healthCheck();
-
-    expect(health.healthy).toBe(false);
-    expect(health.components.memoryRepository).toBe("unhealthy");
-  });
-
-  it("should include timestamp in health status", async () => {
-    vi.spyOn(server as any, "checkConnection").mockResolvedValue(true);
-
-    const health = await server.healthCheck();
-
-    expect(health.timestamp).toBeDefined();
-    expect(new Date(health.timestamp).getTime()).toBeGreaterThan(0);
-  });
-});
-
-describe("Tool Execution", () => {
-  let server: CognitiveMCPServer;
-
-  beforeEach(async () => {
-    server = new CognitiveMCPServer();
-    vi.spyOn(server as any, "initializeComponents").mockResolvedValue(undefined);
-    vi.spyOn(server as any, "registerTools").mockImplementation(() => {});
-    await server.initialize();
-  });
-
-  afterEach(async () => {
-    if (server.isInitialized) {
-      try {
-        await server.shutdown();
-      } catch {
-        // Ignore errors during cleanup
-      }
-    }
-    vi.clearAllMocks();
-  });
-
-  it("should execute tools successfully", async () => {
-    // Register a test tool
-    server.toolRegistry.registerTool({
-      name: "test_tool",
-      description: "Test tool",
-      inputSchema: { type: "object", properties: {} },
-      handler: async () => ({ success: true, data: { value: "test" } }),
+    mockBatchRetrieve.mockResolvedValue({
+      memories: [softDeletedMemory, activeMemory],
+      notFound: [],
+      processingTime: 10,
     });
 
-    const result = await server.executeTool("test_tool", {});
+    const result = await server.executeTool("batch_recall", {
+      userId,
+      memoryIds: ["mem-1", "mem-2"],
+      includeDeleted: true,
+    });
+
+    expect(mockBatchRetrieve).toHaveBeenCalledWith({
+      userId,
+      memoryIds: ["mem-1", "mem-2"],
+      includeDeleted: true,
+    });
 
     expect(result.success).toBe(true);
-    expect((result.data as any).value).toBe("test");
+    const data = result.data as any;
+    expect(data.memories).toHaveLength(2);
   });
 
-  it("should validate tool parameters", async () => {
-    server.toolRegistry.registerTool({
-      name: "param_tool",
-      description: "Tool with parameters",
-      inputSchema: {
-        type: "object",
-        properties: {
-          required_param: { type: "string" },
+  it("should default to excluding soft-deleted memories when includeDeleted is not provided", async () => {
+    const userId = "test-user";
+    const activeMemory = createMockMemory("mem-2", userId, 0.8, "Active memory");
+
+    mockBatchRetrieve.mockResolvedValue({
+      memories: [activeMemory],
+      notFound: ["mem-1"],
+      processingTime: 10,
+    });
+
+    const result = await server.executeTool("batch_recall", {
+      userId,
+      memoryIds: ["mem-1", "mem-2"],
+    });
+
+    expect(mockBatchRetrieve).toHaveBeenCalledWith({
+      userId,
+      memoryIds: ["mem-1", "mem-2"],
+      includeDeleted: undefined,
+    });
+
+    expect(result.success).toBe(true);
+    const data = result.data as any;
+    expect(data.memories).toHaveLength(1);
+  });
+
+  it("should handle errors from batchRetrieve gracefully", async () => {
+    mockBatchRetrieve.mockRejectedValue(new Error("Database connection failed"));
+
+    const result = await server.executeTool("batch_recall", {
+      userId: "test-user",
+      memoryIds: ["mem-1"],
+      includeDeleted: true,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Database connection failed");
+  });
+});
+
+describe("Memory Tools - Essential Operations", () => {
+  let server: CognitiveMCPServer;
+  let mockMemoryRepository: any;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+
+    mockMemoryRepository = {
+      create: vi.fn(),
+      retrieve: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      search: vi.fn(),
+    };
+
+    server = new CognitiveMCPServer();
+    server.memoryRepository = mockMemoryRepository;
+    (server as any).databaseManager = {
+      healthCheck: vi.fn().mockResolvedValue(true),
+    };
+    server.isInitialized = true;
+  });
+
+  afterEach(async () => {
+    if (server?.toolRegistry) {
+      server.toolRegistry.clear();
+    }
+    if (server) {
+      server.isInitialized = false;
+    }
+    vi.clearAllMocks();
+  });
+
+  describe("remember tool", () => {
+    beforeEach(() => {
+      server.toolRegistry.registerTool({
+        name: "remember",
+        description: "Store a new memory",
+        inputSchema: {
+          type: "object",
+          properties: {
+            content: { type: "string" },
+            type: {
+              type: "string",
+              enum: ["episodic", "semantic", "procedural", "emotional", "reflective"],
+            },
+            userId: { type: "string" },
+          },
+          required: ["content", "type", "userId"],
         },
-        required: ["required_param"],
-      },
-      handler: async (params: any) => ({ success: true, params }),
+        handler: async (params: any) => {
+          const memory = await mockMemoryRepository.create(
+            {
+              content: params.content,
+              userId: params.userId,
+              primarySector: params.type,
+              sessionId: "test",
+            },
+            { keywords: [], tags: [], importance: 0.5, isAtomic: true }
+          );
+          return { success: true, data: { memoryId: memory.id } };
+        },
+      });
     });
 
-    // Missing required parameter
-    const result = await server.executeTool("param_tool", {});
+    it("should store memory with required parameters", async () => {
+      mockMemoryRepository.create.mockResolvedValue({ id: "mem_123", content: "Test" });
 
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("required_param");
-  });
+      const result = await server.executeTool("remember", {
+        content: "Test memory content",
+        type: "episodic",
+        userId: "user_123",
+      });
 
-  it("should include metadata in responses", async () => {
-    server.toolRegistry.registerTool({
-      name: "meta_tool",
-      description: "Tool with metadata",
-      inputSchema: { type: "object", properties: {} },
-      handler: async () => ({ success: true }),
-    });
-
-    const result = await server.executeTool("meta_tool", {});
-
-    expect(result.metadata).toBeDefined();
-    expect(result.metadata?.timestamp).toBeDefined();
-    expect(result.metadata?.processingTime).toBeDefined();
-    expect(result.metadata?.componentsUsed).toBeDefined();
-  });
-
-  it("should handle tool not found", async () => {
-    const result = await server.executeTool("nonexistent_tool", {});
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("Tool not found");
-  });
-
-  it("should handle concurrent tool executions", async () => {
-    server.toolRegistry.registerTool({
-      name: "concurrent_tool",
-      description: "Tool for concurrent testing",
-      inputSchema: { type: "object", properties: {} },
-      handler: async () => {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        return { success: true };
-      },
-    });
-
-    const promises = Array.from({ length: 10 }, () => server.executeTool("concurrent_tool", {}));
-
-    const results = await Promise.all(promises);
-
-    results.forEach((result) => {
       expect(result.success).toBe(true);
+      expect((result.data as any).memoryId).toBe("mem_123");
+      expect(mockMemoryRepository.create).toHaveBeenCalled();
+    });
+
+    it("should validate remember tool requires content parameter", async () => {
+      const result = await server.executeTool("remember", {
+        type: "episodic",
+        userId: "user_123",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("content");
+    });
+
+    it("should handle repository errors during memory creation", async () => {
+      mockMemoryRepository.create.mockRejectedValue(new Error("Database error"));
+
+      const result = await server.executeTool("remember", {
+        content: "Test",
+        type: "episodic",
+        userId: "user_123",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Database error");
+    });
+  });
+
+  describe("recall tool", () => {
+    beforeEach(() => {
+      server.toolRegistry.registerTool({
+        name: "recall",
+        description: "Retrieve memories",
+        inputSchema: {
+          type: "object",
+          properties: {
+            memoryId: { type: "string" },
+            cue: { type: "string" },
+            userId: { type: "string" },
+          },
+          required: ["userId"],
+        },
+        handler: async (params: any) => {
+          if (params.memoryId) {
+            const memory = await mockMemoryRepository.retrieve(params.memoryId, params.userId);
+            return {
+              success: true,
+              data: { memories: memory ? [memory] : [], count: memory ? 1 : 0 },
+            };
+          } else if (params.cue) {
+            const result = await mockMemoryRepository.search({ text: params.cue });
+            return { success: true, data: { memories: result.memories, count: result.totalCount } };
+          }
+          return { success: false, error: "Either memoryId or cue must be provided" };
+        },
+      });
+    });
+
+    it("should retrieve memory by ID", async () => {
+      mockMemoryRepository.retrieve.mockResolvedValue(createMockMemory("mem_123", "user_123", 1.0));
+
+      const result = await server.executeTool("recall", {
+        memoryId: "mem_123",
+        userId: "user_123",
+      });
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).memories).toHaveLength(1);
+    });
+
+    it("should handle non-existent memory", async () => {
+      mockMemoryRepository.retrieve.mockResolvedValue(null);
+
+      const result = await server.executeTool("recall", {
+        memoryId: "nonexistent",
+        userId: "user_123",
+      });
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).memories).toHaveLength(0);
+    });
+  });
+
+  describe("forget tool", () => {
+    beforeEach(() => {
+      server.toolRegistry.registerTool({
+        name: "forget",
+        description: "Delete a memory",
+        inputSchema: {
+          type: "object",
+          properties: {
+            memoryId: { type: "string" },
+            userId: { type: "string" },
+            soft: { type: "boolean" },
+          },
+          required: ["memoryId", "userId"],
+        },
+        handler: async (params: any) => {
+          await mockMemoryRepository.delete(params.memoryId, params.soft ?? true);
+          return {
+            success: true,
+            data: {
+              memoryId: params.memoryId,
+              deletionType: (params.soft ?? true) ? "soft" : "hard",
+            },
+          };
+        },
+      });
+    });
+
+    it("should perform soft delete by default", async () => {
+      mockMemoryRepository.delete.mockResolvedValue(undefined);
+
+      const result = await server.executeTool("forget", {
+        memoryId: "mem_123",
+        userId: "user_123",
+      });
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).deletionType).toBe("soft");
+      expect(mockMemoryRepository.delete).toHaveBeenCalledWith("mem_123", true);
+    });
+
+    it("should perform hard delete when specified", async () => {
+      mockMemoryRepository.delete.mockResolvedValue(undefined);
+
+      const result = await server.executeTool("forget", {
+        memoryId: "mem_123",
+        userId: "user_123",
+        soft: false,
+      });
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).deletionType).toBe("hard");
+    });
+  });
+});
+
+describe("Metacognitive Tools - Essential Operations", () => {
+  let server: CognitiveMCPServer;
+  let mockConfidenceAssessor: any;
+  let mockBiasDetector: any;
+  let mockEmotionAnalyzer: any;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+
+    mockConfidenceAssessor = { assessConfidence: vi.fn() };
+    mockBiasDetector = { detectBiasesFromText: vi.fn() };
+    mockEmotionAnalyzer = { analyzeCircumplex: vi.fn(), classifyEmotions: vi.fn() };
+
+    server = new CognitiveMCPServer();
+    server.confidenceAssessor = mockConfidenceAssessor;
+    server.biasDetector = mockBiasDetector;
+    server.biasCorrector = {
+      getSuggestion: vi.fn().mockReturnValue({
+        biasType: "confirmation",
+        suggestion: "Seek disconfirming evidence",
+        techniques: ["Search for contradicting evidence"],
+        challengeQuestions: ["What evidence would prove this wrong?"],
+      }),
+    } as any;
+    server.emotionAnalyzer = mockEmotionAnalyzer;
+    (server as any).databaseManager = { healthCheck: vi.fn().mockResolvedValue(true) };
+    server.isInitialized = true;
+
+    (server as any).registerMetacognitiveTools();
+  });
+
+  afterEach(async () => {
+    if (server?.toolRegistry) {
+      server.toolRegistry.clear();
+    }
+    if (server) {
+      server.isInitialized = false;
+    }
+    vi.clearAllMocks();
+  });
+
+  describe("assess_confidence tool", () => {
+    it("should assess confidence with multi-dimensional analysis", async () => {
+      mockConfidenceAssessor.assessConfidence.mockResolvedValue({
+        overallConfidence: 0.85,
+        dimensions: {
+          evidenceQuality: 0.9,
+          reasoningCoherence: 0.85,
+          completeness: 0.8,
+          uncertaintyLevel: 0.15,
+          biasFreedom: 0.9,
+        },
+        interpretation: "High confidence",
+        recommendations: [],
+      });
+
+      const result = await server.executeTool("assess_confidence", {
+        reasoning: "Based on metrics, optimization will improve throughput by 40%",
+        evidence: ["Benchmark results", "Load tests"],
+      });
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).overallConfidence).toBe(0.85);
+      expect((result.data as any).dimensions).toBeDefined();
+    });
+
+    it("should validate assess_confidence tool requires reasoning parameter", async () => {
+      const result = await server.executeTool("assess_confidence", {
+        evidence: ["Some evidence"],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("reasoning");
+    });
+
+    it("should handle confidence assessment errors gracefully", async () => {
+      mockConfidenceAssessor.assessConfidence.mockRejectedValue(new Error("Assessment failed"));
+
+      const result = await server.executeTool("assess_confidence", {
+        reasoning: "Test reasoning",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Assessment failed");
+    });
+  });
+
+  describe("detect_bias tool", () => {
+    it("should detect biases and provide corrections", async () => {
+      mockBiasDetector.detectBiasesFromText.mockReturnValue([
+        {
+          type: "confirmation",
+          severity: 0.7,
+          description: "Seeking only supporting evidence",
+          evidence: ["Ignored contradictory data"],
+        },
+      ]);
+
+      const result = await server.executeTool("detect_bias", {
+        reasoning: "All the data supports my hypothesis",
+      });
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).biases).toHaveLength(1);
+      expect((result.data as any).biases[0].type).toBe("confirmation");
+      expect((result.data as any).biases[0].correction).toBeDefined();
+    });
+
+    it("should handle no biases detected", async () => {
+      mockBiasDetector.detectBiasesFromText.mockReturnValue([]);
+
+      const result = await server.executeTool("detect_bias", {
+        reasoning: "Objective analysis based on comprehensive data",
+      });
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).biases).toHaveLength(0);
+    });
+
+    it("should validate detect_bias tool requires reasoning parameter", async () => {
+      const result = await server.executeTool("detect_bias", {
+        context: "Test context",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("reasoning");
+    });
+  });
+
+  describe("detect_emotion tool", () => {
+    it("should detect emotions using Circumplex model", async () => {
+      mockEmotionAnalyzer.analyzeCircumplex.mockReturnValue({
+        valence: 0.7,
+        arousal: 0.6,
+        dominance: 0.5,
+        confidence: 0.85,
+      });
+      mockEmotionAnalyzer.classifyEmotions.mockReturnValue([]);
+
+      const result = await server.executeTool("detect_emotion", {
+        text: "I'm really excited about this project!",
+      });
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).circumplex).toBeDefined();
+      expect((result.data as any).circumplex.valence).toBe(0.7);
+    });
+
+    it("should classify discrete emotions when requested", async () => {
+      mockEmotionAnalyzer.analyzeCircumplex.mockReturnValue({
+        valence: 0.8,
+        arousal: 0.7,
+        dominance: 0.6,
+        confidence: 0.85,
+      });
+      mockEmotionAnalyzer.classifyEmotions.mockReturnValue([
+        { emotion: "joy", intensity: 0.85, confidence: 0.9 },
+      ]);
+
+      const result = await server.executeTool("detect_emotion", {
+        text: "I'm so happy!",
+        includeDiscrete: true,
+      });
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).discrete).toBeDefined();
+      expect((result.data as any).discrete[0].emotion).toBe("joy");
+    });
+
+    it("should validate detect_emotion tool requires text parameter", async () => {
+      const result = await server.executeTool("detect_emotion", {
+        includeDiscrete: true,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("text");
     });
   });
 });

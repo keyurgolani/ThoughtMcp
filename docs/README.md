@@ -2,34 +2,33 @@
 
 Welcome to the ThoughtMCP documentation. This index helps you find the right guide for your needs.
 
-## 📚 For Users
+## Getting Started
 
-Getting started with ThoughtMCP as an end user or AI assistant developer.
+| Document                            | Description                            |
+| ----------------------------------- | -------------------------------------- |
+| [User Guide](user-guide.md)         | Installation, setup, and basic usage   |
+| [MCP Tools Reference](mcp-tools.md) | Complete MCP tool schemas and examples |
+| [Examples](examples.md)             | Interactive workflow tutorials         |
 
-| Document                      | Description                                       |
-| ----------------------------- | ------------------------------------------------- |
-| [User Guide](user-guide.md)   | Installation, setup, and basic usage              |
-| [MCP Tools](mcp-tools.md)     | Complete MCP tool schemas and usage               |
-| [Examples](examples.md)       | Interactive workflow tutorials                    |
-| [Integration](integration.md) | IDE and client integration (Kiro, Claude, Cursor) |
+## Configuration & Deployment
 
-## 🔧 For Operators
+| Document                                  | Description                                       |
+| ----------------------------------------- | ------------------------------------------------- |
+| [Environment](environment.md)             | Environment variables reference                   |
+| [Docker Deployment](docker-deployment.md) | Docker Compose deployment guide                   |
+| [Deployment](deployment.md)               | Production deployment guide                       |
+| [Database](database.md)                   | PostgreSQL setup and schema                       |
+| [Integration](integration.md)             | IDE and client integration (Kiro, Claude, Cursor) |
 
-Deploying and operating ThoughtMCP in production environments.
+## Operations
 
-| Document                                  | Description                     |
-| ----------------------------------------- | ------------------------------- |
-| [Docker Deployment](docker-deployment.md) | Docker Compose deployment guide |
-| [Deployment](deployment.md)               | Production deployment guide     |
-| [Environment](environment.md)             | Environment variables reference |
-| [Database](database.md)                   | PostgreSQL setup and schema     |
-| [Monitoring](monitoring.md)               | Observability and alerting      |
-| [Security](security.md)                   | Security best practices         |
-| [Troubleshooting](troubleshooting.md)     | Common issues and solutions     |
+| Document                              | Description                 |
+| ------------------------------------- | --------------------------- |
+| [Monitoring](monitoring.md)           | Observability and alerting  |
+| [Security](security.md)               | Security best practices     |
+| [Troubleshooting](troubleshooting.md) | Common issues and solutions |
 
-## 💻 For Contributors
-
-Contributing to ThoughtMCP development.
+## Development
 
 | Document                        | Description                     |
 | ------------------------------- | ------------------------------- |
@@ -39,9 +38,7 @@ Contributing to ThoughtMCP development.
 | [Contributing](contributing.md) | Contribution guidelines         |
 | [Extending](extending.md)       | Adding new features and plugins |
 
-## 📖 Reference
-
-Technical reference documentation.
+## Reference
 
 | Document                        | Description                  |
 | ------------------------------- | ---------------------------- |
@@ -52,14 +49,14 @@ Technical reference documentation.
 
 ## Quick Start by Role
 
-### I want to use ThoughtMCP
+### Using ThoughtMCP
 
 1. [User Guide](user-guide.md) → Installation and setup
 2. [Integration](integration.md) → Connect to your IDE
 3. [MCP Tools](mcp-tools.md) → Learn the available tools
 4. [Examples](examples.md) → See it in action
 
-### I want to deploy ThoughtMCP
+### Deploying ThoughtMCP
 
 1. [Docker Deployment](docker-deployment.md) → Docker Compose setup (recommended)
 2. [Deployment](deployment.md) → Production setup without Docker
@@ -68,7 +65,7 @@ Technical reference documentation.
 5. [Monitoring](monitoring.md) → Observability setup
 6. [Security](security.md) → Security hardening
 
-### I want to contribute to ThoughtMCP
+### Contributing to ThoughtMCP
 
 1. [Development](development.md) → Development workflow
 2. [Architecture](architecture.md) → Understand the system
@@ -78,15 +75,4 @@ Technical reference documentation.
 
 ---
 
-## Document Overview
-
-| Category         | Documents                                                                                   |
-| ---------------- | ------------------------------------------------------------------------------------------- |
-| **Users**        | user-guide, mcp-tools, examples, integration                                                |
-| **Operators**    | docker-deployment, deployment, environment, database, monitoring, security, troubleshooting |
-| **Contributors** | development, testing, build, contributing, extending                                        |
-| **Reference**    | api, architecture                                                                           |
-
----
-
-**Version**: 0.5.0
+**Version**: 0.6.0

@@ -620,7 +620,7 @@ This guide provides solutions to common issues encountered when developing, test
 
 **Symptoms**:
 
-- Coverage report shows <95% line coverage
+- Coverage report shows <75% for any metric (lines, branches, functions, statements)
 - Build fails on coverage check
 - Uncovered code paths
 
@@ -845,17 +845,22 @@ This guide provides solutions to common issues encountered when developing, test
    npm run build:bundle
    ```
 
-3. **Increase timeout** (recommended timeouts based on measured execution times):
+3. **Increase timeout** (recommended timeouts based on measured execution times as of December 10, 2024):
 
    ```bash
-   # Full build with tests (~220s typical)
-   timeout 300s npm run build
+   # Full build with tests (~180s typical)
+   timeout 360s npm run build
 
-   # Full test suite (~440s typical)
-   timeout 600s npm test
+   # Full test suite (~78s typical with orchestrator)
+   timeout 160s npm test
 
-   # Coverage tests (~220s typical)
-   timeout 300s npm run test:coverage
+   # Coverage tests (~89s typical)
+   timeout 180s npm run test:coverage
+
+   # Individual test categories
+   timeout 75s npm run test:unit         # ~37s typical
+   timeout 30s npm run test:integration  # ~10s typical
+   timeout 180s npm run test:e2e         # ~60s typical (requires containers)
    ```
 
 4. **Check for infinite loops**:

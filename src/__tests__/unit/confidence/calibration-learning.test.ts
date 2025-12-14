@@ -1,18 +1,20 @@
 /**
  * Tests for Calibration Learning Engine
  *
- * Tests prediction-outcome tracking, calibratirror calculation,
+ * Tests prediction-outcome tracking, calibration error calculation,
  * domain-specific model training, and accuracy improvement over time.
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { CalibrationLearningEngine } from "../../../confidence/calibration-learning-engine";
+import { SeededRandom, seededRandom } from "../../utils/test-helpers";
 
 describe("CalibrationLearningEngine", () => {
   let engine: CalibrationLearningEngine;
 
   beforeEach(() => {
     engine = new CalibrationLearningEngine();
+    seededRandom.reset();
   });
 
   describe("Prediction-Outcome Pair Storage", () => {
@@ -42,12 +44,17 @@ describe("CalibrationLearningEngine", () => {
     });
 
     it("should retrieve pairs by time range", () => {
-      const now = new Date();
-      const oneHourAgo = new Date(now.getTime() - 3600000);
+      const oneHourAgo = new Date(Date.now() - 3600000);
 
       engine.trackPredictionOutcome(0.7, 1.0, "general");
 
-      const recentPairs = engine.getPredictionOutcomesByTimeRange("general", oneHourAgo, now);
+      // Use a future time to ensure the tracked pair is within range
+      const futureTime = new Date(Date.now() + 1000);
+      const recentPairs = engine.getPredictionOutcomesByTimeRange(
+        "general",
+        oneHourAgo,
+        futureTime
+      );
 
       expect(recentPairs.length).toBeGreaterThan(0);
       expect(recentPairs[0].timestamp.getTime()).toBeGreaterThanOrEqual(oneHourAgo.getTime());
@@ -146,8 +153,9 @@ describe("CalibrationLearningEngine", () => {
   describe("Domain-Specific Model Training", () => {
     it("should train model with sufficient data (1000+ pairs)", () => {
       // Generate 1000 pairs with systematic bias (overconfident by 0.2)
+      const rng = new SeededRandom(42);
       for (let i = 0; i < 1000; i++) {
-        const actual = Math.random();
+        const actual = rng.next();
         const predicted = Math.min(1.0, actual + 0.2);
         engine.trackPredictionOutcome(predicted, actual, "sufficient");
       }
@@ -176,8 +184,9 @@ describe("CalibrationLearningEngine", () => {
 
     it("should produce model that reduces calibration error", () => {
       // Generate biased data
+      const rng = new SeededRandom(43);
       for (let i = 0; i < 1000; i++) {
-        const actual = Math.random();
+        const actual = rng.next();
         const predicted = Math.min(1.0, actual + 0.15);
         engine.trackPredictionOutcome(predicted, actual, "improvement");
       }
@@ -228,9 +237,10 @@ describe("CalibrationLearningEngine", () => {
   describe("Calibration Accuracy (±10%)", () => {
     it("should achieve predictions within ±10% of actual outcomes", () => {
       // Generate well-calibrated data
+      const rng = new SeededRandom(44);
       for (let i = 0; i < 1000; i++) {
-        const actual = Math.random();
-        const predicted = actual + (Math.random() - 0.5) * 0.1; // ±5% noise
+        const actual = rng.next();
+        const predicted = actual + (rng.next() - 0.5) * 0.1; // ±5% noise
         engine.trackPredictionOutcome(Math.max(0, Math.min(1, predicted)), actual, "accurate");
       }
 
@@ -240,8 +250,9 @@ describe("CalibrationLearningEngine", () => {
 
     it("should improve accuracy after model training", () => {
       // Generate biased data
+      const rng = new SeededRandom(45);
       for (let i = 0; i < 1000; i++) {
-        const actual = Math.random();
+        const actual = rng.next();
         const predicted = Math.min(1.0, actual + 0.25);
         engine.trackPredictionOutcome(predicted, actual, "improve");
       }
@@ -257,9 +268,10 @@ describe("CalibrationLearningEngine", () => {
 
     it("should maintain accuracy across low confidence range", () => {
       // Low confidence predictions (0-0.3)
+      const rng = new SeededRandom(46);
       for (let i = 0; i < 1000; i++) {
-        const actual = Math.random() * 0.3;
-        const predicted = actual + (Math.random() - 0.5) * 0.05;
+        const actual = rng.next() * 0.3;
+        const predicted = actual + (rng.next() - 0.5) * 0.05;
         engine.trackPredictionOutcome(Math.max(0, Math.min(0.3, predicted)), actual, "low-range");
       }
 
@@ -271,9 +283,10 @@ describe("CalibrationLearningEngine", () => {
 
     it("should maintain accuracy across medium confidence range", () => {
       // Medium confidence predictions (0.3-0.7)
+      const rng = new SeededRandom(47);
       for (let i = 0; i < 1000; i++) {
-        const actual = 0.3 + Math.random() * 0.4;
-        const predicted = actual + (Math.random() - 0.5) * 0.05;
+        const actual = 0.3 + rng.next() * 0.4;
+        const predicted = actual + (rng.next() - 0.5) * 0.05;
         engine.trackPredictionOutcome(
           Math.max(0.3, Math.min(0.7, predicted)),
           actual,
@@ -289,9 +302,10 @@ describe("CalibrationLearningEngine", () => {
 
     it("should maintain accuracy across high confidence range", () => {
       // High confidence predictions (0.7-1.0)
+      const rng = new SeededRandom(48);
       for (let i = 0; i < 1000; i++) {
-        const actual = 0.7 + Math.random() * 0.3;
-        const predicted = actual + (Math.random() - 0.5) * 0.05;
+        const actual = 0.7 + rng.next() * 0.3;
+        const predicted = actual + (rng.next() - 0.5) * 0.05;
         engine.trackPredictionOutcome(
           Math.max(0.7, Math.min(1.0, predicted)),
           actual,
@@ -308,10 +322,12 @@ describe("CalibrationLearningEngine", () => {
     it("should maintain accuracy for different domains", () => {
       const domains = ["technical", "creative", "analytical"];
 
-      for (const domain of domains) {
+      for (let d = 0; d < domains.length; d++) {
+        const domain = domains[d];
+        const rng = new SeededRandom(49 + d);
         for (let i = 0; i < 1000; i++) {
-          const actual = Math.random();
-          const predicted = actual + (Math.random() - 0.5) * 0.08;
+          const actual = rng.next();
+          const predicted = actual + (rng.next() - 0.5) * 0.08;
           engine.trackPredictionOutcome(Math.max(0, Math.min(1, predicted)), actual, domain);
         }
 
@@ -324,11 +340,12 @@ describe("CalibrationLearningEngine", () => {
   describe("Improvement Over Time", () => {
     it("should show calibration error decreases with more data", () => {
       const errors: number[] = [];
+      const rng = new SeededRandom(50);
 
       // Add data in batches and track error
       for (let batch = 0; batch < 5; batch++) {
         for (let i = 0; i < 200; i++) {
-          const actual = Math.random();
+          const actual = rng.next();
           const predicted = Math.min(1.0, actual + 0.2);
           engine.trackPredictionOutcome(predicted, actual, "learning");
         }
@@ -345,9 +362,10 @@ describe("CalibrationLearningEngine", () => {
     });
 
     it("should improve accuracy by at least 15% after 1000 pairs", () => {
+      const rng = new SeededRandom(51);
       // First 100 pairs - establish baseline
       for (let i = 0; i < 100; i++) {
-        const actual = Math.random();
+        const actual = rng.next();
         const predicted = Math.min(1.0, actual + 0.3);
         engine.trackPredictionOutcome(predicted, actual, "improvement-15");
       }
@@ -356,7 +374,7 @@ describe("CalibrationLearningEngine", () => {
 
       // Add 900 more pairs
       for (let i = 0; i < 900; i++) {
-        const actual = Math.random();
+        const actual = rng.next();
         const predicted = Math.min(1.0, actual + 0.3);
         engine.trackPredictionOutcome(predicted, actual, "improvement-15");
       }
@@ -371,8 +389,9 @@ describe("CalibrationLearningEngine", () => {
 
     it("should track improvement metrics over time", () => {
       // Add data progressively
+      const rng = new SeededRandom(52);
       for (let i = 0; i < 1500; i++) {
-        const actual = Math.random();
+        const actual = rng.next();
         const predicted = Math.min(1.0, actual + 0.2);
         engine.trackPredictionOutcome(predicted, actual, "metrics");
       }
@@ -392,9 +411,10 @@ describe("CalibrationLearningEngine", () => {
       // Collect error at different sample sizes
       for (let samples = 200; samples <= 1200; samples += 200) {
         const tempEngine = new CalibrationLearningEngine();
+        const rng = new SeededRandom(53 + samples);
 
         for (let i = 0; i < samples; i++) {
-          const actual = Math.random();
+          const actual = rng.next();
           const predicted = Math.min(1.0, actual + 0.25);
           tempEngine.trackPredictionOutcome(predicted, actual, "curve");
         }
@@ -419,8 +439,9 @@ describe("CalibrationLearningEngine", () => {
   describe("Bias Identification", () => {
     it("should identify overconfidence bias", () => {
       // Consistently predict higher than actual
+      const rng = new SeededRandom(54);
       for (let i = 0; i < 1000; i++) {
-        const actual = Math.random() * 0.7;
+        const actual = rng.next() * 0.7;
         const predicted = actual + 0.25;
         engine.trackPredictionOutcome(predicted, actual, "overconfident");
       }
@@ -434,8 +455,9 @@ describe("CalibrationLearningEngine", () => {
 
     it("should identify underconfidence bias", () => {
       // Consistently predict lower than actual
+      const rng = new SeededRandom(55);
       for (let i = 0; i < 1000; i++) {
-        const actual = 0.3 + Math.random() * 0.7;
+        const actual = 0.3 + rng.next() * 0.7;
         const predicted = actual - 0.25;
         engine.trackPredictionOutcome(Math.max(0, predicted), actual, "underconfident");
       }
@@ -448,15 +470,16 @@ describe("CalibrationLearningEngine", () => {
 
     it("should identify confidence range with high error", () => {
       // Create data with high error in medium confidence range
+      const rng = new SeededRandom(56);
       for (let i = 0; i < 1000; i++) {
-        const actual = Math.random();
+        const actual = rng.next();
         let predicted: number;
 
         if (actual >= 0.3 && actual <= 0.7) {
           // Add large systematic error in medium range (overconfident)
           predicted = Math.min(1.0, actual + 0.25);
         } else {
-          predicted = Math.min(1.0, Math.max(0, actual + (Math.random() - 0.5) * 0.05));
+          predicted = Math.min(1.0, Math.max(0, actual + (rng.next() - 0.5) * 0.05));
         }
 
         engine.trackPredictionOutcome(predicted, actual, "range-error");
@@ -473,8 +496,9 @@ describe("CalibrationLearningEngine", () => {
     });
 
     it("should generate correction factors for biases", () => {
+      const rng = new SeededRandom(57);
       for (let i = 0; i < 1000; i++) {
-        const actual = Math.random();
+        const actual = rng.next();
         const predicted = Math.min(1.0, actual + 0.2);
         engine.trackPredictionOutcome(predicted, actual, "correction");
       }
@@ -637,8 +661,9 @@ describe("CalibrationLearningEngine", () => {
     });
 
     it("should calculate error for 1000 pairs in < 10ms", () => {
+      const rng = new SeededRandom(58);
       for (let i = 0; i < 1000; i++) {
-        engine.trackPredictionOutcome(Math.random(), Math.random(), "perf-error");
+        engine.trackPredictionOutcome(rng.next(), rng.next(), "perf-error");
       }
 
       const start = performance.now();
@@ -649,8 +674,9 @@ describe("CalibrationLearningEngine", () => {
     });
 
     it("should train model in < 100ms for 1000 pairs", () => {
+      const rng = new SeededRandom(59);
       for (let i = 0; i < 1000; i++) {
-        engine.trackPredictionOutcome(Math.random(), Math.random(), "perf-train");
+        engine.trackPredictionOutcome(rng.next(), rng.next(), "perf-train");
       }
 
       const start = performance.now();

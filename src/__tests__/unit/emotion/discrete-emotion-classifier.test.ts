@@ -469,9 +469,9 @@ describe("DiscreteEmotionClassifier", () => {
   describe("Performance", () => {
     it("should classify text in less than 200ms", () => {
       const text = "I'm happy and excited about this wonderful news!";
-      const startTime = Date.now();
+      const startTime = performance.now();
       classifier.classify(text);
-      const endTime = Date.now();
+      const endTime = performance.now();
 
       const duration = endTime - startTime;
       expect(duration).toBeLessThan(200);
@@ -479,9 +479,9 @@ describe("DiscreteEmotionClassifier", () => {
 
     it("should handle long text efficiently", () => {
       const longText = "I'm happy. ".repeat(100);
-      const startTime = Date.now();
+      const startTime = performance.now();
       classifier.classify(longText);
-      const endTime = Date.now();
+      const endTime = performance.now();
 
       const duration = endTime - startTime;
       expect(duration).toBeLessThan(200);

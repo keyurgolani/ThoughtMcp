@@ -244,9 +244,9 @@ describe("MultiDimensionalConfidenceAssessor", () => {
         goals: Array(3).fill("Goal"),
       });
 
-      const startTime = Date.now();
+      const startTime = performance.now();
       await assessor.assessConfidence(context);
-      const endTime = Date.now();
+      const endTime = performance.now();
 
       const duration = endTime - startTime;
       expect(duration).toBeLessThan(100);
@@ -259,9 +259,9 @@ describe("MultiDimensionalConfidenceAssessor", () => {
         goals: Array(20).fill("Goal"),
       });
 
-      const startTime = Date.now();
+      const startTime = performance.now();
       await assessor.assessConfidence(largeContext);
-      const endTime = Date.now();
+      const endTime = performance.now();
 
       const duration = endTime - startTime;
       expect(duration).toBeLessThan(100);

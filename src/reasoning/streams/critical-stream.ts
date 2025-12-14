@@ -42,97 +42,22 @@ export class CriticalStreamProcessor implements StreamProcessor {
     const insights: Insight[] = [];
 
     // Validate problem - throw for truly invalid problems
-    if (!problem || !problem.id || !problem.description) {
+    if (!problem?.id || !problem.description) {
       throw new Error("Invalid problem: missing required fields");
     }
 
     try {
       // Extract key terms for problem-specific criticism (Req 4.3, 15.3)
       const keyTerms = this.keyTermExtractor.extract(problem.description, problem.context);
-      const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the proposal";
+      const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the proposal";
 
       // Step 1: Initial skeptical assessment
       reasoning.push(
         `Critically examining: ${problem.description.substring(0, 100)}${problem.description.length > 100 ? "..." : ""}`
       );
 
-      // Step 2: Identify weaknesses and flaws
-      const weaknesses = this.identifyWeaknesses(problem, keyTerms);
-      if (weaknesses.length > 0) {
-        reasoning.push(
-          `Identified ${weaknesses.length} potential weakness${weaknesses.length > 1 ? "es" : ""} in ${primaryTerm}`
-        );
-        reasoning.push(`Logical gaps in ${primaryTerm} require clarification before proceeding`);
-        reasoning.push(
-          `Implementation challenges for ${primaryTerm} include complexity given current constraints`
-        );
-        insights.push(...weaknesses);
-      }
-
-      // Step 3: Challenge assumptions
-      const assumptions = this.challengeAssumptions(problem, keyTerms);
-      if (assumptions.length > 0) {
-        reasoning.push(
-          `Questioning ${assumptions.length} underlying assumption${assumptions.length > 1 ? "s" : ""} about ${primaryTerm}`
-        );
-        // Check for optimistic projections
-        if (problem.context.includes("%")) {
-          reasoning.push(
-            `Projections for ${primaryTerm} appear optimistic - need validation of achievable targets`
-          );
-        }
-        insights.push(...assumptions);
-      }
-
-      // Step 4: Assess risks
-      const risks = this.assessRisks(problem, keyTerms);
-      if (risks.length > 0) {
-        reasoning.push(
-          `Risk assessment for ${primaryTerm} reveals ${risks.length} significant concern${risks.length > 1 ? "s" : ""}`
-        );
-        reasoning.push(
-          `Unintended consequences from ${primaryTerm} could have broader impact than anticipated`
-        );
-        reasoning.push(
-          `Worst-case scenario: ${primaryTerm} could fail and cause more harm than good`
-        );
-        reasoning.push(`Risk mitigation strategies for ${primaryTerm} should be developed`);
-        insights.push(...risks);
-      }
-
-      // Step 5: Detect logical flaws
-      const flaws = this.detectFlaws(problem, keyTerms);
-      reasoning.push(
-        `Logical analysis of ${primaryTerm} identifies potential flaws and errors in reasoning`
-      );
-
-      // Add specific reasoning for detected flaws
-      for (const flaw of flaws) {
-        if (flaw.content.toLowerCase().includes("circular")) {
-          reasoning.push(
-            `Circular reasoning detected in ${primaryTerm} - argument repeats itself without adding substance`
-          );
-        }
-      }
-
-      if (flaws.length > 0) {
-        insights.push(...flaws);
-      }
-
-      // Step 6: Play devil's advocate
-      const counterArguments = this.generateCounterArguments(problem, keyTerms);
-      if (counterArguments.length > 0) {
-        reasoning.push(
-          `Devil's advocate on ${primaryTerm}: ${counterArguments[0].content.substring(0, 80)}...`
-        );
-        reasoning.push(
-          `Counter-argument: alternative approaches to ${primaryTerm} may be more effective`
-        );
-        reasoning.push(
-          `Constructive criticism: ${primaryTerm} could improve by addressing root causes`
-        );
-        insights.push(...counterArguments);
-      }
+      // Steps 2-6: Core analysis
+      this.performCoreAnalysis(problem, keyTerms, primaryTerm, reasoning, insights);
 
       // Step 7: Evaluate evidence quality
       const evidenceAssessment = this.evaluateEvidence(problem, keyTerms);
@@ -142,35 +67,16 @@ export class CriticalStreamProcessor implements StreamProcessor {
       }
 
       // Step 8: Consider constraints critically
-      if (problem.constraints && problem.constraints.length > 0) {
-        reasoning.push(
-          `Constraints on ${primaryTerm}: ${problem.constraints.join(", ")} - these may be more limiting than acknowledged`
-        );
-        reasoning.push(
-          `Challenging conventional wisdom about ${primaryTerm}: the standard approach may not be optimal`
-        );
-        const constraintContent = `Constraints on ${primaryTerm} (${problem.constraints.join(", ")}) may significantly limit feasibility`;
-        insights.push({
-          content: constraintContent,
-          source: StreamType.CRITICAL,
-          confidence: 0.75,
-          importance: 0.8,
-          referencedTerms: this.keyTermExtractor.findReferencedTerms(constraintContent, keyTerms),
-        });
-      }
+      this.analyzeConstraints(problem, keyTerms, primaryTerm, reasoning, insights);
 
       // Step 9: Generate conclusion
       const conclusion = this.generateConclusion(problem, insights, keyTerms);
       reasoning.push(`Therefore, ${conclusion}`);
-
-      // Add balanced perspective
       reasoning.push(
         `While concerns about ${primaryTerm} exist, there could be potential if issues are addressed`
       );
 
-      // Calculate confidence based on thoroughness of criticism
       const confidence = this.calculateConfidence(problem, insights);
-
       const processingTime = Math.max(1, Date.now() - startTime);
 
       return {
@@ -208,6 +114,159 @@ export class CriticalStreamProcessor implements StreamProcessor {
     return StreamType.CRITICAL;
   }
 
+  private performCoreAnalysis(
+    problem: Problem,
+    keyTerms: KeyTerms,
+    primaryTerm: string,
+    reasoning: string[],
+    insights: Insight[]
+  ): void {
+    // Step 2: Identify weaknesses
+    const weaknesses = this.identifyWeaknesses(problem, keyTerms);
+    this.addWeaknessReasoning(weaknesses, primaryTerm, reasoning, insights);
+
+    // Step 3: Challenge assumptions
+    const assumptions = this.challengeAssumptions(problem, keyTerms);
+    this.addAssumptionReasoning(problem, assumptions, primaryTerm, reasoning, insights);
+
+    // Step 4: Assess risks
+    const risks = this.assessRisks(problem, keyTerms);
+    this.addRiskReasoning(risks, primaryTerm, reasoning, insights);
+
+    // Step 5: Detect logical flaws
+    const flaws = this.detectFlaws(problem, keyTerms);
+    this.addFlawReasoning(flaws, primaryTerm, reasoning, insights);
+
+    // Step 6: Play devil's advocate
+    const counterArguments = this.generateCounterArguments(problem, keyTerms);
+    this.addCounterArgumentReasoning(counterArguments, primaryTerm, reasoning, insights);
+  }
+
+  private addWeaknessReasoning(
+    weaknesses: Insight[],
+    primaryTerm: string,
+    reasoning: string[],
+    insights: Insight[]
+  ): void {
+    if (weaknesses.length > 0) {
+      reasoning.push(
+        `Identified ${weaknesses.length} potential weakness${weaknesses.length > 1 ? "es" : ""} in ${primaryTerm}`
+      );
+      reasoning.push(`Logical gaps in ${primaryTerm} require clarification before proceeding`);
+      reasoning.push(
+        `Implementation challenges for ${primaryTerm} include complexity given current constraints`
+      );
+      insights.push(...weaknesses);
+    }
+  }
+
+  private addAssumptionReasoning(
+    problem: Problem,
+    assumptions: Insight[],
+    primaryTerm: string,
+    reasoning: string[],
+    insights: Insight[]
+  ): void {
+    if (assumptions.length > 0) {
+      reasoning.push(
+        `Questioning ${assumptions.length} underlying assumption${assumptions.length > 1 ? "s" : ""} about ${primaryTerm}`
+      );
+      if ((problem.context ?? "").includes("%")) {
+        reasoning.push(
+          `Projections for ${primaryTerm} appear optimistic - need validation of achievable targets`
+        );
+      }
+      insights.push(...assumptions);
+    }
+  }
+
+  private addRiskReasoning(
+    risks: Insight[],
+    primaryTerm: string,
+    reasoning: string[],
+    insights: Insight[]
+  ): void {
+    if (risks.length > 0) {
+      reasoning.push(
+        `Risk assessment for ${primaryTerm} reveals ${risks.length} significant concern${risks.length > 1 ? "s" : ""}`
+      );
+      reasoning.push(
+        `Unintended consequences from ${primaryTerm} could have broader impact than anticipated`
+      );
+      reasoning.push(
+        `Worst-case scenario: ${primaryTerm} could fail and cause more harm than good`
+      );
+      reasoning.push(`Risk mitigation strategies for ${primaryTerm} should be developed`);
+      insights.push(...risks);
+    }
+  }
+
+  private addFlawReasoning(
+    flaws: Insight[],
+    primaryTerm: string,
+    reasoning: string[],
+    insights: Insight[]
+  ): void {
+    reasoning.push(
+      `Logical analysis of ${primaryTerm} identifies potential flaws and errors in reasoning`
+    );
+    for (const flaw of flaws) {
+      if (flaw.content.toLowerCase().includes("circular")) {
+        reasoning.push(
+          `Circular reasoning detected in ${primaryTerm} - argument repeats itself without adding substance`
+        );
+      }
+    }
+    if (flaws.length > 0) {
+      insights.push(...flaws);
+    }
+  }
+
+  private addCounterArgumentReasoning(
+    counterArguments: Insight[],
+    primaryTerm: string,
+    reasoning: string[],
+    insights: Insight[]
+  ): void {
+    if (counterArguments.length > 0) {
+      reasoning.push(
+        `Devil's advocate on ${primaryTerm}: ${counterArguments[0].content.substring(0, 80)}...`
+      );
+      reasoning.push(
+        `Counter-argument: alternative approaches to ${primaryTerm} may be more effective`
+      );
+      reasoning.push(
+        `Constructive criticism: ${primaryTerm} could improve by addressing root causes`
+      );
+      insights.push(...counterArguments);
+    }
+  }
+
+  private analyzeConstraints(
+    problem: Problem,
+    keyTerms: KeyTerms,
+    primaryTerm: string,
+    reasoning: string[],
+    insights: Insight[]
+  ): void {
+    if (problem.constraints && problem.constraints.length > 0) {
+      reasoning.push(
+        `Constraints on ${primaryTerm}: ${problem.constraints.join(", ")} - these may be more limiting than acknowledged`
+      );
+      reasoning.push(
+        `Challenging conventional wisdom about ${primaryTerm}: the standard approach may not be optimal`
+      );
+      const constraintContent = `Constraints on ${primaryTerm} (${problem.constraints.join(", ")}) may significantly limit feasibility`;
+      insights.push({
+        content: constraintContent,
+        source: StreamType.CRITICAL,
+        confidence: 0.75,
+        importance: 0.8,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(constraintContent, keyTerms),
+      });
+    }
+  }
+
   /**
    * Identify weaknesses in the proposal with term reference tracking
    *
@@ -217,74 +276,99 @@ export class CriticalStreamProcessor implements StreamProcessor {
    */
   private identifyWeaknesses(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const weaknesses: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the proposal";
-    const domainTerm = keyTerms.domainTerms[0] || "";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the proposal";
+    const domainTerm = keyTerms.domainTerms[0] ?? "";
 
-    // Check for vague or unclear problem description
-    if (problem.description.length < 30) {
-      const content = `${primaryTerm} description is too vague - lacks specific ${domainTerm || "details"} needed for proper evaluation`;
-      weaknesses.push({
-        content,
-        source: StreamType.CRITICAL,
-        confidence: 0.85,
-        importance: 0.8,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
-      });
-    }
-
-    // Check for missing context
-    if (!problem.context || problem.context.length < 50) {
-      const content = `Insufficient context for ${primaryTerm} - missing critical ${domainTerm || "information"} for thorough analysis`;
-      weaknesses.push({
-        content,
-        source: StreamType.CRITICAL,
-        confidence: 0.9,
-        importance: 0.85,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
-      });
-    }
-
-    // Check for overly optimistic claims (e.g., "50%" in context)
-    const hasOptimisticClaims = /\d+%/.test(problem.context);
-    if (hasOptimisticClaims) {
-      const content = `Quantitative projections for ${primaryTerm} may be overly optimistic - need validation with ${domainTerm || "supporting"} data`;
-      weaknesses.push({
-        content,
-        source: StreamType.CRITICAL,
-        confidence: 0.75,
-        importance: 0.8,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
-      });
-    }
-
-    // Check for implementation challenges
-    if (
-      problem.complexity === "complex" ||
-      (problem.constraints && problem.constraints.length > 2)
-    ) {
-      const content = `${primaryTerm} implementation complexity is high - ${domainTerm || "resource"} requirements not fully addressed`;
-      weaknesses.push({
-        content,
-        source: StreamType.CRITICAL,
-        confidence: 0.8,
-        importance: 0.75,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
-      });
-    }
-
-    // Check for potential failure points
-    if (problem.urgency === "high") {
-      const content = `High urgency for ${primaryTerm} increases risk of rushed ${domainTerm || "decisions"} and inadequate testing`;
-      weaknesses.push({
-        content,
-        source: StreamType.CRITICAL,
-        confidence: 0.75,
-        importance: 0.8,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
-      });
-    }
+    this.checkVagueDescription(problem, primaryTerm, domainTerm, keyTerms, weaknesses);
+    this.checkMissingContext(problem, primaryTerm, domainTerm, keyTerms, weaknesses);
+    this.checkOptimisticClaims(problem, primaryTerm, domainTerm, keyTerms, weaknesses);
+    this.checkImplementationChallenges(problem, primaryTerm, domainTerm, keyTerms, weaknesses);
+    this.checkUrgencyRisks(problem, primaryTerm, domainTerm, keyTerms, weaknesses);
 
     return weaknesses;
+  }
+
+  private checkVagueDescription(
+    problem: Problem,
+    primaryTerm: string,
+    domainTerm: string,
+    keyTerms: KeyTerms,
+    weaknesses: Insight[]
+  ): void {
+    if (problem.description.length < 30) {
+      const content = `${primaryTerm} description is too vague - lacks specific ${domainTerm !== "" ? domainTerm : "details"} needed for proper evaluation`;
+      weaknesses.push(this.createWeaknessInsight(content, 0.85, 0.8, keyTerms));
+    }
+  }
+
+  private checkMissingContext(
+    problem: Problem,
+    primaryTerm: string,
+    domainTerm: string,
+    keyTerms: KeyTerms,
+    weaknesses: Insight[]
+  ): void {
+    if (!problem.context || problem.context.length < 50) {
+      const content = `Insufficient context for ${primaryTerm} - missing critical ${domainTerm !== "" ? domainTerm : "information"} for thorough analysis`;
+      weaknesses.push(this.createWeaknessInsight(content, 0.9, 0.85, keyTerms));
+    }
+  }
+
+  private checkOptimisticClaims(
+    problem: Problem,
+    primaryTerm: string,
+    domainTerm: string,
+    keyTerms: KeyTerms,
+    weaknesses: Insight[]
+  ): void {
+    const hasOptimisticClaims = /\d+%/.test(problem.context ?? "");
+    if (hasOptimisticClaims) {
+      const content = `Quantitative projections for ${primaryTerm} may be overly optimistic - need validation with ${domainTerm !== "" ? domainTerm : "supporting"} data`;
+      weaknesses.push(this.createWeaknessInsight(content, 0.75, 0.8, keyTerms));
+    }
+  }
+
+  private checkImplementationChallenges(
+    problem: Problem,
+    primaryTerm: string,
+    domainTerm: string,
+    keyTerms: KeyTerms,
+    weaknesses: Insight[]
+  ): void {
+    const isComplex =
+      problem.complexity === "complex" || (problem.constraints && problem.constraints.length > 2);
+    if (isComplex) {
+      const content = `${primaryTerm} implementation complexity is high - ${domainTerm !== "" ? domainTerm : "resource"} requirements not fully addressed`;
+      weaknesses.push(this.createWeaknessInsight(content, 0.8, 0.75, keyTerms));
+    }
+  }
+
+  private checkUrgencyRisks(
+    problem: Problem,
+    primaryTerm: string,
+    domainTerm: string,
+    keyTerms: KeyTerms,
+    weaknesses: Insight[]
+  ): void {
+    if (problem.urgency === "high") {
+      const content = `High urgency for ${primaryTerm} increases risk of rushed ${domainTerm !== "" ? domainTerm : "decisions"} and inadequate testing`;
+      weaknesses.push(this.createWeaknessInsight(content, 0.75, 0.8, keyTerms));
+    }
+  }
+
+  private createWeaknessInsight(
+    content: string,
+    confidence: number,
+    importance: number,
+    keyTerms: KeyTerms
+  ): Insight {
+    return {
+      content,
+      source: StreamType.CRITICAL,
+      confidence,
+      importance,
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
+    };
   }
 
   /**
@@ -296,79 +380,78 @@ export class CriticalStreamProcessor implements StreamProcessor {
    */
   private challengeAssumptions(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const assumptions: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the proposal";
-    const domainTerm = keyTerms.domainTerms[0] || "";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the proposal";
+    const domainTerm = keyTerms.domainTerms[0] ?? "";
+    const context = problem.context ?? "";
 
-    // Challenge optimistic projections
-    if (problem.context.includes("%") || problem.context.toLowerCase().includes("increase")) {
-      const content = `Assumption that ${primaryTerm} will achieve stated ${domainTerm || "metrics"} is unproven - what if actual impact is much lower?`;
-      assumptions.push({
-        content,
-        source: StreamType.CRITICAL,
-        confidence: 0.8,
-        importance: 0.85,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
-      });
-    }
-
-    // Challenge user behavior assumptions
-    if (
-      problem.context.toLowerCase().includes("user") ||
-      problem.context.toLowerCase().includes("engagement")
-    ) {
-      const content = `${primaryTerm} assumes users will respond positively - but user behavior is unpredictable`;
-      assumptions.push({
-        content,
-        source: StreamType.CRITICAL,
-        confidence: 0.75,
-        importance: 0.8,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
-      });
-    }
-
-    // Challenge timeline assumptions
-    if (
-      problem.constraints &&
-      problem.constraints.some(
-        (c) => c.toLowerCase().includes("month") || c.toLowerCase().includes("timeline")
-      )
-    ) {
-      const content = `Timeline assumptions for ${primaryTerm} may be unrealistic - hidden ${domainTerm || "complexities"} often emerge`;
-      assumptions.push({
-        content,
-        source: StreamType.CRITICAL,
-        confidence: 0.7,
-        importance: 0.75,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
-      });
-    }
-
-    // Challenge resource assumptions
-    if (
-      problem.constraints &&
-      problem.constraints.some((c) => c.includes("$") || c.toLowerCase().includes("budget"))
-    ) {
-      const content = `Budget assumptions for ${primaryTerm} may not account for unforeseen ${domainTerm || "costs"} and scope creep`;
-      assumptions.push({
-        content,
-        source: StreamType.CRITICAL,
-        confidence: 0.75,
-        importance: 0.7,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
-      });
-    }
+    this.challengeOptimisticProjections(context, primaryTerm, domainTerm, keyTerms, assumptions);
+    this.challengeUserBehavior(context, primaryTerm, keyTerms, assumptions);
+    this.challengeTimeline(problem, primaryTerm, domainTerm, keyTerms, assumptions);
+    this.challengeResources(problem, primaryTerm, domainTerm, keyTerms, assumptions);
 
     // General assumption challenge with specific terms
-    const generalContent = `Implicit assumption that current ${primaryTerm} approach is optimal - alternative ${domainTerm || "strategies"} may be more effective`;
-    assumptions.push({
-      content: generalContent,
-      source: StreamType.CRITICAL,
-      confidence: 0.65,
-      importance: 0.7,
-      referencedTerms: this.keyTermExtractor.findReferencedTerms(generalContent, keyTerms),
-    });
+    const generalContent = `Implicit assumption that current ${primaryTerm} approach is optimal - alternative ${domainTerm !== "" ? domainTerm : "strategies"} may be more effective`;
+    assumptions.push(this.createWeaknessInsight(generalContent, 0.65, 0.7, keyTerms));
 
     return assumptions;
+  }
+
+  private challengeOptimisticProjections(
+    context: string,
+    primaryTerm: string,
+    domainTerm: string,
+    keyTerms: KeyTerms,
+    assumptions: Insight[]
+  ): void {
+    if (context.includes("%") || context.toLowerCase().includes("increase")) {
+      const content = `Assumption that ${primaryTerm} will achieve stated ${domainTerm !== "" ? domainTerm : "metrics"} is unproven - what if actual impact is much lower?`;
+      assumptions.push(this.createWeaknessInsight(content, 0.8, 0.85, keyTerms));
+    }
+  }
+
+  private challengeUserBehavior(
+    context: string,
+    primaryTerm: string,
+    keyTerms: KeyTerms,
+    assumptions: Insight[]
+  ): void {
+    const lowerContext = context.toLowerCase();
+    if (lowerContext.includes("user") || lowerContext.includes("engagement")) {
+      const content = `${primaryTerm} assumes users will respond positively - but user behavior is unpredictable`;
+      assumptions.push(this.createWeaknessInsight(content, 0.75, 0.8, keyTerms));
+    }
+  }
+
+  private challengeTimeline(
+    problem: Problem,
+    primaryTerm: string,
+    domainTerm: string,
+    keyTerms: KeyTerms,
+    assumptions: Insight[]
+  ): void {
+    const hasTimelineConstraint = problem.constraints?.some(
+      (c) => c.toLowerCase().includes("month") || c.toLowerCase().includes("timeline")
+    );
+    if (hasTimelineConstraint) {
+      const content = `Timeline assumptions for ${primaryTerm} may be unrealistic - hidden ${domainTerm !== "" ? domainTerm : "complexities"} often emerge`;
+      assumptions.push(this.createWeaknessInsight(content, 0.7, 0.75, keyTerms));
+    }
+  }
+
+  private challengeResources(
+    problem: Problem,
+    primaryTerm: string,
+    domainTerm: string,
+    keyTerms: KeyTerms,
+    assumptions: Insight[]
+  ): void {
+    const hasBudgetConstraint = problem.constraints?.some(
+      (c) => c.includes("$") || c.toLowerCase().includes("budget")
+    );
+    if (hasBudgetConstraint) {
+      const content = `Budget assumptions for ${primaryTerm} may not account for unforeseen ${domainTerm !== "" ? domainTerm : "costs"} and scope creep`;
+      assumptions.push(this.createWeaknessInsight(content, 0.75, 0.7, keyTerms));
+    }
   }
 
   /**
@@ -380,11 +463,11 @@ export class CriticalStreamProcessor implements StreamProcessor {
    */
   private assessRisks(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const risks: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the proposal";
-    const domainTerm = keyTerms.domainTerms[0] || "";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the proposal";
+    const domainTerm = keyTerms.domainTerms[0] ?? "";
 
     // Risk of unintended consequences
-    const unintendedContent = `Risk of unintended consequences: ${primaryTerm} changes may have negative ${domainTerm || "side effects"} not considered`;
+    const unintendedContent = `Risk of unintended consequences: ${primaryTerm} changes may have negative ${domainTerm !== "" ? domainTerm : "side effects"} not considered`;
     risks.push({
       content: unintendedContent,
       source: StreamType.CRITICAL,
@@ -394,7 +477,7 @@ export class CriticalStreamProcessor implements StreamProcessor {
     });
 
     // Risk of user alienation
-    if (problem.constraints && problem.constraints.some((c) => c.toLowerCase().includes("user"))) {
+    if (problem.constraints?.some((c) => c.toLowerCase().includes("user"))) {
       const userContent = `Significant risk of alienating existing users with ${primaryTerm} - mitigation strategy unclear`;
       risks.push({
         content: userContent,
@@ -407,7 +490,7 @@ export class CriticalStreamProcessor implements StreamProcessor {
 
     // Risk of failure
     if (problem.complexity === "complex" || problem.urgency === "high") {
-      const failureContent = `High risk of ${primaryTerm} failure due to complexity and time pressure - could damage ${domainTerm || "reputation"}`;
+      const failureContent = `High risk of ${primaryTerm} failure due to complexity and time pressure - could damage ${domainTerm !== "" ? domainTerm : "reputation"}`;
       risks.push({
         content: failureContent,
         source: StreamType.CRITICAL,
@@ -434,7 +517,7 @@ export class CriticalStreamProcessor implements StreamProcessor {
       problem.context.toLowerCase().includes("engagement") ||
       problem.context.toLowerCase().includes("market")
     ) {
-      const competitiveContent = `Risk that competitors may respond to ${primaryTerm} with superior ${domainTerm || "solutions"}`;
+      const competitiveContent = `Risk that competitors may respond to ${primaryTerm} with superior ${domainTerm !== "" ? domainTerm : "solutions"}`;
       risks.push({
         content: competitiveContent,
         source: StreamType.CRITICAL,
@@ -456,7 +539,7 @@ export class CriticalStreamProcessor implements StreamProcessor {
    */
   private detectFlaws(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const flaws: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the argument";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the argument";
 
     // Check for circular reasoning
     const words = problem.context.toLowerCase().split(/\s+/);
@@ -548,11 +631,11 @@ export class CriticalStreamProcessor implements StreamProcessor {
    */
   private generateCounterArguments(problem: Problem, keyTerms: KeyTerms): Insight[] {
     const counterArguments: Insight[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the solution";
-    const domainTerm = keyTerms.domainTerms[0] || "";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the solution";
+    const domainTerm = keyTerms.domainTerms[0] ?? "";
 
     // Devil's advocate: argue against the proposal
-    const devilContent = `Devil's advocate: what if ${primaryTerm} makes ${domainTerm || "things"} worse rather than better?`;
+    const devilContent = `Devil's advocate: what if ${primaryTerm} makes ${domainTerm !== "" ? domainTerm : "things"} worse rather than better?`;
     counterArguments.push({
       content: devilContent,
       source: StreamType.CRITICAL,
@@ -584,7 +667,7 @@ export class CriticalStreamProcessor implements StreamProcessor {
     }
 
     // Constructive criticism
-    const constructiveContent = `Constructive criticism: ${primaryTerm} has merit but needs refinement - suggest pilot testing ${domainTerm || "before full rollout"}`;
+    const constructiveContent = `Constructive criticism: ${primaryTerm} has merit but needs refinement - suggest pilot testing ${domainTerm !== "" ? domainTerm : "before full rollout"}`;
     counterArguments.push({
       content: constructiveContent,
       source: StreamType.CRITICAL,
@@ -612,14 +695,14 @@ export class CriticalStreamProcessor implements StreamProcessor {
   } {
     let reasoning = "";
     let insight: Insight | undefined;
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the proposal";
-    const domainTerm = keyTerms.domainTerms[0] || "";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the proposal";
+    const domainTerm = keyTerms.domainTerms[0] ?? "";
 
     // Check for quantitative data
     const hasNumbers = /\d+%|\d+\.\d+|\d+ (users|customers|percent)/.test(problem.context);
     if (hasNumbers) {
-      reasoning = `Evidence for ${primaryTerm} includes quantitative claims but lacks supporting ${domainTerm || "data"} sources`;
-      const content = `Quantitative claims about ${primaryTerm} lack supporting evidence - ${domainTerm || "data"} sources must be verified`;
+      reasoning = `Evidence for ${primaryTerm} includes quantitative claims but lacks supporting ${domainTerm !== "" ? domainTerm : "data"} sources`;
+      const content = `Quantitative claims about ${primaryTerm} lack supporting evidence - ${domainTerm !== "" ? domainTerm : "data"} sources must be verified`;
       insight = {
         content,
         source: StreamType.CRITICAL,
@@ -628,8 +711,8 @@ export class CriticalStreamProcessor implements StreamProcessor {
         referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       };
     } else {
-      reasoning = `Evidence for ${primaryTerm} is primarily qualitative - need quantitative ${domainTerm || "data"} to support claims`;
-      const content = `Lack of quantitative evidence for ${primaryTerm} weakens the case - need measurable ${domainTerm || "data"}`;
+      reasoning = `Evidence for ${primaryTerm} is primarily qualitative - need quantitative ${domainTerm !== "" ? domainTerm : "data"} to support claims`;
+      const content = `Lack of quantitative evidence for ${primaryTerm} weakens the case - need measurable ${domainTerm !== "" ? domainTerm : "data"}`;
       insight = {
         content,
         source: StreamType.CRITICAL,
@@ -668,7 +751,7 @@ export class CriticalStreamProcessor implements StreamProcessor {
    */
   private generateConclusion(problem: Problem, insights: Insight[], keyTerms: KeyTerms): string {
     const parts: string[] = [];
-    const primaryTerm = keyTerms.primarySubject || keyTerms.terms[0] || "the proposal";
+    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the proposal";
 
     // Count high-importance concerns
     const criticalConcerns = insights.filter((i) => i.importance > 0.8).length;
