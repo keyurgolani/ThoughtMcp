@@ -48,7 +48,7 @@ describe("Production Readiness Tests", () => {
     });
 
     it("should perform health checks correctly", async () => {
-      const healthChecker = new HealthChecker({ version: "0.5.0" });
+      const healthChecker = new HealthChecker({ version: "0.6.0" });
 
       healthChecker.registerCheck("database", async () => ({
         component: "database",
@@ -58,7 +58,7 @@ describe("Production Readiness Tests", () => {
 
       const report = await healthChecker.generateReport();
       expect(report.status).toBe("healthy");
-      expect(report.version).toBe("0.5.0");
+      expect(report.version).toBe("0.6.0");
     });
 
     it("should detect unhealthy components", async () => {

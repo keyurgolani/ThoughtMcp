@@ -19,7 +19,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 import { CognitiveMCPServer } from "./server/mcp-server.js";
 import { Logger } from "./utils/logger.js";
 
-export const VERSION = "0.5.0";
+export const VERSION = "0.6.0";
 
 // Export modules for programmatic use
 export * from "./embeddings/index.js";

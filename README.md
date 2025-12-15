@@ -13,6 +13,7 @@ ThoughtMCP provides AI systems with persistent memory, parallel reasoning, and m
 ## Key Features
 
 - **Five-Sector Memory**: Episodic, Semantic, Procedural, Emotional, and Reflective memory types
+- **Web UI**: Visual interface for memory exploration and reasoning (⚠️ Beta)
 - **Parallel Reasoning**: Four concurrent streams (Analytical, Creative, Critical, Synthetic)
 - **Framework Selection**: Eight systematic thinking frameworks with >80% selection accuracy
 - **Metacognition**: Confidence calibration, bias detection, emotion analysis
@@ -60,6 +61,19 @@ npm start
   }
 }
 ```
+
+## Web UI (Beta)
+
+ThoughtMCP includes a web-based interface for visualizing memories and reasoning processes. The UI is currently in beta and under active development.
+
+```bash
+# Start the UI development server
+cd ui
+npm install
+npm run dev
+```
+
+> ⚠️ **Beta Notice**: The UI is experimental and may have breaking changes between releases. Not recommended for production use yet.
 
 ## Documentation
 

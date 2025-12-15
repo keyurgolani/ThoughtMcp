@@ -10,8 +10,9 @@
 # Usage:
 #   Start database + ollama:  docker compose -f docker-compose.dev.yml up -d
 #   Start with ThoughtMCP:    docker compose -f docker-compose.dev.yml --profile app up -d
+#   Start with UI:            docker compose -f docker-compose.dev.yml --profile ui up -d
 #   Start with pgAdmin:       docker compose -f docker-compose.dev.yml --profile tools up -d
-#   Start all:                docker compose -f docker-compose.dev.yml --profile app --profile tools up -d
+#   Start all:                docker compose -f docker-compose.dev.yml --profile app --profile ui --profile tools up -d
 #   Stop services:            docker compose -f docker-compose.dev.yml down
 #   Stop and remove data:     docker compose -f docker-compose.dev.yml down -v
 #
@@ -125,6 +126,32 @@ services:
       - thoughtmcp-dev
     profiles:
       - app
+
+  # ThoughtMCP UI development server (optional)
+  # Start with: docker compose -f docker-compose.dev.yml --profile ui up -d
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+      target: dev
+    container_name: thoughtmcp-ui-dev
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:${REST_API_PORT:-3000}
+    ports:
+      - "${UI_PORT:-3001}:3001"
+    volumes:
+      # Mount source for hot reload
+      - ./ui/src:/app/src
+      - ./ui/public:/app/public
+      - ./ui/index.html:/app/index.html
+      - ./ui/vite.config.ts:/app/vite.config.ts
+      - ./ui/tailwind.config.js:/app/tailwind.config.js
+      - ./ui/postcss.config.js:/app/postcss.config.js
+    networks:
+      - thoughtmcp-dev
+    profiles:
+      - ui
 
   # Optional: pgAdmin for database management
   # Start with: docker compose -f docker-compose.dev.yml --profile tools up -d

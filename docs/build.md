@@ -154,9 +154,9 @@ npm run test:e2e
 
 - Runs complete test suite with Vitest
 - Must have **100% pass rate**
-- Requires **95%+ line coverage, 90%+ branch coverage**
+- Requires **75%+ coverage** for lines, branches, functions, and statements
 
-**See:** [Testing Guide](TESTING.md) for details
+**See:** [Testing Guide](testing.md) for details
 
 ## Build Output
 
@@ -537,7 +537,7 @@ The build system enforces zero technical debt:
 - Linting errors or warnings exist
 - TypeScript errors or warnings exist
 - Any test fails
-- Coverage is below 95% line, 90% branch
+- Coverage is below 75% for any metric
 
 ✅ **Build SUCCEEDS only if:**
 
@@ -546,18 +546,18 @@ The build system enforces zero technical debt:
 - 0 linting errors/warnings
 - 0 TypeScript errors/warnings
 - 100% test pass rate
-- 95%+ line coverage, 90%+ branch coverage
+- 75%+ coverage for lines, branches, functions, and statements
 
 This ensures production-ready code at all times.
 
 ## Related Documentation
 
-- **[Development Guide](DEVELOPMENT.md)** - Complete development workflow
-- **[Testing Guide](TESTING.md)** - TDD principles and test utilities
-- **[Database Guide](DATABASE.md)** - PostgreSQL setup and configuration
-- **[Environment Guide](ENVIRONMENT.md)** - Environment variables and configuration
+- **[Development Guide](development.md)** - Complete development workflow
+- **[Testing Guide](testing.md)** - TDD principles and test utilities
+- **[Database Guide](database.md)** - PostgreSQL setup and configuration
+- **[Environment Guide](environment.md)** - Environment variables and configuration
 
 ---
 
-**Last Updated:** 2024-11-10
-**Version:** 2.0.0
+**Last Updated**: December 2025
+**Version**: 0.5.0

@@ -154,7 +154,7 @@ npm run test:e2e
 
 - Runs complete test suite with Vitest
 - Must have **100% pass rate**
-- Requires **95%+ line coverage, 90%+ branch coverage**
+- Requires **75%+ coverage** for lines, branches, functions, and statements
 
 **See:** [Testing Guide](testing.md) for details
 
@@ -537,7 +537,7 @@ The build system enforces zero technical debt:
 - Linting errors or warnings exist
 - TypeScript errors or warnings exist
 - Any test fails
-- Coverage is below 95% line, 90% branch
+- Coverage is below 75% for any metric
 
 ✅ **Build SUCCEEDS only if:**
 
@@ -546,7 +546,7 @@ The build system enforces zero technical debt:
 - 0 linting errors/warnings
 - 0 TypeScript errors/warnings
 - 100% test pass rate
-- 95%+ line coverage, 90%+ branch coverage
+- 75%+ coverage for lines, branches, functions, and statements
 
 This ensures production-ready code at all times.
 

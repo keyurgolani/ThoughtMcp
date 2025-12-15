@@ -10,6 +10,11 @@ build/
 *.tsbuildinfo
 ui/dist-node/
 
+# UI build outputs
+ui/dist/
+ui/dist-node/
+ui/build/
+
 # Environment variables
 .env
 .env.local
@@ -21,7 +26,7 @@ ui/dist-node/
 .env.production.local
 
 # IDE files
-# Keep .vscode/ for shared development settings
+.vscode/
 .idea/
 *.swp
 *.swo
@@ -280,6 +285,7 @@ pids/
 # Coverage directory used by tools like istanbul
 coverage/
 *.lcov
+ui/coverage/
 
 # nyc test coverage
 .nyc_output/
@@ -298,6 +304,10 @@ jspm_packages/
 .rts2_cache_cjs/
 .rts2_cache_es/
 .rts2_cache_umd/
+
+# Vite cache
+.vite/
+ui/.vite/
 
 # Optional REPL history
 .node_repl_history
@@ -352,6 +362,7 @@ test-data/
 test-results/
 test-reports/
 junit.xml
+ui/.vitest/
 
 # Test bucket container state files
 .bucket*-container-state.json

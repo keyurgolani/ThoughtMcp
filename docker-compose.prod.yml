@@ -152,6 +152,25 @@ services:
     networks:
       - thoughtmcp-network
 
+  # ThoughtMCP UI (optional)
+  # Start with: docker compose -f docker-compose.prod.yml --profile ui up -d
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    container_name: thoughtmcp-ui
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    ports:
+      - "${UI_PORT:-5173}:80"
+    networks:
+      - thoughtmcp-network
+    profiles:
+      - ui
+
 volumes:
   postgres_data:
     driver: local
