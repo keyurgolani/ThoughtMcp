@@ -11,9 +11,12 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Memory, MemorySectorType } from '../../types/api';
 import { getSectorColor } from '../../utils/visualization';
 import { GlassPanel } from './GlassPanel';
+import { MarkdownPreview } from './MarkdownPreview';
+import { MemoryModal, type MemoryModalMode, type MemoryModalSaveResult } from './MemoryModal';
 import { Skeleton } from './Skeleton';
 
 // ============================================================================
@@ -70,6 +73,16 @@ export interface RelatedMemoriesSidebarProps {
   onTopicClick?: (topic: SuggestedTopic) => void;
   /** Callback when user wants to create a link */
   onCreateLink?: (memoryId: string) => void;
+  /** Callback when memory is updated via modal */
+  onMemoryUpdated?: (memory: Memory) => void;
+  /** Callback when memory is deleted via modal */
+  onMemoryDeleted?: (memoryId: string) => void;
+  /** All available memories for WikiLink navigation */
+  availableMemories?: Memory[];
+  /** User ID for API calls - required for memory operations */
+  userId: string;
+  /** Session ID for API calls - required for memory operations */
+  sessionId: string;
   /** Additional CSS classes */
   className?: string;
 }
@@ -180,31 +193,40 @@ function SharedKeywords({
 interface RelatedMemoryItemProps {
   relatedMemory: RelatedMemory;
   onClick: () => void;
+  onPreview: () => void;
 }
 
 /**
  * Individual related memory item
  * Requirements: 45.1, 45.2, 45.3, 45.4
  */
-function RelatedMemoryItem({ relatedMemory, onClick }: RelatedMemoryItemProps): React.ReactElement {
+function RelatedMemoryItem({
+  relatedMemory,
+  onClick,
+  onPreview,
+}: RelatedMemoryItemProps): React.ReactElement {
   const { memory, relevanceScore, sharedKeywords, connectionType } = relatedMemory;
   const sectorColor = getSectorColor(memory.primarySector);
 
-  // Truncate content for preview
-  const contentPreview =
-    memory.content.length > 80 ? memory.content.substring(0, 80) + '...' : memory.content;
+  // Use full content for markdown preview (it will be truncated by line-clamp)
+  const contentForPreview = memory.content;
 
   return (
-    <button
-      onClick={onClick}
+    <div
       className={`
         w-full text-left p-3 rounded-lg border transition-all duration-200
-        border-ui-border bg-ui-surface/50
-        hover:border-ui-accent-primary/50 hover:bg-ui-accent-primary/10
-        focus:outline-none focus:ring-1 focus:ring-ui-accent-primary/50
+        border-ui-border/50 bg-ui-surface/80
+        hover:border-ui-accent-primary/50 hover:bg-ui-surface
         group
       `}
-      aria-label={`Navigate to related memory: ${contentPreview}`}
+      style={{
+        backdropFilter: 'blur(12px)',
+        boxShadow: `
+          0 0 15px rgba(0, 255, 255, 0.08),
+          0 0 30px rgba(0, 255, 255, 0.04),
+          inset 0 0 20px rgba(0, 255, 255, 0.02)
+        `,
+      }}
     >
       {/* Header with sector indicator and connection type */}
       <div className="flex items-center justify-between mb-2">
@@ -220,10 +242,16 @@ function RelatedMemoryItem({ relatedMemory, onClick }: RelatedMemoryItemProps): 
         <ConnectionTypeBadge type={connectionType} />
       </div>
 
-      {/* Content preview */}
-      <p className="text-sm text-ui-text-primary mb-2 line-clamp-2 group-hover:text-ui-accent-primary transition-colors">
-        {contentPreview}
-      </p>
+      {/* Content preview - clickable to open preview modal */}
+      <button
+        onClick={onPreview}
+        className="w-full text-left mb-2 focus:outline-none focus:ring-1 focus:ring-ui-accent-primary/50 rounded"
+        aria-label={`Preview memory: ${memory.content.substring(0, 80)}`}
+      >
+        <div className="text-sm text-ui-text-primary group-hover:text-ui-accent-primary transition-colors">
+          <MarkdownPreview content={contentForPreview} maxLines={2} />
+        </div>
+      </button>
 
       {/* Relevance score - Requirements: 45.2 */}
       <div className="mb-1.5">
@@ -241,12 +269,37 @@ function RelatedMemoryItem({ relatedMemory, onClick }: RelatedMemoryItemProps): 
         </div>
       )}
 
-      {/* Navigate hint */}
-      <div className="mt-2 flex items-center gap-1 text-xs text-ui-accent-primary opacity-0 group-hover:opacity-100 transition-opacity">
-        <NavigateIcon />
-        <span>Click to explore</span>
+      {/* Action buttons */}
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          onClick={onPreview}
+          className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-xs text-ui-accent-primary bg-ui-accent-primary/10 hover:bg-ui-accent-primary/20 rounded transition-colors"
+        >
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+            />
+          </svg>
+          Preview
+        </button>
+        <button
+          onClick={onClick}
+          className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-xs text-ui-text-secondary hover:text-ui-accent-primary border border-ui-border hover:border-ui-accent-primary/50 rounded transition-colors"
+        >
+          <NavigateIcon />
+          Navigate
+        </button>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -376,9 +429,8 @@ interface FocusedMemorySummaryProps {
 function FocusedMemorySummary({ memory }: FocusedMemorySummaryProps): React.ReactElement {
   const sectorColor = getSectorColor(memory.primarySector);
 
-  // Truncate content for preview
-  const contentPreview =
-    memory.content.length > 100 ? memory.content.substring(0, 100) + '...' : memory.content;
+  // Use full content for markdown preview (it will be truncated by line-clamp)
+  const contentForPreview = memory.content;
 
   // Format date
   const formatDate = (dateStr: string): string => {
@@ -410,7 +462,9 @@ function FocusedMemorySummary({ memory }: FocusedMemorySummaryProps): React.Reac
       </div>
 
       {/* Content preview */}
-      <p className="text-sm text-ui-text-primary mb-2 line-clamp-3">{contentPreview}</p>
+      <div className="text-sm text-ui-text-primary mb-2">
+        <MarkdownPreview content={contentForPreview} maxLines={3} />
+      </div>
 
       {/* Memory details */}
       <div className="flex flex-wrap items-center gap-2 text-[10px] text-ui-text-secondary">
@@ -501,8 +555,10 @@ interface RelatedMemoriesEmptyStateProps {
   onTopicClick?: ((topic: SuggestedTopic) => void) | undefined;
   /** Callback when memory link is clicked */
   onCreateLink?: ((memoryId: string) => void) | undefined;
-  /** Callback when memory is clicked for navigation */
+  /** Callback when memory is clicked for navigation (navigates viewport AND opens preview) */
   onMemoryClick?: ((memoryId: string) => void) | undefined;
+  /** Callback to open memory preview modal */
+  onMemoryPreview?: ((memory: Memory) => void) | undefined;
 }
 
 /**
@@ -517,6 +573,7 @@ function RelatedMemoriesEmptyState({
   onTopicClick,
   onCreateLink,
   onMemoryClick,
+  onMemoryPreview,
 }: RelatedMemoriesEmptyStateProps): React.ReactElement {
   const [activeTab, setActiveTab] = useState<'topics' | 'memories'>('topics');
 
@@ -660,7 +717,10 @@ function RelatedMemoriesEmptyState({
                       <SuggestedMemoryItem
                         key={suggestion.memory.id}
                         suggestion={suggestion}
-                        onNavigate={() => onMemoryClick?.(suggestion.memory.id)}
+                        onNavigate={() => {
+                          onMemoryClick?.(suggestion.memory.id);
+                          onMemoryPreview?.(suggestion.memory);
+                        }}
                         onLink={() => onCreateLink?.(suggestion.memory.id)}
                       />
                     ))}
@@ -700,16 +760,22 @@ function SuggestedMemoryItem({
 }: SuggestedMemoryItemProps): React.ReactElement {
   const { memory, reason } = suggestion;
   const sectorColor = getSectorColor(memory.primarySector);
-  const contentPreview =
-    memory.content.length > 60 ? memory.content.substring(0, 60) + '...' : memory.content;
 
   return (
     <div
       className={`
         p-2.5 rounded-lg border transition-all duration-200
-        border-ui-border bg-ui-surface/30
-        hover:border-ui-accent-primary/30 hover:bg-ui-surface/50
+        border-ui-border/50 bg-ui-surface/80
+        hover:border-ui-accent-primary/30 hover:bg-ui-surface
       `}
+      style={{
+        backdropFilter: 'blur(12px)',
+        boxShadow: `
+          0 0 15px rgba(0, 255, 255, 0.08),
+          0 0 30px rgba(0, 255, 255, 0.04),
+          inset 0 0 20px rgba(0, 255, 255, 0.02)
+        `,
+      }}
     >
       {/* Header with sector indicator */}
       <div className="flex items-center gap-2 mb-1.5">
@@ -722,7 +788,9 @@ function SuggestedMemoryItem({
       </div>
 
       {/* Content preview */}
-      <p className="text-xs text-ui-text-primary mb-2 line-clamp-2">{contentPreview}</p>
+      <div className="text-xs text-ui-text-primary mb-2">
+        <MarkdownPreview content={memory.content} maxLines={2} />
+      </div>
 
       {/* Action buttons */}
       <div className="flex gap-2">
@@ -759,7 +827,17 @@ function SuggestedMemoryItem({
 
 function RelatedMemorySkeleton(): React.ReactElement {
   return (
-    <div className="p-3 rounded-lg border border-ui-border bg-ui-surface/50">
+    <div
+      className="p-3 rounded-lg border border-ui-border/50 bg-ui-surface/80"
+      style={{
+        backdropFilter: 'blur(12px)',
+        boxShadow: `
+          0 0 15px rgba(0, 255, 255, 0.08),
+          0 0 30px rgba(0, 255, 255, 0.04),
+          inset 0 0 20px rgba(0, 255, 255, 0.02)
+        `,
+      }}
+    >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <Skeleton rounded="full" width="w-2" height="h-2" />
@@ -789,6 +867,7 @@ function RelatedMemorySkeleton(): React.ReactElement {
  * - Distinguish direct links from semantic similarity (Requirement 45.4)
  * - Show suggestions when no related memories (Requirement 45.5)
  * - Show focused memory summary at top for context (Requirement 45.6)
+ * - Preview modal for viewing/editing memories without navigation
  *
  * Requirements: 45.1, 45.2, 45.3, 45.4, 45.5, 45.6
  */
@@ -801,8 +880,17 @@ export function RelatedMemoriesSidebar({
   suggestedMemoriesToLink,
   onTopicClick,
   onCreateLink,
+  onMemoryUpdated,
+  onMemoryDeleted,
+  availableMemories = [],
+  userId,
+  sessionId,
   className = '',
 }: RelatedMemoriesSidebarProps): React.ReactElement {
+  // Modal state for memory preview
+  const [previewMemory, setPreviewMemory] = useState<Memory | null>(null);
+  const [modalMode, setModalMode] = useState<MemoryModalMode | null>(null);
+
   // Sort related memories by relevance score (descending)
   // Property 85: Related Memories Relevance Ordering
   const sortedMemories = useMemo(() => {
@@ -810,11 +898,77 @@ export function RelatedMemoriesSidebar({
   }, [relatedMemories]);
 
   // Handle memory click - Requirements: 45.3
+  // Navigate to the memory AND open the preview modal
   const handleMemoryClick = useCallback(
     (memoryId: string) => {
+      // Navigate viewport to the memory node
       onMemoryClick(memoryId);
+
+      // Also open the memory preview modal
+      const memory = relatedMemories.find((rm) => rm.memory.id === memoryId)?.memory;
+      if (memory) {
+        setPreviewMemory(memory);
+        setModalMode('view');
+      }
     },
-    [onMemoryClick]
+    [onMemoryClick, relatedMemories]
+  );
+
+  // Handle preview click - opens modal
+  const handlePreviewClick = useCallback((memory: Memory) => {
+    setPreviewMemory(memory);
+    setModalMode('view');
+  }, []);
+
+  // Handle modal close
+  const handleCloseModal = useCallback(() => {
+    setModalMode(null);
+    setPreviewMemory(null);
+  }, []);
+
+  // Handle switch to edit mode
+  const handleSwitchToEdit = useCallback(() => {
+    setModalMode('edit');
+  }, []);
+
+  // Handle save from modal
+  const handleSave = useCallback(
+    (result: MemoryModalSaveResult) => {
+      if (previewMemory && onMemoryUpdated) {
+        onMemoryUpdated({
+          ...previewMemory,
+          content: result.content,
+          primarySector: result.primarySector,
+        });
+      }
+      handleCloseModal();
+    },
+    [previewMemory, onMemoryUpdated, handleCloseModal]
+  );
+
+  // Handle delete from modal
+  const handleDelete = useCallback(
+    (memoryId: string) => {
+      onMemoryDeleted?.(memoryId);
+      handleCloseModal();
+    },
+    [onMemoryDeleted, handleCloseModal]
+  );
+
+  // Handle wiki link click - open the linked memory in the modal
+  const handleWikiLinkClick = useCallback(
+    (memoryId: string) => {
+      // Find the memory from available memories or related memories
+      const linkedMemory =
+        availableMemories.find((m) => m.id === memoryId) ??
+        relatedMemories.find((rm) => rm.memory.id === memoryId)?.memory;
+      if (linkedMemory) {
+        // Open the linked memory in the preview modal
+        setPreviewMemory(linkedMemory);
+        setModalMode('view');
+      }
+    },
+    [availableMemories, relatedMemories]
   );
 
   // Count by connection type for summary
@@ -842,6 +996,7 @@ export function RelatedMemoriesSidebar({
             onTopicClick={onTopicClick}
             onCreateLink={onCreateLink}
             onMemoryClick={handleMemoryClick}
+            onMemoryPreview={handlePreviewClick}
           />
         </div>
       </GlassPanel>
@@ -887,6 +1042,7 @@ export function RelatedMemoriesSidebar({
             onTopicClick={onTopicClick}
             onCreateLink={onCreateLink}
             onMemoryClick={handleMemoryClick}
+            onMemoryPreview={handlePreviewClick}
           />
         </div>
       </GlassPanel>
@@ -940,9 +1096,33 @@ export function RelatedMemoriesSidebar({
             onClick={() => {
               handleMemoryClick(relatedMemory.memory.id);
             }}
+            onPreview={() => {
+              handlePreviewClick(relatedMemory.memory);
+            }}
           />
         ))}
       </div>
+
+      {/* Memory Preview Modal - rendered via portal to escape sidebar container */}
+      {modalMode &&
+        previewMemory &&
+        createPortal(
+          <MemoryModal
+            isOpen={true}
+            mode={modalMode}
+            memory={previewMemory}
+            onSave={handleSave}
+            onClose={handleCloseModal}
+            onEdit={handleSwitchToEdit}
+            onDelete={handleDelete}
+            onWikiLinkClick={handleWikiLinkClick}
+            availableMemories={availableMemories}
+            userId={userId}
+            sessionId={sessionId}
+            fullscreen={true}
+          />,
+          document.body
+        )}
     </GlassPanel>
   );
 }

@@ -1,7 +1,7 @@
 /**
- * MemoryExplorerScene Component
+ * MemoryGraphScene Component
  *
- * Main 3D scene component for the Memory Exploration UI.
+ * Main 3D scene component for the Memory Graph UI.
  * Sets up the R3F Canvas with dark background, camera, lighting,
  * fog effects, ambient particle system, and post-processing effects
  * including bloom for luminous node appearance.
@@ -20,7 +20,7 @@ import {
 } from '@react-three/postprocessing';
 import type {
   CameraConfig,
-  MemoryExplorerSceneProps,
+  MemoryGraphSceneProps,
   ParticleSystemConfig,
   SceneConfig,
 } from '@types';
@@ -187,7 +187,7 @@ interface SceneContentProps {
   chromaticAberrationConfig: ChromaticAberrationConfig;
   vignetteConfig: VignetteConfig;
   noiseConfig: NoiseConfig;
-  viewMode: MemoryExplorerSceneProps['viewMode'];
+  viewMode: MemoryGraphSceneProps['viewMode'];
   debug?: boolean | undefined;
   onNodeClick?: ((nodeId: string) => void) | undefined;
   onNodeHover?: ((nodeId: string | null) => void) | undefined;
@@ -666,7 +666,7 @@ function LoadingFallback(): React.ReactElement {
 // Main Component
 // ============================================================================
 
-export interface MemoryExplorerSceneFullProps extends MemoryExplorerSceneProps {
+export interface MemoryGraphSceneFullProps extends MemoryGraphSceneProps {
   /** Scene configuration overrides */
   sceneConfig?: Partial<SceneConfig>;
   /** Camera configuration overrides */
@@ -705,7 +705,7 @@ export interface MemoryExplorerSceneFullProps extends MemoryExplorerSceneProps {
   highlightedNodeIds?: string[] | undefined;
 }
 
-export function MemoryExplorerScene({
+export function MemoryGraphScene({
   viewMode = 'fly',
   debug = false,
   onNodeClick,
@@ -728,13 +728,13 @@ export function MemoryExplorerScene({
   onBackgroundClick,
   filteredNodeIds,
   highlightedNodeIds,
-}: MemoryExplorerSceneFullProps): React.ReactElement {
+}: MemoryGraphSceneFullProps): React.ReactElement {
   // Get theme for background color
   const currentTheme = useThemeStore((state) => state.currentTheme);
   const getTheme = useThemeStore((state) => state.getTheme);
 
-  // Determine if we're in light mode based on theme ID
-  const isLightMode = useMemo(() => currentTheme.startsWith('light-'), [currentTheme]);
+  // Determine if we're in light mode based on theme
+  const isLightMode = useMemo(() => getTheme().isLight, [currentTheme, getTheme]);
 
   // Merge configurations with defaults, using theme background
   // Light mode uses much less fog for better visibility
@@ -791,7 +791,7 @@ export function MemoryExplorerScene({
   );
 
   return (
-    <div className={`w-full h-full ${className}`} data-testid="memory-explorer-scene">
+    <div className={`w-full h-full ${className}`} data-testid="memory-graph-scene">
       <Canvas
         // Key changes with theme to force re-render and apply new colors (Requirement: theme refresh)
         key={`canvas-${currentTheme}`}
@@ -856,4 +856,4 @@ export function MemoryExplorerScene({
   );
 }
 
-export default MemoryExplorerScene;
+export default MemoryGraphScene;

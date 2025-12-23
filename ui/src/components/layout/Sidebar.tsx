@@ -8,7 +8,22 @@
  * Requirements: 23.1, 23.3, 36.1
  */
 
-import { useCallback, useMemo } from 'react';
+import { Home } from 'lucide-react';
+import { useCallback, useMemo, type ReactElement } from 'react';
+import {
+  BiasIcon,
+  ConnectionsIcon,
+  DecomposeIcon,
+  EmotionIcon,
+  ExplorerIcon,
+  FrameworkIcon,
+  getSectorIcon,
+  HubNodesIcon,
+  MemoriesIcon,
+  ReasoningIcon,
+  ThisWeekIcon,
+  type IconSize,
+} from '../icons';
 import { useSidebarContext } from './AppShell';
 
 // ============================================================================
@@ -57,8 +72,8 @@ export interface NavItemConfig {
   label: string;
   /** Short label for collapsed state */
   shortLabel: string;
-  /** Icon emoji */
-  icon: string;
+  /** Icon component getter */
+  getIcon: (size: IconSize) => ReactElement;
   /** Description for tooltip */
   description: string;
 }
@@ -72,49 +87,49 @@ const NAV_ITEMS: NavItemConfig[] = [
     route: '/dashboard',
     label: 'Dashboard',
     shortLabel: 'Home',
-    icon: '🏠',
+    getIcon: (size) => <Home size={size === 'sm' ? 14 : size === 'lg' ? 20 : 16} />,
     description: 'Overview of your knowledge base',
   },
   {
     route: '/explorer',
     label: 'Memory Explorer',
     shortLabel: 'Explorer',
-    icon: '🧠',
+    getIcon: (size) => <ExplorerIcon size={size} />,
     description: 'Explore the 3D memory graph',
   },
   {
     route: '/reasoning',
     label: 'Reasoning Console',
     shortLabel: 'Reasoning',
-    icon: '💭',
+    getIcon: (size) => <ReasoningIcon size={size} />,
     description: 'Perform systematic reasoning analysis',
   },
   {
     route: '/framework',
     label: 'Framework Analysis',
     shortLabel: 'Framework',
-    icon: '📊',
+    getIcon: (size) => <FrameworkIcon size={size} />,
     description: 'Analyze problems using thinking frameworks',
   },
   {
     route: '/decomposition',
     label: 'Problem Decomposition',
     shortLabel: 'Decompose',
-    icon: '🔍',
+    getIcon: (size) => <DecomposeIcon size={size} />,
     description: 'Break down complex problems',
   },
   {
     route: '/confidence-bias',
     label: 'Confidence & Bias',
     shortLabel: 'Bias',
-    icon: '⚖️',
+    getIcon: (size) => <BiasIcon size={size} />,
     description: 'Assess confidence and detect biases',
   },
   {
     route: '/emotion',
     label: 'Emotion Analysis',
     shortLabel: 'Emotion',
-    icon: '❤️',
+    getIcon: (size) => <EmotionIcon size={size} />,
     description: 'Analyze emotional content',
   },
 ];
@@ -125,14 +140,6 @@ const SECTOR_COLORS: Record<string, string> = {
   procedural: 'text-sector-procedural',
   emotional: 'text-sector-emotional',
   reflective: 'text-sector-reflective',
-};
-
-const SECTOR_ICONS: Record<string, string> = {
-  episodic: '📅',
-  semantic: '📚',
-  procedural: '⚙️',
-  emotional: '💛',
-  reflective: '🪞',
 };
 
 const DEFAULT_MAX_RECENT = 5;
@@ -213,13 +220,12 @@ function NavItem({ item, isActive, isCollapsed, onClick }: NavItemProps): React.
       {/* Icon */}
       <span
         className={`
-          text-lg
           transition-transform duration-fast
           ${!isActive ? 'group-hover:scale-110' : ''}
         `}
         aria-hidden="true"
       >
-        {item.icon}
+        {item.getIcon(isCollapsed ? 'lg' : 'md')}
       </span>
 
       {/* Label - hidden when collapsed */}
@@ -241,14 +247,14 @@ function NavItem({ item, isActive, isCollapsed, onClick }: NavItemProps): React.
 interface StatItemProps {
   label: string;
   value: number;
-  icon: string;
+  getIcon: (size: IconSize) => ReactElement;
   isCollapsed: boolean;
 }
 
 /**
  * Quick stat display item
  */
-function StatItem({ label, value, icon, isCollapsed }: StatItemProps): React.ReactElement {
+function StatItem({ label, value, getIcon, isCollapsed }: StatItemProps): React.ReactElement {
   return (
     <div
       className={`
@@ -257,8 +263,8 @@ function StatItem({ label, value, icon, isCollapsed }: StatItemProps): React.Rea
       `}
       title={isCollapsed ? `${label}: ${String(value)}` : undefined}
     >
-      <span className="text-sm" aria-hidden="true">
-        {icon}
+      <span className="text-ui-text-muted" aria-hidden="true">
+        {getIcon('sm')}
       </span>
       {!isCollapsed && (
         <>
@@ -292,7 +298,6 @@ function RecentMemoryListItem({
   onClick,
 }: RecentMemoryItemProps): React.ReactElement {
   const sectorColor = SECTOR_COLORS[memory.primarySector] ?? 'text-ui-text-secondary';
-  const sectorIcon = SECTOR_ICONS[memory.primarySector] ?? '📝';
 
   if (isCollapsed) {
     return (
@@ -308,8 +313,8 @@ function RecentMemoryListItem({
         "
         aria-label={`Navigate to memory: ${memory.contentPreview}`}
       >
-        <span className={`text-sm ${sectorColor}`} aria-hidden="true">
-          {sectorIcon}
+        <span className={sectorColor} aria-hidden="true">
+          {getSectorIcon(memory.primarySector, 'sm')}
         </span>
       </button>
     );
@@ -330,8 +335,8 @@ function RecentMemoryListItem({
       aria-label={`Navigate to memory: ${memory.contentPreview}`}
     >
       <div className="flex items-start gap-2">
-        <span className={`text-sm ${sectorColor} mt-0.5`} aria-hidden="true">
-          {sectorIcon}
+        <span className={`${sectorColor} mt-0.5`} aria-hidden="true">
+          {getSectorIcon(memory.primarySector, 'sm')}
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-xs text-ui-text-primary truncate group-hover:text-ui-accent-primary">
@@ -445,26 +450,26 @@ export function Sidebar({
             <StatItem
               label="Memories"
               value={quickStats.totalMemories}
-              icon="🧠"
+              getIcon={(size) => <MemoriesIcon size={size} />}
               isCollapsed={collapsed}
             />
             <StatItem
               label="Connections"
               value={quickStats.totalConnections}
-              icon="🔗"
+              getIcon={(size) => <ConnectionsIcon size={size} />}
               isCollapsed={collapsed}
             />
             <StatItem
               label="Hub Nodes"
               value={quickStats.hubNodes}
-              icon="⭐"
+              getIcon={(size) => <HubNodesIcon size={size} />}
               isCollapsed={collapsed}
             />
             {!collapsed && (
               <StatItem
                 label="This Week"
                 value={quickStats.memoriesThisWeek}
-                icon="📅"
+                getIcon={(size) => <ThisWeekIcon size={size} />}
                 isCollapsed={collapsed}
               />
             )}

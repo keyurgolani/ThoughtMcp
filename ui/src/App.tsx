@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { MemoryExplorerScene } from './components/3d';
+import { MemoryGraphScene } from './components/3d';
+import { UsernameModal } from './components/auth';
 import {
   CleanModeController,
   CognitiveResultModal,
   CognitiveToolsPanel,
   ConnectionTooltip,
+  CreateMemoryModal,
   FloatingTooltipTrigger,
+  MemoryPreviewModal,
   MiniMap,
   NeighborPreviewPanel,
-  QuickCaptureModal,
   RelatedMemoriesSidebar,
   SearchFilterPanel,
   TagFilterPanel,
@@ -17,7 +19,7 @@ import {
   graphNodeToMiniMapNode,
   type CognitiveToolResult,
   type ConnectedMemory,
-  type QuickCaptureSaveResult,
+  type CreateMemorySaveResult,
   type RelatedMemory,
   type TagWithCount,
 } from './components/hud';
@@ -34,119 +36,26 @@ import {
   Dashboard,
   EmotionAnalysis,
   FrameworkAnalysis,
-  MemoryManagement,
+  MemoryExplorer,
   ProblemDecomposition,
   ReasoningConsole,
   type CognitiveSession,
   type GraphPreviewNode,
-  type PinnedMemoryItem,
   type QuickStats,
   type RecentMemoryItem,
   type SuggestedAction,
 } from './scenes';
 import { useCognitiveStore } from './stores/cognitiveStore';
 import { useGraphStore, type NeighborNode } from './stores/graphStore';
+import { useMemoryStore } from './stores/memoryStore';
 import { useNavigationStore } from './stores/navigationStore';
 import { useSessionStore } from './stores/sessionStore';
+import { useUIStore } from './stores/uiStore';
+import { useUserStore } from './stores/userStore';
 import type { ViewMode } from './types';
 import type { GraphEdge, GraphNode, Memory, MemorySectorType } from './types/api';
-import { filterNodesByTags } from './utils/filters';
+import { filterNodesBySector, filterNodesByTags } from './utils/filters';
 import { calculateFibonacciSpherePositions } from './utils/visualization';
-
-// Demo data for testing without a backend
-const DEMO_USER_ID = 'demo-user';
-const DEMO_SESSION_ID = 'demo-session';
-
-const DEMO_MEMORIES: Memory[] = [
-  {
-    id: 'mem-1',
-    userId: DEMO_USER_ID,
-    sessionId: DEMO_SESSION_ID,
-    content: 'The architecture of neural networks mimics biological brain structures',
-    primarySector: 'semantic' as MemorySectorType,
-    salience: 0.9,
-    strength: 0.85,
-    createdAt: new Date().toISOString(),
-    lastAccessed: new Date().toISOString(),
-    accessCount: 15,
-    metadata: { keywords: ['neural', 'architecture', 'brain'], tags: ['AI', 'learning'] },
-  },
-  {
-    id: 'mem-2',
-    userId: DEMO_USER_ID,
-    sessionId: DEMO_SESSION_ID,
-    content: 'Yesterday I learned about transformer attention mechanisms',
-    primarySector: 'episodic' as MemorySectorType,
-    salience: 0.7,
-    strength: 0.9,
-    createdAt: new Date().toISOString(),
-    lastAccessed: new Date().toISOString(),
-    accessCount: 5,
-    metadata: { keywords: ['transformer', 'attention'], tags: ['learning'] },
-  },
-  {
-    id: 'mem-3',
-    userId: DEMO_USER_ID,
-    sessionId: DEMO_SESSION_ID,
-    content: 'To train a model: prepare data, define architecture, set hyperparameters, iterate',
-    primarySector: 'procedural' as MemorySectorType,
-    salience: 0.8,
-    strength: 0.75,
-    createdAt: new Date().toISOString(),
-    lastAccessed: new Date().toISOString(),
-    accessCount: 20,
-    metadata: { keywords: ['training', 'model', 'steps'], tags: ['how-to'] },
-  },
-  {
-    id: 'mem-4',
-    userId: DEMO_USER_ID,
-    sessionId: DEMO_SESSION_ID,
-    content: 'Feeling excited about the potential of AI to solve complex problems',
-    primarySector: 'emotional' as MemorySectorType,
-    salience: 0.6,
-    strength: 0.8,
-    createdAt: new Date().toISOString(),
-    lastAccessed: new Date().toISOString(),
-    accessCount: 3,
-    metadata: { keywords: ['excitement', 'AI', 'potential'], tags: ['emotion'] },
-  },
-  {
-    id: 'mem-5',
-    userId: DEMO_USER_ID,
-    sessionId: DEMO_SESSION_ID,
-    content: 'Reflecting on how my understanding of ML has evolved over time',
-    primarySector: 'reflective' as MemorySectorType,
-    salience: 0.65,
-    strength: 0.7,
-    createdAt: new Date().toISOString(),
-    lastAccessed: new Date().toISOString(),
-    accessCount: 8,
-    metadata: { keywords: ['reflection', 'growth', 'ML'], tags: ['meta'] },
-  },
-];
-
-const DEMO_EDGES: GraphEdge[] = [
-  { source: 'mem-1', target: 'mem-2', linkType: 'semantic', weight: 0.8 },
-  { source: 'mem-1', target: 'mem-3', linkType: 'causal', weight: 0.6 },
-  { source: 'mem-1', target: 'mem-4', linkType: 'temporal', weight: 0.5 },
-  { source: 'mem-1', target: 'mem-5', linkType: 'analogical', weight: 0.7 },
-];
-
-// Demo pinned memories (Requirement 50.3)
-const DEMO_PINNED_MEMORIES: PinnedMemoryItem[] = [
-  {
-    id: 'mem-1',
-    title: 'Neural network architecture',
-    primarySector: 'semantic',
-    pinnedAt: Date.now() - 86400000, // 1 day ago
-  },
-  {
-    id: 'mem-3',
-    title: 'Model training steps',
-    primarySector: 'procedural',
-    pinnedAt: Date.now() - 172800000, // 2 days ago
-  },
-];
 
 // Demo recent cognitive sessions (Requirement 50.4)
 const DEMO_RECENT_SESSIONS: CognitiveSession[] = [
@@ -184,15 +93,6 @@ const DEMO_RECENT_SESSIONS: CognitiveSession[] = [
   },
 ];
 
-// Demo graph preview nodes (Requirement 50.5) - matches DEMO_MEMORIES
-const DEMO_GRAPH_PREVIEW_NODES: GraphPreviewNode[] = [
-  { id: 'mem-1', x: 50, y: 50, sector: 'semantic', activity: 0.9 },
-  { id: 'mem-2', x: 30, y: 35, sector: 'episodic', activity: 0.7 },
-  { id: 'mem-3', x: 70, y: 40, sector: 'procedural', activity: 0.8 },
-  { id: 'mem-4', x: 40, y: 70, sector: 'emotional', activity: 0.6 },
-  { id: 'mem-5', x: 65, y: 65, sector: 'reflective', activity: 0.65 },
-];
-
 // Helper to convert Memory to GraphNode
 function memoryToGraphNode(memory: Memory): GraphNode {
   return {
@@ -206,12 +106,54 @@ function memoryToGraphNode(memory: Memory): GraphNode {
   };
 }
 
+// Helper to generate graph preview nodes from memories
+function memoriesToGraphPreviewNodes(memories: Memory[]): GraphPreviewNode[] {
+  return memories.slice(0, 5).map((mem, index) => {
+    // Distribute nodes in a simple pattern
+    const positions = [
+      { x: 50, y: 50 },
+      { x: 30, y: 35 },
+      { x: 70, y: 40 },
+      { x: 40, y: 70 },
+      { x: 65, y: 65 },
+    ];
+    const pos = positions[index] ?? { x: 50, y: 50 };
+    return {
+      id: mem.id,
+      x: pos.x,
+      y: pos.y,
+      sector: mem.primarySector,
+      activity: mem.salience,
+    };
+  });
+}
+
+// Helper to generate edges from memories (creates connections between first memory and others)
+function memoriesToEdges(memories: Memory[]): GraphEdge[] {
+  if (memories.length < 2) return [];
+  const firstMemory = memories[0];
+  if (!firstMemory) return [];
+
+  const linkTypes: Array<'semantic' | 'causal' | 'temporal' | 'analogical'> = [
+    'semantic',
+    'causal',
+    'temporal',
+    'analogical',
+  ];
+  return memories.slice(1, 5).map((mem, index) => ({
+    source: firstMemory.id,
+    target: mem.id,
+    linkType: linkTypes[index % linkTypes.length] ?? 'semantic',
+    weight: 0.5 + Math.random() * 0.4,
+  }));
+}
+
 // Route to ScreenId mapping
 const ROUTE_TO_SCREEN: Record<string, ScreenId> = {
   '/': 'dashboard',
   '/dashboard': 'dashboard',
-  '/explorer': 'memory-explorer',
-  '/memories': 'memory-management',
+  '/explorer': 'memory-graph',
+  '/memories': 'memory-explorer',
   '/reasoning': 'reasoning-console',
   '/framework': 'framework-analysis',
   '/decomposition': 'problem-decomposition',
@@ -221,8 +163,8 @@ const ROUTE_TO_SCREEN: Record<string, ScreenId> = {
 
 const SCREEN_TO_ROUTE: Record<ScreenId, string> = {
   dashboard: '/dashboard',
-  'memory-explorer': '/explorer',
-  'memory-management': '/memories',
+  'memory-graph': '/explorer',
+  'memory-explorer': '/memories',
   'reasoning-console': '/reasoning',
   'framework-analysis': '/framework',
   'problem-decomposition': '/decomposition',
@@ -231,12 +173,12 @@ const SCREEN_TO_ROUTE: Record<ScreenId, string> = {
 };
 
 /**
- * Memory Explorer Screen Component
+ * Memory Graph Screen Component
  * The main 3D exploration interface with refined panel layout.
  *
  * Requirements: 27.1, 27.2, 27.3, 27.4, 27.5, 27.6, 46.3, 46.4
  */
-function MemoryExplorerScreen(): React.ReactElement {
+function MemoryGraphScreen(): React.ReactElement {
   const [viewMode, setViewMode] = useState<ViewMode>('orbit');
   const [showDebug, setShowDebug] = useState(false);
   const [hoveredNeighbor, setHoveredNeighbor] = useState<NeighborNode | null>(null);
@@ -256,6 +198,17 @@ function MemoryExplorerScreen(): React.ReactElement {
   const [isTagPanelCollapsed, setIsTagPanelCollapsed] = useState(true); // Closed by default
   const [hoveredTag, setHoveredTag] = useState<string | null>(null);
 
+  // Search filter state (sector, strength, salience filters)
+  const [selectedSectors, setSelectedSectors] = useState<MemorySectorType[]>([
+    'episodic',
+    'semantic',
+    'procedural',
+    'emotional',
+    'reflective',
+  ]);
+  const [minStrength, setMinStrength] = useState(0);
+  const [minSalience, setMinSalience] = useState(0);
+
   // Warp transition state
   const [warpTargetPosition, setWarpTargetPosition] = useState<[number, number, number] | null>(
     null
@@ -270,13 +223,36 @@ function MemoryExplorerScreen(): React.ReactElement {
   const { history, isTransitioning, navigateTo } = useNavigationStore();
   useCognitiveStore();
 
-  const allNodes: GraphNode[] = DEMO_MEMORIES.map(memoryToGraphNode);
+  // Get user from store
+  const userId = useUserStore((state) => state.username);
+
+  // Get memory preview action from uiStore for linked memory navigation
+  const openMemoryPreview = useUIStore((state) => state.openMemoryPreview);
+
+  // Get memories from central memory store
+  const storeMemories = useMemoryStore((state) => state.memories);
+  const storeFetchMemories = useMemoryStore((state) => state.fetchMemories);
+
+  // Fetch memories on mount when user is available
+  useEffect(() => {
+    if (userId !== null && userId !== '') {
+      void storeFetchMemories(userId);
+    }
+  }, [storeFetchMemories, userId]);
+
+  // Use memories from store
+  const memories = storeMemories;
+
+  // Generate edges from memories
+  const edges = useMemo(() => memoriesToEdges(memories), [memories]);
+
+  const allNodes: GraphNode[] = useMemo(() => memories.map(memoryToGraphNode), [memories]);
 
   // Extract all unique tags from memories with counts (Requirements: 42.1, 42.2)
   const tagsWithCounts: TagWithCount[] = useMemo(() => {
     const tagCounts = new Map<string, number>();
 
-    for (const memory of DEMO_MEMORIES) {
+    for (const memory of memories) {
       const tags = memory.metadata.tags ?? [];
       for (const tag of tags) {
         tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
@@ -286,12 +262,25 @@ function MemoryExplorerScreen(): React.ReactElement {
     return Array.from(tagCounts.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
-  }, []);
+  }, [memories]);
 
-  // Filter nodes by selected tags (Requirements: 42.3, 42.4)
+  // Filter nodes by selected tags, sectors, strength, and salience (Requirements: 42.3, 42.4)
   const filteredNodes: GraphNode[] = useMemo(() => {
-    return filterNodesByTags(allNodes, selectedTags);
-  }, [allNodes, selectedTags]);
+    let nodes = filterNodesByTags(allNodes, selectedTags);
+    nodes = filterNodesBySector(nodes, selectedSectors);
+
+    // Filter by minimum strength
+    if (minStrength > 0) {
+      nodes = nodes.filter((node) => node.strength >= minStrength);
+    }
+
+    // Filter by minimum salience
+    if (minSalience > 0) {
+      nodes = nodes.filter((node) => node.salience >= minSalience);
+    }
+
+    return nodes;
+  }, [allNodes, selectedTags, selectedSectors, minStrength, minSalience]);
 
   // Get nodes to highlight when hovering a tag (Requirement 42.6 - will be implemented in task 74.3)
   const tagHighlightedNodeIds: string[] = useMemo(() => {
@@ -306,7 +295,7 @@ function MemoryExplorerScreen(): React.ReactElement {
 
   // Use filtered nodes for mini-map
   const miniMapNodes = filteredNodes.map(graphNodeToMiniMapNode);
-  const miniMapEdges = DEMO_EDGES.map(graphEdgeToMiniMapEdge);
+  const miniMapEdges = edges.map(graphEdgeToMiniMapEdge);
 
   // Import types for suggested topics and memories
   type SuggestedTopic = {
@@ -325,14 +314,14 @@ function MemoryExplorerScreen(): React.ReactElement {
   const suggestedTopics: SuggestedTopic[] = useMemo(() => {
     // Get sector counts
     const sectorCounts = new Map<string, number>();
-    for (const memory of DEMO_MEMORIES) {
+    for (const memory of memories) {
       const sector = memory.primarySector;
       sectorCounts.set(sector, (sectorCounts.get(sector) ?? 0) + 1);
     }
 
     // Get tag counts
     const tagCounts = new Map<string, number>();
-    for (const memory of DEMO_MEMORIES) {
+    for (const memory of memories) {
       const tags = memory.metadata.tags ?? [];
       for (const tag of tags) {
         tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
@@ -364,7 +353,7 @@ function MemoryExplorerScreen(): React.ReactElement {
     }
 
     return topics;
-  }, []);
+  }, [memories]);
 
   // Compute suggested memories to link for empty state (Requirement 45.5)
   const suggestedMemoriesToLink: SuggestedMemoryToLink[] = useMemo(() => {
@@ -373,12 +362,12 @@ function MemoryExplorerScreen(): React.ReactElement {
     const suggestions: SuggestedMemoryToLink[] = [];
     const currentSector = currentNode.primarySector;
 
-    for (const memory of DEMO_MEMORIES) {
+    for (const memory of memories) {
       // Skip the current memory
       if (memory.id === currentNode.id) continue;
 
       // Check if already linked
-      const isLinked = DEMO_EDGES.some(
+      const isLinked = edges.some(
         (edge) =>
           (edge.source === currentNode.id && edge.target === memory.id) ||
           (edge.target === currentNode.id && edge.source === memory.id)
@@ -396,7 +385,7 @@ function MemoryExplorerScreen(): React.ReactElement {
       }
 
       // Suggest hub nodes (memories with many connections)
-      const connectionCount = DEMO_EDGES.filter(
+      const connectionCount = edges.filter(
         (edge) => edge.source === memory.id || edge.target === memory.id
       ).length;
 
@@ -421,7 +410,7 @@ function MemoryExplorerScreen(): React.ReactElement {
 
     // Limit to 3 suggestions
     return suggestions.slice(0, 3);
-  }, [currentNode]);
+  }, [currentNode, memories, edges]);
 
   // Compute related memories for the current node (Requirements: 45.1, 45.2, 45.3, 45.4)
   const relatedMemories: RelatedMemory[] = useMemo(() => {
@@ -432,12 +421,12 @@ function MemoryExplorerScreen(): React.ReactElement {
       (currentNode.metadata.keywords ?? []).map((k: string) => k.toLowerCase())
     );
 
-    for (const memory of DEMO_MEMORIES) {
+    for (const memory of memories) {
       // Skip the current memory
       if (memory.id === currentNode.id) continue;
 
       // Check if there's a direct link (waypoint connection)
-      const hasDirectLink = DEMO_EDGES.some(
+      const hasDirectLink = edges.some(
         (edge) =>
           (edge.source === currentNode.id && edge.target === memory.id) ||
           (edge.target === currentNode.id && edge.source === memory.id)
@@ -485,16 +474,18 @@ function MemoryExplorerScreen(): React.ReactElement {
 
     // Sort by relevance score (descending)
     return related.sort((a, b) => b.relevanceScore - a.relevanceScore);
-  }, [currentNode]);
+  }, [currentNode, memories, edges]);
 
-  // Initialize with demo data on mount
+  // Initialize graph store when memories are loaded
   useEffect(() => {
-    const loadDemoData = (): void => {
-      const currentMemory = DEMO_MEMORIES[0];
+    if (memories.length === 0) return;
+
+    const loadMemoryData = (): void => {
+      const currentMemory = memories[0];
       if (!currentMemory) return;
 
-      const neighborsList = DEMO_MEMORIES.slice(1).map((mem, index) => {
-        const edge = DEMO_EDGES[index];
+      const neighborsList = memories.slice(1).map((mem, index) => {
+        const edge = edges[index];
         return {
           ...memoryToGraphNode(mem),
           edge: edge ?? {
@@ -510,8 +501,8 @@ function MemoryExplorerScreen(): React.ReactElement {
         currentNodeId: currentMemory.id,
         currentNode: currentMemory,
         neighbors: neighborsList,
-        visibleNodes: new Map(DEMO_MEMORIES.map((m) => [m.id, memoryToGraphNode(m)])),
-        edges: DEMO_EDGES,
+        visibleNodes: new Map(memories.map((m) => [m.id, memoryToGraphNode(m)])),
+        edges: edges,
         isLoading: false,
         error: null,
       });
@@ -520,14 +511,14 @@ function MemoryExplorerScreen(): React.ReactElement {
       navigateTo(currentMemory.id, contentPreview);
     };
 
-    loadDemoData();
-  }, [navigateTo]);
+    loadMemoryData();
+  }, [memories, edges, navigateTo]);
 
   const completeNavigation = useCallback(
     (nodeId: string, clickedMemory: Memory): void => {
-      const otherMemories = DEMO_MEMORIES.filter((m) => m.id !== nodeId);
+      const otherMemories = memories.filter((m) => m.id !== nodeId);
       const neighborsList = otherMemories.map((mem) => {
-        const existingEdge = DEMO_EDGES.find(
+        const existingEdge = edges.find(
           (e) =>
             (e.source === nodeId && e.target === mem.id) ||
             (e.target === nodeId && e.source === mem.id)
@@ -553,7 +544,7 @@ function MemoryExplorerScreen(): React.ReactElement {
       const contentPreview = clickedMemory.content.substring(0, 30) + '...';
       navigateTo(nodeId, contentPreview);
     },
-    [navigateTo]
+    [memories, edges, navigateTo]
   );
 
   const handleNodeClick = useCallback(
@@ -561,7 +552,7 @@ function MemoryExplorerScreen(): React.ReactElement {
       if (isTransitioning) return;
       if (nodeId === currentNodeId) return;
 
-      const clickedMemory = DEMO_MEMORIES.find((m) => m.id === nodeId);
+      const clickedMemory = memories.find((m) => m.id === nodeId);
       if (!clickedMemory) return;
 
       const neighbor = neighbors.find((n) => n.id === nodeId);
@@ -577,7 +568,7 @@ function MemoryExplorerScreen(): React.ReactElement {
         completeNavigation(nodeId, clickedMemory);
       }
     },
-    [isTransitioning, currentNodeId, neighbors, completeNavigation]
+    [isTransitioning, currentNodeId, neighbors, memories, completeNavigation]
   );
 
   // Handle topic click for exploration (Requirement 45.5)
@@ -587,11 +578,11 @@ function MemoryExplorerScreen(): React.ReactElement {
       let targetMemory: Memory | undefined;
 
       if (topic.type === 'sector') {
-        targetMemory = DEMO_MEMORIES.find(
+        targetMemory = memories.find(
           (m) => m.primarySector === topic.name && m.id !== currentNodeId
         );
       } else if (topic.type === 'tag') {
-        targetMemory = DEMO_MEMORIES.find(
+        targetMemory = memories.find(
           (m) => (m.metadata.tags ?? []).includes(topic.name) && m.id !== currentNodeId
         );
       }
@@ -600,7 +591,7 @@ function MemoryExplorerScreen(): React.ReactElement {
         handleNodeClick(targetMemory.id);
       }
     },
-    [currentNodeId, handleNodeClick]
+    [currentNodeId, memories, handleNodeClick]
   );
 
   // Handle create link action (Requirement 45.5)
@@ -614,16 +605,27 @@ function MemoryExplorerScreen(): React.ReactElement {
     [handleNodeClick]
   );
 
+  // Handle linked memory click - opens the memory in the preview modal
+  const handleLinkedMemoryClick = useCallback(
+    (memoryId: string): void => {
+      const linkedMemory = memories.find((m) => m.id === memoryId);
+      if (linkedMemory) {
+        openMemoryPreview(linkedMemory);
+      }
+    },
+    [memories, openMemoryPreview]
+  );
+
   const handleWarpComplete = useCallback(
     (nodeId: string): void => {
-      const clickedMemory = DEMO_MEMORIES.find((m) => m.id === nodeId);
+      const clickedMemory = memories.find((m) => m.id === nodeId);
       if (clickedMemory) {
         completeNavigation(nodeId, clickedMemory);
       }
       setWarpTargetPosition(null);
       setWarpTargetNodeId(null);
     },
-    [completeNavigation]
+    [memories, completeNavigation]
   );
 
   const handleWarpStart = useCallback((_nodeId: string): void => {
@@ -651,7 +653,7 @@ function MemoryExplorerScreen(): React.ReactElement {
     if (hoveredNodeId === null || hoveredNodeId === '') return [];
 
     // Find all edges connected to the hovered node
-    const connectedEdges = DEMO_EDGES.filter(
+    const connectedEdges = edges.filter(
       (edge) => edge.source === hoveredNodeId || edge.target === hoveredNodeId
     );
 
@@ -659,7 +661,7 @@ function MemoryExplorerScreen(): React.ReactElement {
     const connectedMemoryData: ConnectedMemory[] = [];
     for (const edge of connectedEdges) {
       const connectedId = edge.source === hoveredNodeId ? edge.target : edge.source;
-      const memory = DEMO_MEMORIES.find((m) => m.id === connectedId);
+      const memory = memories.find((m) => m.id === connectedId);
       if (memory) {
         connectedMemoryData.push({
           id: memory.id,
@@ -670,14 +672,14 @@ function MemoryExplorerScreen(): React.ReactElement {
     }
 
     return connectedMemoryData;
-  }, [hoveredNodeId]);
+  }, [hoveredNodeId, memories, edges]);
 
   // Get the title of the hovered node for the tooltip
   const hoveredNodeTitle = useMemo(() => {
     if (hoveredNodeId === null || hoveredNodeId === '') return undefined;
-    const memory = DEMO_MEMORIES.find((m) => m.id === hoveredNodeId);
+    const memory = memories.find((m) => m.id === hoveredNodeId);
     return memory?.content;
-  }, [hoveredNodeId]);
+  }, [hoveredNodeId, memories]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent): void => {
@@ -765,6 +767,12 @@ function MemoryExplorerScreen(): React.ReactElement {
           )}
           <SearchFilterPanel
             nodes={filteredNodes}
+            selectedSectors={selectedSectors}
+            minStrength={minStrength}
+            minSalience={minSalience}
+            onSectorChange={setSelectedSectors}
+            onStrengthChange={setMinStrength}
+            onSalienceChange={setMinSalience}
             onResultClick={handleSearchResultClick}
             isExpanded={isSearchPanelExpanded}
             onToggleExpand={(): void => {
@@ -822,7 +830,7 @@ function MemoryExplorerScreen(): React.ReactElement {
       </div>
 
       {/* 3D Scene */}
-      <MemoryExplorerScene
+      <MemoryGraphScene
         currentNodeId={currentNodeId}
         viewMode={viewMode}
         debug={showDebug}
@@ -871,7 +879,7 @@ function MemoryExplorerScreen(): React.ReactElement {
       {/* In clean mode: hidden (memory details shown only in expanded node panel per Requirement 46.3) */}
       {/* In normal mode: show sidebar with proper spacing to avoid overlapping bottom controls */}
       {/* bottom-20 = 5rem to clear help icon (bottom-4) + clean mode (bottom-4 left-14) with padding */}
-      {!isCleanMode && (
+      {!isCleanMode && userId !== null && userId !== '' && (
         <div className="absolute top-4 left-4 bottom-20 z-39 w-96 flex flex-col">
           <RelatedMemoriesSidebar
             currentMemory={currentNode}
@@ -882,6 +890,9 @@ function MemoryExplorerScreen(): React.ReactElement {
             suggestedMemoriesToLink={suggestedMemoriesToLink}
             onTopicClick={handleTopicClick}
             onCreateLink={handleCreateLink}
+            availableMemories={memories}
+            userId={userId}
+            sessionId={useUserStore.getState().sessionId ?? ''}
             className="h-full flex flex-col"
           />
         </div>
@@ -932,12 +943,18 @@ function MemoryExplorerScreen(): React.ReactElement {
       )}
 
       {/* Neighbor Preview Panel */}
-      <NeighborPreviewPanel
-        neighbor={hoveredNeighbor}
-        edge={hoveredNeighbor?.edge ?? null}
-        isVisible={hoveredNeighbor !== null}
-        positionHint={hoverPosition}
-      />
+      {userId !== null && userId !== '' && (
+        <NeighborPreviewPanel
+          neighbor={hoveredNeighbor}
+          edge={hoveredNeighbor?.edge ?? null}
+          isVisible={hoveredNeighbor !== null}
+          positionHint={hoverPosition}
+          availableMemories={memories}
+          onLinkedMemoryClick={handleLinkedMemoryClick}
+          userId={userId}
+          sessionId={useUserStore.getState().sessionId ?? ''}
+        />
+      )}
 
       {/* Connection Tooltip - Shows connected memory titles on hover (Requirement 39.3) */}
       <ConnectionTooltip
@@ -949,7 +966,7 @@ function MemoryExplorerScreen(): React.ReactElement {
 
       {/* Bottom Toolbar - AI Tools (Requirement 27.4) */}
       {/* Positioned to match FAB buttons on other screens */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+      <div className="fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50">
         {currentNode && (
           <div className="flex items-center gap-2">
             {/* Collapsible AI Tools */}
@@ -1092,14 +1109,29 @@ function AppContent(): React.ReactElement {
   const navigate = useNavigate();
   const [isQuickAccessExpanded, setIsQuickAccessExpanded] = useState(true);
 
-  // QuickCaptureModal state (Requirement 44.1 - Cmd/Ctrl+N shortcut)
-  const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
+  // CreateMemoryModal state (Requirement 44.1 - Cmd/Ctrl+N shortcut)
+  const [isCreateMemoryOpen, setIsCreateMemoryOpen] = useState(false);
 
   // Clean mode state for maximizing viewport (Requirement 46.6)
   const { isCleanMode } = useCleanMode();
 
-  // Get current memory context from graph store for QuickCaptureModal (Requirement 44.2)
+  // Get user from store
+  const userId = useUserStore((state) => state.username);
+  const sessionId = useUserStore((state) => state.sessionId);
+
+  // Get current memory context from graph store for CreateMemoryModal (Requirement 44.2)
   const currentNode = useGraphStore((state) => state.currentNode);
+
+  // Get memories from central memory store for WikiLink autocomplete
+  const memories = useMemoryStore((state) => state.memories);
+  const fetchMemories = useMemoryStore((state) => state.fetchMemories);
+
+  // Fetch memories on mount and when user changes
+  useEffect(() => {
+    if (userId !== null && userId !== '') {
+      void fetchMemories(userId);
+    }
+  }, [fetchMemories, userId]);
 
   // Get session store data for QuickAccessPanel
   // Use direct state access and memoize the sorted results to avoid infinite loops
@@ -1119,16 +1151,19 @@ function AppContent(): React.ReactElement {
   // Determine active screen from route
   const activeScreen: ScreenId = ROUTE_TO_SCREEN[location.pathname] ?? 'dashboard';
 
-  // Convert demo memories to recent memories format
+  // Use real memories from store
+  const availableMemories = memories;
+
+  // Convert memories to recent memories format - pass full content, let UI handle truncation
   const recentMemories: RecentMemory[] = useMemo(
     () =>
-      DEMO_MEMORIES.map((mem) => ({
+      availableMemories.map((mem) => ({
         id: mem.id,
-        contentPreview: mem.content.substring(0, 50),
+        contentPreview: mem.content,
         primarySector: mem.primarySector,
         lastAccessed: new Date(mem.lastAccessed).getTime(),
       })),
-    []
+    [availableMemories]
   );
 
   // Handle navigation
@@ -1140,15 +1175,19 @@ function AppContent(): React.ReactElement {
     [navigate]
   );
 
-  // Handle quick access clicks
+  // Get memory preview action from uiStore
+  const openMemoryPreview = useUIStore((state) => state.openMemoryPreview);
+
+  // Handle quick access clicks - opens memory preview modal
   const handleMemoryClick = useCallback(
     (memoryId: string): void => {
-      // Navigate to memory explorer and select the memory
-      void navigate('/explorer');
-      // The memory selection would be handled by the MemoryExplorerScreen
-      console.log('Navigate to memory:', memoryId);
+      // Find the memory and open the preview modal
+      const memory = availableMemories.find((m) => m.id === memoryId);
+      if (memory) {
+        openMemoryPreview(memory);
+      }
     },
-    [navigate]
+    [availableMemories, openMemoryPreview]
   );
 
   const handleBookmarkClick = useCallback(
@@ -1167,27 +1206,36 @@ function AppContent(): React.ReactElement {
     [navigate]
   );
 
-  // Create demo stats for Dashboard
+  // Create stats from real memories
   const demoStats: QuickStats = useMemo(
     () => ({
-      totalMemories: DEMO_MEMORIES.length,
-      totalConnections: DEMO_EDGES.length,
-      memoriesThisWeek: 3,
-      hubNodes: 1,
+      totalMemories: availableMemories.length,
+      totalConnections: Math.max(0, availableMemories.length - 1), // Approximate connections
+      memoriesThisWeek: availableMemories.filter((m) => {
+        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        return new Date(m.createdAt).getTime() > weekAgo;
+      }).length,
+      hubNodes: availableMemories.length > 0 ? 1 : 0,
     }),
-    []
+    [availableMemories]
   );
 
-  // Create demo recent memories for Dashboard
+  // Create recent memories from real data - pass full content, let UI handle truncation
   const demoRecentMemories: RecentMemoryItem[] = useMemo(
     () =>
-      DEMO_MEMORIES.map((mem) => ({
+      availableMemories.map((mem) => ({
         id: mem.id,
-        contentPreview: mem.content.substring(0, 60),
+        contentPreview: mem.content,
         primarySector: mem.primarySector,
         lastAccessed: new Date(mem.lastAccessed).getTime(),
       })),
-    []
+    [availableMemories]
+  );
+
+  // Generate graph preview nodes from real memories
+  const graphPreviewNodes: GraphPreviewNode[] = useMemo(
+    () => memoriesToGraphPreviewNodes(availableMemories),
+    [availableMemories]
   );
 
   // Create demo suggested actions for Dashboard
@@ -1274,24 +1322,18 @@ function AppContent(): React.ReactElement {
     void navigate('/explorer');
   }, [navigate]);
 
-  // Handle unpin memory from Dashboard (Requirement 50.3)
-  const handleUnpinMemory = useCallback((memoryId: string): void => {
-    // In a real app, this would update the pinned state in the backend
-    console.log('Unpinning memory:', memoryId);
-  }, []);
-
   // Get graph store actions for adding new nodes (Requirement 44.6)
   const addNode = useGraphStore((state) => state.addNode);
   const addEdge = useGraphStore((state) => state.addEdge);
   const fetchNeighbors = useGraphStore((state) => state.fetchNeighbors);
 
-  // QuickCaptureModal handlers (Requirement 44.1, 44.5, 44.6)
-  const handleQuickCaptureSave = useCallback(
-    (result: QuickCaptureSaveResult): void => {
-      console.log('Quick capture saved:', result);
+  // CreateMemoryModal handlers (Requirement 44.1, 44.5, 44.6)
+  const handleCreateMemorySave = useCallback(
+    (result: CreateMemorySaveResult): void => {
+      console.log('Memory created:', result);
 
       // Close the modal and return focus to 3D view (Requirement 44.5)
-      setIsQuickCaptureOpen(false);
+      setIsCreateMemoryOpen(false);
 
       // Always create a new GraphNode from the save result
       const newNode: GraphNode = {
@@ -1343,17 +1385,17 @@ function AppContent(): React.ReactElement {
     [addNode, addEdge, fetchNeighbors]
   );
 
-  const handleQuickCaptureClose = useCallback((): void => {
-    setIsQuickCaptureOpen(false);
+  const handleCreateMemoryClose = useCallback((): void => {
+    setIsCreateMemoryOpen(false);
   }, []);
 
-  // Global keyboard shortcut for QuickCaptureModal (Requirement 44.1 - Cmd/Ctrl+N)
+  // Global keyboard shortcut for CreateMemoryModal (Requirement 44.1 - Cmd/Ctrl+N)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
-      // Cmd/Ctrl+N to open QuickCaptureModal
+      // Cmd/Ctrl+N to open CreateMemoryModal
       if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
         e.preventDefault();
-        setIsQuickCaptureOpen(true);
+        setIsCreateMemoryOpen(true);
       }
     };
 
@@ -1363,8 +1405,12 @@ function AppContent(): React.ReactElement {
     };
   }, []);
 
-  // Render the current screen
+  // Render the current screen - requires userId and sessionId
   const renderScreen = (): React.ReactElement => {
+    // These should always be set when AppContent renders (guarded by App component)
+    const currentUserId = userId ?? '';
+    const currentSessionId = sessionId ?? '';
+
     switch (activeScreen) {
       case 'dashboard':
         return (
@@ -1372,58 +1418,54 @@ function AppContent(): React.ReactElement {
             stats={demoStats}
             recentMemories={demoRecentMemories}
             suggestedActions={demoSuggestedActions}
-            pinnedMemories={DEMO_PINNED_MEMORIES}
             recentSessions={DEMO_RECENT_SESSIONS}
-            graphPreviewNodes={DEMO_GRAPH_PREVIEW_NODES}
-            availableMemories={DEMO_MEMORIES}
+            graphPreviewNodes={graphPreviewNodes}
+            availableMemories={availableMemories}
             onMemoryClick={handleMemoryClick}
             onActionClick={handleDashboardActionClick}
             onSessionResume={handleSessionResume}
             onGraphPreviewClick={handleGraphPreviewClick}
-            onUnpinMemory={handleUnpinMemory}
-            userId={DEMO_USER_ID}
-            sessionId={DEMO_SESSION_ID}
+            userId={currentUserId}
+            sessionId={currentSessionId}
           />
         );
+      case 'memory-graph':
+        return <MemoryGraphScreen />;
       case 'memory-explorer':
-        return <MemoryExplorerScreen />;
-      case 'memory-management':
-        return <MemoryManagement userId={DEMO_USER_ID} sessionId={DEMO_SESSION_ID} />;
+        return <MemoryExplorer userId={currentUserId} sessionId={currentSessionId} />;
       case 'reasoning-console':
-        return <ReasoningConsole userId={DEMO_USER_ID} sessionId={DEMO_SESSION_ID} />;
+        return <ReasoningConsole userId={currentUserId} sessionId={currentSessionId} />;
       case 'framework-analysis':
-        return <FrameworkAnalysis userId={DEMO_USER_ID} sessionId={DEMO_SESSION_ID} />;
+        return <FrameworkAnalysis userId={currentUserId} sessionId={currentSessionId} />;
       case 'problem-decomposition':
-        return <ProblemDecomposition userId={DEMO_USER_ID} sessionId={DEMO_SESSION_ID} />;
+        return <ProblemDecomposition userId={currentUserId} sessionId={currentSessionId} />;
       case 'confidence-bias':
-        return <ConfidenceBiasDashboard userId={DEMO_USER_ID} sessionId={DEMO_SESSION_ID} />;
+        return <ConfidenceBiasDashboard userId={currentUserId} sessionId={currentSessionId} />;
       case 'emotion-analysis':
-        return <EmotionAnalysis userId={DEMO_USER_ID} sessionId={DEMO_SESSION_ID} />;
+        return <EmotionAnalysis userId={currentUserId} sessionId={currentSessionId} />;
       default:
         return (
           <Dashboard
             stats={demoStats}
             recentMemories={demoRecentMemories}
             suggestedActions={demoSuggestedActions}
-            pinnedMemories={DEMO_PINNED_MEMORIES}
             recentSessions={DEMO_RECENT_SESSIONS}
-            graphPreviewNodes={DEMO_GRAPH_PREVIEW_NODES}
-            availableMemories={DEMO_MEMORIES}
+            graphPreviewNodes={graphPreviewNodes}
+            availableMemories={availableMemories}
             onMemoryClick={handleMemoryClick}
             onActionClick={handleDashboardActionClick}
             onSessionResume={handleSessionResume}
             onGraphPreviewClick={handleGraphPreviewClick}
-            onUnpinMemory={handleUnpinMemory}
-            userId={DEMO_USER_ID}
-            sessionId={DEMO_SESSION_ID}
+            userId={currentUserId}
+            sessionId={currentSessionId}
           />
         );
     }
   };
 
   // Determine if we should hide navigation for full-screen viewport (Requirement 46.6)
-  // In clean mode on Memory Explorer, hide navigation to maximize 3D viewport
-  const isFullScreenViewport = isCleanMode && activeScreen === 'memory-explorer';
+  // In clean mode on Memory Graph, hide navigation to maximize 3D viewport
+  const isFullScreenViewport = isCleanMode && activeScreen === 'memory-graph';
 
   return (
     <div className="min-h-screen bg-ui-background flex flex-col">
@@ -1438,8 +1480,8 @@ function AppContent(): React.ReactElement {
       )}
 
       {/* Quick Access Panel (Requirement 23.3) */}
-      {/* Only shown on Memory Explorer screen, hidden in clean mode (Requirement 46.6) */}
-      {!isFullScreenViewport && activeScreen === 'memory-explorer' && (
+      {/* Only shown on Memory Graph screen, hidden in clean mode (Requirement 46.6) */}
+      {!isFullScreenViewport && activeScreen === 'memory-graph' && (
         <div className="fixed top-16 right-4 z-45 w-64">
           <QuickAccessPanel
             recentMemories={recentMemories}
@@ -1470,15 +1512,22 @@ function AppContent(): React.ReactElement {
         </PageTransition>
       </main>
 
-      {/* QuickCaptureModal - Global keyboard shortcut Cmd/Ctrl+N (Requirement 44.1, 44.2) */}
-      <QuickCaptureModal
-        isOpen={isQuickCaptureOpen}
+      {/* CreateMemoryModal - Global keyboard shortcut Cmd/Ctrl+N (Requirement 44.1, 44.2) */}
+      <CreateMemoryModal
+        isOpen={isCreateMemoryOpen}
         {...(currentNode != null ? { currentMemoryContext: currentNode } : {})}
-        onSave={handleQuickCaptureSave}
-        onClose={handleQuickCaptureClose}
-        availableMemories={DEMO_MEMORIES}
-        userId={DEMO_USER_ID}
-        sessionId={DEMO_SESSION_ID}
+        onSave={handleCreateMemorySave}
+        onClose={handleCreateMemoryClose}
+        availableMemories={availableMemories}
+        userId={userId ?? ''}
+        sessionId={sessionId ?? ''}
+      />
+
+      {/* MemoryPreviewModal - Global memory preview modal accessible from any page */}
+      <MemoryPreviewModal
+        availableMemories={availableMemories}
+        userId={userId ?? ''}
+        sessionId={sessionId ?? ''}
       />
     </div>
   );
@@ -1486,8 +1535,24 @@ function AppContent(): React.ReactElement {
 
 /**
  * Main App Component with Router
+ * Shows UsernameModal if user hasn't entered their username yet.
  */
 function App(): React.ReactElement {
+  const username = useUserStore((state) => state.username);
+  const setUser = useUserStore((state) => state.setUser);
+
+  const handleUsernameSubmit = useCallback(
+    (newUsername: string): void => {
+      setUser(newUsername);
+    },
+    [setUser]
+  );
+
+  // Show username modal if user hasn't entered their username
+  if (username === null || username === '') {
+    return <UsernameModal onSubmit={handleUsernameSubmit} />;
+  }
+
   return (
     <BrowserRouter>
       <Routes>

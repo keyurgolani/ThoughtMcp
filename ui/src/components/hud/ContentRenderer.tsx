@@ -1,14 +1,16 @@
 /**
  * ContentRenderer Component
  *
- * Renders memory content with both keyword highlighting and wiki link rendering.
- * Combines KeywordHighlighter and WikiLinkRenderer functionality to provide
+ * Renders memory content with markdown support, keyword highlighting, and wiki link rendering.
+ * Combines KeywordHighlighter, WikiLinkRenderer, and Markdown functionality to provide
  * a unified content display with all interactive elements.
  *
  * Requirements: 40.1, 40.2, 40.3, 40.4, 40.5, 41.3, 41.4
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { LinkType } from '../../types/api';
 import { getKeywordLinkColor, type LinkedKeyword } from './KeywordHighlighter';
 import type { MemoryPreview } from './KeywordHoverPreview';
@@ -32,6 +34,8 @@ export interface ContentRendererProps {
   memoryPreviews?: Map<string, MemoryPreview> | undefined;
   /** Whether to use high contrast colors */
   highContrast?: boolean | undefined;
+  /** Whether to render content as markdown */
+  renderMarkdown?: boolean | undefined;
   /** Additional CSS classes */
   className?: string | undefined;
 }
@@ -372,6 +376,7 @@ function WikiLinkElement({
  * - Shows hover preview tooltips for both keywords and wiki links
  * - Handles overlapping segments (wiki links take priority)
  * - Accessible with keyboard navigation
+ * - Optional markdown rendering support
  *
  * Requirements: 40.1, 40.2, 40.3, 40.4, 40.5, 41.3, 41.4
  */
@@ -382,6 +387,7 @@ export function ContentRenderer({
   onWikiLinkClick,
   memoryPreviews,
   highContrast = false,
+  renderMarkdown = true,
   className = '',
 }: ContentRendererProps): React.ReactElement {
   // State for hover preview
@@ -392,7 +398,28 @@ export function ContentRenderer({
   // Parse wiki links from content
   const wikiLinks = useMemo(() => parseWikiLinks(content), [content]);
 
-  // Merge all segments
+  // Preprocess content to replace wiki links with placeholders for markdown
+  // Then restore them after markdown rendering
+  const processedContent = useMemo(() => {
+    if (!renderMarkdown || wikiLinks.length === 0) return content;
+
+    // Replace wiki links with unique placeholders that won't be affected by markdown
+    let processed = content;
+    const linkMap = new Map<string, ParsedWikiLink>();
+
+    // Process in reverse order to maintain correct indices
+    const sortedLinks = [...wikiLinks].sort((a, b) => b.startIndex - a.startIndex);
+    for (const link of sortedLinks) {
+      const placeholder = `__WIKILINK_${link.memoryId}_${String(link.startIndex)}__`;
+      linkMap.set(placeholder, link);
+      processed =
+        processed.slice(0, link.startIndex) + placeholder + processed.slice(link.endIndex);
+    }
+
+    return processed;
+  }, [content, wikiLinks, renderMarkdown]);
+
+  // Merge all segments (for non-markdown mode)
   const segments = useMemo(
     () => mergeSegments(content, linkedKeywords, wikiLinks),
     [content, linkedKeywords, wikiLinks]
@@ -445,6 +472,220 @@ export function ContentRenderer({
   const tooltipText = hoveredKeyword?.text ?? hoveredWikiLink?.displayText ?? '';
   const tooltipLinkType: LinkType = hoveredKeyword?.linkType ?? 'semantic';
 
+  // Custom text renderer for markdown that handles wiki links
+  const renderTextWithWikiLinks = useCallback(
+    (text: string): React.ReactNode => {
+      // Check for wiki link placeholders
+      const placeholderPattern = /__WIKILINK_([^_]+)_(\d+)__/g;
+      const parts: React.ReactNode[] = [];
+      let lastIndex = 0;
+      let match;
+
+      while ((match = placeholderPattern.exec(text)) !== null) {
+        // Add text before the placeholder
+        if (match.index > lastIndex) {
+          parts.push(text.slice(lastIndex, match.index));
+        }
+
+        // Find the original wiki link
+        const memoryId = match[1] ?? '';
+        const startIndex = parseInt(match[2] ?? '0', 10);
+        const link = wikiLinks.find((l) => l.memoryId === memoryId && l.startIndex === startIndex);
+
+        if (link) {
+          parts.push(
+            <WikiLinkElement
+              key={`wikilink-md-${String(startIndex)}`}
+              link={link}
+              onClick={onWikiLinkClick}
+              onHover={handleWikiLinkHover}
+              highContrast={highContrast}
+            />
+          );
+        } else {
+          parts.push(match[0]); // Keep placeholder if link not found
+        }
+
+        lastIndex = match.index + match[0].length;
+      }
+
+      // Add remaining text
+      if (lastIndex < text.length) {
+        parts.push(text.slice(lastIndex));
+      }
+
+      return parts.length > 0 ? parts : text;
+    },
+    [wikiLinks, onWikiLinkClick, handleWikiLinkHover, highContrast]
+  );
+
+  // Render with markdown support
+  if (renderMarkdown) {
+    return (
+      <>
+        <div className={`prose prose-sm dark:prose-invert max-w-none overflow-x-auto ${className}`}>
+          <Markdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              // Custom text renderer to handle wiki links within text
+              p: ({ children }: { children?: ReactNode }) => (
+                <p className="text-ui-text-primary mb-3 last:mb-0">
+                  {typeof children === 'string' ? renderTextWithWikiLinks(children) : children}
+                </p>
+              ),
+              // Style headings
+              h1: ({ children }: { children?: ReactNode }) => (
+                <h1 className="text-xl font-bold text-ui-text-primary mb-3 mt-4 first:mt-0">
+                  {children}
+                </h1>
+              ),
+              h2: ({ children }: { children?: ReactNode }) => (
+                <h2 className="text-lg font-semibold text-ui-text-primary mb-2 mt-3 first:mt-0">
+                  {children}
+                </h2>
+              ),
+              h3: ({ children }: { children?: ReactNode }) => (
+                <h3 className="text-base font-semibold text-ui-text-primary mb-2 mt-3 first:mt-0">
+                  {children}
+                </h3>
+              ),
+              // Style tables
+              table: ({ children }: { children?: ReactNode }) => (
+                <div className="overflow-x-auto mb-4">
+                  <table className="min-w-full text-sm border border-ui-border/50 rounded-lg overflow-hidden">
+                    {children}
+                  </table>
+                </div>
+              ),
+              thead: ({ children }: { children?: ReactNode }) => (
+                <thead className="bg-ui-accent-primary/10">{children}</thead>
+              ),
+              tbody: ({ children }: { children?: ReactNode }) => (
+                <tbody className="bg-ui-background/20">{children}</tbody>
+              ),
+              tr: ({ children }: { children?: ReactNode }) => (
+                <tr className="border-b border-ui-border/30 last:border-b-0">{children}</tr>
+              ),
+              th: ({ children }: { children?: ReactNode }) => (
+                <th className="px-4 py-2.5 text-left font-semibold text-ui-accent-primary text-xs uppercase tracking-wider border-r border-ui-border/30 last:border-r-0">
+                  {children}
+                </th>
+              ),
+              td: ({ children }: { children?: ReactNode }) => (
+                <td className="px-4 py-2.5 text-ui-text-primary border-r border-ui-border/30 last:border-r-0">
+                  {children}
+                </td>
+              ),
+              // Style lists
+              ul: ({ children }: { children?: ReactNode }) => (
+                <ul className="list-disc list-inside text-ui-text-primary mb-3 space-y-1">
+                  {children}
+                </ul>
+              ),
+              ol: ({ children }: { children?: ReactNode }) => (
+                <ol className="list-decimal list-inside text-ui-text-primary mb-3 space-y-1">
+                  {children}
+                </ol>
+              ),
+              li: ({ children }: { children?: ReactNode }) => (
+                <li className="text-ui-text-primary">{children}</li>
+              ),
+              // Style code blocks
+              code: ({
+                className: codeClassName,
+                children,
+              }: {
+                className?: string | undefined;
+                children?: ReactNode;
+              }) => {
+                const isInline = !codeClassName;
+                if (isInline) {
+                  return (
+                    <code className="px-1.5 py-0.5 bg-ui-accent-primary/10 border border-ui-accent-primary/20 rounded text-ui-accent-primary text-[0.9em] font-mono">
+                      {children}
+                    </code>
+                  );
+                }
+                // Extract language from className (e.g., "language-typescript")
+                const language = codeClassName?.replace('language-', '') ?? '';
+                return (
+                  <code
+                    className={`${codeClassName ?? ''} text-sm font-mono text-ui-text-primary block whitespace-pre`}
+                    data-language={language}
+                  >
+                    {children}
+                  </code>
+                );
+              },
+              pre: ({ children }: { children?: ReactNode }) => {
+                // Try to extract language from the code child
+                let language = '';
+                if (children && typeof children === 'object' && 'props' in children) {
+                  const codeProps = children.props as { className?: string };
+                  language = codeProps.className?.replace('language-', '') ?? '';
+                }
+                return (
+                  <pre className="not-prose relative bg-[#1a1b26] rounded-lg overflow-hidden mb-4 border border-ui-border/30 whitespace-pre">
+                    <div className="p-4 pb-6 overflow-x-auto text-sm leading-relaxed">
+                      {children}
+                    </div>
+                    {language && (
+                      <span className="absolute bottom-2 right-2 px-2 py-0.5 text-[10px] font-mono text-ui-text-muted bg-ui-background/60 rounded border border-ui-border/30">
+                        {language}
+                      </span>
+                    )}
+                  </pre>
+                );
+              },
+              // Style blockquotes
+              blockquote: ({ children }: { children?: ReactNode }) => (
+                <blockquote className="border-l-4 border-ui-accent-primary/50 pl-4 italic text-ui-text-secondary mb-3">
+                  {children}
+                </blockquote>
+              ),
+              // Style links
+              a: ({ href, children }: { href?: string | undefined; children?: ReactNode }) => (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-ui-accent-primary hover:underline"
+                >
+                  {children}
+                </a>
+              ),
+              // Style strong/bold
+              strong: ({ children }: { children?: ReactNode }) => (
+                <strong className="font-semibold text-ui-text-primary">{children}</strong>
+              ),
+              // Style emphasis/italic
+              em: ({ children }: { children?: ReactNode }) => (
+                <em className="italic text-ui-text-primary">{children}</em>
+              ),
+              // Style horizontal rules
+              hr: () => <hr className="border-ui-border/50 my-4" />,
+            }}
+          >
+            {processedContent}
+          </Markdown>
+        </div>
+
+        {/* Hover preview tooltip */}
+        {memoryPreviews && (
+          <KeywordHoverPreview
+            isVisible={isTooltipVisible}
+            keywordText={tooltipText}
+            linkType={tooltipLinkType}
+            connectedMemories={connectedMemoryPreviews}
+            position={mousePosition}
+            highContrast={highContrast}
+          />
+        )}
+      </>
+    );
+  }
+
+  // Non-markdown rendering (original behavior)
   return (
     <>
       <span className={className}>

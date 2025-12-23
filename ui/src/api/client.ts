@@ -45,7 +45,45 @@ import type {
   UpdateMemoryRequest,
   UpdateMemoryResponse,
 } from '../types/api';
-import { ApiError, NetworkError, TimeoutError } from '../types/api';
+import { ApiError, MAX_MEMORY_RECALL_LIMIT, NetworkError, TimeoutError } from '../types/api';
+
+// ============================================================================
+// Demo ID Detection
+// ============================================================================
+
+/**
+ * Prefix used for demo/mock memory IDs when API is not available
+ */
+export const DEMO_ID_PREFIX = 'mem-';
+
+/**
+ * UUID v4 regex pattern for validating real memory IDs
+ * Real memory IDs are UUIDs like: 550e8400-e29b-41d4-a716-446655440000
+ */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Check if a memory ID is a valid UUID (not a demo ID like 'mem-1')
+ * @param id - The memory ID to validate
+ * @returns true if the ID is a valid UUID, false if it's a demo ID
+ */
+export function isValidMemoryId(id: string): boolean {
+  // Demo IDs start with 'mem-' prefix
+  if (id.startsWith(DEMO_ID_PREFIX)) {
+    return false;
+  }
+  // Valid IDs must match UUID format
+  return UUID_PATTERN.test(id);
+}
+
+/**
+ * Check if a memory ID is a demo ID
+ * @param id - The memory ID to check
+ * @returns true if the ID is a demo ID (starts with 'mem-')
+ */
+export function isDemoMemoryId(id: string): boolean {
+  return id.startsWith(DEMO_ID_PREFIX);
+}
 
 // ============================================================================
 // Client Configuration
@@ -305,20 +343,49 @@ export class ThoughtMCPClient {
   }
 
   /**
-   * Recall memories based on search criteria
+   * Recall memories based on search criteria.
+   * Note: The server enforces a maximum limit of 100 memories per request.
+   * Any limit value exceeding MAX_MEMORY_RECALL_LIMIT (100) will be capped.
    */
   async recallMemories(request: RecallMemoryRequest): Promise<RecallMemoryResponse> {
+    // Cap the limit to the server-side maximum constraint
+    const cappedRequest: RecallMemoryRequest = { ...request };
+    if (request.limit !== undefined) {
+      cappedRequest.limit = Math.min(request.limit, MAX_MEMORY_RECALL_LIMIT);
+    }
+
     return this.request<RecallMemoryResponse>({
       method: 'POST',
       path: '/api/v1/memory/recall',
-      body: request,
+      body: cappedRequest,
     });
   }
 
   /**
    * Update an existing memory
+   * @throws ApiError with code 'DEMO_MEMORY_UPDATE' if attempting to update a demo memory
    */
   async updateMemory(request: UpdateMemoryRequest): Promise<UpdateMemoryResponse> {
+    // Validate that the memory ID is not a demo ID
+    if (isDemoMemoryId(request.memoryId)) {
+      throw new ApiError(
+        'Cannot update demo memories. Demo data is read-only and used for demonstration purposes when the API is unavailable.',
+        'DEMO_MEMORY_UPDATE',
+        400,
+        { memoryId: request.memoryId }
+      );
+    }
+
+    // Validate that the memory ID is a valid UUID format
+    if (!isValidMemoryId(request.memoryId)) {
+      throw new ApiError(
+        'Invalid memory ID format. Expected a valid UUID.',
+        'INVALID_MEMORY_ID',
+        400,
+        { memoryId: request.memoryId }
+      );
+    }
+
     return this.request<UpdateMemoryResponse>({
       method: 'PUT',
       path: '/api/v1/memory/update',
@@ -548,15 +615,19 @@ export class ThoughtMCPClient {
 
   /**
    * Get framework recommendation for a problem.
-   * Alias for analyze() that returns just the framework selection.
+   * Transforms server response to UI-friendly format with steps and interpretation.
    */
   async selectFramework(problem: string): Promise<import('../types/api').FrameworkSelectResponse> {
-    return this.request<import('../types/api').FrameworkSelectResponse>({
-      method: 'POST',
-      path: '/api/v1/problem/framework/select',
-      body: { problem },
-      timeout: 30000,
-    });
+    const { transformToFrameworkSelectResponse } = await import('../types/api');
+    const serverResponse = await this.request<import('../types/api').ServerFrameworkSelectResponse>(
+      {
+        method: 'POST',
+        path: '/api/v1/problem/framework/select',
+        body: { problem },
+        timeout: 30000,
+      }
+    );
+    return transformToFrameworkSelectResponse(serverResponse);
   }
 
   // ==========================================================================
@@ -566,6 +637,9 @@ export class ThoughtMCPClient {
   /**
    * Decompose problem into sub-problems.
    * Includes proper error handling to prevent UI crashes.
+   *
+   * Valid strategies: 'functional', 'temporal', 'stakeholder', 'component'
+   * Default strategy is 'functional' (most general-purpose).
    */
   async decompose(request: DecomposeRequest): Promise<DecomposeResponse> {
     const { transformDecomposeResponse, createEmptyDecomposeResponse } =
@@ -573,7 +647,7 @@ export class ThoughtMCPClient {
 
     try {
       const maxDepth = request.maxDepth ?? 3;
-      const strategy = request.strategy ?? 'recursive';
+      const strategy = request.strategy ?? 'functional';
       const serverResponse = await this.request<import('../types/api').ServerDecomposeResponse>({
         method: 'POST',
         path: '/api/v1/problem/decompose',
@@ -608,16 +682,50 @@ export class ThoughtMCPClient {
    *
    * Note: There is NO separate /api/v1/metacognition/confidence or /api/v1/metacognition/bias endpoint.
    * Use this method and extract the relevant fields from the response.
+   *
+   * The server expects reasoningChain as an object with a steps array, not a string.
+   * This method transforms the string input into the required object format.
    */
   async analyzeMetacognition(request: {
     reasoningChain: string;
     context?: string;
   }): Promise<import('../types/api').MetacognitionAnalyzeResponse> {
     const { transformMetacognitionResponse } = await import('../types/api');
+
+    // Transform string reasoning into the object format expected by server
+    // Server schema requires: { steps: [{ id, content, type, confidence?, evidence? }], evidence?, assumptions?, inferences? }
+    const reasoningChainObject = {
+      steps: [
+        {
+          id: `step-${String(Date.now())}`,
+          content: request.reasoningChain,
+          type: 'inference' as const,
+          confidence: 0.5,
+        },
+      ],
+      evidence: [] as string[],
+      assumptions: [] as Array<{
+        id: string;
+        content: string;
+        explicit: boolean;
+        confidence?: number;
+      }>,
+      inferences: [] as Array<{
+        id: string;
+        content: string;
+        premises: string[];
+        confidence?: number;
+        type: 'deductive' | 'inductive' | 'abductive';
+      }>,
+    };
+
     const serverResponse = await this.request<import('../types/api').ServerMetacognitionResponse>({
       method: 'POST',
       path: '/api/v1/metacognition/analyze',
-      body: request,
+      body: {
+        reasoningChain: reasoningChainObject,
+        context: request.context,
+      },
     });
     return transformMetacognitionResponse(serverResponse);
   }
@@ -655,9 +763,11 @@ export class ThoughtMCPClient {
   /**
    * Detect emotions in text.
    * Includes proper error handling to prevent UI crashes.
+   * Transforms server response to UI-friendly format.
    */
   async detectEmotion(request: DetectEmotionRequest): Promise<DetectEmotionResponse> {
-    const { createEmptyEmotionResponse } = await import('../types/api');
+    const { createEmptyEmotionResponse, transformEmotionResponse } = await import('../types/api');
+    type ServerEmotionDetectResponse = import('../types/api').ServerEmotionDetectResponse;
 
     try {
       // Validate input
@@ -666,7 +776,9 @@ export class ThoughtMCPClient {
       }
 
       const includeDiscrete = request.includeDiscrete ?? true;
-      const response = await this.request<DetectEmotionResponse>({
+      const startTime = Date.now();
+
+      const serverResponse = await this.request<ServerEmotionDetectResponse>({
         method: 'POST',
         path: '/api/v1/emotion/detect',
         body: {
@@ -676,7 +788,10 @@ export class ThoughtMCPClient {
         },
       });
 
-      return response;
+      const processingTimeMs = Date.now() - startTime;
+
+      // Transform server response to UI-friendly format
+      return transformEmotionResponse(serverResponse, processingTimeMs);
     } catch (error) {
       console.error('Emotion detection failed:', error);
       return createEmptyEmotionResponse(error instanceof Error ? error.message : 'Unknown error');

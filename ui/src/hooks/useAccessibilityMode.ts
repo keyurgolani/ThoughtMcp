@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { useThemeStore } from '../stores/themeStore';
 import { prefersReducedMotion, subscribeToReducedMotion } from '../utils/accessibility';
 
 // ============================================================================
@@ -21,7 +22,7 @@ export interface AccessibilityModeState {
   webGLAvailable: boolean;
   /** Whether user prefers reduced motion */
   reducedMotion: boolean;
-  /** Whether high contrast mode is enabled */
+  /** Whether high contrast mode is enabled (derived from theme) */
   highContrast: boolean;
   /** Whether keyboard navigation is enabled */
   keyboardNavigationEnabled: boolean;
@@ -32,7 +33,7 @@ export interface AccessibilityModeActions {
   toggle2DFallback: () => void;
   /** Set 2D fallback view explicitly */
   set2DFallback: (value: boolean) => void;
-  /** Toggle high contrast mode */
+  /** Toggle high contrast mode (switches to/from high-contrast theme) */
   toggleHighContrast: () => void;
   /** Set high contrast mode explicitly */
   setHighContrast: (value: boolean) => void;
@@ -72,8 +73,8 @@ function checkWebGLAvailability(): boolean {
 
 const STORAGE_KEYS = {
   use2DFallback: 'memory-explorer-2d-fallback',
-  highContrast: 'memory-explorer-high-contrast',
   keyboardNavigation: 'memory-explorer-keyboard-nav',
+  previousTheme: 'memory-explorer-previous-theme',
 } as const;
 
 /**
@@ -110,6 +111,37 @@ function setStoredBoolean(key: string, value: boolean): void {
   }
 }
 
+/**
+ * Safely get a string value from localStorage
+ */
+function getStoredString(key: string, defaultValue: string): string {
+  if (typeof window === 'undefined') {
+    return defaultValue;
+  }
+
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ?? defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+/**
+ * Safely set a string value in localStorage
+ */
+function setStoredString(key: string, value: string): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 // ============================================================================
 // Hook Implementation
 // ============================================================================
@@ -125,6 +157,11 @@ export function useAccessibilityMode(): UseAccessibilityModeReturn {
   // Check WebGL availability once on mount
   const [webGLAvailable] = useState(() => checkWebGLAvailability());
 
+  // Get theme state - high contrast is now derived from theme
+  const currentTheme = useThemeStore((state) => state.currentTheme);
+  const setTheme = useThemeStore((state) => state.setTheme);
+  const highContrast = currentTheme === 'high-contrast';
+
   // Initialize state from localStorage or defaults
   const [use2DFallback, setUse2DFallbackState] = useState(() => {
     // Default to 2D if WebGL is not available
@@ -133,10 +170,6 @@ export function useAccessibilityMode(): UseAccessibilityModeReturn {
     }
     return getStoredBoolean(STORAGE_KEYS.use2DFallback, false);
   });
-
-  const [highContrast, setHighContrastState] = useState(() =>
-    getStoredBoolean(STORAGE_KEYS.highContrast, false)
-  );
 
   const [keyboardNavigationEnabled, setKeyboardNavigationState] = useState(() =>
     getStoredBoolean(STORAGE_KEYS.keyboardNavigation, true)
@@ -165,17 +198,29 @@ export function useAccessibilityMode(): UseAccessibilityModeReturn {
   }, []);
 
   const toggleHighContrast = useCallback(() => {
-    setHighContrastState((prev) => {
-      const newValue = !prev;
-      setStoredBoolean(STORAGE_KEYS.highContrast, newValue);
-      return newValue;
-    });
-  }, []);
+    if (currentTheme === 'high-contrast') {
+      // Switch back to previous theme
+      const previousTheme = getStoredString(STORAGE_KEYS.previousTheme, 'cosmic');
+      setTheme(previousTheme as 'cosmic' | 'ember' | 'monochrome' | 'light' | 'high-contrast');
+    } else {
+      // Save current theme and switch to high contrast
+      setStoredString(STORAGE_KEYS.previousTheme, currentTheme);
+      setTheme('high-contrast');
+    }
+  }, [currentTheme, setTheme]);
 
-  const setHighContrast = useCallback((value: boolean) => {
-    setHighContrastState(value);
-    setStoredBoolean(STORAGE_KEYS.highContrast, value);
-  }, []);
+  const setHighContrast = useCallback(
+    (value: boolean) => {
+      if (value && currentTheme !== 'high-contrast') {
+        setStoredString(STORAGE_KEYS.previousTheme, currentTheme);
+        setTheme('high-contrast');
+      } else if (!value && currentTheme === 'high-contrast') {
+        const previousTheme = getStoredString(STORAGE_KEYS.previousTheme, 'cosmic');
+        setTheme(previousTheme as 'cosmic' | 'ember' | 'monochrome' | 'light' | 'high-contrast');
+      }
+    },
+    [currentTheme, setTheme]
+  );
 
   const toggleKeyboardNavigation = useCallback(() => {
     setKeyboardNavigationState((prev) => {

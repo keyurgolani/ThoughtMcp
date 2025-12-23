@@ -1333,9 +1333,6 @@ export function createMemoryRoutes(cognitiveCore: CognitiveCore): Router {
   // PUT /api/v1/memory/update - Update an existing memory (Requirements: 1.3)
   router.put("/update", createUpdateHandler(cognitiveCore));
 
-  // DELETE /api/v1/memory/:memoryId - Delete a memory (Requirements: 1.4)
-  router.delete("/:memoryId", createDeleteHandler(cognitiveCore));
-
   // GET /api/v1/memory/stats - Get memory statistics (Requirements: 1.5)
   router.get("/stats", createStatsHandler(cognitiveCore));
 
@@ -1352,7 +1349,12 @@ export function createMemoryRoutes(cognitiveCore: CognitiveCore): Router {
   router.post("/batch/recall", createBatchRecallHandler(cognitiveCore));
 
   // DELETE /api/v1/memory/batch - Batch delete memories (Requirements: 11.3)
+  // NOTE: Must be registered BEFORE /:memoryId to prevent "/batch" being matched as a memoryId
   router.delete("/batch", createBatchDeleteHandler(cognitiveCore));
+
+  // DELETE /api/v1/memory/:memoryId - Delete a memory (Requirements: 1.4)
+  // NOTE: Parameterized routes must be registered AFTER specific routes like /batch
+  router.delete("/:memoryId", createDeleteHandler(cognitiveCore));
 
   // POST /api/v1/memory/search - Advanced search with boolean operators (Requirements: 12.1, 12.2, 12.3)
   router.post("/search", createAdvancedSearchHandler(cognitiveCore));

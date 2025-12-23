@@ -189,10 +189,10 @@ function MemoryPreviewItem({
   const truncatedContent = truncatePreviewContent(memory.content);
 
   // Theme-aware colors
-  const itemBg = lightMode ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)';
-  const itemBorder = lightMode ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
-  const textPrimary = lightMode ? '#1E293B' : 'rgba(255, 255, 255, 0.9)';
-  const textMuted = lightMode ? '#64748B' : 'rgba(255, 255, 255, 0.5)';
+  const itemBg = lightMode ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.05)';
+  const itemBorder = lightMode ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.1)';
+  const textPrimary = lightMode ? '#0F172A' : 'rgba(255, 255, 255, 0.9)';
+  const textMuted = lightMode ? '#475569' : 'rgba(255, 255, 255, 0.5)';
 
   return (
     <motion.div
@@ -276,11 +276,11 @@ export function KeywordHoverPreview({
   const themeStyles = isLightMode
     ? {
         background: 'rgba(255, 255, 255, 0.98)',
-        border: '1px solid rgba(0, 0, 0, 0.15)',
-        boxShadow: `0 8px 32px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.08)`,
-        textPrimary: '#1E293B',
-        textMuted: '#64748B',
-        borderColor: 'rgba(0, 0, 0, 0.1)',
+        border: '1px solid rgba(0, 0, 0, 0.18)',
+        boxShadow: `0 8px 32px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.1)`,
+        textPrimary: '#0F172A',
+        textMuted: '#475569',
+        borderColor: 'rgba(0, 0, 0, 0.15)',
         glowShadow: `inset 0 0 20px ${linkColor}10`,
       }
     : {

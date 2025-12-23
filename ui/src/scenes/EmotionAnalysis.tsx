@@ -9,6 +9,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getDefaultClient } from '../api/client';
+import { BarChart3, Heart, Target } from '../components/icons/Icons';
 import { useCognitiveStore } from '../stores/cognitiveStore';
 import type { DetectEmotionResponse, DiscreteEmotionResult, EmotionalTrend } from '../types/api';
 
@@ -123,16 +124,16 @@ function formatPercentage(value: number): string {
 }
 
 /**
- * Get intensity color class
+ * Get intensity color class - uses CSS variables for theme-aware colors
  */
 function getIntensityColorClass(intensity: 'low' | 'medium' | 'high'): string {
   switch (intensity) {
     case 'high':
-      return 'text-red-400 bg-red-500/20';
+      return 'intensity-high';
     case 'medium':
-      return 'text-yellow-400 bg-yellow-500/20';
+      return 'intensity-medium';
     case 'low':
-      return 'text-green-400 bg-green-500/20';
+      return 'intensity-low';
   }
 }
 
@@ -186,6 +187,7 @@ function TextInput({
       <textarea
         ref={textareaRef}
         id="emotion-text-input"
+        name="emotion-text-input"
         value={value}
         onChange={(e): void => {
           onChange(e.target.value);
@@ -360,37 +362,41 @@ function CircumplexWheel({
           strokeWidth="1.5"
         />
 
-        {/* Axis labels with better styling */}
+        {/* Axis labels with better styling - using CSS variables for theme-aware colors */}
         <text
           x={center + radius + 12}
           y={center}
-          className="text-xs fill-green-400 font-medium"
+          className="text-xs font-medium"
           dominantBaseline="middle"
+          style={{ fill: 'var(--status-success-text)' }}
         >
           Positive →
         </text>
         <text
           x={center - radius - 12}
           y={center}
-          className="text-xs fill-red-400 font-medium"
+          className="text-xs font-medium"
           dominantBaseline="middle"
           textAnchor="end"
+          style={{ fill: 'var(--status-error-text)' }}
         >
           ← Negative
         </text>
         <text
           x={center}
           y={center - radius - 12}
-          className="text-xs fill-yellow-400 font-medium"
+          className="text-xs font-medium"
           textAnchor="middle"
+          style={{ fill: 'var(--status-warning-text)' }}
         >
           High Energy ↑
         </text>
         <text
           x={center}
           y={center + radius + 16}
-          className="text-xs fill-blue-400 font-medium"
+          className="text-xs font-medium"
           textAnchor="middle"
+          style={{ fill: 'var(--status-info-text)' }}
         >
           ↓ Low Energy
         </text>
@@ -456,124 +462,74 @@ function CircumplexWheel({
         <circle cx={center} cy={center} r="2" fill="white" />
       </svg>
 
-      {/* Dimension values - enhanced cards */}
-      <div className="mt-6 grid grid-cols-3 gap-4 text-center w-full max-w-md">
+      {/* Dimension values - compact cards with theme-aware colors */}
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center w-full max-w-sm">
         <div
-          className={`p-3 rounded-xl border-2 transition-all ${valence >= 0 ? 'border-green-500/50 bg-green-500/10' : 'border-red-500/50 bg-red-500/10'}`}
+          className="p-2 rounded-lg border transition-all"
+          style={{
+            borderColor:
+              valence >= 0 ? 'var(--status-success-border)' : 'var(--status-error-border)',
+            background: valence >= 0 ? 'var(--status-success-bg)' : 'var(--status-error-bg)',
+          }}
         >
-          <span className="text-xs text-ui-text-muted block mb-1">Valence</span>
+          <span className="text-xs text-ui-text-muted block">Valence</span>
           <span
-            className={`text-2xl font-bold ${valence >= 0 ? 'text-green-400' : 'text-red-400'}`}
+            className="text-lg font-bold"
+            style={{
+              color: valence >= 0 ? 'var(--status-success-text)' : 'var(--status-error-text)',
+            }}
           >
             {valence >= 0 ? '+' : ''}
             {valence.toFixed(2)}
           </span>
           <span
-            className={`text-xs block mt-1 ${valence >= 0 ? 'text-green-400/70' : 'text-red-400/70'}`}
+            className="text-xs block opacity-80"
+            style={{
+              color: valence >= 0 ? 'var(--status-success-text)' : 'var(--status-error-text)',
+            }}
           >
             {valence >= 0 ? '😊 Positive' : '😔 Negative'}
           </span>
         </div>
         <div
-          className={`p-3 rounded-xl border-2 transition-all ${arousal >= 0 ? 'border-yellow-500/50 bg-yellow-500/10' : 'border-blue-500/50 bg-blue-500/10'}`}
+          className="p-2 rounded-lg border transition-all"
+          style={{
+            borderColor:
+              arousal >= 0 ? 'var(--status-warning-border)' : 'var(--status-info-border)',
+            background: arousal >= 0 ? 'var(--status-warning-bg)' : 'var(--status-info-bg)',
+          }}
         >
-          <span className="text-xs text-ui-text-muted block mb-1">Arousal</span>
+          <span className="text-xs text-ui-text-muted block">Arousal</span>
           <span
-            className={`text-2xl font-bold ${arousal >= 0 ? 'text-yellow-400' : 'text-blue-400'}`}
+            className="text-lg font-bold"
+            style={{
+              color: arousal >= 0 ? 'var(--status-warning-text)' : 'var(--status-info-text)',
+            }}
           >
             {arousal >= 0 ? '+' : ''}
             {arousal.toFixed(2)}
           </span>
           <span
-            className={`text-xs block mt-1 ${arousal >= 0 ? 'text-yellow-400/70' : 'text-blue-400/70'}`}
+            className="text-xs block opacity-80"
+            style={{
+              color: arousal >= 0 ? 'var(--status-warning-text)' : 'var(--status-info-text)',
+            }}
           >
-            {arousal >= 0 ? '⚡ High Energy' : '🌙 Low Energy'}
+            {arousal >= 0 ? '⚡ High' : '🌙 Low'}
           </span>
         </div>
         <div
-          className={`p-3 rounded-xl border-2 transition-all ${dominance >= 0.5 ? 'border-purple-500/50 bg-purple-500/10' : 'border-purple-400/30 bg-purple-400/5'}`}
+          className={`p-2 rounded-lg border transition-all ${dominance >= 0.5 ? 'border-purple-500/50 bg-purple-500/10' : 'border-purple-400/30 bg-purple-400/5'}`}
         >
-          <span className="text-xs text-ui-text-muted block mb-1">Dominance</span>
-          <span className="text-2xl font-bold text-purple-400">{dominance.toFixed(2)}</span>
-          <span className="text-xs text-purple-400/70 block mt-1">
-            {dominance >= 0.5 ? '👑 In Control' : '🤝 Receptive'}
+          <span className="text-xs text-ui-text-muted block">Dominance</span>
+          <span className="text-lg font-bold text-purple-400">{dominance.toFixed(2)}</span>
+          <span className="text-xs text-purple-400/70 block">
+            {dominance >= 0.5 ? '👑 Control' : '🤝 Open'}
           </span>
         </div>
       </div>
     </div>
   );
-}
-
-interface CircumplexDisplayProps {
-  result: DetectEmotionResponse;
-}
-
-/**
- * Display Circumplex analysis results
- * Requirements: 21.2, 21.3
- */
-function CircumplexDisplay({ result }: CircumplexDisplayProps): React.ReactElement {
-  return (
-    <GlassPanel className="p-4">
-      <h3 className="text-sm font-medium text-ui-accent-primary mb-4">Circumplex Model Analysis</h3>
-
-      <div className="flex flex-col lg:flex-row gap-6 items-center">
-        {/* Emotion Wheel */}
-        <div className="flex-shrink-0">
-          <CircumplexWheel
-            valence={result.circumplex.valence}
-            arousal={result.circumplex.arousal}
-            dominance={result.circumplex.dominance}
-            size={280}
-          />
-        </div>
-
-        {/* Interpretation */}
-        <div className="flex-1 space-y-4">
-          <div>
-            <h4 className="text-xs text-ui-text-secondary mb-2">Interpretation</h4>
-            <p className="text-sm text-ui-text-primary bg-ui-background/50 p-3 rounded-lg">
-              {result.interpretation}
-            </p>
-          </div>
-
-          {result.dominantEmotion && (
-            <div>
-              <h4 className="text-xs text-ui-text-secondary mb-2">Dominant Emotion</h4>
-              <div
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg"
-                style={{
-                  backgroundColor: `${EMOTION_COLOR_MAP[result.dominantEmotion] ?? '#00CED1'}20`,
-                  borderLeft: `3px solid ${EMOTION_COLOR_MAP[result.dominantEmotion] ?? '#00CED1'}`,
-                }}
-              >
-                <span
-                  className="text-lg font-bold capitalize"
-                  style={{ color: EMOTION_COLOR_MAP[result.dominantEmotion] ?? '#00CED1' }}
-                >
-                  {result.dominantEmotion}
-                </span>
-              </div>
-            </div>
-          )}
-
-          <div className="text-xs text-ui-text-muted text-right">
-            Processed in {result.processingTimeMs}ms
-          </div>
-        </div>
-      </div>
-    </GlassPanel>
-  );
-}
-
-// ============================================================================
-// Discrete Emotion Display Component
-// Requirements: 21.4, 21.5
-// ============================================================================
-
-interface EmotionBarProps {
-  emotion: DiscreteEmotionResult;
-  maxScore: number;
 }
 
 /**
@@ -594,6 +550,84 @@ function getEmotionEmoji(emotion: string): string {
     awe: '🤩',
   };
   return emojiMap[emotion] ?? '😐';
+}
+
+interface CircumplexDisplayProps {
+  result: DetectEmotionResponse;
+}
+
+/**
+ * Display Circumplex analysis results
+ * Requirements: 21.2, 21.3
+ */
+function CircumplexDisplay({ result }: CircumplexDisplayProps): React.ReactElement {
+  return (
+    <GlassPanel className="p-6 animate-fade-in h-full flex flex-col">
+      <h3 className="text-lg font-semibold text-ui-accent-primary mb-6 flex items-center gap-2">
+        <Target size={24} />
+        Circumplex Model Analysis
+      </h3>
+
+      <div className="flex-1 flex flex-col items-center justify-center">
+        {/* Emotion Wheel - Centered */}
+        <div className="flex-shrink-0 mb-4">
+          <CircumplexWheel
+            valence={result.circumplex.valence}
+            arousal={result.circumplex.arousal}
+            dominance={result.circumplex.dominance}
+            size={200}
+          />
+        </div>
+
+        {/* Interpretation */}
+        <div className="w-full space-y-4">
+          <div className="p-4 rounded-xl border-2 border-ui-accent-primary/30 bg-gradient-to-b from-ui-accent-primary/10 to-transparent">
+            <h4 className="text-xs text-ui-text-secondary mb-2 flex items-center gap-2">
+              <span>💭</span>
+              Interpretation
+            </h4>
+            <p className="text-sm text-ui-text-primary leading-relaxed">{result.interpretation}</p>
+          </div>
+
+          {result.dominantEmotion && (
+            <div
+              className="p-4 rounded-xl border-2 flex items-center gap-4"
+              style={{
+                borderColor: `${EMOTION_COLOR_MAP[result.dominantEmotion] ?? '#00CED1'}50`,
+                background: `linear-gradient(135deg, ${EMOTION_COLOR_MAP[result.dominantEmotion] ?? '#00CED1'}15, transparent)`,
+              }}
+            >
+              <span className="text-3xl">{getEmotionEmoji(result.dominantEmotion)}</span>
+              <div>
+                <span className="text-xs text-ui-text-muted block">Dominant Emotion</span>
+                <span
+                  className="text-xl font-bold capitalize"
+                  style={{ color: EMOTION_COLOR_MAP[result.dominantEmotion] ?? '#00CED1' }}
+                >
+                  {result.dominantEmotion}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-4 pt-4 border-t border-ui-border/30 text-xs text-ui-text-muted text-right">
+        Processed in {result.processingTimeMs}ms
+      </div>
+    </GlassPanel>
+  );
+}
+
+// ============================================================================
+// Discrete Emotion Display Component
+// Requirements: 21.4, 21.5
+// ============================================================================
+
+interface EmotionBarProps {
+  emotion: DiscreteEmotionResult;
+  maxScore: number;
 }
 
 /**
@@ -683,82 +717,87 @@ function DiscreteEmotionDisplay({ emotions }: DiscreteEmotionDisplayProps): Reac
   const dominantEmotion = sortedEmotions[0];
 
   return (
-    <GlassPanel className="p-6 animate-fade-in">
+    <GlassPanel className="p-6 animate-fade-in h-full flex flex-col">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold text-ui-accent-primary flex items-center gap-2">
-          <span className="text-2xl">🎭</span>
+          <BarChart3 size={24} />
           Discrete Emotion Classification
         </h3>
 
-        {/* Intensity summary with better styling */}
+        {/* Intensity summary with theme-aware styling */}
         <div className="flex gap-2 text-xs">
           {intensityCounts.high > 0 && (
-            <span className="px-3 py-1 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 font-medium">
+            <span className="px-3 py-1 rounded-lg border font-medium status-badge-error">
               {intensityCounts.high} High
             </span>
           )}
           {intensityCounts.medium > 0 && (
-            <span className="px-3 py-1 rounded-lg bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 font-medium">
+            <span className="px-3 py-1 rounded-lg border font-medium status-badge-warning">
               {intensityCounts.medium} Medium
             </span>
           )}
           {intensityCounts.low > 0 && (
-            <span className="px-3 py-1 rounded-lg bg-green-500/20 text-green-400 border border-green-500/30 font-medium">
+            <span className="px-3 py-1 rounded-lg border font-medium status-badge-success">
               {intensityCounts.low} Low
             </span>
           )}
         </div>
       </div>
 
-      {/* Dominant emotion highlight */}
-      {dominantEmotion && (
-        <div
-          className="mb-6 p-4 rounded-xl border-2 flex items-center gap-4"
-          style={{
-            borderColor: `${EMOTION_COLOR_MAP[dominantEmotion.emotion] ?? '#00CED1'}50`,
-            background: `linear-gradient(135deg, ${EMOTION_COLOR_MAP[dominantEmotion.emotion] ?? '#00CED1'}15, transparent)`,
-          }}
-        >
-          <span className="text-4xl">{getEmotionEmoji(dominantEmotion.emotion)}</span>
-          <div>
-            <span className="text-xs text-ui-text-muted block">Dominant Emotion</span>
-            <span
-              className="text-xl font-bold capitalize"
-              style={{ color: EMOTION_COLOR_MAP[dominantEmotion.emotion] ?? '#00CED1' }}
-            >
-              {dominantEmotion.emotion}
-            </span>
-            <span className="text-sm text-ui-text-secondary ml-2">
-              ({formatPercentage(dominantEmotion.score)})
-            </span>
-          </div>
-        </div>
-      )}
-
-      {sortedEmotions.length === 0 ? (
-        <div className="text-center py-12">
-          <span className="text-5xl mb-3 block">😐</span>
-          <p className="text-base text-ui-text-secondary">No discrete emotions detected</p>
-          <p className="text-sm text-ui-text-muted mt-1">
-            Try analyzing text with more emotional content
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {sortedEmotions.map((emotion, index) => (
-            <div
-              key={emotion.emotion}
-              className="animate-slide-up"
-              style={{ animationDelay: `${String(index * 50)}ms` }}
-            >
-              <EmotionBar emotion={emotion} maxScore={maxScore} />
+      {/* Main content area - flex-1 to fill available space */}
+      <div className="flex-1 flex flex-col">
+        {/* Dominant emotion highlight */}
+        {dominantEmotion && (
+          <div
+            className="mb-6 p-4 rounded-xl border-2 flex items-center gap-4"
+            style={{
+              borderColor: `${EMOTION_COLOR_MAP[dominantEmotion.emotion] ?? '#00CED1'}50`,
+              background: `linear-gradient(135deg, ${EMOTION_COLOR_MAP[dominantEmotion.emotion] ?? '#00CED1'}15, transparent)`,
+            }}
+          >
+            <span className="text-4xl">{getEmotionEmoji(dominantEmotion.emotion)}</span>
+            <div>
+              <span className="text-xs text-ui-text-muted block">Dominant Emotion</span>
+              <span
+                className="text-xl font-bold capitalize"
+                style={{ color: EMOTION_COLOR_MAP[dominantEmotion.emotion] ?? '#00CED1' }}
+              >
+                {dominantEmotion.emotion}
+              </span>
+              <span className="text-sm text-ui-text-secondary ml-2">
+                ({formatPercentage(dominantEmotion.score)})
+              </span>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Legend with better styling */}
-      <div className="mt-6 pt-4 border-t border-ui-border/30">
+        {sortedEmotions.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <span className="text-5xl mb-3 block">😐</span>
+              <p className="text-base text-ui-text-secondary">No discrete emotions detected</p>
+              <p className="text-sm text-ui-text-muted mt-1">
+                Try analyzing text with more emotional content
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {sortedEmotions.map((emotion, index) => (
+              <div
+                key={emotion.emotion}
+                className="animate-slide-up"
+                style={{ animationDelay: `${String(index * 50)}ms` }}
+              >
+                <EmotionBar emotion={emotion} maxScore={maxScore} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Footer - Legend with better styling */}
+      <div className="mt-4 pt-4 border-t border-ui-border/30">
         <h4 className="text-xs text-ui-text-muted mb-3 font-medium">Intensity Ratings</h4>
         <div className="flex flex-wrap gap-4 text-xs text-ui-text-secondary">
           <span className="flex items-center gap-2 bg-green-500/10 px-3 py-1.5 rounded-lg">
@@ -790,7 +829,7 @@ interface EmotionalTrendsProps {
 }
 
 /**
- * Get trend icon and color
+ * Get trend icon and color - uses CSS variable classes for theme-aware colors
  */
 function getTrendIndicator(trend: 'improving' | 'declining' | 'stable'): {
   icon: string;
@@ -799,11 +838,11 @@ function getTrendIndicator(trend: 'improving' | 'declining' | 'stable'): {
 } {
   switch (trend) {
     case 'improving':
-      return { icon: '↑', color: 'text-green-400', label: 'Improving' };
+      return { icon: '↑', color: 'trend-improving', label: 'Improving' };
     case 'declining':
-      return { icon: '↓', color: 'text-red-400', label: 'Declining' };
+      return { icon: '↓', color: 'trend-declining', label: 'Declining' };
     case 'stable':
-      return { icon: '→', color: 'text-yellow-400', label: 'Stable' };
+      return { icon: '→', color: 'trend-stable', label: 'Stable' };
   }
 }
 
@@ -848,7 +887,7 @@ function EmotionalTrends({ trends, analysisHistory }: EmotionalTrendsProps): Rea
 
       {analysisHistory.length === 0 ? (
         <div className="text-center py-8">
-          <span className="text-4xl mb-2 block">📊</span>
+          <BarChart3 size={40} className="mx-auto mb-2 text-ui-accent-primary" />
           <p className="text-sm text-ui-text-secondary">
             Analyze multiple texts to see emotional trends over time
           </p>
@@ -901,13 +940,27 @@ function EmotionalTrends({ trends, analysisHistory }: EmotionalTrendsProps): Rea
                           )}
                         </div>
 
-                        {/* Mini metrics */}
+                        {/* Mini metrics with theme-aware colors */}
                         <div className="flex gap-4 text-xs">
-                          <span className={valence >= 0 ? 'text-green-400' : 'text-red-400'}>
+                          <span
+                            style={{
+                              color:
+                                valence >= 0
+                                  ? 'var(--status-success-text)'
+                                  : 'var(--status-error-text)',
+                            }}
+                          >
                             V: {valence >= 0 ? '+' : ''}
                             {valence.toFixed(2)}
                           </span>
-                          <span className={arousal >= 0 ? 'text-yellow-400' : 'text-blue-400'}>
+                          <span
+                            style={{
+                              color:
+                                arousal >= 0
+                                  ? 'var(--status-warning-text)'
+                                  : 'var(--status-info-text)',
+                            }}
+                          >
                             A: {arousal >= 0 ? '+' : ''}
                             {arousal.toFixed(2)}
                           </span>
@@ -1069,7 +1122,7 @@ export function EmotionAnalysis({
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-ui-accent-primary flex items-center gap-2">
-            <span>❤️</span>
+            <Heart size={24} />
             Emotion Analysis
           </h1>
           <div className="flex gap-2">
@@ -1118,9 +1171,14 @@ export function EmotionAnalysis({
           {/* Options */}
           <GlassPanel className="p-4">
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label
+                htmlFor="include-discrete-checkbox"
+                className="flex items-center gap-2 cursor-pointer"
+              >
                 <input
                   type="checkbox"
+                  id="include-discrete-checkbox"
+                  name="include-discrete-checkbox"
                   checked={includeDiscrete}
                   onChange={(e): void => {
                     setIncludeDiscrete(e.target.checked);
@@ -1142,13 +1200,17 @@ export function EmotionAnalysis({
 
         {/* Results Section */}
         {hasResult && (
-          <div className="space-y-4">
+          <div className="flex flex-col lg:flex-row gap-4 items-stretch">
             {/* Circumplex Display - Requirements: 21.2, 21.3 */}
-            <CircumplexDisplay result={currentResult.emotion} />
+            <div className="flex-1 min-w-0">
+              <CircumplexDisplay result={currentResult.emotion} />
+            </div>
 
             {/* Discrete Emotion Display - Requirements: 21.4, 21.5 */}
             {includeDiscrete && currentResult.emotion.discreteEmotions.length > 0 && (
-              <DiscreteEmotionDisplay emotions={currentResult.emotion.discreteEmotions} />
+              <div className="flex-1 min-w-0">
+                <DiscreteEmotionDisplay emotions={currentResult.emotion.discreteEmotions} />
+              </div>
             )}
           </div>
         )}
@@ -1165,7 +1227,7 @@ export function EmotionAnalysis({
           void handleAnalyze();
         }}
         disabled={!canAnalyze}
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-56 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-3 group hover:scale-105 active:scale-95 ${
+        className={`fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50 w-56 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-3 group hover:scale-105 active:scale-95 ${
           canAnalyze
             ? 'bg-ui-accent-primary hover:bg-ui-accent-primary/90 text-ui-background'
             : 'bg-ui-border text-ui-text-muted cursor-not-allowed'

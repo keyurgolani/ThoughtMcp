@@ -1,8 +1,8 @@
 /**
  * ThemeStore - Zustand store for theme management
  *
- * Manages multiple theme options with persistent storage.
- * Supports dark cosmic themes with different accent color palettes.
+ * Manages theme options with persistent storage.
+ * Consolidated to 5 distinct themes with meaningful visual differences.
  */
 
 import { create } from 'zustand';
@@ -12,17 +12,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 // Theme Definitions
 // ============================================================================
 
-export type ThemeId =
-  | 'cosmic-cyan'
-  | 'midnight-ocean'
-  | 'sunset-ember'
-  | 'forest-glow'
-  | 'aurora-violet'
-  | 'monochrome'
-  | 'light-cloud'
-  | 'light-mint'
-  | 'light-rose'
-  | 'light-sand';
+export type ThemeId = 'cosmic' | 'ember' | 'monochrome' | 'light' | 'high-contrast';
 
 export interface ThemeColors {
   // Primary accent (main actions, highlights)
@@ -73,6 +63,7 @@ export interface Theme {
   name: string;
   description: string;
   colors: ThemeColors;
+  isLight: boolean;
 }
 
 // ============================================================================
@@ -80,11 +71,12 @@ export interface Theme {
 // ============================================================================
 
 export const themes: Record<ThemeId, Theme> = {
-  // Default cosmic cyan theme (original)
-  'cosmic-cyan': {
-    id: 'cosmic-cyan',
-    name: 'Cosmic Cyan',
-    description: 'The original dark cosmic theme with cyan accents',
+  // Cosmic - Neon cyberpunk with cyan accents (the original)
+  cosmic: {
+    id: 'cosmic',
+    name: 'Cosmic',
+    description: 'Neon cyberpunk with cyan and purple accents',
+    isLight: false,
     colors: {
       primary: '#00FFFF',
       primaryMuted: '#00CCCC',
@@ -123,54 +115,12 @@ export const themes: Record<ThemeId, Theme> = {
     },
   },
 
-  // Midnight ocean - deep blue tones
-  'midnight-ocean': {
-    id: 'midnight-ocean',
-    name: 'Midnight Ocean',
-    description: 'Deep ocean blues with aquamarine highlights',
-    colors: {
-      primary: '#00D4FF',
-      primaryMuted: '#00A8CC',
-      primaryGlow: 'rgba(0, 212, 255, 0.3)',
-      primarySubtle: 'rgba(0, 212, 255, 0.15)',
-      primaryBg: 'rgba(0, 212, 255, 0.1)',
-
-      secondary: '#5B8DEE',
-      secondaryMuted: '#4A72C4',
-      secondaryGlow: 'rgba(91, 141, 238, 0.3)',
-      secondarySubtle: 'rgba(91, 141, 238, 0.15)',
-      secondaryBg: 'rgba(91, 141, 238, 0.1)',
-
-      highlight: '#7FFFD4',
-      highlightMuted: '#66CCAA',
-      highlightGlow: 'rgba(127, 255, 212, 0.3)',
-      highlightSubtle: 'rgba(127, 255, 212, 0.15)',
-      highlightBg: 'rgba(127, 255, 212, 0.1)',
-
-      background: '#050a12',
-      backgroundSecondary: '#081018',
-      backgroundTertiary: '#0c1620',
-
-      surface: 'rgba(8, 16, 30, 0.85)',
-      surfaceElevated: 'rgba(12, 22, 40, 0.9)',
-      surfaceOverlay: 'rgba(16, 28, 50, 0.95)',
-      surfaceSunken: 'rgba(4, 8, 16, 0.9)',
-
-      border: 'rgba(60, 100, 150, 0.3)',
-      borderHover: 'rgba(60, 100, 150, 0.5)',
-      borderActive: 'rgba(0, 212, 255, 0.5)',
-
-      textPrimary: '#ffffff',
-      textSecondary: 'rgba(255, 255, 255, 0.7)',
-      textMuted: 'rgba(255, 255, 255, 0.5)',
-    },
-  },
-
-  // Sunset ember - warm orange/red tones
-  'sunset-ember': {
-    id: 'sunset-ember',
-    name: 'Sunset Ember',
-    description: 'Warm sunset colors with ember glows',
+  // Ember - Warm, cozy dark theme with orange/amber tones
+  ember: {
+    id: 'ember',
+    name: 'Ember',
+    description: 'Warm and cozy with orange and amber tones',
+    isLight: false,
     colors: {
       primary: '#FF6B35',
       primaryMuted: '#CC5529',
@@ -209,97 +159,12 @@ export const themes: Record<ThemeId, Theme> = {
     },
   },
 
-  // Forest glow - green/emerald tones
-  'forest-glow': {
-    id: 'forest-glow',
-    name: 'Forest Glow',
-    description: 'Lush forest greens with emerald accents',
-    colors: {
-      primary: '#00FF88',
-      primaryMuted: '#00CC6D',
-      primaryGlow: 'rgba(0, 255, 136, 0.3)',
-      primarySubtle: 'rgba(0, 255, 136, 0.15)',
-      primaryBg: 'rgba(0, 255, 136, 0.1)',
-
-      secondary: '#2ECC71',
-      secondaryMuted: '#25A35A',
-      secondaryGlow: 'rgba(46, 204, 113, 0.3)',
-      secondarySubtle: 'rgba(46, 204, 113, 0.15)',
-      secondaryBg: 'rgba(46, 204, 113, 0.1)',
-
-      highlight: '#98FB98',
-      highlightMuted: '#7AC97A',
-      highlightGlow: 'rgba(152, 251, 152, 0.3)',
-      highlightSubtle: 'rgba(152, 251, 152, 0.15)',
-      highlightBg: 'rgba(152, 251, 152, 0.1)',
-
-      background: '#060f08',
-      backgroundSecondary: '#0a140c',
-      backgroundTertiary: '#0e1a10',
-
-      surface: 'rgba(10, 20, 15, 0.85)',
-      surfaceElevated: 'rgba(15, 30, 20, 0.9)',
-      surfaceOverlay: 'rgba(20, 40, 25, 0.95)',
-      surfaceSunken: 'rgba(5, 10, 8, 0.9)',
-
-      border: 'rgba(60, 120, 80, 0.3)',
-      borderHover: 'rgba(60, 120, 80, 0.5)',
-      borderActive: 'rgba(0, 255, 136, 0.5)',
-
-      textPrimary: '#ffffff',
-      textSecondary: 'rgba(255, 255, 255, 0.7)',
-      textMuted: 'rgba(255, 255, 255, 0.5)',
-    },
-  },
-
-  // Aurora violet - purple/pink tones
-  'aurora-violet': {
-    id: 'aurora-violet',
-    name: 'Aurora Violet',
-    description: 'Northern lights inspired purple and pink',
-    colors: {
-      primary: '#BF40BF',
-      primaryMuted: '#993399',
-      primaryGlow: 'rgba(191, 64, 191, 0.3)',
-      primarySubtle: 'rgba(191, 64, 191, 0.15)',
-      primaryBg: 'rgba(191, 64, 191, 0.1)',
-
-      secondary: '#FF69B4',
-      secondaryMuted: '#CC5490',
-      secondaryGlow: 'rgba(255, 105, 180, 0.3)',
-      secondarySubtle: 'rgba(255, 105, 180, 0.15)',
-      secondaryBg: 'rgba(255, 105, 180, 0.1)',
-
-      highlight: '#E0B0FF',
-      highlightMuted: '#B38DCC',
-      highlightGlow: 'rgba(224, 176, 255, 0.3)',
-      highlightSubtle: 'rgba(224, 176, 255, 0.15)',
-      highlightBg: 'rgba(224, 176, 255, 0.1)',
-
-      background: '#0a060f',
-      backgroundSecondary: '#0e0a14',
-      backgroundTertiary: '#140e1a',
-
-      surface: 'rgba(20, 12, 25, 0.85)',
-      surfaceElevated: 'rgba(28, 18, 35, 0.9)',
-      surfaceOverlay: 'rgba(36, 24, 45, 0.95)',
-      surfaceSunken: 'rgba(10, 6, 12, 0.9)',
-
-      border: 'rgba(120, 80, 140, 0.3)',
-      borderHover: 'rgba(120, 80, 140, 0.5)',
-      borderActive: 'rgba(191, 64, 191, 0.5)',
-
-      textPrimary: '#ffffff',
-      textSecondary: 'rgba(255, 255, 255, 0.7)',
-      textMuted: 'rgba(255, 255, 255, 0.5)',
-    },
-  },
-
-  // Monochrome - grayscale with white accents
+  // Monochrome - Clean grayscale with white accents
   monochrome: {
     id: 'monochrome',
     name: 'Monochrome',
-    description: 'Clean grayscale with subtle white accents',
+    description: 'Clean and minimal grayscale',
+    isLight: false,
     colors: {
       primary: '#FFFFFF',
       primaryMuted: '#CCCCCC',
@@ -338,15 +203,12 @@ export const themes: Record<ThemeId, Theme> = {
     },
   },
 
-  // ============================================================================
-  // LIGHT THEMES
-  // ============================================================================
-
-  // Light Cloud - Clean light theme with blue accents
-  'light-cloud': {
-    id: 'light-cloud',
-    name: 'Light Cloud',
-    description: 'Clean light theme with soft blue accents',
+  // Light - Clean, professional light theme
+  light: {
+    id: 'light',
+    name: 'Light',
+    description: 'Clean and professional light theme',
+    isLight: true,
     colors: {
       primary: '#0066CC',
       primaryMuted: '#0052A3',
@@ -360,11 +222,11 @@ export const themes: Record<ThemeId, Theme> = {
       secondarySubtle: 'rgba(75, 85, 99, 0.15)',
       secondaryBg: 'rgba(75, 85, 99, 0.1)',
 
-      highlight: '#D97706',
-      highlightMuted: '#B45309',
-      highlightGlow: 'rgba(217, 119, 6, 0.3)',
-      highlightSubtle: 'rgba(217, 119, 6, 0.15)',
-      highlightBg: 'rgba(217, 119, 6, 0.1)',
+      highlight: '#B45309',
+      highlightMuted: '#92400E',
+      highlightGlow: 'rgba(180, 83, 9, 0.3)',
+      highlightSubtle: 'rgba(180, 83, 9, 0.15)',
+      highlightBg: 'rgba(180, 83, 9, 0.1)',
 
       background: '#F8FAFC',
       backgroundSecondary: '#F1F5F9',
@@ -375,142 +237,57 @@ export const themes: Record<ThemeId, Theme> = {
       surfaceOverlay: 'rgba(255, 255, 255, 1)',
       surfaceSunken: 'rgba(241, 245, 249, 1)',
 
-      border: 'rgba(0, 0, 0, 0.12)',
-      borderHover: 'rgba(0, 0, 0, 0.2)',
+      border: 'rgba(0, 0, 0, 0.15)',
+      borderHover: 'rgba(0, 0, 0, 0.25)',
       borderActive: 'rgba(0, 102, 204, 0.6)',
 
-      textPrimary: '#1E293B',
-      textSecondary: '#475569',
-      textMuted: '#64748B',
+      textPrimary: '#0F172A',
+      textSecondary: '#334155',
+      textMuted: '#475569',
     },
   },
 
-  // Light Mint - Fresh light theme with green accents
-  'light-mint': {
-    id: 'light-mint',
-    name: 'Light Mint',
-    description: 'Fresh light theme with mint green accents',
+  // High Contrast - Maximum contrast for accessibility
+  'high-contrast': {
+    id: 'high-contrast',
+    name: 'High Contrast',
+    description: 'Maximum contrast for accessibility',
+    isLight: false,
     colors: {
-      primary: '#047857',
-      primaryMuted: '#065F46',
-      primaryGlow: 'rgba(4, 120, 87, 0.3)',
-      primarySubtle: 'rgba(4, 120, 87, 0.15)',
-      primaryBg: 'rgba(4, 120, 87, 0.1)',
+      primary: '#00FF00',
+      primaryMuted: '#00CC00',
+      primaryGlow: 'rgba(0, 255, 0, 0.4)',
+      primarySubtle: 'rgba(0, 255, 0, 0.2)',
+      primaryBg: 'rgba(0, 255, 0, 0.15)',
 
-      secondary: '#0F766E',
-      secondaryMuted: '#115E59',
-      secondaryGlow: 'rgba(15, 118, 110, 0.3)',
-      secondarySubtle: 'rgba(15, 118, 110, 0.15)',
-      secondaryBg: 'rgba(15, 118, 110, 0.1)',
+      secondary: '#FFFF00',
+      secondaryMuted: '#CCCC00',
+      secondaryGlow: 'rgba(255, 255, 0, 0.4)',
+      secondarySubtle: 'rgba(255, 255, 0, 0.2)',
+      secondaryBg: 'rgba(255, 255, 0, 0.15)',
 
-      highlight: '#059669',
-      highlightMuted: '#047857',
-      highlightGlow: 'rgba(5, 150, 105, 0.3)',
-      highlightSubtle: 'rgba(5, 150, 105, 0.15)',
-      highlightBg: 'rgba(5, 150, 105, 0.1)',
+      highlight: '#FF00FF',
+      highlightMuted: '#CC00CC',
+      highlightGlow: 'rgba(255, 0, 255, 0.4)',
+      highlightSubtle: 'rgba(255, 0, 255, 0.2)',
+      highlightBg: 'rgba(255, 0, 255, 0.15)',
 
-      background: '#F0FDF4',
-      backgroundSecondary: '#ECFDF5',
-      backgroundTertiary: '#D1FAE5',
+      background: '#000000',
+      backgroundSecondary: '#0a0a0a',
+      backgroundTertiary: '#141414',
 
-      surface: 'rgba(255, 255, 255, 0.95)',
-      surfaceElevated: 'rgba(255, 255, 255, 0.98)',
-      surfaceOverlay: 'rgba(255, 255, 255, 1)',
-      surfaceSunken: 'rgba(236, 253, 245, 1)',
+      surface: 'rgba(0, 0, 0, 0.95)',
+      surfaceElevated: 'rgba(20, 20, 20, 0.95)',
+      surfaceOverlay: 'rgba(30, 30, 30, 0.98)',
+      surfaceSunken: 'rgba(0, 0, 0, 1)',
 
-      border: 'rgba(0, 0, 0, 0.1)',
-      borderHover: 'rgba(0, 0, 0, 0.18)',
-      borderActive: 'rgba(4, 120, 87, 0.6)',
+      border: 'rgba(255, 255, 255, 0.6)',
+      borderHover: 'rgba(255, 255, 255, 0.8)',
+      borderActive: 'rgba(0, 255, 0, 0.9)',
 
-      textPrimary: '#14532D',
-      textSecondary: '#166534',
-      textMuted: '#15803D',
-    },
-  },
-
-  // Light Rose - Warm light theme with rose/pink accents
-  'light-rose': {
-    id: 'light-rose',
-    name: 'Light Rose',
-    description: 'Warm light theme with soft rose accents',
-    colors: {
-      primary: '#BE185D',
-      primaryMuted: '#9D174D',
-      primaryGlow: 'rgba(190, 24, 93, 0.3)',
-      primarySubtle: 'rgba(190, 24, 93, 0.15)',
-      primaryBg: 'rgba(190, 24, 93, 0.1)',
-
-      secondary: '#7C3AED',
-      secondaryMuted: '#6D28D9',
-      secondaryGlow: 'rgba(124, 58, 237, 0.3)',
-      secondarySubtle: 'rgba(124, 58, 237, 0.15)',
-      secondaryBg: 'rgba(124, 58, 237, 0.1)',
-
-      highlight: '#DB2777',
-      highlightMuted: '#BE185D',
-      highlightGlow: 'rgba(219, 39, 119, 0.3)',
-      highlightSubtle: 'rgba(219, 39, 119, 0.15)',
-      highlightBg: 'rgba(219, 39, 119, 0.1)',
-
-      background: '#FDF2F8',
-      backgroundSecondary: '#FCE7F3',
-      backgroundTertiary: '#FBCFE8',
-
-      surface: 'rgba(255, 255, 255, 0.95)',
-      surfaceElevated: 'rgba(255, 255, 255, 0.98)',
-      surfaceOverlay: 'rgba(255, 255, 255, 1)',
-      surfaceSunken: 'rgba(252, 231, 243, 1)',
-
-      border: 'rgba(0, 0, 0, 0.1)',
-      borderHover: 'rgba(0, 0, 0, 0.18)',
-      borderActive: 'rgba(190, 24, 93, 0.6)',
-
-      textPrimary: '#831843',
-      textSecondary: '#9D174D',
-      textMuted: '#BE185D',
-    },
-  },
-
-  // Light Sand - Neutral warm light theme
-  'light-sand': {
-    id: 'light-sand',
-    name: 'Light Sand',
-    description: 'Warm neutral light theme with earthy tones',
-    colors: {
-      primary: '#92400E',
-      primaryMuted: '#78350F',
-      primaryGlow: 'rgba(146, 64, 14, 0.3)',
-      primarySubtle: 'rgba(146, 64, 14, 0.15)',
-      primaryBg: 'rgba(146, 64, 14, 0.1)',
-
-      secondary: '#854D0E',
-      secondaryMuted: '#713F12',
-      secondaryGlow: 'rgba(133, 77, 14, 0.3)',
-      secondarySubtle: 'rgba(133, 77, 14, 0.15)',
-      secondaryBg: 'rgba(133, 77, 14, 0.1)',
-
-      highlight: '#B45309',
-      highlightMuted: '#92400E',
-      highlightGlow: 'rgba(180, 83, 9, 0.3)',
-      highlightSubtle: 'rgba(180, 83, 9, 0.15)',
-      highlightBg: 'rgba(180, 83, 9, 0.1)',
-
-      background: '#FFFBEB',
-      backgroundSecondary: '#FEF3C7',
-      backgroundTertiary: '#FDE68A',
-
-      surface: 'rgba(255, 255, 255, 0.95)',
-      surfaceElevated: 'rgba(255, 255, 255, 0.98)',
-      surfaceOverlay: 'rgba(255, 255, 255, 1)',
-      surfaceSunken: 'rgba(254, 243, 199, 1)',
-
-      border: 'rgba(0, 0, 0, 0.1)',
-      borderHover: 'rgba(0, 0, 0, 0.18)',
-      borderActive: 'rgba(146, 64, 14, 0.6)',
-
-      textPrimary: '#78350F',
-      textSecondary: '#92400E',
-      textMuted: '#A16207',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#FFFFFF',
+      textMuted: 'rgba(255, 255, 255, 0.9)',
     },
   },
 };
@@ -524,8 +301,6 @@ export interface ThemeState {
   currentTheme: ThemeId;
   /** Whether to use system preference for reduced motion */
   respectReducedMotion: boolean;
-  /** Whether to use high contrast mode */
-  highContrast: boolean;
 }
 
 export interface ThemeActions {
@@ -533,8 +308,6 @@ export interface ThemeActions {
   setTheme: (themeId: ThemeId) => void;
   /** Toggle reduced motion preference */
   toggleReducedMotion: () => void;
-  /** Toggle high contrast mode */
-  toggleHighContrast: () => void;
   /** Get the current theme object */
   getTheme: () => Theme;
   /** Get CSS custom properties for the current theme */
@@ -548,10 +321,43 @@ export type ThemeStore = ThemeState & ThemeActions;
 // ============================================================================
 
 const initialState: ThemeState = {
-  currentTheme: 'cosmic-cyan',
-  respectReducedMotion: true,
-  highContrast: false,
+  currentTheme: 'cosmic',
+  respectReducedMotion: false,
 };
+
+// ============================================================================
+// Theme Migration
+// ============================================================================
+
+/**
+ * Map old theme IDs to new consolidated themes
+ */
+const THEME_MIGRATION_MAP: Record<string, ThemeId> = {
+  // Old dark themes -> new equivalents
+  'cosmic-cyan': 'cosmic',
+  'midnight-ocean': 'cosmic',
+  'sunset-ember': 'ember',
+  'forest-glow': 'cosmic',
+  'aurora-violet': 'cosmic',
+  // Old light themes -> light
+  'light-cloud': 'light',
+  'light-mint': 'light',
+  'light-rose': 'light',
+  'light-sand': 'light',
+  // Already valid
+  cosmic: 'cosmic',
+  ember: 'ember',
+  monochrome: 'monochrome',
+  light: 'light',
+  'high-contrast': 'high-contrast',
+};
+
+/**
+ * Migrate old theme ID to new theme ID
+ */
+function migrateThemeId(themeId: string): ThemeId {
+  return THEME_MIGRATION_MAP[themeId] || 'cosmic';
+}
 
 // ============================================================================
 // Store Implementation
@@ -577,14 +383,6 @@ export const useThemeStore = create<ThemeStore>()(
         });
       },
 
-      toggleHighContrast: (): void => {
-        set((state) => {
-          const newValue = !state.highContrast;
-          applyHighContrast(newValue);
-          return { highContrast: newValue };
-        });
-      },
-
       getTheme: (): Theme => {
         const state = get();
         return themes[state.currentTheme];
@@ -598,11 +396,21 @@ export const useThemeStore = create<ThemeStore>()(
     {
       name: 'thoughtmcp-theme',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
+      partialize: (state): Pick<ThemeState, 'currentTheme' | 'respectReducedMotion'> => ({
         currentTheme: state.currentTheme,
         respectReducedMotion: state.respectReducedMotion,
-        highContrast: state.highContrast,
       }),
+      // Migrate old theme IDs when loading from storage
+      onRehydrateStorage:
+        (): ((state: ThemeStore | undefined) => void) =>
+        (state): void => {
+          if (state) {
+            const migratedTheme = migrateThemeId(state.currentTheme);
+            if (migratedTheme !== state.currentTheme) {
+              state.currentTheme = migratedTheme;
+            }
+          }
+        },
     }
   )
 );
@@ -669,8 +477,16 @@ function applyThemeToDocument(theme: Theme): void {
   root.setAttribute('data-theme', theme.id);
 
   // Set light/dark mode attribute for theme-specific styling
-  const isLightTheme = theme.id.startsWith('light-');
-  root.setAttribute('data-theme-mode', isLightTheme ? 'light' : 'dark');
+  root.setAttribute('data-theme-mode', theme.isLight ? 'light' : 'dark');
+
+  // High contrast theme automatically enables high contrast mode
+  if (theme.id === 'high-contrast') {
+    root.setAttribute('data-high-contrast', 'true');
+    root.classList.add('high-contrast');
+  } else {
+    root.removeAttribute('data-high-contrast');
+    root.classList.remove('high-contrast');
+  }
 }
 
 /**
@@ -687,27 +503,12 @@ function applyReducedMotion(enabled: boolean): void {
   }
 }
 
-/**
- * Apply high contrast setting to the document
- */
-function applyHighContrast(enabled: boolean): void {
-  const root = document.documentElement;
-  if (enabled) {
-    root.setAttribute('data-high-contrast', 'true');
-    root.classList.add('high-contrast');
-  } else {
-    root.removeAttribute('data-high-contrast');
-    root.classList.remove('high-contrast');
-  }
-}
-
 // ============================================================================
 // Selectors
 // ============================================================================
 
 export const selectCurrentTheme = (state: ThemeStore): ThemeId => state.currentTheme;
 export const selectReducedMotion = (state: ThemeStore): boolean => state.respectReducedMotion;
-export const selectHighContrast = (state: ThemeStore): boolean => state.highContrast;
 
 // ============================================================================
 // Theme Initialization Hook
@@ -719,8 +520,12 @@ export const selectHighContrast = (state: ThemeStore): boolean => state.highCont
  */
 export function initializeTheme(): void {
   const state = useThemeStore.getState();
-  const theme = themes[state.currentTheme];
+  // Migrate theme if needed
+  const migratedTheme = migrateThemeId(state.currentTheme);
+  if (migratedTheme !== state.currentTheme) {
+    useThemeStore.setState({ currentTheme: migratedTheme });
+  }
+  const theme = themes[migratedTheme];
   applyThemeToDocument(theme);
   applyReducedMotion(state.respectReducedMotion);
-  applyHighContrast(state.highContrast);
 }

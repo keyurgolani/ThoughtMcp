@@ -9,6 +9,7 @@
  */
 
 import { useMemo, type ReactElement } from 'react';
+import { ConnectionsIcon, HubNodesIcon, MemoriesIcon, ThisWeekIcon, type IconSize } from '../icons';
 
 // ============================================================================
 // Types
@@ -41,8 +42,8 @@ interface StatCardProps {
   label: string;
   /** Stat value */
   value: number;
-  /** Icon emoji */
-  icon: string;
+  /** Icon component getter */
+  getIcon: (size: IconSize) => ReactElement;
   /** Trend direction */
   trend?: 'up' | 'down' | 'neutral' | undefined;
   /** Trend display value */
@@ -72,7 +73,7 @@ const DEFAULT_STATS: QuickStatsData = {
 function StatCard({
   label,
   value,
-  icon,
+  getIcon,
   trend,
   trendValue,
   compact = false,
@@ -80,8 +81,8 @@ function StatCard({
   if (compact) {
     return (
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-ui-surface/30 backdrop-blur-sm">
-        <span className="text-lg" aria-hidden="true">
-          {icon}
+        <span className="text-ui-text-muted" aria-hidden="true">
+          {getIcon('lg')}
         </span>
         <div className="flex flex-col">
           <span className="text-lg font-bold text-ui-text-primary">{value.toLocaleString()}</span>
@@ -94,8 +95,8 @@ function StatCard({
   return (
     <div className="glass-panel-glow p-4 flex flex-col gap-2 animate-fade-in">
       <div className="flex items-center justify-between">
-        <span className="text-2xl" aria-hidden="true">
-          {icon}
+        <span className="text-ui-text-muted" aria-hidden="true">
+          {getIcon('2xl')}
         </span>
         {trend !== undefined && trendValue !== undefined && (
           <span
@@ -126,16 +127,16 @@ function StatCard({
 function InlineStat({
   label,
   value,
-  icon,
+  getIcon,
 }: {
   label: string;
   value: number;
-  icon: string;
+  getIcon: (size: IconSize) => ReactElement;
 }): ReactElement {
   return (
     <div className="flex items-center gap-1.5" title={`${label}: ${String(value)}`}>
-      <span className="text-sm" aria-hidden="true">
-        {icon}
+      <span className="text-ui-text-muted" aria-hidden="true">
+        {getIcon('sm')}
       </span>
       <span className="text-ui-accent-primary text-sm font-semibold">{value.toLocaleString()}</span>
     </div>
@@ -196,10 +197,26 @@ export function QuickStats({
         role="region"
         aria-label="Quick Statistics"
       >
-        <InlineStat label="Memories" value={stats.totalMemories} icon="🧠" />
-        <InlineStat label="Connections" value={stats.totalConnections} icon="🔗" />
-        <InlineStat label="Hub Nodes" value={stats.hubNodes} icon="⭐" />
-        <InlineStat label="This Week" value={stats.memoriesThisWeek} icon="📅" />
+        <InlineStat
+          label="Memories"
+          value={stats.totalMemories}
+          getIcon={(size) => <MemoriesIcon size={size} />}
+        />
+        <InlineStat
+          label="Connections"
+          value={stats.totalConnections}
+          getIcon={(size) => <ConnectionsIcon size={size} />}
+        />
+        <InlineStat
+          label="Hub Nodes"
+          value={stats.hubNodes}
+          getIcon={(size) => <HubNodesIcon size={size} />}
+        />
+        <InlineStat
+          label="This Week"
+          value={stats.memoriesThisWeek}
+          getIcon={(size) => <ThisWeekIcon size={size} />}
+        />
       </div>
     );
   }
@@ -212,10 +229,30 @@ export function QuickStats({
         role="region"
         aria-label="Quick Statistics"
       >
-        <StatCard label="Memories" value={stats.totalMemories} icon="🧠" compact />
-        <StatCard label="Connections" value={stats.totalConnections} icon="🔗" compact />
-        <StatCard label="Hub Nodes" value={stats.hubNodes} icon="⭐" compact />
-        <StatCard label="This Week" value={stats.memoriesThisWeek} icon="📅" compact />
+        <StatCard
+          label="Memories"
+          value={stats.totalMemories}
+          getIcon={(size) => <MemoriesIcon size={size} />}
+          compact
+        />
+        <StatCard
+          label="Connections"
+          value={stats.totalConnections}
+          getIcon={(size) => <ConnectionsIcon size={size} />}
+          compact
+        />
+        <StatCard
+          label="Hub Nodes"
+          value={stats.hubNodes}
+          getIcon={(size) => <HubNodesIcon size={size} />}
+          compact
+        />
+        <StatCard
+          label="This Week"
+          value={stats.memoriesThisWeek}
+          getIcon={(size) => <ThisWeekIcon size={size} />}
+          compact
+        />
       </div>
     );
   }
@@ -230,16 +267,24 @@ export function QuickStats({
       <StatCard
         label="Total Memories"
         value={stats.totalMemories}
-        icon="🧠"
+        getIcon={(size) => <MemoriesIcon size={size} />}
         trend={showTrends ? trends.memories.trend : undefined}
         trendValue={showTrends ? trends.memories.value : undefined}
       />
-      <StatCard label="Connections" value={stats.totalConnections} icon="🔗" />
-      <StatCard label="Hub Nodes" value={stats.hubNodes} icon="⭐" />
+      <StatCard
+        label="Connections"
+        value={stats.totalConnections}
+        getIcon={(size) => <ConnectionsIcon size={size} />}
+      />
+      <StatCard
+        label="Hub Nodes"
+        value={stats.hubNodes}
+        getIcon={(size) => <HubNodesIcon size={size} />}
+      />
       <StatCard
         label="This Week"
         value={stats.memoriesThisWeek}
-        icon="📅"
+        getIcon={(size) => <ThisWeekIcon size={size} />}
         trend={showTrends ? trends.thisWeek.trend : undefined}
         trendValue={showTrends ? trends.thisWeek.value : undefined}
       />

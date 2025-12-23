@@ -9,6 +9,7 @@
  */
 
 import { useMemo, type ReactElement } from 'react';
+import { Compass, Lightbulb, Link2, MessageCircle, Search } from '../icons/Icons';
 import { GlassPanel } from './GlassPanel';
 
 // ============================================================================
@@ -58,11 +59,11 @@ export interface SuggestedActionsProps {
 const DEFAULT_MAX_ITEMS = 4;
 
 /** Icons for each action type */
-const ACTION_ICONS: Record<SuggestedActionType, string> = {
-  explore: '🧭',
-  reason: '💭',
-  analyze: '🔍',
-  connect: '🔗',
+const ACTION_ICONS: Record<SuggestedActionType, ReactElement> = {
+  explore: <Compass size={16} />,
+  reason: <MessageCircle size={16} />,
+  analyze: <Search size={16} />,
+  connect: <Link2 size={16} />,
 };
 
 /** Labels for each action type */
@@ -249,9 +250,7 @@ function ActionCard({ action, onClick, variant }: ActionCardProps): ReactElement
 function EmptyState(): ReactElement {
   return (
     <div className="text-center py-8 px-4">
-      <div className="text-4xl mb-3" aria-hidden="true">
-        💡
-      </div>
+      <Lightbulb size={40} className="mx-auto mb-3 text-ui-accent-primary" />
       <p className="text-sm text-ui-text-secondary mb-1">No suggestions available</p>
       <p className="text-xs text-ui-text-muted">
         Add more memories to get personalized suggestions
@@ -468,7 +467,7 @@ export function getActionRoute(actionType: SuggestedActionType): string {
 /**
  * Get the icon for a given action type
  */
-export function getActionIcon(actionType: SuggestedActionType): string {
+export function getActionIcon(actionType: SuggestedActionType): ReactElement {
   return ACTION_ICONS[actionType];
 }
 

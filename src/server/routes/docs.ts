@@ -166,12 +166,12 @@ const reasoningSchemas: Record<string, OpenApiSchema> = {
   ThinkRequest: {
     type: "object",
     properties: {
-      input: { type: "string" },
+      problem: { type: "string", description: "Problem or question to reason about" },
       mode: { $ref: "#/components/schemas/ReasoningMode" },
       context: { type: "string" },
       userId: { type: "string" },
     },
-    required: ["input", "mode"],
+    required: ["problem", "mode"],
   },
 };
 
@@ -747,8 +747,8 @@ export function createDocsRoutes(_cognitiveCore: CognitiveCore): Router {
 /** Export for testing */
 export {
   CURRENT_VERSION,
-  generateOpenApiSpec,
   SUPPORTED_VERSIONS,
+  generateOpenApiSpec,
   type OpenApiOperation,
   type OpenApiParameter,
   type OpenApiPathItem,

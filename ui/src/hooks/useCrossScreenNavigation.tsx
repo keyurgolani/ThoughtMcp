@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
+import { Brain } from '../components/icons/Icons';
 import type { ScreenId } from '../components/navigation/MainNavigation';
 
 // ============================================================================
@@ -327,7 +328,7 @@ export function ViewInExplorerButton({
       `}
       aria-label="View in Memory Explorer"
     >
-      <span aria-hidden="true">🧠</span>
+      <Brain size={16} />
       <span>View in Explorer</span>
     </button>
   );

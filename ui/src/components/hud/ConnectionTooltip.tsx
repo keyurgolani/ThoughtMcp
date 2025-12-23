@@ -245,13 +245,13 @@ export function ConnectionTooltip({
   const themeStyles = isLightMode
     ? {
         background: 'rgba(255, 255, 255, 0.98)',
-        border: '1px solid rgba(0, 0, 0, 0.15)',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+        border: '1px solid rgba(0, 0, 0, 0.18)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.18)',
         headerColor: '#0066CC',
-        textPrimary: '#1E293B',
-        textSecondary: '#475569',
-        textMuted: '#64748B',
-        borderColor: 'rgba(0, 0, 0, 0.1)',
+        textPrimary: '#0F172A',
+        textSecondary: '#334155',
+        textMuted: '#475569',
+        borderColor: 'rgba(0, 0, 0, 0.15)',
         glowShadow: 'inset 0 0 20px rgba(0, 102, 204, 0.05)',
       }
     : {

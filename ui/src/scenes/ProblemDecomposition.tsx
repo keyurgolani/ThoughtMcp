@@ -10,6 +10,18 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getDefaultClient } from '../api/client';
+import {
+  BarChart3,
+  CircleDot,
+  ClipboardList,
+  DnaIcon,
+  Link2,
+  Microscope,
+  RulerIcon,
+  Search,
+  Target,
+  TreeIcon,
+} from '../components/icons/Icons';
 import { useSaveAsMemory } from '../hooks/useSaveAsMemory';
 import { useCognitiveStore } from '../stores/cognitiveStore';
 import type { DecomposeResponse, SubProblem } from '../types/api';
@@ -43,15 +55,15 @@ interface DecompositionContext {
 const MAX_DEPTH_OPTIONS = [2, 3, 4, 5];
 
 const COMPLEXITY_COLORS: Record<SubProblem['complexity'], string> = {
-  low: 'text-green-400 bg-green-500/20 border-green-500/50',
-  medium: 'text-yellow-400 bg-yellow-500/20 border-yellow-500/50',
-  high: 'text-red-400 bg-red-500/20 border-red-500/50',
+  low: 'status-badge-success border',
+  medium: 'status-badge-warning border',
+  high: 'status-badge-error border',
 };
 
-const COMPLEXITY_ICONS: Record<SubProblem['complexity'], string> = {
-  low: '🟢',
-  medium: '🟡',
-  high: '🔴',
+const COMPLEXITY_ICONS: Record<SubProblem['complexity'], React.ReactElement> = {
+  low: <CircleDot size={14} className="complexity-icon-low" />,
+  medium: <CircleDot size={14} className="complexity-icon-medium" />,
+  high: <CircleDot size={14} className="complexity-icon-high" />,
 };
 
 const COMPLEXITY_GLOW: Record<SubProblem['complexity'], string> = {
@@ -172,6 +184,7 @@ function ProblemInput({
       <textarea
         ref={textareaRef}
         id="decomposition-problem-input"
+        name="decomposition-problem-input"
         value={value}
         onChange={(e): void => {
           onChange(e.target.value);
@@ -210,18 +223,18 @@ interface DepthSelectionProps {
 /**
  * Get depth-specific icon
  */
-function getDepthIcon(depth: number): string {
+function getDepthIcon(depth: number): React.ReactElement {
   switch (depth) {
     case 2:
-      return '📊';
+      return <BarChart3 size={24} />;
     case 3:
-      return '🌳';
+      return <TreeIcon size="xl" />;
     case 4:
-      return '🔬';
+      return <Microscope size={24} />;
     case 5:
-      return '🧬';
+      return <DnaIcon size="xl" />;
     default:
-      return '📋';
+      return <ClipboardList size={24} />;
   }
 }
 
@@ -254,7 +267,7 @@ function DepthSelection({
   return (
     <GlassPanel className="p-6">
       <h3 className="text-base font-semibold text-ui-accent-primary mb-4 flex items-center gap-2">
-        <span className="text-xl">📏</span>
+        <RulerIcon size="lg" />
         Maximum Decomposition Depth
       </h3>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -368,6 +381,7 @@ function ContextInput({
             </label>
             <textarea
               id="decomposition-context-background"
+              name="decomposition-context-background"
               value={context.background}
               onChange={(e): void => {
                 handleBackgroundChange(e.target.value);
@@ -394,6 +408,7 @@ function ContextInput({
             </label>
             <textarea
               id="decomposition-context-constraints"
+              name="decomposition-context-constraints"
               value={context.constraints.join('\n')}
               onChange={(e): void => {
                 handleConstraintsChange(e.target.value);
@@ -526,7 +541,7 @@ function TreeNode({
                 className={`px-3 py-1 text-xs rounded-lg border font-semibold flex items-center gap-1.5 ${complexityClass} ${complexityGlow}`}
                 title="Complexity estimate"
               >
-                <span>{complexityIcon}</span>
+                {complexityIcon}
                 <span className="capitalize">{subProblem.complexity}</span>
               </span>
 
@@ -535,7 +550,7 @@ function TreeNode({
                 className="px-3 py-1 text-xs rounded-lg bg-ui-accent-primary/15 text-ui-accent-primary border border-ui-accent-primary/40 font-semibold flex items-center gap-1.5"
                 title="Execution order"
               >
-                <span>📋</span>
+                <ClipboardList size={12} />
                 Order: {subProblem.executionOrder}
               </span>
 
@@ -545,7 +560,7 @@ function TreeNode({
                   className="px-3 py-1 text-xs rounded-lg bg-ui-border/50 text-ui-text-muted border border-ui-border font-medium flex items-center gap-1.5"
                   title={`Depends on: ${subProblem.dependencies.join(', ')}`}
                 >
-                  <span>🔗</span>
+                  <Link2 size={12} />
                   {subProblem.dependencies.length} dep
                   {subProblem.dependencies.length !== 1 ? 's' : ''}
                 </span>
@@ -709,7 +724,7 @@ function DecompositionTree({
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold text-ui-accent-primary flex items-center gap-2">
-            <span className="text-2xl">🌳</span>
+            <TreeIcon size="xl" />
             Problem Decomposition
           </h3>
           <div className="flex items-center gap-4 mt-2">
@@ -740,18 +755,18 @@ function DecompositionTree({
       <div className="mb-6 flex items-center gap-4">
         <span className="text-xs text-ui-text-muted">Complexity:</span>
         {complexityCount.low > 0 && (
-          <span className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg bg-green-500/15 text-green-400 border border-green-500/30">
-            🟢 {complexityCount.low} Low
+          <span className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg border status-badge-success">
+            <CircleDot size={12} /> {complexityCount.low} Low
           </span>
         )}
         {complexityCount.medium > 0 && (
-          <span className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
-            🟡 {complexityCount.medium} Medium
+          <span className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg border status-badge-warning">
+            <CircleDot size={12} /> {complexityCount.medium} Medium
           </span>
         )}
         {complexityCount.high > 0 && (
-          <span className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30">
-            🔴 {complexityCount.high} High
+          <span className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg border status-badge-error">
+            <CircleDot size={12} /> {complexityCount.high} High
           </span>
         )}
       </div>
@@ -759,7 +774,7 @@ function DecompositionTree({
       {/* Root problem - Enhanced styling */}
       <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-ui-accent-primary/15 to-transparent border-2 border-ui-accent-primary/40 shadow-glow-sm">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-lg">🎯</span>
+          <Target size={18} />
           <span className="text-xs text-ui-accent-primary font-semibold uppercase tracking-wide">
             Root Problem
           </span>
@@ -790,7 +805,7 @@ function DecompositionTree({
       {result.suggestedOrder.length > 0 && (
         <div className="mt-6 pt-6 border-t border-ui-border/30">
           <h4 className="text-sm font-semibold text-ui-text-secondary mb-3 flex items-center gap-2">
-            <span>📋</span>
+            <ClipboardList size={16} />
             Suggested Execution Order
           </h4>
           <div className="flex flex-wrap gap-2">
@@ -1014,7 +1029,7 @@ export function ProblemDecomposition({
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-ui-accent-primary flex items-center gap-2">
-            <span>🔍</span>
+            <Search size={24} />
             Problem Decomposition
           </h1>
           {hasResult && (
@@ -1094,7 +1109,7 @@ export function ProblemDecomposition({
           void handleSubmit();
         }}
         disabled={!canSubmit}
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-56 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-3 group hover:scale-105 active:scale-95 ${
+        className={`fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50 w-56 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-3 group hover:scale-105 active:scale-95 ${
           canSubmit
             ? 'bg-ui-accent-primary hover:bg-ui-accent-primary/90 text-ui-background'
             : 'bg-ui-border text-ui-text-muted cursor-not-allowed'

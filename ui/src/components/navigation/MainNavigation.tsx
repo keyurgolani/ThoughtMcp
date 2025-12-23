@@ -9,8 +9,21 @@
  * Requirements: 23.1, 31.5
  */
 
-import { useCallback, useState } from 'react';
+import { Home, Layers } from 'lucide-react';
+import { useCallback, useState, type ReactElement } from 'react';
+import { prefersReducedMotion } from '../../utils/accessibility';
+import { UserBadge } from '../auth';
+import { AnimatedLogo, Logo } from '../brand/Logo';
 import { ThemeSwitcher } from '../hud/ThemeSwitcher';
+import {
+  BiasIcon,
+  DecomposeIcon,
+  EmotionIcon,
+  FrameworkIcon,
+  MemoriesIcon,
+  ReasoningIcon,
+  type IconSize,
+} from '../icons';
 
 // ============================================================================
 // Types
@@ -18,8 +31,8 @@ import { ThemeSwitcher } from '../hud/ThemeSwitcher';
 
 export type ScreenId =
   | 'dashboard'
+  | 'memory-graph'
   | 'memory-explorer'
-  | 'memory-management'
   | 'reasoning-console'
   | 'framework-analysis'
   | 'problem-decomposition'
@@ -33,8 +46,8 @@ export interface NavItem {
   label: string;
   /** Short label for mobile */
   shortLabel: string;
-  /** Icon character or emoji */
-  icon: string;
+  /** Icon component getter */
+  getIcon: (size: IconSize) => ReactElement;
   /** Description for tooltip */
   description: string;
 }
@@ -59,57 +72,57 @@ export const NAV_ITEMS: NavItem[] = [
     id: 'dashboard',
     label: 'Dashboard',
     shortLabel: 'Home',
-    icon: '🏠',
+    getIcon: (size) => <Home size={size === 'sm' ? 14 : size === 'lg' ? 20 : 16} />,
     description: 'Overview of your knowledge base',
   },
   {
     id: 'memory-explorer',
     label: 'Memory Explorer',
     shortLabel: 'Explorer',
-    icon: '🧠',
-    description: 'Explore the 3D memory graph',
-  },
-  {
-    id: 'memory-management',
-    label: 'Memory Management',
-    shortLabel: 'Memories',
-    icon: '🗃️',
-    description: 'Manage memories with CRUD operations',
+    getIcon: (size) => <Layers size={size === 'sm' ? 14 : size === 'lg' ? 20 : 16} />,
+    description: 'Search and manage memories',
   },
   {
     id: 'reasoning-console',
     label: 'Reasoning Console',
     shortLabel: 'Reasoning',
-    icon: '💭',
+    getIcon: (size) => <ReasoningIcon size={size} />,
     description: 'Perform systematic reasoning analysis',
   },
   {
     id: 'framework-analysis',
     label: 'Framework Analysis',
     shortLabel: 'Framework',
-    icon: '📊',
+    getIcon: (size) => <FrameworkIcon size={size} />,
     description: 'Analyze problems using thinking frameworks',
   },
   {
     id: 'problem-decomposition',
     label: 'Problem Decomposition',
     shortLabel: 'Decompose',
-    icon: '🔍',
+    getIcon: (size) => <DecomposeIcon size={size} />,
     description: 'Break down complex problems',
   },
   {
     id: 'confidence-bias',
     label: 'Confidence & Bias',
     shortLabel: 'Bias',
-    icon: '⚖️',
+    getIcon: (size) => <BiasIcon size={size} />,
     description: 'Assess confidence and detect biases',
   },
   {
     id: 'emotion-analysis',
     label: 'Emotion Analysis',
     shortLabel: 'Emotion',
-    icon: '❤️',
+    getIcon: (size) => <EmotionIcon size={size} />,
     description: 'Analyze emotional content',
+  },
+  {
+    id: 'memory-graph',
+    label: 'Memory Graph',
+    shortLabel: 'Graph',
+    getIcon: (size) => <MemoriesIcon size={size} />,
+    description: 'Explore the 3D memory graph',
   },
 ];
 
@@ -233,12 +246,11 @@ function NavButton({
           style={{
             width: ICON_SIZE,
             height: ICON_SIZE,
-            fontSize: ICON_SIZE,
             transform: isHovered && !disabled && !isActive ? 'scale(1.1)' : 'scale(1)',
           }}
           aria-hidden="true"
         >
-          {item.icon}
+          {item.getIcon('lg')}
         </span>
 
         {/* Full label on extra-large screens (>1440px) - Requirement 47.5 */}
@@ -311,29 +323,26 @@ export function MainNavigation({
       {/* Full-width container without max-width constraint (Requirement 47.1) */}
       <div className="w-full px-4">
         <div className="flex items-center justify-between h-20">
-          {/* Logo/Brand with subtle glow - clickable to navigate to dashboard */}
+          {/* Logo/Brand with orbiting animation - clickable to navigate to dashboard */}
           <button
-            onClick={() => { onNavigate('dashboard'); }}
-            className="flex items-center gap-3 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity duration-normal"
+            onClick={() => {
+              onNavigate('dashboard');
+            }}
+            className="flex items-center gap-3 flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity duration-normal"
             aria-label="Go to Dashboard"
           >
+            {/* Use AnimatedLogo (orbiting) unless reduced motion is preferred */}
+            {prefersReducedMotion() ? (
+              <Logo size="lg" variant="glow" />
+            ) : (
+              <AnimatedLogo size="md" />
+            )}
             <span
-              className="text-2xl transition-transform duration-normal hover:scale-110"
-              style={{
-                filter: 'drop-shadow(0 0 8px rgba(0, 255, 255, 0.3))',
-              }}
-              aria-hidden="true"
-            >
-              🌌
-            </span>
-            <h1
-              className="text-lg font-semibold text-ui-accent-primary hidden sm:block whitespace-nowrap"
-              style={{
-                textShadow: '0 0 20px rgba(0, 255, 255, 0.3)',
-              }}
+              className="font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent text-lg hidden sm:block"
+              style={{ filter: 'drop-shadow(0 0 8px rgba(99, 102, 241, 0.3))' }}
             >
               ThoughtMCP
-            </h1>
+            </span>
           </button>
 
           {/* Navigation Items - flex-1 to take remaining space, no overflow scroll (Requirement 47.2) */}
@@ -355,6 +364,11 @@ export function MainNavigation({
             <div className="ml-2 pl-2 border-l border-ui-border/50">
               <ThemeSwitcher compact className="hidden md:block" />
               <ThemeSwitcher compact className="md:hidden" />
+            </div>
+
+            {/* User Badge - shows current username with option to switch */}
+            <div className="ml-2 pl-2 border-l border-ui-border/50">
+              <UserBadge />
             </div>
           </div>
         </div>

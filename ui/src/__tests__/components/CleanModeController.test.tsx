@@ -17,6 +17,11 @@ beforeEach(() => {
     isCleanMode: false,
     hoveredPanel: null,
     visiblePanels: new Set<string>(),
+    memoryPreview: {
+      isOpen: false,
+      memory: null,
+      mode: 'view',
+    },
   });
 });
 
@@ -200,6 +205,11 @@ describe('UIStore', () => {
       isCleanMode: false,
       hoveredPanel: null,
       visiblePanels: new Set<string>(),
+      memoryPreview: {
+        isOpen: false,
+        memory: null,
+        mode: 'view',
+      },
     });
   });
 

@@ -10,6 +10,20 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getDefaultClient } from '../api/client';
+import {
+  AlertCircle,
+  AnalyticalModeIcon,
+  Brain,
+  CheckCircle2,
+  ClipboardList,
+  ConnectionsIcon,
+  CreativeModeIcon,
+  CriticalModeIcon,
+  Lightbulb,
+  ReasoningIcon,
+  Sparkles,
+  Zap,
+} from '../components/icons/Icons';
 import { useSaveAsMemory } from '../hooks/useSaveAsMemory';
 import { useCognitiveStore } from '../stores/cognitiveStore';
 import type {
@@ -207,6 +221,7 @@ function ProblemInput({
         <textarea
           ref={textareaRef}
           id="problem-input"
+          name="problem-input"
           value={value}
           onChange={(e): void => {
             onChange(e.target.value);
@@ -236,7 +251,7 @@ function ProblemInput({
         id="problem-input-hint"
         className="mt-3 text-sm text-ui-text-secondary flex items-center gap-2"
       >
-        <span className="text-ui-accent-primary">💡</span>
+        <Lightbulb size={16} className="text-ui-accent-primary" />
         Describe the problem you want to analyze. Press ⌘+Enter to start reasoning.
       </p>
     </GlassPanel>
@@ -257,20 +272,20 @@ interface ModeSelectionProps {
 /**
  * Get mode-specific icon
  */
-function getModeIcon(mode: ReasoningMode): string {
+function getModeIcon(mode: ReasoningMode): React.ReactElement {
   switch (mode) {
     case 'analytical':
-      return '🔬';
+      return <AnalyticalModeIcon size="md" />;
     case 'creative':
-      return '🎨';
+      return <CreativeModeIcon size="md" />;
     case 'critical':
-      return '🔍';
+      return <CriticalModeIcon size="md" />;
     case 'synthetic':
-      return '🔗';
+      return <ConnectionsIcon size="md" />;
     case 'parallel':
-      return '⚡';
+      return <Sparkles size={16} />;
     default:
-      return '💭';
+      return <ReasoningIcon size="md" />;
   }
 }
 
@@ -307,7 +322,7 @@ function ModeSelection({
   return (
     <GlassPanel className="p-6">
       <h3 className="text-base font-semibold text-ui-accent-primary mb-4 flex items-center gap-2">
-        <span className="text-xl">🧠</span>
+        <Brain size={20} />
         Reasoning Mode
       </h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -323,8 +338,9 @@ function ModeSelection({
               }}
               disabled={disabled}
               className={`
-                p-4 rounded-lg text-left transition-all duration-normal relative overflow-hidden
+                p-4 rounded-lg text-left transition-all duration-normal relative
                 border-2 group
+                ${mode.value === 'parallel' ? 'pb-8' : ''}
                 ${
                   isSelected
                     ? `${modeAccentClass} text-ui-text-primary`
@@ -338,7 +354,7 @@ function ModeSelection({
             >
               {/* Mode icon */}
               <span
-                className={`text-2xl mb-2 block transition-transform duration-normal ${isSelected ? 'scale-110' : 'group-hover:scale-105'}`}
+                className={`text-2xl mb-2 block transition-transform duration-normal ${!isSelected ? 'group-hover:scale-105' : ''}`}
               >
                 {getModeIcon(mode.value)}
               </span>
@@ -436,6 +452,7 @@ function ContextInput({
             </label>
             <textarea
               id="context-background"
+              name="context-background"
               value={context.background}
               onChange={(e): void => {
                 handleBackgroundChange(e.target.value);
@@ -462,6 +479,7 @@ function ContextInput({
             </label>
             <textarea
               id="context-constraints"
+              name="context-constraints"
               value={context.constraints.join('\n')}
               onChange={(e): void => {
                 handleConstraintsChange(e.target.value);
@@ -485,6 +503,7 @@ function ContextInput({
             </label>
             <textarea
               id="context-goals"
+              name="context-goals"
               value={context.goals.join('\n')}
               onChange={(e): void => {
                 handleGoalsChange(e.target.value);
@@ -526,7 +545,7 @@ function getStreamModeStyles(mode: ReasoningMode): {
   borderColor: string;
   bgGradient: string;
   glowColor: string;
-  icon: string;
+  getIcon: () => React.ReactElement;
 } {
   switch (mode) {
     case 'analytical':
@@ -534,35 +553,35 @@ function getStreamModeStyles(mode: ReasoningMode): {
         borderColor: 'border-[rgba(0,255,255,0.5)]',
         bgGradient: 'bg-gradient-to-b from-[rgba(0,255,255,0.1)] to-transparent',
         glowColor: 'shadow-[0_0_15px_rgba(0,255,255,0.2)]',
-        icon: '🔬',
+        getIcon: () => <AnalyticalModeIcon size="2xl" />,
       };
     case 'creative':
       return {
         borderColor: 'border-[rgba(155,89,182,0.5)]',
         bgGradient: 'bg-gradient-to-b from-[rgba(155,89,182,0.1)] to-transparent',
         glowColor: 'shadow-[0_0_15px_rgba(155,89,182,0.2)]',
-        icon: '🎨',
+        getIcon: () => <CreativeModeIcon size="2xl" />,
       };
     case 'critical':
       return {
         borderColor: 'border-[rgba(231,76,60,0.5)]',
         bgGradient: 'bg-gradient-to-b from-[rgba(231,76,60,0.1)] to-transparent',
         glowColor: 'shadow-[0_0_15px_rgba(231,76,60,0.2)]',
-        icon: '🔍',
+        getIcon: () => <CriticalModeIcon size="2xl" />,
       };
     case 'synthetic':
       return {
         borderColor: 'border-[rgba(255,215,0,0.5)]',
         bgGradient: 'bg-gradient-to-b from-[rgba(255,215,0,0.1)] to-transparent',
         glowColor: 'shadow-[0_0_15px_rgba(255,215,0,0.2)]',
-        icon: '🔗',
+        getIcon: () => <ConnectionsIcon size="2xl" />,
       };
     default:
       return {
         borderColor: 'border-[rgba(0,255,255,0.5)]',
         bgGradient: 'bg-gradient-to-b from-[rgba(0,255,255,0.1)] to-transparent',
         glowColor: 'shadow-[0_0_15px_rgba(0,255,255,0.2)]',
-        icon: '💭',
+        getIcon: () => <ReasoningIcon size="2xl" />,
       };
   }
 }
@@ -614,7 +633,7 @@ function ParallelStreamColumn({
       <div className={`p-4 border-b ${styles.borderColor} ${styles.bgGradient}`}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className="text-xl">{styles.icon}</span>
+            <span className={textColor}>{styles.getIcon()}</span>
             <h4 className={`text-sm font-semibold ${textColor}`}>{modeLabel}</h4>
           </div>
           {isProcessing && <LoadingSpinner size={18} />}
@@ -688,14 +707,14 @@ function ParallelStreamColumn({
         ) : isProcessing ? (
           <div className="flex flex-col items-center justify-center h-full text-ui-text-muted">
             <div className="animate-pulse mb-2">
-              <span className="text-3xl opacity-50">{styles.icon}</span>
+              <span className="opacity-50">{styles.getIcon()}</span>
             </div>
             <span className="text-sm">Processing...</span>
             <span className="text-xs mt-1 opacity-70">{progress}%</span>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-ui-text-muted">
-            <span className="text-3xl opacity-30 mb-2">{styles.icon}</span>
+            <span className="opacity-30 mb-2">{styles.getIcon()}</span>
             <span className="text-sm">Waiting...</span>
           </div>
         )}
@@ -732,7 +751,7 @@ function ParallelReasoningDisplay({
     <GlassPanel className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-ui-accent-primary flex items-center gap-2">
-          <span className="text-xl">⚡</span>
+          <Zap size={20} />
           Parallel Reasoning Streams
         </h3>
         <div className="flex items-center gap-3">
@@ -806,7 +825,7 @@ function SingleModeResultDisplay({
     <GlassPanel className="p-6 animate-fade-in">
       <div className="flex items-center justify-between mb-6">
         <h3 className={`text-lg font-semibold ${textColor} flex items-center gap-2`}>
-          <span className="text-2xl">{styles.icon}</span>
+          <span>{styles.getIcon()}</span>
           {modeLabel} Analysis
         </h3>
         <div className="flex items-center gap-3">
@@ -829,7 +848,7 @@ function SingleModeResultDisplay({
         {/* Analysis Section */}
         <div className={`p-4 rounded-xl border-2 ${styles.borderColor} ${styles.bgGradient}`}>
           <h4 className={`text-sm font-semibold ${textColor} mb-3 flex items-center gap-2`}>
-            <span>📝</span>
+            <ClipboardList size={16} />
             Analysis
           </h4>
           <p className="text-sm text-ui-text-primary leading-relaxed">{result.analysis}</p>
@@ -839,7 +858,7 @@ function SingleModeResultDisplay({
         {(result.insights?.length ?? 0) > 0 && (
           <div>
             <h4 className="text-sm font-semibold text-ui-accent-primary mb-3 flex items-center gap-2">
-              <span>💡</span>
+              <Lightbulb size={16} />
               Insights
             </h4>
             <div className="grid gap-2">
@@ -860,7 +879,7 @@ function SingleModeResultDisplay({
         {result.recommendations.length > 0 && (
           <div>
             <h4 className="text-sm font-semibold text-green-400 mb-3 flex items-center gap-2">
-              <span>✅</span>
+              <CheckCircle2 size={16} />
               Recommendations
             </h4>
             <div className="grid gap-2">
@@ -883,7 +902,7 @@ function SingleModeResultDisplay({
         {(result.biases?.length ?? 0) > 0 && (
           <div>
             <h4 className="text-sm font-semibold text-yellow-400 mb-3 flex items-center gap-2">
-              <span>⚠️</span>
+              <AlertCircle size={16} />
               Detected Biases
             </h4>
             <div className="grid gap-3">
@@ -901,6 +920,34 @@ function SingleModeResultDisplay({
                     </span>
                   </div>
                   <p className="text-xs opacity-90">{bias.correctionStrategy}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Memories Used Section */}
+        {(result.memoriesUsed?.length ?? 0) > 0 && (
+          <div>
+            <h4 className="text-sm font-semibold text-purple-400 mb-3 flex items-center gap-2">
+              <Brain size={16} />
+              Memories Used for Context
+            </h4>
+            <div className="grid gap-2">
+              {result.memoriesUsed?.map((memory) => (
+                <div
+                  key={memory.id}
+                  className="flex items-start gap-3 p-3 bg-purple-500/10 rounded-lg border border-purple-500/30"
+                >
+                  <span className="text-purple-400 mt-0.5 text-xs px-2 py-0.5 rounded-full bg-purple-500/20 capitalize">
+                    {memory.primarySector}
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-sm text-ui-text-primary line-clamp-2">{memory.content}</p>
+                    <span className="text-xs text-ui-text-muted mt-1">
+                      Relevance: {formatPercentage(memory.relevance)}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -937,7 +984,7 @@ function SynthesizedResultsDisplay({ result }: SynthesizedResultsDisplayProps): 
     <GlassPanel className="p-6 animate-fade-in">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold text-ui-accent-highlight flex items-center gap-2">
-          <span className="text-2xl">🔮</span>
+          <Sparkles size={24} />
           Synthesized Results
         </h3>
         <div className="flex items-center gap-3 bg-ui-background/50 px-4 py-2 rounded-lg">
@@ -959,7 +1006,7 @@ function SynthesizedResultsDisplay({ result }: SynthesizedResultsDisplayProps): 
         {result.synthesis.combinedInsights.length > 0 && (
           <div className="p-4 rounded-xl border-2 border-ui-accent-primary/30 bg-gradient-to-b from-ui-accent-primary/10 to-transparent">
             <h4 className="text-sm font-semibold text-ui-accent-primary mb-4 flex items-center gap-2">
-              <span>💡</span>
+              <Lightbulb size={16} />
               Combined Insights
               <span className="text-xs font-normal text-ui-text-muted ml-2">
                 ({result.synthesis.combinedInsights.length} insights)
@@ -983,7 +1030,7 @@ function SynthesizedResultsDisplay({ result }: SynthesizedResultsDisplayProps): 
         {result.synthesis.conflicts.length > 0 && (
           <div className="p-4 rounded-xl border-2 border-yellow-500/30 bg-gradient-to-b from-yellow-500/10 to-transparent">
             <h4 className="text-sm font-semibold text-yellow-400 mb-4 flex items-center gap-2">
-              <span>⚠️</span>
+              <AlertCircle size={16} />
               Conflicts Between Streams
               <span className="text-xs font-normal text-ui-text-muted ml-2">
                 ({result.synthesis.conflicts.length} conflicts)
@@ -1007,7 +1054,7 @@ function SynthesizedResultsDisplay({ result }: SynthesizedResultsDisplayProps): 
         {result.synthesis.recommendations.length > 0 && (
           <div className="p-4 rounded-xl border-2 border-green-500/30 bg-gradient-to-b from-green-500/10 to-transparent">
             <h4 className="text-sm font-semibold text-green-400 mb-4 flex items-center gap-2">
-              <span>✅</span>
+              <CheckCircle2 size={16} />
               Recommendations
               <span className="text-xs font-normal text-ui-text-muted ml-2">
                 ({result.synthesis.recommendations.length} recommendations)
@@ -1086,12 +1133,51 @@ export function ReasoningConsole({
   const {
     isSaving,
     error: saveError,
+    createdMemoryId,
     saveAsMemory,
     clearError: clearSaveError,
   } = useSaveAsMemory({
     userId,
     sessionId,
   });
+
+  // Toast notification state
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    type: 'success' | 'error';
+    message: string;
+  }>({
+    visible: false,
+    type: 'success',
+    message: '',
+  });
+
+  // Show success toast when memory is saved
+  useEffect(() => {
+    if (createdMemoryId !== null && !isSaving) {
+      setToast({
+        visible: true,
+        type: 'success',
+        message: 'Reasoning session saved as memory successfully!',
+      });
+    }
+  }, [createdMemoryId, isSaving]);
+
+  // Show error toast when save fails
+  useEffect(() => {
+    if (saveError !== null && !isSaving) {
+      setToast({
+        visible: true,
+        type: 'error',
+        message: `Failed to save: ${saveError}`,
+      });
+    }
+  }, [saveError, isSaving]);
+
+  const closeToast = useCallback(() => {
+    setToast((prev) => ({ ...prev, visible: false }));
+    clearSaveError();
+  }, [clearSaveError]);
 
   /**
    * Generate content for saving reasoning session as memory
@@ -1305,7 +1391,7 @@ Confidence: ${formatPercentage(data.confidence)}`;
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-ui-accent-primary flex items-center gap-2">
-            <span>💭</span>
+            <ReasoningIcon size="xl" />
             Reasoning Console
           </h1>
           {hasResult && (
@@ -1396,7 +1482,7 @@ Confidence: ${formatPercentage(data.confidence)}`;
           void handleSubmit();
         }}
         disabled={!canSubmit}
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-56 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-3 group hover:scale-105 active:scale-95 ${
+        className={`fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50 w-56 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-3 group hover:scale-105 active:scale-95 ${
           canSubmit
             ? 'bg-ui-accent-primary hover:bg-ui-accent-primary/90 text-ui-background'
             : 'bg-ui-border text-ui-text-muted cursor-not-allowed'
@@ -1429,6 +1515,26 @@ Confidence: ${formatPercentage(data.confidence)}`;
           </>
         )}
       </button>
+
+      {/* Toast Notification for Save As Memory feedback */}
+      {toast.visible && (
+        <div
+          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 flex items-center gap-3 ${
+            toast.type === 'success' ? 'bg-green-500/90 text-white' : 'bg-red-500/90 text-white'
+          }`}
+          role="alert"
+        >
+          <span className="text-lg">{toast.type === 'success' ? '✓' : '✕'}</span>
+          <span className="text-sm font-medium">{toast.message}</span>
+          <button
+            onClick={closeToast}
+            className="ml-2 text-white/80 hover:text-white"
+            aria-label="Close notification"
+          >
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }

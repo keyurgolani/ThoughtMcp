@@ -9,8 +9,10 @@
 
 import { useMemo, type ReactElement } from 'react';
 import type { MemorySectorType } from '../../types/api';
+import { EmptyBrainIcon, getSectorIcon } from '../icons';
 import type { RecentMemoryItem } from '../layout/Sidebar';
 import { GlassPanel } from './GlassPanel';
+import { MarkdownPreview } from './MarkdownPreview';
 
 // Re-export the type for convenience
 export type { RecentMemoryItem } from '../layout/Sidebar';
@@ -56,14 +58,6 @@ const SECTOR_TEXT_COLORS: Record<MemorySectorType, string> = {
   reflective: 'text-sector-reflective',
 };
 
-const SECTOR_ICONS: Record<MemorySectorType, string> = {
-  episodic: '📅',
-  semantic: '📚',
-  procedural: '⚙️',
-  emotional: '💛',
-  reflective: '🪞',
-};
-
 const SECTOR_LABELS: Record<MemorySectorType, string> = {
   episodic: 'Episodic',
   semantic: 'Semantic',
@@ -94,14 +88,6 @@ function formatRelativeTime(timestamp: number): string {
   return 'Just now';
 }
 
-/**
- * Truncate text to a maximum length with ellipsis
- */
-function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + '...';
-}
-
 // ============================================================================
 // Sub-Components
 // ============================================================================
@@ -119,7 +105,6 @@ function MemoryListItem({ memory, showTimestamp, onClick }: MemoryListItemProps)
   const sector = memory.primarySector as MemorySectorType;
   const sectorColor = SECTOR_COLORS[sector];
   const sectorTextColor = SECTOR_TEXT_COLORS[sector];
-  const sectorIcon = SECTOR_ICONS[sector];
   const sectorLabel = SECTOR_LABELS[sector];
 
   return (
@@ -157,12 +142,12 @@ function MemoryListItem({ memory, showTimestamp, onClick }: MemoryListItemProps)
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-ui-text-primary truncate group-hover:text-ui-accent-primary transition-colors duration-fast">
-            {truncateText(memory.contentPreview, 60)}
-          </p>
+          <div className="text-sm text-ui-text-primary truncate group-hover:text-ui-accent-primary transition-colors duration-fast">
+            <MarkdownPreview content={memory.contentPreview} maxLines={1} />
+          </div>
           <div className="flex items-center gap-2 mt-1">
-            <span className={`text-xs ${sectorTextColor}`} aria-hidden="true">
-              {sectorIcon}
+            <span className={sectorTextColor} aria-hidden="true">
+              {getSectorIcon(sector, 'xs')}
             </span>
             <span className="text-xs text-ui-text-muted">{sectorLabel}</span>
             {showTimestamp && (
@@ -196,7 +181,6 @@ interface CompactMemoryItemProps {
 function CompactMemoryItem({ memory, onClick }: CompactMemoryItemProps): ReactElement {
   const sector = memory.primarySector as MemorySectorType;
   const sectorColor = SECTOR_COLORS[sector];
-  const sectorIcon = SECTOR_ICONS[sector];
 
   return (
     <button
@@ -218,12 +202,12 @@ function CompactMemoryItem({ memory, onClick }: CompactMemoryItemProps): ReactEl
           className={`w-1.5 h-1.5 rounded-full ${sectorColor} flex-shrink-0`}
           style={{ boxShadow: `0 0 4px currentColor` }}
         />
-        <span className="text-xs" aria-hidden="true">
-          {sectorIcon}
+        <span className="text-ui-text-muted" aria-hidden="true">
+          {getSectorIcon(sector, 'xs')}
         </span>
-        <span className="text-xs text-ui-text-primary truncate group-hover:text-ui-accent-primary">
-          {truncateText(memory.contentPreview, 30)}
-        </span>
+        <div className="text-xs text-ui-text-primary truncate group-hover:text-ui-accent-primary flex-1 min-w-0">
+          <MarkdownPreview content={memory.contentPreview} maxLines={1} />
+        </div>
       </div>
     </button>
   );
@@ -241,7 +225,6 @@ function GridMemoryItem({ memory, onClick }: GridMemoryItemProps): ReactElement 
   const sector = memory.primarySector as MemorySectorType;
   const sectorColor = SECTOR_COLORS[sector];
   const sectorTextColor = SECTOR_TEXT_COLORS[sector];
-  const sectorIcon = SECTOR_ICONS[sector];
   const sectorLabel = SECTOR_LABELS[sector];
 
   return (
@@ -251,16 +234,26 @@ function GridMemoryItem({ memory, onClick }: GridMemoryItemProps): ReactElement 
         w-full p-4
         text-left
         rounded-xl
-        bg-ui-background/40
-        hover:bg-ui-border/40
+        bg-ui-surface/80
+        hover:bg-ui-surface-elevated/70
         border border-ui-border/30
-        hover:border-ui-accent-primary/30
+        hover:border-ui-accent-primary/50
         transition-all duration-normal
         group
         focus:outline-none focus:ring-2 focus:ring-ui-accent-primary/50
+        hover:scale-[1.02] hover:-translate-y-0.5
       "
       style={{
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+        backdropFilter: 'blur(12px)',
+        boxShadow: '0 0 15px var(--theme-primary-glow), inset 0 0 20px var(--theme-primary-bg)',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow =
+          '0 0 25px var(--theme-primary-glow), 0 0 50px var(--theme-primary-bg), inset 0 0 30px var(--theme-primary-bg)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow =
+          '0 0 15px var(--theme-primary-glow), inset 0 0 20px var(--theme-primary-bg)';
       }}
       aria-label={`Navigate to memory: ${memory.contentPreview}`}
     >
@@ -270,15 +263,15 @@ function GridMemoryItem({ memory, onClick }: GridMemoryItemProps): ReactElement 
           className={`w-2.5 h-2.5 rounded-full ${sectorColor}`}
           style={{ boxShadow: `0 0 8px currentColor` }}
         />
-        <span className={`text-xs font-medium ${sectorTextColor}`}>
-          {sectorIcon} {sectorLabel}
+        <span className={`text-xs font-medium ${sectorTextColor} flex items-center gap-1`}>
+          {getSectorIcon(sector, 'xs')} {sectorLabel}
         </span>
       </div>
 
       {/* Content preview */}
-      <p className="text-sm text-ui-text-primary line-clamp-2 group-hover:text-ui-accent-primary transition-colors duration-fast">
-        {truncateText(memory.contentPreview, 80)}
-      </p>
+      <div className="text-sm text-ui-text-primary group-hover:text-ui-accent-primary transition-colors duration-fast">
+        <MarkdownPreview content={memory.contentPreview} maxLines={2} />
+      </div>
 
       {/* Timestamp */}
       <p className="text-xs text-ui-text-muted mt-2">{formatRelativeTime(memory.lastAccessed)}</p>
@@ -292,8 +285,8 @@ function GridMemoryItem({ memory, onClick }: GridMemoryItemProps): ReactElement 
 function EmptyState(): ReactElement {
   return (
     <div className="text-center py-8 px-4">
-      <div className="text-4xl mb-3" aria-hidden="true">
-        🧠
+      <div className="text-ui-text-muted mb-3" aria-hidden="true">
+        <EmptyBrainIcon size="4xl" />
       </div>
       <p className="text-sm text-ui-text-secondary mb-1">No recent memories</p>
       <p className="text-xs text-ui-text-muted">Memories you access will appear here</p>

@@ -2,17 +2,27 @@
  * UIStore - Zustand store for UI state management
  *
  * Manages UI state including clean mode, panel visibility,
- * and other UI-related state.
+ * memory preview modal, and other UI-related state.
  *
  * Requirements: 46.1, 46.2, 46.5
  */
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import type { Memory } from '../types/api';
 
 // ============================================================================
 // Types
 // ============================================================================
+
+export interface MemoryPreviewState {
+  /** Whether the memory preview modal is open */
+  isOpen: boolean;
+  /** The memory being previewed (null if closed) */
+  memory: Memory | null;
+  /** Current mode of the modal */
+  mode: 'view' | 'edit';
+}
 
 export interface UIState {
   /** Whether clean mode is enabled (hides all panels except minimal toolbar) */
@@ -21,6 +31,8 @@ export interface UIState {
   hoveredPanel: string | null;
   /** Set of panel IDs that are visible in clean mode due to hover */
   visiblePanels: Set<string>;
+  /** Memory preview modal state */
+  memoryPreview: MemoryPreviewState;
 }
 
 export interface UIActions {
@@ -36,6 +48,14 @@ export interface UIActions {
   hidePanel: (panelId: string) => void;
   /** Check if a panel should be visible */
   isPanelVisible: (panelId: string) => boolean;
+  /** Open memory preview modal */
+  openMemoryPreview: (memory: Memory) => void;
+  /** Close memory preview modal */
+  closeMemoryPreview: () => void;
+  /** Switch memory preview to edit mode */
+  switchToEditMode: () => void;
+  /** Update the previewed memory (after edit) */
+  updatePreviewedMemory: (updates: Partial<Memory>) => void;
 }
 
 export type UIStore = UIState & UIActions;
@@ -44,10 +64,17 @@ export type UIStore = UIState & UIActions;
 // Default Values
 // ============================================================================
 
+const initialMemoryPreviewState: MemoryPreviewState = {
+  isOpen: false,
+  memory: null,
+  mode: 'view',
+};
+
 const initialState: UIState = {
   isCleanMode: false,
   hoveredPanel: null,
   visiblePanels: new Set<string>(),
+  memoryPreview: initialMemoryPreviewState,
 };
 
 // ============================================================================
@@ -114,6 +141,46 @@ export const useUIStore = create<UIStore>()(
         // In clean mode, only visible panels or hovered panel are shown
         return state.visiblePanels.has(panelId) || state.hoveredPanel === panelId;
       },
+
+      openMemoryPreview: (memory: Memory): void => {
+        set({
+          memoryPreview: {
+            isOpen: true,
+            memory,
+            mode: 'view',
+          },
+        });
+      },
+
+      closeMemoryPreview: (): void => {
+        set({
+          memoryPreview: initialMemoryPreviewState,
+        });
+      },
+
+      switchToEditMode: (): void => {
+        const state = get();
+        if (state.memoryPreview.memory) {
+          set({
+            memoryPreview: {
+              ...state.memoryPreview,
+              mode: 'edit',
+            },
+          });
+        }
+      },
+
+      updatePreviewedMemory: (updates: Partial<Memory>): void => {
+        const state = get();
+        if (state.memoryPreview.memory) {
+          set({
+            memoryPreview: {
+              ...state.memoryPreview,
+              memory: { ...state.memoryPreview.memory, ...updates },
+            },
+          });
+        }
+      },
     }),
     {
       name: 'thoughtmcp-ui-state',
@@ -154,3 +221,18 @@ export const selectHoveredPanel = (state: UIStore): string | null => state.hover
  * Select visible panels
  */
 export const selectVisiblePanels = (state: UIStore): Set<string> => state.visiblePanels;
+
+/**
+ * Select memory preview state
+ */
+export const selectMemoryPreview = (state: UIStore): MemoryPreviewState => state.memoryPreview;
+
+/**
+ * Select if memory preview is open
+ */
+export const selectIsMemoryPreviewOpen = (state: UIStore): boolean => state.memoryPreview.isOpen;
+
+/**
+ * Select previewed memory
+ */
+export const selectPreviewedMemory = (state: UIStore): Memory | null => state.memoryPreview.memory;

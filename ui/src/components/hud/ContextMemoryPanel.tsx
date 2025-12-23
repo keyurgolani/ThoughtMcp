@@ -11,6 +11,7 @@ import { useCallback } from 'react';
 import type { ContextMemory } from '../../stores/cognitiveStore';
 import { useCognitiveStore } from '../../stores/cognitiveStore';
 import { getSectorColor } from '../../utils/visualization';
+import { MarkdownPreview } from './MarkdownPreview';
 
 // ============================================================================
 // Types
@@ -101,10 +102,6 @@ function ContextMemoryItem({
   const { memory, relevanceScore, isIncluded, influencedResult } = contextMemory;
   const sectorColor = getSectorColor(memory.primarySector);
 
-  // Truncate content for preview
-  const contentPreview =
-    memory.content.length > 100 ? memory.content.substring(0, 100) + '...' : memory.content;
-
   return (
     <div
       className={`
@@ -147,7 +144,9 @@ function ContextMemoryItem({
       </div>
 
       {/* Content preview */}
-      <p className="text-sm text-ui-text-primary mb-2 line-clamp-2">{contentPreview}</p>
+      <div className="text-sm text-ui-text-primary mb-2">
+        <MarkdownPreview content={memory.content} maxLines={2} />
+      </div>
 
       {/* Relevance score - Requirements: 22.2 */}
       <div className="mb-2">

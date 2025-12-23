@@ -4,8 +4,8 @@
  * Re-exports all 3D scene components for the Memory Exploration UI.
  */
 
-export { MemoryExplorerScene } from './MemoryExplorerScene';
-export type { MemoryExplorerSceneFullProps } from './MemoryExplorerScene';
+export { MemoryGraphScene } from './MemoryExplorerScene';
+export type { MemoryGraphSceneFullProps } from './MemoryExplorerScene';
 
 export { CameraController } from './CameraController';
 export type { CameraControllerProps } from './CameraController';

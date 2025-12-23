@@ -10,6 +10,16 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getDefaultClient } from '../api/client';
+import {
+  AlertCircle,
+  BarChart3,
+  CheckCircle2,
+  CircleDot,
+  ClipboardList,
+  Lightbulb,
+  MessageCircle,
+  Scale,
+} from '../components/icons/Icons';
 import { useCognitiveStore } from '../stores/cognitiveStore';
 import type { AssessConfidenceResponse, BiasDetection, DetectBiasResponse } from '../types/api';
 
@@ -141,13 +151,13 @@ function formatPercentage(value: number): string {
 }
 
 /**
- * Get severity color class for bias
+ * Get severity color class for bias - uses CSS classes for theme-aware colors
  * Requirements: 24.2 - Bias Card Severity Coloring
  */
 export function getSeverityColorClass(severity: number): string {
-  if (severity >= 0.7) return 'text-red-400 bg-red-500/20 border-red-500/50';
-  if (severity >= 0.4) return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/50';
-  return 'text-green-400 bg-green-500/20 border-green-500/50';
+  if (severity >= 0.7) return 'status-badge-error border';
+  if (severity >= 0.4) return 'status-badge-warning border';
+  return 'status-badge-success border';
 }
 
 /**
@@ -160,16 +170,16 @@ function getSeverityLabel(severity: number): string {
 }
 
 /**
- * Get overall risk color class
+ * Get overall risk color class - uses CSS classes for theme-aware colors
  */
 function getRiskColorClass(risk: 'low' | 'medium' | 'high'): string {
   switch (risk) {
     case 'high':
-      return 'text-red-400 bg-red-500/20 border-red-500/50';
+      return 'status-badge-error border';
     case 'medium':
-      return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/50';
+      return 'status-badge-warning border';
     case 'low':
-      return 'text-green-400 bg-green-500/20 border-green-500/50';
+      return 'status-badge-success border';
   }
 }
 
@@ -223,6 +233,7 @@ function ReasoningInput({
       <textarea
         ref={textareaRef}
         id="reasoning-input"
+        name="reasoning-input"
         value={value}
         onChange={(e): void => {
           onChange(e.target.value);
@@ -302,6 +313,7 @@ function EvidenceInput({
             </label>
             <textarea
               id="evidence-input"
+              name="evidence-input"
               value={evidence.join('\n')}
               onChange={(e): void => {
                 handleEvidenceChange(e.target.value);
@@ -325,6 +337,7 @@ function EvidenceInput({
             </label>
             <textarea
               id="context-input"
+              name="context-input"
               value={context}
               onChange={(e): void => {
                 onContextChange(e.target.value);
@@ -581,7 +594,7 @@ function ConfidenceDisplay({ result }: ConfidenceDisplayProps): React.ReactEleme
     <GlassPanel className="p-6 animate-fade-in">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold text-ui-accent-primary flex items-center gap-2">
-          <span className="text-2xl">📊</span>
+          <BarChart3 size={24} />
           Confidence Assessment
         </h3>
         <div className="flex items-center gap-3 bg-ui-background/50 px-4 py-2 rounded-lg">
@@ -613,17 +626,26 @@ function ConfidenceDisplay({ result }: ConfidenceDisplayProps): React.ReactEleme
           {/* Interpretation */}
           <div className="p-4 rounded-xl border-2 border-ui-accent-primary/30 bg-gradient-to-b from-ui-accent-primary/10 to-transparent">
             <h4 className="text-sm font-semibold text-ui-accent-primary mb-3 flex items-center gap-2">
-              <span>💭</span>
+              <MessageCircle size={16} />
               Interpretation
             </h4>
             <p className="text-sm text-ui-text-primary leading-relaxed">{result.interpretation}</p>
           </div>
 
-          {/* Warnings */}
+          {/* Warnings - theme-aware colors */}
           {result.warnings.length > 0 && (
-            <div className="p-4 rounded-xl border-2 border-yellow-500/30 bg-gradient-to-b from-yellow-500/10 to-transparent">
-              <h4 className="text-sm font-semibold text-yellow-400 mb-3 flex items-center gap-2">
-                <span>⚠️</span>
+            <div
+              className="p-4 rounded-xl border-2"
+              style={{
+                borderColor: 'var(--status-warning-border)',
+                background: 'linear-gradient(to bottom, var(--status-warning-bg), transparent)',
+              }}
+            >
+              <h4
+                className="text-sm font-semibold mb-3 flex items-center gap-2"
+                style={{ color: 'var(--status-warning-text)' }}
+              >
+                <AlertCircle size={16} />
                 Warnings
                 <span className="text-xs font-normal text-ui-text-muted">
                   ({result.warnings.length})
@@ -633,9 +655,12 @@ function ConfidenceDisplay({ result }: ConfidenceDisplayProps): React.ReactEleme
                 {result.warnings.map((warning, index) => (
                   <div
                     key={index}
-                    className="flex items-start gap-2 p-2 bg-yellow-500/10 rounded-lg"
+                    className="flex items-start gap-2 p-2 rounded-lg"
+                    style={{ background: 'var(--status-warning-bg)' }}
                   >
-                    <span className="text-yellow-400 mt-0.5">⚠</span>
+                    <span style={{ color: 'var(--status-warning-text)' }} className="mt-0.5">
+                      ⚠
+                    </span>
                     <span className="text-sm text-ui-text-primary">{warning}</span>
                   </div>
                 ))}
@@ -643,11 +668,20 @@ function ConfidenceDisplay({ result }: ConfidenceDisplayProps): React.ReactEleme
             </div>
           )}
 
-          {/* Recommendations */}
+          {/* Recommendations - theme-aware colors */}
           {result.recommendations.length > 0 && (
-            <div className="p-4 rounded-xl border-2 border-green-500/30 bg-gradient-to-b from-green-500/10 to-transparent">
-              <h4 className="text-sm font-semibold text-green-400 mb-3 flex items-center gap-2">
-                <span>✅</span>
+            <div
+              className="p-4 rounded-xl border-2"
+              style={{
+                borderColor: 'var(--status-success-border)',
+                background: 'linear-gradient(to bottom, var(--status-success-bg), transparent)',
+              }}
+            >
+              <h4
+                className="text-sm font-semibold mb-3 flex items-center gap-2"
+                style={{ color: 'var(--status-success-text)' }}
+              >
+                <CheckCircle2 size={16} />
                 Recommendations
                 <span className="text-xs font-normal text-ui-text-muted">
                   ({result.recommendations.length})
@@ -657,9 +691,14 @@ function ConfidenceDisplay({ result }: ConfidenceDisplayProps): React.ReactEleme
                 {result.recommendations.map((rec, index) => (
                   <div
                     key={index}
-                    className="flex items-start gap-2 p-2 bg-green-500/10 rounded-lg"
+                    className="flex items-start gap-2 p-2 rounded-lg"
+                    style={{ background: 'var(--status-success-bg)' }}
                   >
-                    <span className="text-green-400 mt-0.5">✓</span>
+                    <CheckCircle2
+                      size={14}
+                      className="mt-0.5 flex-shrink-0"
+                      style={{ color: 'var(--status-success-text)' }}
+                    />
                     <span className="text-sm text-ui-text-primary">{rec}</span>
                   </div>
                 ))}
@@ -693,26 +732,26 @@ interface BiasCardProps {
 function getSeverityStyles(severity: number): {
   bgGradient: string;
   borderGlow: string;
-  icon: string;
+  icon: React.ReactElement;
 } {
   if (severity >= 0.7) {
     return {
       bgGradient: 'bg-gradient-to-r from-red-500/20 to-red-500/5',
       borderGlow: 'shadow-[0_0_15px_rgba(231,76,60,0.3)]',
-      icon: '🔴',
+      icon: <CircleDot size={20} className="text-red-400" />,
     };
   }
   if (severity >= 0.4) {
     return {
       bgGradient: 'bg-gradient-to-r from-yellow-500/20 to-yellow-500/5',
       borderGlow: 'shadow-[0_0_15px_rgba(243,156,18,0.3)]',
-      icon: '🟡',
+      icon: <CircleDot size={20} className="text-yellow-400" />,
     };
   }
   return {
     bgGradient: 'bg-gradient-to-r from-green-500/20 to-green-500/5',
     borderGlow: 'shadow-[0_0_15px_rgba(39,174,96,0.3)]',
-    icon: '🟢',
+    icon: <CircleDot size={20} className="text-green-400" />,
   };
 }
 
@@ -780,7 +819,7 @@ function BiasCard({ bias, isExpanded, onToggle }: BiasCardProps): React.ReactEle
           {bias.evidence.length > 0 && (
             <div>
               <h5 className="text-xs font-semibold text-ui-text-secondary mb-2 flex items-center gap-2">
-                <span>📋</span>
+                <ClipboardList size={14} />
                 Evidence
               </h5>
               <ul className="space-y-2">
@@ -800,7 +839,7 @@ function BiasCard({ bias, isExpanded, onToggle }: BiasCardProps): React.ReactEle
           {/* Correction Strategy */}
           <div>
             <h5 className="text-xs font-semibold text-ui-text-secondary mb-2 flex items-center gap-2">
-              <span>💡</span>
+              <Lightbulb size={14} />
               Correction Strategy
             </h5>
             <div className="p-3 bg-ui-background/40 rounded-lg border border-ui-border/30">
@@ -880,7 +919,7 @@ function BiasDisplay({ result }: BiasDisplayProps): React.ReactElement {
 
       {result.biases.length === 0 ? (
         <div className="text-center py-8">
-          <span className="text-4xl mb-2 block">✅</span>
+          <CheckCircle2 size={40} className="mx-auto mb-2 text-green-400" />
           <p className="text-sm text-ui-text-secondary">No significant biases detected</p>
         </div>
       ) : (
@@ -905,7 +944,7 @@ function BiasDisplay({ result }: BiasDisplayProps): React.ReactElement {
           <ul className="space-y-1">
             {result.recommendations.map((rec, index) => (
               <li key={index} className="text-sm text-ui-text-primary flex items-start gap-2">
-                <span className="text-green-400 mt-0.5">✓</span>
+                <CheckCircle2 size={14} className="text-green-400 mt-0.5 flex-shrink-0" />
                 <span>{rec}</span>
               </li>
             ))}
@@ -1157,7 +1196,7 @@ export function ConfidenceBiasDashboard({
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-ui-accent-primary flex items-center gap-2">
-            <span>⚖️</span>
+            <Scale size={24} />
             Confidence & Bias Dashboard
           </h1>
           <div className="flex gap-2">
@@ -1245,7 +1284,7 @@ export function ConfidenceBiasDashboard({
           void handleAnalyze();
         }}
         disabled={!canAnalyze}
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-56 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-3 group hover:scale-105 active:scale-95 ${
+        className={`fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50 w-56 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-3 group hover:scale-105 active:scale-95 ${
           canAnalyze
             ? 'bg-ui-accent-primary hover:bg-ui-accent-primary/90 text-ui-background'
             : 'bg-ui-border text-ui-text-muted cursor-not-allowed'

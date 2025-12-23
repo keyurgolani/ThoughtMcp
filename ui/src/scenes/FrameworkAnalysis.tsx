@@ -10,6 +10,19 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getDefaultClient } from '../api/client';
+import {
+  BarChart3,
+  CheckCircle2,
+  CreativeProblemSolvingIcon,
+  CriticalThinkingIcon,
+  DesignThinkingIcon,
+  FirstPrinciplesIcon,
+  Puzzle,
+  RootCauseAnalysisIcon,
+  ScenarioPlanningIcon,
+  ScientificMethodIcon,
+  SystemsThinkingIcon,
+} from '../components/icons/Icons';
 import { useSaveAsMemory } from '../hooks/useSaveAsMemory';
 import { useCognitiveStore } from '../stores/cognitiveStore';
 import type { AnalyzeResponse, FrameworkStep, FrameworkType } from '../types/api';
@@ -45,63 +58,63 @@ export const FRAMEWORKS: Array<{
   value: FrameworkType;
   label: string;
   description: string;
-  icon: string;
+  getIcon: () => React.ReactElement;
   keywords: string[];
 }> = [
   {
     value: 'scientific-method',
     label: 'Scientific Method',
     description: 'Hypothesis-driven approach with observation, experimentation, and analysis',
-    icon: '🔬',
+    getIcon: () => <ScientificMethodIcon size="xl" />,
     keywords: ['test', 'hypothesis', 'experiment', 'data', 'research', 'verify', 'measure'],
   },
   {
     value: 'design-thinking',
     label: 'Design Thinking',
     description: 'Human-centered approach focusing on empathy, ideation, and prototyping',
-    icon: '🎨',
+    getIcon: () => <DesignThinkingIcon size="xl" />,
     keywords: ['user', 'design', 'prototype', 'empathy', 'creative', 'innovation', 'experience'],
   },
   {
     value: 'systems-thinking',
     label: 'Systems Thinking',
     description: 'Holistic analysis of interconnected components and feedback loops',
-    icon: '🔄',
+    getIcon: () => <SystemsThinkingIcon size="xl" />,
     keywords: ['system', 'complex', 'interconnected', 'feedback', 'holistic', 'ecosystem'],
   },
   {
     value: 'critical-thinking',
     label: 'Critical Thinking',
     description: 'Rigorous evaluation of arguments, evidence, and logical validity',
-    icon: '🧠',
+    getIcon: () => <CriticalThinkingIcon size="xl" />,
     keywords: ['evaluate', 'argument', 'logic', 'evidence', 'analyze', 'assess', 'validity'],
   },
   {
     value: 'creative-problem-solving',
     label: 'Creative Problem Solving',
     description: 'Divergent thinking to generate novel solutions and alternatives',
-    icon: '💡',
+    getIcon: () => <CreativeProblemSolvingIcon size="xl" />,
     keywords: ['creative', 'brainstorm', 'innovative', 'novel', 'alternative', 'idea'],
   },
   {
     value: 'root-cause-analysis',
     label: 'Root Cause Analysis',
     description: 'Systematic investigation to identify underlying causes of problems',
-    icon: '🔍',
+    getIcon: () => <RootCauseAnalysisIcon size="xl" />,
     keywords: ['cause', 'why', 'root', 'investigate', 'failure', 'issue', 'problem'],
   },
   {
     value: 'first-principles',
     label: 'First Principles',
     description: 'Breaking down problems to fundamental truths and building up from there',
-    icon: '🧱',
+    getIcon: () => <FirstPrinciplesIcon size="xl" />,
     keywords: ['fundamental', 'basic', 'assumption', 'foundation', 'core', 'essential'],
   },
   {
     value: 'scenario-planning',
     label: 'Scenario Planning',
     description: 'Exploring multiple future scenarios to prepare for uncertainty',
-    icon: '🔮',
+    getIcon: () => <ScenarioPlanningIcon size="xl" />,
     keywords: ['future', 'scenario', 'plan', 'uncertainty', 'strategy', 'forecast', 'prepare'],
   },
 ];
@@ -217,6 +230,7 @@ function ProblemInput({
       <textarea
         ref={textareaRef}
         id="framework-problem-input"
+        name="framework-problem-input"
         value={value}
         onChange={(e): void => {
           onChange(e.target.value);
@@ -303,10 +317,23 @@ interface FrameworkSelectionProps {
 }
 
 /**
- * Get framework-specific accent color
+ * Helper to detect light mode from document attribute
+ */
+function isLightModeActive(): boolean {
+  return (
+    typeof document !== 'undefined' &&
+    document.documentElement.getAttribute('data-theme-mode') === 'light'
+  );
+}
+
+/**
+ * Get framework-specific accent color with light mode support
  */
 function getFrameworkColor(framework: FrameworkType): string {
-  const colorMap: Record<FrameworkType, string> = {
+  const isLightMode = isLightModeActive();
+
+  // Dark mode colors (original)
+  const darkColorMap: Record<FrameworkType, string> = {
     'scientific-method': '#00FFFF',
     'design-thinking': '#9B59B6',
     'systems-thinking': '#27AE60',
@@ -316,7 +343,20 @@ function getFrameworkColor(framework: FrameworkType): string {
     'first-principles': '#3498DB',
     'scenario-planning': '#1ABC9C',
   };
-  return colorMap[framework];
+
+  // Light mode colors (more saturated for visibility)
+  const lightColorMap: Record<FrameworkType, string> = {
+    'scientific-method': '#0077B6',
+    'design-thinking': '#7B2CBF',
+    'systems-thinking': '#2D6A4F',
+    'critical-thinking': '#C41E3A',
+    'creative-problem-solving': '#D4880F',
+    'root-cause-analysis': '#C65102',
+    'first-principles': '#1D4ED8',
+    'scenario-planning': '#0F766E',
+  };
+
+  return isLightMode ? lightColorMap[framework] : darkColorMap[framework];
 }
 
 /**
@@ -333,12 +373,12 @@ function FrameworkSelection({
     <GlassPanel className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-ui-accent-primary flex items-center gap-2">
-          <span className="text-xl">🧩</span>
+          <Puzzle size={20} />
           Select Framework
         </h3>
         {recommendedFramework !== null && (
           <div className="flex items-center gap-2 bg-ui-accent-secondary/20 px-3 py-1.5 rounded-lg border border-ui-accent-secondary/30">
-            <span className="text-yellow-400">★</span>
+            <span className="text-status-warning">★</span>
             <span className="text-xs text-ui-accent-secondary">
               Recommended:{' '}
               <span className="font-semibold">
@@ -362,7 +402,7 @@ function FrameworkSelection({
               }}
               disabled={disabled}
               className={`
-                p-4 rounded-xl text-left transition-all duration-normal relative overflow-hidden group
+                p-4 rounded-xl text-left transition-all duration-normal relative group
                 border-2
                 ${
                   isSelected
@@ -387,7 +427,7 @@ function FrameworkSelection({
             >
               {/* Recommended badge */}
               {isRecommended && !isSelected && (
-                <span className="absolute top-2 right-2 text-yellow-400 animate-pulse">★</span>
+                <span className="absolute top-2 right-2 text-status-warning animate-pulse">★</span>
               )}
 
               {/* Selected indicator */}
@@ -400,9 +440,9 @@ function FrameworkSelection({
 
               {/* Icon with hover effect */}
               <span
-                className={`text-3xl mb-2 block transition-transform duration-normal ${isSelected ? 'scale-110' : 'group-hover:scale-105'}`}
+                className={`text-3xl mb-2 block transition-transform duration-normal ${!isSelected ? 'group-hover:scale-105' : ''}`}
               >
-                {framework.icon}
+                {framework.getIcon()}
               </span>
 
               {/* Label */}
@@ -505,6 +545,7 @@ function ContextInput({
             </label>
             <textarea
               id="framework-context-background"
+              name="framework-context-background"
               value={context.background}
               onChange={(e): void => {
                 handleBackgroundChange(e.target.value);
@@ -531,6 +572,7 @@ function ContextInput({
             </label>
             <textarea
               id="framework-context-constraints"
+              name="framework-context-constraints"
               value={context.constraints.join('\n')}
               onChange={(e): void => {
                 handleConstraintsChange(e.target.value);
@@ -557,6 +599,7 @@ function ContextInput({
             </label>
             <textarea
               id="framework-context-goals"
+              name="framework-context-goals"
               value={context.goals.join('\n')}
               onChange={(e): void => {
                 handleGoalsChange(e.target.value);
@@ -609,7 +652,7 @@ function StepGuidance({
   return (
     <GlassPanel className="p-5">
       <div className="flex items-center gap-3 mb-4">
-        <span className="text-3xl">{frameworkInfo?.icon}</span>
+        <span className="text-3xl">{frameworkInfo?.getIcon()}</span>
         <div className="flex-1">
           <h3 className="text-base font-semibold" style={{ color: frameworkColor }}>
             {frameworkInfo?.label} Steps
@@ -656,7 +699,7 @@ function StepGuidance({
                   isActive
                     ? 'scale-[1.02]'
                     : isCompleted
-                      ? 'bg-green-500/10 border-green-500/30'
+                      ? 'status-badge-success'
                       : 'bg-ui-background/30 border-ui-border/50 hover:bg-ui-border/30 hover:border-ui-border'
                 }
               `}
@@ -676,7 +719,7 @@ function StepGuidance({
                   className={`
                     w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0
                     transition-all duration-normal
-                    ${isCompleted ? 'bg-green-500 text-white shadow-glow-success' : ''}
+                    ${isCompleted ? 'bg-status-success text-white shadow-glow-success' : ''}
                     ${!isActive && !isCompleted ? 'bg-ui-border/50 text-ui-text-muted group-hover:bg-ui-border' : ''}
                   `}
                   style={
@@ -696,7 +739,7 @@ function StepGuidance({
                   <span
                     className={`
                       block text-sm font-semibold
-                      ${isCompleted ? 'text-green-400' : 'text-ui-text-primary'}
+                      ${isCompleted ? 'text-status-success' : 'text-ui-text-primary'}
                     `}
                     style={isActive ? { color: frameworkColor } : undefined}
                   >
@@ -783,6 +826,18 @@ function FlowchartVisualization({
 }: FlowchartVisualizationProps): React.ReactElement {
   const frameworkInfo = FRAMEWORKS.find((f) => f.value === framework);
   const frameworkColor = getFrameworkColor(framework);
+  const isLightMode = isLightModeActive();
+
+  // Theme-aware success color for START step
+  const successColor = isLightMode ? 'var(--status-success)' : '#27AE60';
+  const successBgLight = isLightMode ? 'var(--status-success-bg)' : 'rgba(39, 174, 96, 0.15)';
+  const successBorderLight = isLightMode
+    ? 'var(--status-success-border)'
+    : 'rgba(39, 174, 96, 0.5)';
+  const successBgDark = isLightMode ? 'var(--status-success-bg)' : 'rgba(39, 174, 96, 0.3)';
+  const neutralTextColor = isLightMode ? 'var(--theme-text-muted)' : 'rgba(255, 255, 255, 0.7)';
+  const neutralLabelColor = isLightMode ? 'var(--theme-text-muted)' : 'rgba(255, 255, 255, 0.5)';
+  const neutralBgColor = isLightMode ? 'var(--theme-surface-sunken)' : 'rgba(100, 100, 150, 0.3)';
 
   return (
     <GlassPanel className="p-6">
@@ -790,7 +845,7 @@ function FlowchartVisualization({
         className="text-base font-semibold mb-6 flex items-center gap-2"
         style={{ color: frameworkColor }}
       >
-        <span className="text-xl">📊</span>
+        <BarChart3 size={20} />
         {frameworkInfo?.label} Flowchart
       </h3>
 
@@ -816,12 +871,12 @@ function FlowchartVisualization({
                   `}
                   style={{
                     borderColor: isFirst
-                      ? 'rgba(39, 174, 96, 0.5)'
+                      ? successBorderLight
                       : isLast
                         ? `${frameworkColor}60`
                         : 'var(--theme-border)',
                     background: isFirst
-                      ? 'linear-gradient(135deg, rgba(39, 174, 96, 0.15), transparent)'
+                      ? `linear-gradient(135deg, ${successBgLight}, transparent)`
                       : isLast
                         ? `linear-gradient(135deg, ${frameworkColor}15, transparent)`
                         : 'var(--theme-surface-sunken)',
@@ -833,15 +888,11 @@ function FlowchartVisualization({
                       className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
                       style={{
                         backgroundColor: isFirst
-                          ? 'rgba(39, 174, 96, 0.3)'
+                          ? successBgDark
                           : isLast
                             ? `${frameworkColor}30`
-                            : 'rgba(100, 100, 150, 0.3)',
-                        color: isFirst
-                          ? '#27AE60'
-                          : isLast
-                            ? frameworkColor
-                            : 'rgba(255, 255, 255, 0.7)',
+                            : neutralBgColor,
+                        color: isFirst ? successColor : isLast ? frameworkColor : neutralTextColor,
                       }}
                     >
                       {index + 1}
@@ -849,11 +900,7 @@ function FlowchartVisualization({
                     <span
                       className="text-xs font-medium"
                       style={{
-                        color: isFirst
-                          ? '#27AE60'
-                          : isLast
-                            ? frameworkColor
-                            : 'rgba(255, 255, 255, 0.5)',
+                        color: isFirst ? successColor : isLast ? frameworkColor : neutralLabelColor,
                       }}
                     >
                       {isFirst ? 'START' : isLast ? 'FINISH' : `Step ${String(index + 1)}`}
@@ -954,7 +1001,7 @@ function ResultsDisplay({
             <ul className="space-y-1">
               {result.recommendations.map((rec, index) => (
                 <li key={index} className="text-sm text-ui-text-primary flex items-start gap-2">
-                  <span className="text-green-400 mt-0.5">✓</span>
+                  <CheckCircle2 size={14} className="text-status-success mt-0.5 flex-shrink-0" />
                   <span>{rec}</span>
                 </li>
               ))}
@@ -1177,7 +1224,7 @@ export function FrameworkAnalysis({
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-ui-accent-primary flex items-center gap-2">
-            <span>📊</span>
+            <BarChart3 size={24} />
             Framework Analysis
           </h1>
           {hasResult && (
@@ -1210,7 +1257,7 @@ export function FrameworkAnalysis({
 
         {/* Error display */}
         {(error !== null || saveError !== null) && (
-          <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
+          <div className="p-3 status-badge-error border rounded-lg text-sm">
             {error ?? saveError}
           </div>
         )}
@@ -1261,7 +1308,7 @@ export function FrameworkAnalysis({
           void handleSubmit();
         }}
         disabled={!canSubmit}
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-56 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-3 group hover:scale-105 active:scale-95 ${
+        className={`fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50 w-56 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-3 group hover:scale-105 active:scale-95 ${
           canSubmit
             ? 'bg-ui-accent-primary hover:bg-ui-accent-primary/90 text-ui-background'
             : 'bg-ui-border text-ui-text-muted cursor-not-allowed'

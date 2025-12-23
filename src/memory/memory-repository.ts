@@ -364,38 +364,52 @@ export class MemoryRepository {
 
   /**
    * Create waypoint connections to similar memories
+   *
+   * This method finds existing memories for the same user and creates
+   * waypoint links to the most similar ones. It pre-loads embeddings
+   * for candidate memories to ensure accurate similarity calculation.
    */
   private async createWaypointConnections(client: PoolClient, memory: Memory): Promise<Link[]> {
     try {
-      // Find existing memories for the same user
+      // Find existing memories for the same user with metadata
+      // Join with memory_metadata to get keywords, tags, category for accurate similarity calculation
       const candidatesQuery = `
-        SELECT m.*, me.embedding
+        SELECT m.*,
+               md.keywords,
+               md.tags,
+               md.category,
+               md.context,
+               md.importance,
+               md.is_atomic,
+               md.parent_id
         FROM memories m
-        LEFT JOIN memory_embeddings me ON m.id = me.memory_id AND me.sector = $1
-        WHERE m.user_id = $2 AND m.id != $3
+        LEFT JOIN memory_metadata md ON m.id = md.memory_id
+        WHERE m.user_id = $1 AND m.id != $2
         ORDER BY m.created_at DESC
         LIMIT 100
       `;
 
-      const result = await client.query(candidatesQuery, [
-        memory.primarySector,
-        memory.userId,
-        memory.id,
-      ]);
+      const result = await client.query(candidatesQuery, [memory.userId, memory.id]);
 
       if (result.rows.length === 0) {
         // First memory for this user, no connections to create
         return [];
       }
 
-      // Convert rows to Memory objects
-      const candidates = result.rows.map((row: Record<string, unknown>) => this.rowToMemory(row));
+      // Convert rows to Memory objects with metadata
+      const candidates = result.rows.map((row: Record<string, unknown>) =>
+        this.rowToMemoryWithMetadata(row)
+      );
       Logger.debug(`Found ${candidates.length} candidates for waypoint connections`);
+
+      // Pre-load embeddings for all candidates to ensure accurate similarity calculation
+      // This is done outside the transaction to avoid isolation issues
+      const candidatesWithEmbeddings = await this.loadEmbeddingsForCandidates(candidates);
 
       // Create waypoint links using graph builder
       const result2 = await this.graphBuilder.createWaypointLinks(
         this.convertToGraphMemory(memory),
-        candidates.map((c: Memory) => this.convertToGraphMemory(c))
+        candidatesWithEmbeddings.map((c: Memory) => this.convertToGraphMemory(c))
       );
 
       Logger.debug(`Created ${result2.links.length} waypoint links`);
@@ -405,6 +419,33 @@ export class MemoryRepository {
       Logger.error("Error creating waypoint connections:", error);
       return [];
     }
+  }
+
+  /**
+   * Load embeddings for candidate memories
+   *
+   * Pre-loads all sector embeddings for candidate memories to ensure
+   * accurate similarity calculation in the waypoint graph builder.
+   */
+  private async loadEmbeddingsForCandidates(candidates: Memory[]): Promise<Memory[]> {
+    const candidatesWithEmbeddings: Memory[] = [];
+
+    for (const candidate of candidates) {
+      try {
+        const embeddings = await this.embeddingStorage.retrieveEmbeddings(candidate.id);
+        candidatesWithEmbeddings.push({
+          ...candidate,
+          embeddings,
+        });
+      } catch (error) {
+        // If embeddings can't be loaded, include candidate without embeddings
+        // The waypoint builder will use fallback similarity calculation
+        Logger.debug(`Could not load embeddings for candidate ${candidate.id}:`, error);
+        candidatesWithEmbeddings.push(candidate);
+      }
+    }
+
+    return candidatesWithEmbeddings;
   }
 
   /**
@@ -459,33 +500,6 @@ export class MemoryRepository {
         parentId: memory.metadata.parentId,
       },
       embeddings: memory.embeddings,
-    };
-  }
-
-  /**
-   * Convert database row to Memory object
-   */
-  private rowToMemory(row: Record<string, unknown>): Memory {
-    return {
-      id: row.id as string,
-      content: row.content as string,
-      createdAt: new Date(row.created_at as string),
-      lastAccessed: new Date(row.last_accessed as string),
-      accessCount: row.access_count as number,
-      salience: row.salience as number,
-      decayRate: row.decay_rate as number,
-      strength: row.strength as number,
-      userId: row.user_id as string,
-      sessionId: row.session_id as string,
-      primarySector: row.primary_sector as MemorySectorType,
-      metadata: {
-        keywords: [],
-        tags: [],
-        category: "",
-        context: "",
-        importance: 0.5,
-        isAtomic: true,
-      },
     };
   }
 
@@ -620,9 +634,12 @@ export class MemoryRepository {
 
   /**
    * Invalidate search cache
+   * Clears both vector search cache and full-text search cache
    */
   private invalidateSearchCache(): void {
     this.searchCache.clear();
+    // Also clear full-text search cache to ensure deleted memories don't appear in search results
+    this.fullTextSearchEngine.clearCache();
   }
 
   /**

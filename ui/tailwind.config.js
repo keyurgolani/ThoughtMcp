@@ -94,13 +94,13 @@ export default {
       // Requirements: 38.1, 38.2, 38.3
       // ============================================================================
       colors: {
-        // Memory sector colors (static - not themed)
+        // Memory sector colors - using CSS variables for theme support
         sector: {
-          episodic: '#FFD700', // Gold
-          semantic: '#00FFFF', // Cyan
-          procedural: '#9B59B6', // Purple
-          emotional: '#FFA500', // Amber
-          reflective: '#C0C0C0', // Silver
+          episodic: 'var(--sector-episodic, #FFD700)', // Gold
+          semantic: 'var(--sector-semantic, #00FFFF)', // Cyan
+          procedural: 'var(--sector-procedural, #9B59B6)', // Purple
+          emotional: 'var(--sector-emotional, #FFA500)', // Amber
+          reflective: 'var(--sector-reflective, #C0C0C0)', // Silver
         },
         // Link type colors (static - not themed)
         link: {

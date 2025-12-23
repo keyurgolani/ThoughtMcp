@@ -125,7 +125,7 @@ export interface EdgeDisplayProps {
 // Scene Props Types
 // ============================================================================
 
-export interface MemoryExplorerSceneProps {
+export interface MemoryGraphSceneProps {
   /** Current node ID */
   currentNodeId: string | null;
   /** Callback when a node is clicked */

@@ -6,6 +6,24 @@
  */
 
 // ============================================================================
+// API Constraints
+// ============================================================================
+
+/**
+ * Maximum number of memories that can be recalled in a single request.
+ * Server-side constraint: The API enforces a maximum limit of 100 memories per recall request.
+ * Any limit value exceeding this will be capped to 100 by the client.
+ */
+export const MAX_MEMORY_RECALL_LIMIT = 100;
+
+/**
+ * Maximum content length for memory storage.
+ * Safe limit for most embedding models to prevent HTTP 500 errors.
+ * Content exceeding this limit will be truncated before saving.
+ */
+export const MAX_MEMORY_CONTENT_LENGTH = 8000;
+
+// ============================================================================
 // Memory Sector Types
 // ============================================================================
 
@@ -387,6 +405,16 @@ export interface RecommendationItem {
   confidence: number;
 }
 
+/**
+ * Memory used in reasoning response
+ */
+export interface MemoryUsedInReasoning {
+  id: string;
+  content: string;
+  primarySector: MemorySectorType;
+  relevance: number;
+}
+
 export interface ThinkResponse {
   thoughts: ThoughtItem[];
   confidence: number;
@@ -395,6 +423,8 @@ export interface ThinkResponse {
   metacognitiveAssessment: MetacognitiveAssessment;
   conclusion: string;
   recommendations: RecommendationItem[];
+  // Memories used for context augmentation
+  memoriesUsed?: MemoryUsedInReasoning[];
   // Legacy fields for backward compatibility (populated by client)
   mode?: ReasoningMode;
   analysis?: string;
@@ -619,27 +649,102 @@ export interface AnalyzeResponse {
 
 /**
  * Server response format for /api/v1/problem/framework/select
+ * Matches the actual server response structure from src/server/routes/problem.ts
  */
 export interface ServerFrameworkSelectResponse {
-  selectedFramework: {
+  recommendedFramework: {
     id: string;
     name: string;
     description: string;
-    steps: Array<{
+  };
+  alternatives: Array<{
+    framework: {
+      id: string;
       name: string;
       description: string;
-      order: number;
-    }>;
-    applicability: number;
-  };
-  alternativeFrameworks: Array<{
-    id: string;
-    name: string;
-    applicability: number;
+    };
+    confidence: number;
+    reason: string;
   }>;
   reasoning: string;
+  confidence: number;
+  isHybrid: boolean;
+  hybridFrameworks?: Array<{
+    id: string;
+    name: string;
+    description: string;
+  }>;
   processingTimeMs: number;
 }
+
+/**
+ * Predefined steps for each framework type.
+ * Used to generate steps when the server doesn't provide them.
+ */
+export const FRAMEWORK_STEPS: Record<
+  FrameworkType,
+  Array<{ name: string; description: string }>
+> = {
+  'scientific-method': [
+    { name: 'Observe', description: 'Gather observations and data about the phenomenon' },
+    { name: 'Hypothesize', description: 'Form a testable hypothesis based on observations' },
+    { name: 'Predict', description: 'Make predictions based on the hypothesis' },
+    { name: 'Experiment', description: 'Design and conduct experiments to test predictions' },
+    { name: 'Analyze', description: 'Analyze experimental results and data' },
+    { name: 'Conclude', description: 'Draw conclusions and refine the hypothesis' },
+  ],
+  'design-thinking': [
+    { name: 'Empathize', description: 'Understand the user and their needs' },
+    { name: 'Define', description: 'Define the core problem to solve' },
+    { name: 'Ideate', description: 'Generate creative solutions' },
+    { name: 'Prototype', description: 'Build quick prototypes to test ideas' },
+    { name: 'Test', description: 'Test prototypes with users and iterate' },
+  ],
+  'systems-thinking': [
+    { name: 'Identify System', description: 'Identify the system boundaries and components' },
+    { name: 'Map Components', description: 'Map all components and their relationships' },
+    { name: 'Analyze Relationships', description: 'Analyze feedback loops and interactions' },
+    { name: 'Find Leverage Points', description: 'Identify high-impact intervention points' },
+    { name: 'Intervene', description: 'Design and implement systemic interventions' },
+  ],
+  'critical-thinking': [
+    { name: 'Clarify', description: 'Clarify the question or problem' },
+    { name: 'Analyze', description: 'Analyze arguments and evidence' },
+    { name: 'Evaluate', description: 'Evaluate the credibility and relevance of information' },
+    { name: 'Infer', description: 'Draw logical inferences from evidence' },
+    { name: 'Explain', description: 'Explain conclusions and reasoning' },
+  ],
+  'creative-problem-solving': [
+    { name: 'Clarify', description: 'Clarify the problem and objectives' },
+    { name: 'Ideate', description: 'Generate diverse ideas without judgment' },
+    { name: 'Develop', description: 'Develop and refine promising ideas' },
+    { name: 'Implement', description: 'Plan and implement the solution' },
+  ],
+  'root-cause-analysis': [
+    { name: 'Define Problem', description: 'Clearly define the problem to be solved' },
+    { name: 'Collect Data', description: 'Gather relevant data and evidence' },
+    {
+      name: 'Identify Causes',
+      description: 'Identify potential causes using techniques like 5 Whys',
+    },
+    { name: 'Find Root Cause', description: 'Determine the fundamental root cause' },
+    { name: 'Implement Solution', description: 'Implement corrective actions' },
+  ],
+  'first-principles': [
+    { name: 'Identify Assumptions', description: 'Identify all assumptions and beliefs' },
+    { name: 'Break Down', description: 'Break down the problem to fundamental truths' },
+    {
+      name: 'Rebuild from Fundamentals',
+      description: 'Rebuild understanding from basic principles',
+    },
+  ],
+  'scenario-planning': [
+    { name: 'Identify Drivers', description: 'Identify key drivers and uncertainties' },
+    { name: 'Develop Scenarios', description: 'Develop plausible future scenarios' },
+    { name: 'Analyze Implications', description: 'Analyze implications of each scenario' },
+    { name: 'Plan Responses', description: 'Develop strategic responses for each scenario' },
+  ],
+};
 
 /**
  * UI-friendly framework selection response
@@ -649,12 +754,15 @@ export interface FrameworkSelectResponse {
   frameworkName: string;
   description: string;
   applicability: number;
+  steps: Array<{ name: string; description: string }>;
   alternatives: Array<{
     framework: FrameworkType;
     name: string;
     applicability: number;
+    reason?: string;
   }>;
   reasoning: string;
+  interpretation: string;
   processingTimeMs: number;
 }
 
@@ -665,47 +773,133 @@ export function transformFrameworkSelectResponse(
   serverResponse: ServerFrameworkSelectResponse,
   problem: string
 ): AnalyzeResponse {
-  const { selectedFramework, reasoning, processingTimeMs } = serverResponse;
+  const { recommendedFramework, reasoning, processingTimeMs, alternatives } = serverResponse;
 
-  // Map server framework ID to FrameworkType
-  const frameworkId = selectedFramework.id.toLowerCase().replace(/_/g, '-') as FrameworkType;
+  // Map server framework ID to FrameworkType (handle both snake_case and kebab-case)
+  const frameworkId = recommendedFramework.id.toLowerCase().replace(/_/g, '-') as FrameworkType;
+
+  // Get predefined steps for this framework type, or use empty array if unknown
+  const frameworkSteps = FRAMEWORK_STEPS[frameworkId];
 
   // Transform steps to FrameworkStep format
-  const steps: FrameworkStep[] = selectedFramework.steps.map((step) => ({
+  const steps: FrameworkStep[] = frameworkSteps.map((step) => ({
     name: step.name,
     description: step.description,
     result: '', // Result will be populated when the framework is actually applied
   }));
 
   const problemPreview = problem.substring(0, 100) + (problem.length > 100 ? '...' : '');
-  const alternativeRecs = serverResponse.alternativeFrameworks.slice(0, 2).map((alt) => {
-    const percentage = String(Math.round(alt.applicability * 100));
-    return `Alternative: ${alt.name} (${percentage}% applicable)`;
+  const alternativeRecs = alternatives.slice(0, 2).map((alt) => {
+    const percentage = String(Math.round(alt.confidence * 100));
+    return `Alternative: ${alt.framework.name} (${percentage}% confidence)`;
   });
 
   return {
     framework: frameworkId,
-    frameworkName: selectedFramework.name,
+    frameworkName: recommendedFramework.name,
     steps,
-    conclusion: `Recommended framework: ${selectedFramework.name}. ${reasoning}`,
+    conclusion: `Recommended framework: ${recommendedFramework.name}. ${reasoning}`,
     recommendations: [
-      `Apply ${selectedFramework.name} to analyze: "${problemPreview}"`,
+      `Apply ${recommendedFramework.name} to analyze: "${problemPreview}"`,
       ...alternativeRecs,
     ],
     processingTimeMs,
   };
 }
 
+/**
+ * Transform server framework select response to UI-friendly FrameworkSelectResponse format
+ */
+export function transformToFrameworkSelectResponse(
+  serverResponse: ServerFrameworkSelectResponse
+): FrameworkSelectResponse {
+  const { recommendedFramework, reasoning, processingTimeMs, alternatives, confidence } =
+    serverResponse;
+
+  // Map server framework ID to FrameworkType (handle both snake_case and kebab-case)
+  const frameworkId = recommendedFramework.id.toLowerCase().replace(/_/g, '-') as FrameworkType;
+
+  // Get predefined steps for this framework type
+  const steps = FRAMEWORK_STEPS[frameworkId];
+
+  // Transform alternatives
+  const transformedAlternatives = alternatives.map((alt) => ({
+    framework: alt.framework.id.toLowerCase().replace(/_/g, '-') as FrameworkType,
+    name: alt.framework.name,
+    applicability: alt.confidence,
+    reason: alt.reason,
+  }));
+
+  // Generate interpretation based on confidence
+  const interpretation = generateFrameworkInterpretation(
+    recommendedFramework.name,
+    confidence,
+    reasoning
+  );
+
+  return {
+    framework: frameworkId,
+    frameworkName: recommendedFramework.name,
+    description: recommendedFramework.description,
+    applicability: confidence,
+    steps,
+    alternatives: transformedAlternatives,
+    reasoning,
+    interpretation,
+    processingTimeMs,
+  };
+}
+
+/**
+ * Generate human-readable interpretation for framework selection
+ */
+function generateFrameworkInterpretation(
+  frameworkName: string,
+  confidence: number,
+  reasoning: string
+): string {
+  const confidencePercent = String(Math.round(confidence * 100));
+
+  if (confidence >= 0.8) {
+    return `${frameworkName} is highly recommended (${confidencePercent}% confidence). ${reasoning}`;
+  } else if (confidence >= 0.6) {
+    return `${frameworkName} is a good fit (${confidencePercent}% confidence). ${reasoning}`;
+  } else if (confidence >= 0.4) {
+    return `${frameworkName} may be suitable (${confidencePercent}% confidence). Consider alternatives. ${reasoning}`;
+  } else {
+    return `${frameworkName} is suggested with low confidence (${confidencePercent}%). Strongly consider alternatives. ${reasoning}`;
+  }
+}
+
 // ============================================================================
 // Problem Decomposition Types
 // ============================================================================
+
+/**
+ * Valid decomposition strategies accepted by the server API.
+ * - functional: Break down by functional components and responsibilities
+ * - temporal: Break down by time phases and sequences
+ * - stakeholder: Break down by stakeholder perspectives and needs
+ * - component: Break down by system components and modules
+ */
+export type DecompositionStrategy = 'functional' | 'temporal' | 'stakeholder' | 'component';
+
+/**
+ * Descriptions for each decomposition strategy
+ */
+export const DECOMPOSITION_STRATEGY_DESCRIPTIONS: Record<DecompositionStrategy, string> = {
+  functional: 'Break down by functional components and responsibilities',
+  temporal: 'Break down by time phases and sequences',
+  stakeholder: 'Break down by stakeholder perspectives and needs',
+  component: 'Break down by system components and modules',
+};
 
 export interface DecomposeRequest {
   problem: string;
   maxDepth?: number;
   userId?: string;
   context?: string;
-  strategy?: 'recursive' | 'parallel' | 'sequential';
+  strategy?: DecompositionStrategy;
 }
 
 // Server response format for decomposition tree node
@@ -900,6 +1094,7 @@ export interface AssessConfidenceResponse {
  * This is the unified endpoint that returns both confidence and bias data.
  */
 export interface ServerMetacognitionResponse {
+  qualityScore: number;
   confidenceCalibration: {
     overallConfidence: number;
     evidenceQuality: number;
@@ -907,7 +1102,7 @@ export interface ServerMetacognitionResponse {
     completeness: number;
     uncertaintyLevel: number;
     uncertaintyType: string;
-    factors: Array<{
+    factors?: Array<{
       dimension: string;
       score: number;
       weight: number;
@@ -920,8 +1115,12 @@ export interface ServerMetacognitionResponse {
     evidence: string[];
     correctionStrategy: string;
   }>;
-  recommendations: string[];
-  processingTimeMs: number;
+  improvementSuggestions: Array<{
+    category: string;
+    description: string;
+    priority: string;
+    affectedAreas: string[];
+  }>;
 }
 
 /**
@@ -939,8 +1138,10 @@ export interface MetacognitionAnalyzeResponse {
 export function transformMetacognitionResponse(
   serverResponse: ServerMetacognitionResponse
 ): MetacognitionAnalyzeResponse {
-  const { confidenceCalibration, biasesDetected, recommendations, processingTimeMs } =
-    serverResponse;
+  const { confidenceCalibration, biasesDetected, improvementSuggestions } = serverResponse;
+
+  // Extract recommendations from improvement suggestions
+  const recommendations = improvementSuggestions.map((s) => s.description);
 
   // Calculate overall risk based on bias severities
   const maxSeverity =
@@ -953,6 +1154,9 @@ export function transformMetacognitionResponse(
 
   // Generate warnings from low confidence dimensions
   const warnings = generateConfidenceWarnings(confidenceCalibration);
+
+  // Default processing time (server doesn't return it in this endpoint)
+  const processingTimeMs = 0;
 
   return {
     confidence: {
@@ -1099,12 +1303,109 @@ export interface DetectEmotionRequest {
   context?: string;
 }
 
+/**
+ * Server response format for /api/v1/emotion/detect
+ * Matches the actual server response structure from src/server/routes/emotion.ts
+ */
+export interface ServerEmotionDetectResponse {
+  circumplex: CircumplexResult;
+  discrete: Array<{
+    emotion: DiscreteEmotion;
+    confidence: number;
+    intensity: number;
+  }>;
+}
+
+/**
+ * UI-friendly response format for emotion detection
+ */
 export interface DetectEmotionResponse {
   circumplex: CircumplexResult;
   discreteEmotions: DiscreteEmotionResult[];
   dominantEmotion?: DiscreteEmotion;
   interpretation: string;
   processingTimeMs: number;
+}
+
+/**
+ * Generate interpretation based on circumplex values and dominant emotion.
+ * Based on the Circumplex model of affect.
+ */
+function generateEmotionInterpretation(
+  circumplex: CircumplexResult,
+  dominantEmotion?: DiscreteEmotion
+): string {
+  const { valence, arousal } = circumplex;
+
+  let stateDescription: string;
+
+  // Determine emotional state based on circumplex quadrant
+  if (valence > 0.3 && arousal > 0.3) {
+    stateDescription = 'Excited, energetic emotional state';
+  } else if (valence > 0.3 && arousal < -0.3) {
+    stateDescription = 'Calm, content emotional state';
+  } else if (valence < -0.3 && arousal > 0.3) {
+    stateDescription = 'Stressed, anxious emotional state';
+  } else if (valence < -0.3 && arousal < -0.3) {
+    stateDescription = 'Sad, depressed emotional state';
+  } else {
+    stateDescription = 'Neutral emotional state';
+  }
+
+  // Add dominant emotion context if available
+  if (dominantEmotion !== undefined) {
+    return `${stateDescription}. Primary emotion detected: ${dominantEmotion}.`;
+  }
+
+  return stateDescription;
+}
+
+/**
+ * Convert intensity value (0-1) to categorical intensity level.
+ */
+function getIntensityLevel(intensity: number): 'low' | 'medium' | 'high' {
+  if (intensity >= 0.7) return 'high';
+  if (intensity >= 0.4) return 'medium';
+  return 'low';
+}
+
+/**
+ * Transform server emotion response to UI-friendly format.
+ * Maps confidence to score, calculates dominant emotion, and generates interpretation.
+ */
+export function transformEmotionResponse(
+  serverResponse: ServerEmotionDetectResponse,
+  processingTimeMs: number = 0
+): DetectEmotionResponse {
+  // Transform discrete emotions: map confidence to score, convert intensity to categorical
+  const discreteEmotions: DiscreteEmotionResult[] = serverResponse.discrete.map((d) => ({
+    emotion: d.emotion,
+    score: d.confidence, // Map confidence to score
+    intensity: getIntensityLevel(d.intensity),
+  }));
+
+  // Calculate dominant emotion (highest confidence emotion with confidence > 0)
+  const sortedEmotions = [...serverResponse.discrete].sort((a, b) => b.confidence - a.confidence);
+  const topEmotion = sortedEmotions[0];
+  const dominantEmotion =
+    topEmotion !== undefined && topEmotion.confidence > 0 ? topEmotion.emotion : undefined;
+
+  // Generate interpretation based on circumplex values and dominant emotion
+  const interpretation = generateEmotionInterpretation(serverResponse.circumplex, dominantEmotion);
+
+  // Build response, only including dominantEmotion if it exists
+  const response: DetectEmotionResponse = {
+    circumplex: serverResponse.circumplex,
+    discreteEmotions,
+    interpretation,
+    processingTimeMs,
+  };
+
+  if (dominantEmotion !== undefined) {
+    response.dominantEmotion = dominantEmotion;
+  }
+
+  return response;
 }
 
 /**

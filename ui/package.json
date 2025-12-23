@@ -1,7 +1,7 @@
 {
   "name": "thoughtmcp-ui",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -22,10 +22,13 @@
     "@react-three/fiber": "^8.17.10",
     "@react-three/postprocessing": "^2.16.3",
     "framer-motion": "^11.13.3",
+    "lucide-react": "^0.562.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.10.1",
     "recharts": "^2.14.1",
+    "remark-gfm": "^4.0.1",
     "three": "^0.169.0",
     "zustand": "^5.0.2"
   },

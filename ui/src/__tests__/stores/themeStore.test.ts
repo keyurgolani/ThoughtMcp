@@ -25,9 +25,8 @@ describe('ThemeStore', () => {
 
     // Reset store state before each test
     useThemeStore.setState({
-      currentTheme: 'cosmic-cyan',
+      currentTheme: 'cosmic',
       respectReducedMotion: true,
-      highContrast: false,
     });
   });
 
@@ -42,14 +41,7 @@ describe('ThemeStore', () => {
 
   describe('themes', () => {
     it('should have all expected themes defined', () => {
-      const expectedThemes: ThemeId[] = [
-        'cosmic-cyan',
-        'midnight-ocean',
-        'sunset-ember',
-        'forest-glow',
-        'aurora-violet',
-        'monochrome',
-      ];
+      const expectedThemes: ThemeId[] = ['cosmic', 'ember', 'monochrome', 'light', 'high-contrast'];
 
       for (const themeId of expectedThemes) {
         expect(themes[themeId]).toBeDefined();
@@ -96,32 +88,49 @@ describe('ThemeStore', () => {
         }
       }
     });
+
+    it('should have isLight property for each theme', () => {
+      for (const themeId of Object.keys(themes) as ThemeId[]) {
+        expect(typeof themes[themeId].isLight).toBe('boolean');
+      }
+    });
+
+    it('should correctly identify light vs dark themes', () => {
+      expect(themes['cosmic'].isLight).toBe(false);
+      expect(themes['ember'].isLight).toBe(false);
+      expect(themes['monochrome'].isLight).toBe(false);
+      expect(themes['light'].isLight).toBe(true);
+      expect(themes['high-contrast'].isLight).toBe(false);
+    });
   });
 
   describe('setTheme', () => {
     it('should update the current theme', () => {
       const { setTheme } = useThemeStore.getState();
 
-      setTheme('midnight-ocean');
+      setTheme('ember');
 
-      expect(useThemeStore.getState().currentTheme).toBe('midnight-ocean');
+      expect(useThemeStore.getState().currentTheme).toBe('ember');
     });
 
     it('should apply theme CSS variables to document', () => {
       // Mock document.documentElement
       const mockSetProperty = vi.fn();
       const mockSetAttribute = vi.fn();
+      const mockClassList = { add: vi.fn(), remove: vi.fn() };
       vi.spyOn(document, 'documentElement', 'get').mockReturnValue({
         style: { setProperty: mockSetProperty },
         setAttribute: mockSetAttribute,
+        removeAttribute: vi.fn(),
+        classList: mockClassList,
       } as unknown as HTMLElement);
 
       const { setTheme } = useThemeStore.getState();
-      setTheme('sunset-ember');
+      setTheme('ember');
 
       // Verify CSS variables were set
       expect(mockSetProperty).toHaveBeenCalled();
-      expect(mockSetAttribute).toHaveBeenCalledWith('data-theme', 'sunset-ember');
+      expect(mockSetAttribute).toHaveBeenCalledWith('data-theme', 'ember');
     });
   });
 
@@ -131,18 +140,18 @@ describe('ThemeStore', () => {
 
       const theme = getTheme();
 
-      expect(theme.id).toBe('cosmic-cyan');
-      expect(theme.name).toBe('Cosmic Cyan');
+      expect(theme.id).toBe('cosmic');
+      expect(theme.name).toBe('Cosmic');
     });
 
     it('should return updated theme after setTheme', () => {
       const { setTheme, getTheme } = useThemeStore.getState();
 
-      setTheme('forest-glow');
+      setTheme('light');
       const theme = getTheme();
 
-      expect(theme.id).toBe('forest-glow');
-      expect(theme.name).toBe('Forest Glow');
+      expect(theme.id).toBe('light');
+      expect(theme.name).toBe('Light');
     });
   });
 
@@ -172,43 +181,43 @@ describe('ThemeStore', () => {
     });
   });
 
-  describe('toggleHighContrast', () => {
-    it('should toggle high contrast mode', () => {
-      const { toggleHighContrast } = useThemeStore.getState();
-
-      expect(useThemeStore.getState().highContrast).toBe(false);
-
-      toggleHighContrast();
-      expect(useThemeStore.getState().highContrast).toBe(true);
-
-      toggleHighContrast();
-      expect(useThemeStore.getState().highContrast).toBe(false);
-    });
-  });
-
   describe('theme color values', () => {
-    it('cosmic-cyan should have cyan primary color', () => {
-      expect(themes['cosmic-cyan'].colors.primary).toBe('#00FFFF');
+    it('cosmic should have cyan primary color', () => {
+      expect(themes['cosmic'].colors.primary).toBe('#00FFFF');
     });
 
-    it('midnight-ocean should have blue-tinted colors', () => {
-      expect(themes['midnight-ocean'].colors.primary).toBe('#00D4FF');
-    });
-
-    it('sunset-ember should have warm orange colors', () => {
-      expect(themes['sunset-ember'].colors.primary).toBe('#FF6B35');
-    });
-
-    it('forest-glow should have green colors', () => {
-      expect(themes['forest-glow'].colors.primary).toBe('#00FF88');
-    });
-
-    it('aurora-violet should have purple colors', () => {
-      expect(themes['aurora-violet'].colors.primary).toBe('#BF40BF');
+    it('ember should have warm orange colors', () => {
+      expect(themes['ember'].colors.primary).toBe('#FF6B35');
     });
 
     it('monochrome should have white/gray colors', () => {
       expect(themes['monochrome'].colors.primary).toBe('#FFFFFF');
+    });
+
+    it('light should have blue primary color', () => {
+      expect(themes['light'].colors.primary).toBe('#0066CC');
+    });
+
+    it('high-contrast should have green primary color', () => {
+      expect(themes['high-contrast'].colors.primary).toBe('#00FF00');
+    });
+  });
+
+  describe('high-contrast theme', () => {
+    it('should have maximum contrast text colors', () => {
+      const hc = themes['high-contrast'].colors;
+      expect(hc.textPrimary).toBe('#FFFFFF');
+      expect(hc.textSecondary).toBe('#FFFFFF');
+    });
+
+    it('should have strong border colors', () => {
+      const hc = themes['high-contrast'].colors;
+      expect(hc.border).toBe('rgba(255, 255, 255, 0.6)');
+    });
+
+    it('should have pure black background', () => {
+      const hc = themes['high-contrast'].colors;
+      expect(hc.background).toBe('#000000');
     });
   });
 });

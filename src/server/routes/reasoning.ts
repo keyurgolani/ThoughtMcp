@@ -22,7 +22,7 @@ import type {
   SynthesizedResult,
 } from "../../reasoning/types.js";
 import type { CognitiveCore } from "../cognitive-core.js";
-import { asyncHandler, NotFoundError, ValidationApiError } from "../middleware/error-handler.js";
+import { NotFoundError, ValidationApiError, asyncHandler } from "../middleware/error-handler.js";
 import { buildSuccessResponse } from "../types/api-response.js";
 
 /**
@@ -125,12 +125,15 @@ type ThinkMode = (typeof VALID_MODES)[number];
 /**
  * Zod schema for think request validation
  * Requirements: 3.1, 3.3
+ *
+ * Note: Uses 'problem' field to align with MCP tool naming convention.
+ * The 'problem' field represents the question or problem to reason about.
  */
 const thinkRequestSchema = z.object({
-  input: z
+  problem: z
     .string()
-    .min(1, "input is required")
-    .max(10000, "input must be at most 10,000 characters"),
+    .min(1, "problem is required")
+    .max(10000, "problem must be at most 10,000 characters"),
   mode: z.enum(VALID_MODES, {
     errorMap: () => ({
       message: `mode must be one of: ${VALID_MODES.join(", ")}`,
@@ -171,6 +174,17 @@ interface ThoughtItem {
 }
 
 /**
+ * Memory used in reasoning response
+ * Requirements: 3.1
+ */
+interface MemoryUsedResponse {
+  id: string;
+  content: string;
+  primarySector: string;
+  relevance: number;
+}
+
+/**
  * Response type for think endpoint
  * Requirements: 3.1
  */
@@ -186,6 +200,7 @@ interface ThinkResponse {
     priority: number;
     confidence: number;
   }>;
+  memoriesUsed?: MemoryUsedResponse[];
 }
 
 /**
@@ -264,7 +279,8 @@ function convertToThinkResponse(
   result: SynthesizedResult,
   mode: ThinkMode,
   processingTimeMs: number,
-  metacognitiveAssessment: ConfidenceAssessment
+  metacognitiveAssessment: ConfidenceAssessment,
+  memoriesUsed?: MemoryUsedResponse[]
 ): ThinkResponse {
   // Convert insights to thoughts
   const thoughts: ThoughtItem[] = result.insights.map((insight: AttributedInsight) => ({
@@ -297,7 +313,7 @@ function convertToThinkResponse(
     confidence: rec.confidence,
   }));
 
-  return {
+  const response: ThinkResponse = {
     thoughts,
     confidence: result.confidence,
     modeUsed: mode,
@@ -306,6 +322,13 @@ function convertToThinkResponse(
     conclusion: result.conclusion,
     recommendations,
   };
+
+  // Include memories used if available
+  if (memoriesUsed && memoriesUsed.length > 0) {
+    response.memoriesUsed = memoriesUsed;
+  }
+
+  return response;
 }
 
 /**
@@ -328,11 +351,12 @@ function createThinkHandler(
       throw new ValidationApiError(parseZodErrors(parseResult.error));
     }
 
-    const { input, mode, context, userId } = parseResult.data;
+    const { problem: problemInput, mode, context, userId } = parseResult.data;
 
     // Build problem description with optional context
-    let problemDescription = input;
+    let problemDescription = problemInput;
     let problemContext = "";
+    let memoriesUsed: MemoryUsedResponse[] = [];
 
     // If userId provided, augment with memory context
     if (userId && context) {
@@ -341,12 +365,19 @@ function createThinkHandler(
     } else if (userId) {
       // Retrieve memory context for the user
       const augmentedContext = await cognitiveCore.memoryAugmentedReasoning.augmentProblemContext(
-        input,
+        problemInput,
         userId
       );
       if (augmentedContext.hasMemoryContext) {
         problemDescription = augmentedContext.augmentedProblem;
         problemContext = augmentedContext.memoryBackground;
+        // Capture memories used for the response
+        memoriesUsed = augmentedContext.memoriesUsed.map((mem) => ({
+          id: mem.id,
+          content: mem.content,
+          primarySector: mem.primarySector,
+          relevance: mem.relevanceScore,
+        }));
       }
     } else if (context) {
       // Use provided context without memory augmentation
@@ -354,7 +385,7 @@ function createThinkHandler(
     }
 
     // Create problem object
-    const problem: Problem = {
+    const problemObj: Problem = {
       id: `think-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       description: problemDescription,
       context: problemContext,
@@ -368,17 +399,17 @@ function createThinkHandler(
 
     // Execute parallel reasoning
     const synthesizedResult = await cognitiveCore.reasoningOrchestrator.executeStreams(
-      problem,
+      problemObj,
       streams,
       mode === "intuitive" ? 10000 : 30000 // Shorter timeout for intuitive mode
     );
 
     // Build reasoning context for metacognitive assessment
     const reasoningContext: ReasoningContext = {
-      problem,
+      problem: problemObj,
       evidence: synthesizedResult.insights.map((i) => i.content),
-      constraints: problem.constraints ?? [],
-      goals: problem.goals ?? [],
+      constraints: problemObj.constraints ?? [],
+      goals: problemObj.goals ?? [],
       framework: mode,
     };
 
@@ -388,12 +419,13 @@ function createThinkHandler(
 
     const processingTimeMs = Date.now() - startTime;
 
-    // Convert to response format
+    // Convert to response format (include memoriesUsed if available)
     const responseData = convertToThinkResponse(
       synthesizedResult,
       mode,
       processingTimeMs,
-      metacognitiveAssessment
+      metacognitiveAssessment,
+      memoriesUsed.length > 0 ? memoriesUsed : undefined
     );
 
     res.status(200).json(buildSuccessResponse(responseData, { requestId, startTime }));

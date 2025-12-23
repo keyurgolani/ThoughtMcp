@@ -9,6 +9,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import type { Bookmark, SavedPath } from '../../stores/sessionStore';
+import { BookOpen, Calendar, Cog, FileText, Heart, Sparkles, Star } from '../icons/Icons';
 
 // ============================================================================
 // Types
@@ -64,12 +65,12 @@ const SECTOR_COLORS: Record<string, string> = {
   reflective: 'text-sector-reflective',
 };
 
-const SECTOR_ICONS: Record<string, string> = {
-  episodic: '📅',
-  semantic: '📚',
-  procedural: '⚙️',
-  emotional: '❤️',
-  reflective: '🪞',
+const SECTOR_ICONS: Record<string, React.ReactElement> = {
+  episodic: <Calendar size={14} />,
+  semantic: <BookOpen size={14} />,
+  procedural: <Cog size={14} />,
+  emotional: <Heart size={14} />,
+  reflective: <Sparkles size={14} />,
 };
 
 // ============================================================================
@@ -163,7 +164,7 @@ interface MemoryItemProps {
  */
 function MemoryItem({ memory, onClick }: MemoryItemProps): React.ReactElement {
   const sectorColor = SECTOR_COLORS[memory.primarySector] ?? 'text-ui-text-secondary';
-  const sectorIcon = SECTOR_ICONS[memory.primarySector] ?? '📝';
+  const sectorIcon = SECTOR_ICONS[memory.primarySector] ?? <FileText size={14} />;
 
   return (
     <button
@@ -220,9 +221,7 @@ function BookmarkItem({ bookmark, onClick }: BookmarkItemProps): React.ReactElem
       aria-label={`Navigate to bookmark: ${bookmark.label}`}
     >
       <div className="flex items-start gap-2">
-        <span className="text-sm text-ui-accent-secondary" aria-hidden="true">
-          ⭐
-        </span>
+        <Star size={14} className="text-ui-accent-secondary" />
         <div className="flex-1 min-w-0">
           <p className="text-xs text-ui-text-primary truncate group-hover:text-ui-accent-primary">
             {truncateText(bookmark.label, 50)}

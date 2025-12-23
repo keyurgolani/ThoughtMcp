@@ -9,7 +9,6 @@ export type {
   CognitiveSession,
   DashboardProps,
   GraphPreviewNode,
-  PinnedMemoryItem,
   QuickStats,
   RecentMemoryItem,
   SuggestedAction,
@@ -30,5 +29,5 @@ export type { ConfidenceBiasDashboardProps } from './ConfidenceBiasDashboard';
 export { EmotionAnalysis } from './EmotionAnalysis';
 export type { EmotionAnalysisProps } from './EmotionAnalysis';
 
-export { MemoryManagement } from './MemoryManagement';
-export type { default as MemoryManagementDefault } from './MemoryManagement';
+export { MemoryExplorer } from './MemoryExplorer';
+export type { default as MemoryExplorerDefault } from './MemoryExplorer';
