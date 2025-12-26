@@ -3,17 +3,19 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+
+# pnpm store (monorepo)
+.pnpm-store/
 
 # Build outputs
 dist/
 build/
 *.tsbuildinfo
-ui/dist-node/
 
-# UI build outputs
-ui/dist/
-ui/dist-node/
-ui/build/
+# Package build outputs (monorepo)
+packages/*/dist/
+packages/*/build/
 
 # Environment variables
 .env
@@ -260,7 +262,7 @@ tmtags
 # Roam Research
 .roam/
 
-# Kiro IDE
+# Kiro IDE (ignore settings and hooks, but track specs and steering)
 .kiro/
 
 # OS generated files
@@ -285,7 +287,7 @@ pids/
 # Coverage directory used by tools like istanbul
 coverage/
 *.lcov
-ui/coverage/
+packages/*/coverage/
 
 # nyc test coverage
 .nyc_output/
@@ -307,7 +309,7 @@ jspm_packages/
 
 # Vite cache
 .vite/
-ui/.vite/
+packages/ui/.vite/
 
 # Optional REPL history
 .node_repl_history
@@ -362,7 +364,8 @@ test-data/
 test-results/
 test-reports/
 junit.xml
-ui/.vitest/
+packages/ui/.vitest/
+packages/server/.vitest/
 
 # Test bucket container state files
 .bucket*-container-state.json
@@ -373,15 +376,21 @@ temp/
 *.tmp
 *.temp
 
+# Temporary lint and test output files
+lint_*.txt
+server_test_output*.txt
+test_output*.txt
+ui_lint_report.txt
+
 # Development directory (snapshots, summaries, reports, scripts, notes)
 development/
 
 # Debug tools (development only)
 tools/
 
-# Package manager lock files (keep package-lock.json but ignore others)
+# Package manager lock files (keep pnpm-lock.yaml for monorepo, ignore others)
 yarn.lock
-pnpm-lock.yaml
+package-lock.json
 
 # Editor backup files
 *.bak

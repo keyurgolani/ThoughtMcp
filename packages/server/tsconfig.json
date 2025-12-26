@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "moduleResolution": "node10",
+    "ignoreDeprecations": "5.0",
+    "types": ["node"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "removeComments": false,
+    "downlevelIteration": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "src/__tests__/templates/**/*"]
+}

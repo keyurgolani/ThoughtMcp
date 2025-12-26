@@ -9,5 +9,6 @@
   "endOfLine": "lf",
   "bracketSpacing": true,
   "bracketSameLine": false,
-  "proseWrap": "preserve"
+  "proseWrap": "preserve",
+  "jsxSingleQuote": false
 }

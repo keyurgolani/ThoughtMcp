@@ -1,0 +1,4561 @@
+/* ============================================================================
+   FONT IMPORTS - Must be first
+   Requirements: 35.1, 35.2, 35.3
+   ============================================================================ */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   ROOT VARIABLES
+   ============================================================================ */
+
+:root {
+  /* Font families */
+  font-family: "Inter", system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  /* Color scheme */
+  color-scheme: dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: var(--theme-background, #0a0a0f);
+
+  /* Font rendering */
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* ============================================================================
+     SECTOR COLORS - Memory type indicators
+     ============================================================================ */
+  --sector-episodic: #ffd700;
+  --sector-semantic: #00ffff;
+  --sector-procedural: #9b59b6;
+  --sector-emotional: #ffa500;
+  --sector-reflective: #c0c0c0;
+
+  /* ============================================================================
+     THEME CSS VARIABLES - Dynamic theme support
+     These are overridden by the theme store when a theme is selected
+     ============================================================================ */
+
+  /* Primary Accent - Main actions and highlights */
+  --theme-primary: #00ffff;
+  --theme-primary-muted: #00cccc;
+  --theme-primary-glow: rgba(0, 255, 255, 0.3);
+  --theme-primary-subtle: rgba(0, 255, 255, 0.15);
+  --theme-primary-bg: rgba(0, 255, 255, 0.1);
+
+  /* Secondary Accent - Secondary actions */
+  --theme-secondary: #9b59b6;
+  --theme-secondary-muted: #7d4a94;
+  --theme-secondary-glow: rgba(155, 89, 182, 0.3);
+  --theme-secondary-subtle: rgba(155, 89, 182, 0.15);
+  --theme-secondary-bg: rgba(155, 89, 182, 0.1);
+
+  /* Highlight Accent - Current/selected items */
+  --theme-highlight: #ffd700;
+  --theme-highlight-muted: #ccac00;
+  --theme-highlight-glow: rgba(255, 215, 0, 0.3);
+  --theme-highlight-subtle: rgba(255, 215, 0, 0.15);
+  --theme-highlight-bg: rgba(255, 215, 0, 0.1);
+
+  /* Background colors */
+  --theme-background: #0a0a0f;
+  --theme-background-secondary: #0d0d14;
+  --theme-background-tertiary: #12121a;
+
+  /* Surface colors */
+  --theme-surface: rgba(15, 15, 25, 0.85);
+  --theme-surface-elevated: rgba(20, 20, 35, 0.9);
+  --theme-surface-overlay: rgba(25, 25, 40, 0.95);
+  --theme-surface-sunken: rgba(8, 8, 12, 0.9);
+
+  /* Border colors */
+  --theme-border: rgba(100, 100, 150, 0.3);
+  --theme-border-hover: rgba(100, 100, 150, 0.5);
+  --theme-border-active: rgba(0, 255, 255, 0.5);
+
+  /* Text colors */
+  --theme-text-primary: #ffffff;
+  --theme-text-secondary: rgba(255, 255, 255, 0.7);
+  --theme-text-muted: rgba(255, 255, 255, 0.5);
+
+  /* ============================================================================
+     LEGACY CSS VARIABLES - For backward compatibility
+     These map to the new theme variables
+     ============================================================================ */
+
+  /* Cyan - Primary Accent (Requirements: 38.1) */
+  --color-cyan: var(--theme-primary);
+  --color-cyan-glow: var(--theme-primary-glow);
+  --color-cyan-subtle: var(--theme-primary-subtle);
+  --color-cyan-bg: var(--theme-primary-bg);
+
+  /* Purple - Secondary Accent (Requirements: 38.2) */
+  --color-purple: var(--theme-secondary);
+  --color-purple-glow: var(--theme-secondary-glow);
+  --color-purple-subtle: var(--theme-secondary-subtle);
+  --color-purple-bg: var(--theme-secondary-bg);
+
+  /* Gold - Highlight Accent (Requirements: 38.3) */
+  --color-gold: var(--theme-highlight);
+  --color-gold-glow: var(--theme-highlight-glow);
+  --color-gold-subtle: var(--theme-highlight-subtle);
+  --color-gold-bg: var(--theme-highlight-bg);
+
+  /* Destructive - Error/Warning (Requirements: 32.3) */
+  --color-destructive: #e74c3c;
+  --color-destructive-glow: rgba(231, 76, 60, 0.3);
+  --color-destructive-subtle: rgba(231, 76, 60, 0.15);
+  --color-destructive-bg: rgba(231, 76, 60, 0.1);
+
+  /* ============================================================================
+     SEMANTIC STATUS COLORS - Theme-aware status indicators
+     These provide consistent status colors that work in both light and dark modes
+     ============================================================================ */
+
+  /* Success/Positive - Green */
+  --status-success: #22c55e;
+  --status-success-text: #4ade80;
+  --status-success-bg: rgba(34, 197, 94, 0.15);
+  --status-success-border: rgba(34, 197, 94, 0.4);
+
+  /* Warning/Caution - Amber/Yellow */
+  --status-warning: #f59e0b;
+  --status-warning-text: #fbbf24;
+  --status-warning-bg: rgba(245, 158, 11, 0.15);
+  --status-warning-border: rgba(245, 158, 11, 0.4);
+
+  /* Error/Negative - Red */
+  --status-error: #ef4444;
+  --status-error-text: #f87171;
+  --status-error-bg: rgba(239, 68, 68, 0.15);
+  --status-error-border: rgba(239, 68, 68, 0.4);
+
+  /* Info/Neutral - Blue */
+  --status-info: #3b82f6;
+  --status-info-text: #60a5fa;
+  --status-info-bg: rgba(59, 130, 246, 0.15);
+  --status-info-border: rgba(59, 130, 246, 0.4);
+
+  /* Transition tokens */
+  --transition-fast: 100ms;
+  --transition-normal: 200ms;
+  --transition-slow: 300ms;
+  --transition-slower: 500ms;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* ============================================================================
+   BASE STYLES
+   ============================================================================ */
+@layer base {
+  /* Critical: Ensure dark background on all root elements to prevent white flash */
+  html,
+  body,
+  #root,
+  .mantine-provider,
+  [data-mantine-color-scheme] {
+    background-color: #0a0a0f !important;
+  }
+
+  body {
+    @apply bg-ui-background text-ui-text-primary;
+    min-height: 100vh;
+  }
+
+  /* Typography defaults */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-semibold;
+    line-height: 1.2;
+  }
+
+  h1 {
+    @apply text-4xl;
+  }
+  h2 {
+    @apply text-3xl;
+  }
+  h3 {
+    @apply text-2xl;
+  }
+  h4 {
+    @apply text-xl;
+  }
+  h5 {
+    @apply text-lg;
+  }
+  h6 {
+    @apply text-base;
+  }
+
+  /* Code/mono text */
+  code,
+  pre,
+  kbd {
+    font-family: "JetBrains Mono", Menlo, Monaco, monospace;
+  }
+}
+
+/* ============================================================================
+   GLASSMORPHISM PANEL STYLES
+   Requirements: 5.7, 17.7, 23.5, 38.4, 38.5, 38.6
+   ============================================================================ */
+@layer components {
+  /* Base glassmorphism panel */
+  .glass-panel {
+    @apply bg-ui-surface border border-ui-border rounded-lg;
+    backdrop-filter: blur(12px);
+    box-shadow:
+      0 0 20px rgba(0, 255, 255, 0.1),
+      inset 0 0 30px rgba(0, 255, 255, 0.03);
+  }
+
+  /* Glassmorphism panel with cyan glow */
+  .glass-panel-glow {
+    @apply bg-ui-surface border border-ui-border rounded-lg;
+    backdrop-filter: blur(16px);
+    box-shadow:
+      0 0 20px rgba(0, 255, 255, 0.15),
+      0 0 40px rgba(0, 255, 255, 0.08),
+      inset 0 0 30px rgba(0, 255, 255, 0.04);
+  }
+
+  /* Elevated panel with stronger shadow */
+  .glass-panel-elevated {
+    @apply bg-ui-surface-elevated border border-ui-border rounded-lg;
+    backdrop-filter: blur(16px);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.5),
+      0 0 20px rgba(0, 255, 255, 0.2);
+  }
+
+  /* Floating panel for tooltips/popovers */
+  .glass-panel-floating {
+    @apply bg-ui-surface-overlay border border-ui-border rounded-lg;
+    backdrop-filter: blur(20px);
+    box-shadow:
+      0 12px 48px rgba(0, 0, 0, 0.6),
+      0 0 30px rgba(0, 255, 255, 0.15);
+  }
+
+  /* Sunken panel for input areas */
+  .glass-panel-sunken {
+    @apply rounded-lg;
+    backdrop-filter: blur(8px);
+    background: rgba(8, 8, 12, 0.9);
+    border: 1px solid rgba(60, 60, 80, 0.3);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Glassmorphism panel with cyan border glow */
+  .glass-panel-glow-cyan {
+    @apply bg-ui-surface rounded-lg;
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--color-cyan-glow);
+    box-shadow:
+      0 0 20px rgba(0, 255, 255, 0.2),
+      0 0 40px rgba(0, 255, 255, 0.1),
+      inset 0 0 30px rgba(0, 255, 255, 0.05);
+  }
+
+  /* Glassmorphism panel with purple border glow */
+  .glass-panel-glow-purple {
+    @apply bg-ui-surface rounded-lg;
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--color-purple-glow);
+    box-shadow:
+      0 0 20px rgba(155, 89, 182, 0.2),
+      0 0 40px rgba(155, 89, 182, 0.1),
+      inset 0 0 30px rgba(155, 89, 182, 0.05);
+  }
+
+  /* Glassmorphism panel with gold border glow (for highlights) */
+  .glass-panel-glow-gold {
+    @apply bg-ui-surface rounded-lg;
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--color-gold-glow);
+    box-shadow:
+      0 0 20px rgba(255, 215, 0, 0.2),
+      0 0 40px rgba(255, 215, 0, 0.1),
+      inset 0 0 30px rgba(255, 215, 0, 0.05);
+  }
+}
+
+/* ============================================================================
+   NEON TEXT STYLES
+   Requirements: 2.2, 23.5
+   ============================================================================ */
+@layer components {
+  /* Cyan neon text */
+  .neon-text {
+    color: var(--color-cyan);
+    text-shadow:
+      0 0 5px rgba(0, 255, 255, 0.5),
+      0 0 10px rgba(0, 255, 255, 0.3),
+      0 0 20px rgba(0, 255, 255, 0.2);
+  }
+
+  /* Cyan neon text - subtle variant */
+  .neon-text-subtle {
+    color: var(--color-cyan);
+    text-shadow:
+      0 0 5px rgba(0, 255, 255, 0.3),
+      0 0 10px rgba(0, 255, 255, 0.15);
+  }
+
+  /* Purple neon text */
+  .neon-text-purple {
+    color: var(--color-purple);
+    text-shadow:
+      0 0 5px rgba(155, 89, 182, 0.5),
+      0 0 10px rgba(155, 89, 182, 0.3),
+      0 0 20px rgba(155, 89, 182, 0.2);
+  }
+
+  /* Gold neon text */
+  .neon-text-gold {
+    color: var(--color-gold);
+    text-shadow:
+      0 0 5px rgba(255, 215, 0, 0.5),
+      0 0 10px rgba(255, 215, 0, 0.3),
+      0 0 20px rgba(255, 215, 0, 0.2);
+  }
+}
+
+/* ============================================================================
+   TEXT HIERARCHY STYLES
+   Requirements: 32.6, 35.4, 35.6
+   Opacity levels: 100% primary, 70% secondary, 50% tertiary, 40% muted, 30% disabled
+   ============================================================================ */
+@layer components {
+  /* Primary text - 100% opacity (Requirements: 32.6) */
+  .text-hierarchy-primary {
+    color: #ffffff;
+  }
+
+  /* Secondary text - 70% opacity (Requirements: 32.6) */
+  .text-hierarchy-secondary {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  /* Tertiary text - 50% opacity (Requirements: 32.6) */
+  .text-hierarchy-tertiary {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  /* Muted text - 40% opacity */
+  .text-hierarchy-muted {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  /* Disabled text - 30% opacity (Requirements: 32.6) */
+  .text-hierarchy-disabled {
+    color: rgba(255, 255, 255, 0.3);
+  }
+
+  /* Heading styles with clear distinction (Requirements: 35.4) */
+  .heading-display {
+    @apply text-4xl font-bold;
+    line-height: 1.2;
+    color: #ffffff;
+  }
+
+  .heading-title {
+    @apply text-2xl font-semibold;
+    line-height: 1.2;
+    color: #ffffff;
+  }
+
+  .heading-section {
+    @apply text-xl font-semibold;
+    line-height: 1.3;
+    color: #ffffff;
+  }
+
+  .heading-subsection {
+    @apply text-lg font-medium;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  /* Body text styles */
+  .body-text {
+    @apply text-base font-normal;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.87);
+  }
+
+  .body-text-small {
+    @apply text-sm font-normal;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  /* Caption/label text */
+  .caption-text {
+    @apply text-xs font-medium;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Text shadow for 3D labels (Requirements: 35.6) */
+  .text-shadow-subtle {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+
+  .text-shadow-medium {
+    text-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.7),
+      0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+
+  .text-shadow-strong {
+    text-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.8),
+      0 4px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Text shadow with glow for 3D labels */
+  .text-shadow-glow {
+    text-shadow:
+      0 0 5px rgba(0, 255, 255, 0.5),
+      0 0 10px rgba(0, 255, 255, 0.3),
+      0 2px 4px rgba(0, 0, 0, 0.8);
+  }
+
+  /* High contrast text for accessibility (Requirements: 35.4) */
+  .text-high-contrast {
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* ============================================================================
+   BUTTON STYLES
+   Requirements: 32.1, 32.2, 32.3, 32.4, 33.1
+   ============================================================================ */
+@layer components {
+  /* Base button styles */
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium;
+    @apply transition-all;
+    transition-duration: var(--transition-normal);
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  /* Primary button with cyan accent */
+  .btn-primary {
+    @apply btn;
+    background: var(--color-cyan-bg);
+    border: 1px solid var(--color-cyan-glow);
+    color: var(--color-cyan);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-cyan-subtle);
+    border-color: rgba(0, 255, 255, 0.5);
+    box-shadow: 0 0 15px var(--color-cyan-glow);
+  }
+
+  /* Secondary button with purple accent */
+  .btn-secondary {
+    @apply btn;
+    background: var(--color-purple-bg);
+    border: 1px solid var(--color-purple-glow);
+    color: var(--color-purple);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--color-purple-subtle);
+    border-color: rgba(155, 89, 182, 0.5);
+    box-shadow: 0 0 15px var(--color-purple-glow);
+  }
+
+  /* Destructive button with red accent */
+  .btn-destructive {
+    @apply btn;
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    color: #e74c3c;
+  }
+
+  .btn-destructive:hover:not(:disabled) {
+    background: rgba(231, 76, 60, 0.2);
+    border-color: rgba(231, 76, 60, 0.5);
+    box-shadow: 0 0 15px rgba(231, 76, 60, 0.3);
+  }
+
+  /* Ghost button */
+  .btn-ghost {
+    @apply btn;
+    @apply bg-transparent border border-ui-border text-ui-text-secondary;
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    @apply text-ui-text-primary;
+    background: rgba(100, 100, 150, 0.15);
+  }
+
+  /* Icon button */
+  .btn-icon {
+    @apply p-2 rounded-md;
+    @apply text-ui-text-secondary;
+    @apply transition-all;
+    transition-duration: var(--transition-normal);
+  }
+
+  .btn-icon:hover:not(:disabled) {
+    @apply text-ui-accent-primary;
+    background: var(--color-cyan-bg);
+  }
+
+  .btn-icon:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+}
+
+/* ============================================================================
+   INPUT STYLES
+   ============================================================================ */
+@layer components {
+  .input-glass {
+    @apply w-full px-4 py-2 rounded-md;
+    @apply text-ui-text-primary placeholder-ui-text-muted;
+    @apply focus:outline-none;
+    @apply transition-all;
+    transition-duration: var(--transition-normal);
+    background: rgba(8, 8, 12, 0.9);
+    border: 1px solid rgba(100, 100, 150, 0.3);
+  }
+
+  .input-glass:focus {
+    border-color: rgba(0, 255, 255, 0.5);
+    box-shadow:
+      0 0 10px rgba(0, 255, 255, 0.15),
+      inset 0 0 10px rgba(0, 255, 255, 0.05);
+  }
+
+  .textarea-glass {
+    @apply input-glass resize-none;
+    @apply py-3;
+  }
+}
+
+/* ============================================================================
+   SKELETON LOADER STYLES
+   Requirements: 31.6, 37.1
+   ============================================================================ */
+@layer components {
+  .skeleton {
+    @apply rounded-md;
+    background: linear-gradient(
+      90deg,
+      rgba(100, 100, 150, 0.1) 0%,
+      rgba(100, 100, 150, 0.2) 50%,
+      rgba(100, 100, 150, 0.1) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  .skeleton-text {
+    @apply skeleton h-4 w-full;
+  }
+
+  .skeleton-text-sm {
+    @apply skeleton h-3 w-3/4;
+  }
+
+  .skeleton-circle {
+    @apply skeleton rounded-full;
+  }
+
+  .skeleton-card {
+    @apply skeleton h-24 w-full;
+  }
+}
+
+/* ============================================================================
+   HIDE ALL SCROLLBARS
+   ============================================================================ */
+::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Firefox scrollbar - hide */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* ============================================================================
+   SELECTION STYLES
+   ============================================================================ */
+::selection {
+  background: rgba(0, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background: rgba(0, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+/* ============================================================================
+   FOCUS VISIBLE STYLES FOR ACCESSIBILITY
+   Requirements: 35.4
+   ============================================================================ */
+:focus-visible {
+  outline: 2px solid rgba(0, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   REDUCED MOTION SUPPORT
+   Requirements: 13.2
+   ============================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================================
+   HIGH CONTRAST MODE SUPPORT
+   Requirements: 13.3
+   ============================================================================ */
+@media (prefers-contrast: high) {
+  .glass-panel,
+  .glass-panel-glow,
+  .glass-panel-elevated,
+  .glass-panel-floating,
+  .glass-panel-glow-cyan,
+  .glass-panel-glow-purple,
+  .glass-panel-glow-gold {
+    background: rgba(0, 0, 0, 0.95);
+    border-width: 2px;
+  }
+
+  .neon-text,
+  .neon-text-subtle,
+  .neon-text-purple,
+  .neon-text-gold {
+    text-shadow: none;
+  }
+}
+
+/* ============================================================================
+   ANIMATION UTILITIES
+   Requirements: 33.1, 33.2, 33.3, 33.4, 33.5
+   ============================================================================ */
+@layer utilities {
+  /* Fade animations */
+  .animate-fade-in {
+    animation: fadeIn var(--transition-normal) var(--ease-out);
+  }
+
+  .animate-fade-out {
+    animation: fadeOut var(--transition-fast) var(--ease-in);
+  }
+
+  /* Slide animations */
+  .animate-slide-up {
+    animation: slideUp var(--transition-normal) var(--ease-out);
+  }
+
+  .animate-slide-down {
+    animation: slideDown var(--transition-normal) var(--ease-out);
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight var(--transition-normal) var(--ease-out);
+  }
+
+  .animate-slide-in-left {
+    animation: slideInLeft var(--transition-normal) var(--ease-out);
+  }
+
+  /* Scale animations */
+  .animate-scale-in {
+    animation: scaleIn var(--transition-normal) var(--ease-out);
+  }
+
+  .animate-scale-out {
+    animation: scaleOut var(--transition-fast) var(--ease-in);
+  }
+
+  .animate-bounce-in {
+    animation: bounceIn var(--transition-slow) var(--ease-bounce);
+  }
+
+  /* Feedback animations */
+  .animate-shake {
+    animation: shake 0.4s ease-in-out;
+  }
+
+  .animate-success-pulse {
+    animation: successPulse 0.5s ease-out;
+  }
+
+  /* Progress bar indeterminate animation */
+  .animate-progress-indeterminate {
+    animation: progressIndeterminate 1.5s ease-in-out infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-4px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes successPulse {
+  0% {
+    box-shadow: 0 0 0 rgba(39, 174, 96, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(39, 174, 96, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(39, 174, 96, 0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes progressIndeterminate {
+  0% {
+    transform: translateX(-100%);
+    width: 50%;
+  }
+  50% {
+    width: 30%;
+  }
+  100% {
+    transform: translateX(300%);
+    width: 50%;
+  }
+}
+
+/* ============================================================================
+   FLOATING UI ELEMENT STYLES - Glow and Pulse Effects
+   ============================================================================ */
+
+/* Glow effect for floating panels */
+.floating-glow {
+  box-shadow:
+    0 0 20px rgba(0, 255, 255, 0.2),
+    0 0 40px rgba(0, 255, 255, 0.1),
+    0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Pulse animation for floating elements */
+@keyframes pulseGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 15px rgba(0, 255, 255, 0.15),
+      0 0 30px rgba(0, 255, 255, 0.08),
+      0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 25px rgba(0, 255, 255, 0.25),
+      0 0 50px rgba(0, 255, 255, 0.15),
+      0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+/* Subtle pulse for secondary elements */
+@keyframes pulseGlowSubtle {
+  0%,
+  100% {
+    box-shadow:
+      0 0 10px rgba(0, 255, 255, 0.1),
+      0 0 20px rgba(0, 255, 255, 0.05);
+  }
+  50% {
+    box-shadow:
+      0 0 15px rgba(0, 255, 255, 0.15),
+      0 0 30px rgba(0, 255, 255, 0.08);
+  }
+}
+
+.animate-pulse-glow-subtle {
+  animation: pulseGlowSubtle 4s ease-in-out infinite;
+}
+
+/* Different shapes for floating elements */
+.floating-pill {
+  border-radius: 9999px;
+}
+
+.floating-hexagon {
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+.floating-diamond {
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+.floating-rounded-lg {
+  border-radius: 1rem;
+}
+
+.floating-rounded-xl {
+  border-radius: 1.5rem;
+}
+
+/* ============================================================================
+   RESPONSIVE UTILITIES
+   Requirements: 36.1, 36.2
+   ============================================================================ */
+@layer utilities {
+  /* Touch-friendly target sizes */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Panel collapse utilities */
+  @media (max-width: 1023px) {
+    .collapse-on-tablet {
+      @apply w-auto;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .stack-on-mobile {
+      @apply flex-col;
+    }
+  }
+}
+
+/* ============================================================================
+   THEME-AWARE COMPONENT STYLES
+   These use CSS variables for dynamic theming
+   ============================================================================ */
+@layer components {
+  /* Theme-aware glassmorphism panel */
+  .glass-panel-themed {
+    @apply rounded-lg;
+    background: var(--theme-surface);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--theme-border);
+    box-shadow:
+      0 0 20px color-mix(in srgb, var(--theme-primary) 10%, transparent),
+      inset 0 0 30px color-mix(in srgb, var(--theme-primary) 3%, transparent);
+  }
+
+  .glass-panel-themed-glow {
+    @apply rounded-lg;
+    background: var(--theme-surface);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--theme-primary-glow);
+    box-shadow:
+      0 0 20px var(--theme-primary-glow),
+      0 0 40px color-mix(in srgb, var(--theme-primary) 10%, transparent),
+      inset 0 0 30px color-mix(in srgb, var(--theme-primary) 5%, transparent);
+  }
+
+  /* Theme-aware neon text */
+  .neon-text-themed {
+    color: var(--theme-primary);
+    text-shadow:
+      0 0 5px color-mix(in srgb, var(--theme-primary) 50%, transparent),
+      0 0 10px color-mix(in srgb, var(--theme-primary) 30%, transparent),
+      0 0 20px color-mix(in srgb, var(--theme-primary) 20%, transparent);
+  }
+
+  .neon-text-themed-secondary {
+    color: var(--theme-secondary);
+    text-shadow:
+      0 0 5px color-mix(in srgb, var(--theme-secondary) 50%, transparent),
+      0 0 10px color-mix(in srgb, var(--theme-secondary) 30%, transparent),
+      0 0 20px color-mix(in srgb, var(--theme-secondary) 20%, transparent);
+  }
+
+  .neon-text-themed-highlight {
+    color: var(--theme-highlight);
+    text-shadow:
+      0 0 5px color-mix(in srgb, var(--theme-highlight) 50%, transparent),
+      0 0 10px color-mix(in srgb, var(--theme-highlight) 30%, transparent),
+      0 0 20px color-mix(in srgb, var(--theme-highlight) 20%, transparent);
+  }
+
+  /* Theme-aware buttons */
+  .btn-themed-primary {
+    @apply btn;
+    background: var(--theme-primary-bg);
+    border: 1px solid var(--theme-primary-glow);
+    color: var(--theme-primary);
+  }
+
+  .btn-themed-primary:hover:not(:disabled) {
+    background: var(--theme-primary-subtle);
+    border-color: color-mix(in srgb, var(--theme-primary) 50%, transparent);
+    box-shadow: 0 0 15px var(--theme-primary-glow);
+  }
+
+  .btn-themed-secondary {
+    @apply btn;
+    background: var(--theme-secondary-bg);
+    border: 1px solid var(--theme-secondary-glow);
+    color: var(--theme-secondary);
+  }
+
+  .btn-themed-secondary:hover:not(:disabled) {
+    background: var(--theme-secondary-subtle);
+    border-color: color-mix(in srgb, var(--theme-secondary) 50%, transparent);
+    box-shadow: 0 0 15px var(--theme-secondary-glow);
+  }
+}
+
+/* ============================================================================
+   UI POLISH - Enhanced Micro-interactions
+   ============================================================================ */
+@layer components {
+  /* Smooth hover lift effect */
+  .hover-lift {
+    transition:
+      transform 200ms var(--ease-out),
+      box-shadow 200ms var(--ease-out);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Subtle scale on hover */
+  .hover-scale {
+    transition: transform 150ms var(--ease-out);
+  }
+
+  .hover-scale:hover {
+    transform: scale(1.02);
+  }
+
+  /* Interactive card with glow on hover */
+  .interactive-card {
+    @apply rounded-lg transition-all duration-200;
+    background: var(--theme-surface);
+    border: 1px solid var(--theme-border);
+  }
+
+  .interactive-card:hover {
+    border-color: var(--theme-border-hover);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--theme-primary) 15%, transparent);
+  }
+
+  .interactive-card:active {
+    transform: scale(0.98);
+  }
+
+  /* Ripple effect container */
+  .ripple-container {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ripple-container::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: var(--theme-primary-subtle);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition:
+      width 0.4s ease,
+      height 0.4s ease,
+      opacity 0.4s ease;
+  }
+
+  .ripple-container:active::after {
+    width: 200%;
+    height: 200%;
+    opacity: 1;
+  }
+
+  /* Gradient border effect */
+  .gradient-border {
+    position: relative;
+    background: var(--theme-surface);
+    border-radius: 12px;
+  }
+
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      var(--theme-primary-glow),
+      var(--theme-secondary-glow),
+      var(--theme-highlight-glow)
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.5;
+    transition: opacity 200ms ease;
+  }
+
+  .gradient-border:hover::before {
+    opacity: 1;
+  }
+
+  /* Animated gradient background */
+  .animated-gradient-bg {
+    background: linear-gradient(
+      -45deg,
+      var(--theme-background),
+      var(--theme-background-secondary),
+      var(--theme-background-tertiary),
+      var(--theme-background-secondary)
+    );
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+  }
+
+  /* Subtle breathing glow */
+  .breathing-glow {
+    animation: breathingGlow 4s ease-in-out infinite;
+  }
+
+  /* Focus ring with theme color */
+  .focus-ring-themed:focus-visible {
+    outline: 2px solid var(--theme-primary);
+    outline-offset: 2px;
+  }
+
+  /* Divider with gradient */
+  .divider-gradient {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--theme-border), transparent);
+  }
+
+  /* Badge styles */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-primary {
+    background: var(--theme-primary-bg);
+    color: var(--theme-primary);
+    border: 1px solid var(--theme-primary-glow);
+  }
+
+  .badge-secondary {
+    background: var(--theme-secondary-bg);
+    color: var(--theme-secondary);
+    border: 1px solid var(--theme-secondary-glow);
+  }
+
+  .badge-highlight {
+    background: var(--theme-highlight-bg);
+    color: var(--theme-highlight);
+    border: 1px solid var(--theme-highlight-glow);
+  }
+
+  /* Tooltip arrow */
+  .tooltip-arrow {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: var(--theme-surface-overlay);
+    transform: rotate(45deg);
+    border: 1px solid var(--theme-border);
+  }
+
+  .tooltip-arrow-top {
+    bottom: -5px;
+    left: 50%;
+    margin-left: -4px;
+    border-top: none;
+    border-left: none;
+  }
+
+  .tooltip-arrow-bottom {
+    top: -5px;
+    left: 50%;
+    margin-left: -4px;
+    border-bottom: none;
+    border-right: none;
+  }
+
+  /* Progress bar with theme colors */
+  .progress-bar {
+    @apply h-1 rounded-full overflow-hidden;
+    background: var(--theme-surface-sunken);
+  }
+
+  .progress-bar-fill {
+    @apply h-full rounded-full transition-all duration-300;
+    background: linear-gradient(90deg, var(--theme-primary), var(--theme-secondary));
+  }
+
+  /* Stat card */
+  .stat-card {
+    @apply p-4 rounded-lg;
+    background: var(--theme-surface);
+    border: 1px solid var(--theme-border);
+  }
+
+  .stat-card-value {
+    @apply text-2xl font-bold;
+    color: var(--theme-primary);
+  }
+
+  .stat-card-label {
+    @apply text-sm;
+    color: var(--theme-text-secondary);
+  }
+}
+
+/* ============================================================================
+   ADDITIONAL KEYFRAME ANIMATIONS
+   ============================================================================ */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes breathingGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 10px var(--theme-primary-glow);
+  }
+  50% {
+    box-shadow:
+      0 0 20px var(--theme-primary-glow),
+      0 0 30px color-mix(in srgb, var(--theme-primary) 20%, transparent);
+  }
+}
+
+@keyframes borderGlow {
+  0%,
+  100% {
+    border-color: var(--theme-border);
+  }
+  50% {
+    border-color: var(--theme-primary-glow);
+  }
+}
+
+@keyframes textGlow {
+  0%,
+  100% {
+    text-shadow: 0 0 5px var(--theme-primary-glow);
+  }
+  50% {
+    text-shadow:
+      0 0 15px var(--theme-primary-glow),
+      0 0 25px color-mix(in srgb, var(--theme-primary) 30%, transparent);
+  }
+}
+
+/* ============================================================================
+   SCROLLBAR STYLES - Hidden by default, custom-scrollbar keeps them hidden
+   ============================================================================ */
+@supports selector(::-webkit-scrollbar) {
+  .custom-scrollbar::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+/* Firefox scrollbar styling - hidden */
+.custom-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* ============================================================================
+   REDUCED MOTION STYLES
+   Applied when user enables "Reduce motion" toggle
+   ============================================================================ */
+.reduce-motion,
+.reduce-motion * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+.reduce-motion .animate-pulse,
+.reduce-motion .animate-pulse-slow,
+.reduce-motion .animate-pulse-fast,
+.reduce-motion .animate-glow,
+.reduce-motion .animate-glow-slow,
+.reduce-motion .animate-float,
+.reduce-motion .animate-float-slow,
+.reduce-motion .animate-shimmer,
+.reduce-motion .animate-spin-slow {
+  animation: none !important;
+}
+
+/* ============================================================================
+   HIGH CONTRAST STYLES
+   Applied when user enables "High contrast" toggle
+   ============================================================================ */
+.high-contrast {
+  /* Increase text contrast */
+  --theme-text-primary: #ffffff;
+  --theme-text-secondary: rgba(255, 255, 255, 0.85);
+  --theme-text-muted: rgba(255, 255, 255, 0.7);
+
+  /* Stronger borders */
+  --theme-border: rgba(255, 255, 255, 0.4);
+  --theme-border-hover: rgba(255, 255, 255, 0.6);
+  --theme-border-active: rgba(255, 255, 255, 0.8);
+}
+
+/* High contrast for light themes */
+[data-theme-mode="light"].high-contrast {
+  --theme-text-primary: #000000;
+  --theme-text-secondary: rgba(0, 0, 0, 0.85);
+  --theme-text-muted: rgba(0, 0, 0, 0.7);
+
+  --theme-border: rgba(0, 0, 0, 0.4);
+  --theme-border-hover: rgba(0, 0, 0, 0.6);
+  --theme-border-active: rgba(0, 0, 0, 0.8);
+}
+
+.high-contrast .glass-panel,
+.high-contrast .glass-panel-glow,
+.high-contrast .glass-panel-elevated,
+.high-contrast .glass-panel-floating,
+.high-contrast .glass-panel-glow-cyan,
+.high-contrast .glass-panel-glow-purple,
+.high-contrast .glass-panel-glow-gold {
+  border-width: 2px;
+}
+
+.high-contrast .neon-text,
+.high-contrast .neon-text-subtle,
+.high-contrast .neon-text-purple,
+.high-contrast .neon-text-gold {
+  text-shadow: none;
+  font-weight: 600;
+}
+
+.high-contrast .btn,
+.high-contrast .btn-primary,
+.high-contrast .btn-secondary,
+.high-contrast .btn-destructive,
+.high-contrast .btn-ghost {
+  border-width: 2px;
+  font-weight: 600;
+}
+
+.high-contrast input,
+.high-contrast textarea,
+.high-contrast select {
+  border-width: 2px;
+}
+
+/* ============================================================================
+   LIGHT THEME ENHANCEMENTS
+   Better contrast for light mode themes
+   ============================================================================ */
+[data-theme-mode="light"] {
+  /* Override sector colors for better contrast in light mode */
+  --sector-episodic: #b45309;
+  --sector-semantic: #0077b6;
+  --sector-procedural: #7c3aed;
+  --sector-emotional: #c2410c;
+  --sector-reflective: #475569;
+
+  /* Enhanced shadows for light themes */
+  --light-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.06);
+  --light-shadow-md: 0 2px 4px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
+  --light-shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.15), 0 8px 16px rgba(0, 0, 0, 0.1);
+  --light-shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.18), 0 16px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* Light theme panel styles with better contrast */
+[data-theme-mode="light"] .glass-panel,
+[data-theme-mode="light"] .glass-panel-glow,
+[data-theme-mode="light"] .glass-panel-elevated,
+[data-theme-mode="light"] .glass-panel-floating {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: var(--light-shadow-md);
+  backdrop-filter: blur(12px);
+}
+
+[data-theme-mode="light"] .glass-panel-elevated {
+  box-shadow: var(--light-shadow-lg);
+}
+
+[data-theme-mode="light"] .glass-panel-floating {
+  box-shadow: var(--light-shadow-xl);
+}
+
+[data-theme-mode="light"] .glass-panel-sunken {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* Light theme glow panels - use subtle shadows instead of glows */
+[data-theme-mode="light"] .glass-panel-glow-cyan,
+[data-theme-mode="light"] .glass-panel-glow-purple,
+[data-theme-mode="light"] .glass-panel-glow-gold {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow:
+    var(--light-shadow-md),
+    0 0 0 1px var(--theme-primary-subtle);
+}
+
+/* Light theme neon text - use solid colors instead of glows */
+[data-theme-mode="light"] .neon-text,
+[data-theme-mode="light"] .neon-text-subtle {
+  color: var(--theme-primary);
+  text-shadow: none;
+  font-weight: 600;
+}
+
+[data-theme-mode="light"] .neon-text-purple {
+  color: var(--theme-secondary);
+  text-shadow: none;
+  font-weight: 600;
+}
+
+[data-theme-mode="light"] .neon-text-gold {
+  color: var(--theme-highlight);
+  text-shadow: none;
+  font-weight: 600;
+}
+
+/* Light theme buttons with better contrast */
+[data-theme-mode="light"] .btn-primary {
+  background: var(--theme-primary);
+  color: white;
+  border: 1px solid var(--theme-primary);
+  box-shadow: var(--light-shadow-sm);
+}
+
+[data-theme-mode="light"] .btn-primary:hover:not(:disabled) {
+  background: var(--theme-primary-muted);
+  border-color: var(--theme-primary-muted);
+  box-shadow: var(--light-shadow-md);
+}
+
+[data-theme-mode="light"] .btn-secondary {
+  background: transparent;
+  color: var(--theme-text-primary);
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  box-shadow: var(--light-shadow-sm);
+}
+
+[data-theme-mode="light"] .btn-secondary:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.35);
+}
+
+[data-theme-mode="light"] .btn-ghost {
+  background: transparent;
+  color: var(--theme-text-secondary);
+  border: 1px solid transparent;
+}
+
+[data-theme-mode="light"] .btn-ghost:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--theme-text-primary);
+}
+
+/* Light theme inputs with better contrast */
+[data-theme-mode="light"] .input-glass,
+[data-theme-mode="light"] .textarea-glass {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  color: var(--theme-text-primary);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme-mode="light"] .input-glass:focus,
+[data-theme-mode="light"] .textarea-glass:focus {
+  border-color: var(--theme-primary);
+  box-shadow:
+    0 0 0 3px var(--theme-primary-bg),
+    inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme-mode="light"] .input-glass::placeholder,
+[data-theme-mode="light"] .textarea-glass::placeholder {
+  color: var(--theme-text-muted);
+}
+
+/* Light theme cards and interactive elements */
+[data-theme-mode="light"] .interactive-card {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: var(--light-shadow-sm);
+}
+
+[data-theme-mode="light"] .interactive-card:hover {
+  border-color: rgba(0, 0, 0, 0.25);
+  box-shadow: var(--light-shadow-md);
+}
+
+/* Light theme badges */
+[data-theme-mode="light"] .badge-primary {
+  background: var(--theme-primary);
+  color: white;
+  border: none;
+}
+
+[data-theme-mode="light"] .badge-secondary {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--theme-text-primary);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+/* Light theme dividers */
+[data-theme-mode="light"] .divider-gradient {
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.2), transparent);
+}
+
+/* Light theme skeleton loaders */
+[data-theme-mode="light"] .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.06) 0%,
+    rgba(0, 0, 0, 0.1) 50%,
+    rgba(0, 0, 0, 0.06) 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* Light theme progress bars */
+[data-theme-mode="light"] .progress-bar {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* Light theme stat cards */
+[data-theme-mode="light"] .stat-card {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: var(--light-shadow-sm);
+}
+
+/* Light theme selection */
+[data-theme-mode="light"] ::selection {
+  background: var(--theme-primary-subtle);
+  color: var(--theme-text-primary);
+}
+
+[data-theme-mode="light"] ::-moz-selection {
+  background: var(--theme-primary-subtle);
+  color: var(--theme-text-primary);
+}
+
+/* Light theme focus styles */
+[data-theme-mode="light"] :focus-visible {
+  outline: 2px solid var(--theme-primary);
+  outline-offset: 2px;
+}
+
+/* Light theme scrollbars - hidden */
+[data-theme-mode="light"] .custom-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+[data-theme-mode="light"] .custom-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* ============================================================================
+   LIGHT THEME - COMPONENT SPECIFIC OVERRIDES
+   ============================================================================ */
+
+/* MiniMap light theme adjustments */
+[data-theme-mode="light"] .minimap-container {
+  box-shadow: var(--light-shadow-lg) !important;
+}
+
+/* 3D Scene background for light themes */
+[data-theme-mode="light"] [data-testid="memory-graph-scene"] {
+  background: var(--theme-background) !important;
+}
+
+/* Floating panels in light mode */
+[data-theme-mode="light"] .floating-glow {
+  box-shadow: var(--light-shadow-lg);
+}
+
+[data-theme-mode="light"] .animate-pulse-glow,
+[data-theme-mode="light"] .animate-pulse-glow-subtle {
+  animation: none;
+  box-shadow: var(--light-shadow-md);
+}
+
+/* Tooltip styling for light themes */
+[data-theme-mode="light"] .tooltip-arrow {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+/* Status indicators in light mode */
+[data-theme-mode="light"] .status-success {
+  background: rgba(34, 197, 94, 0.18);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+[data-theme-mode="light"] .status-error {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+[data-theme-mode="light"] .status-warning {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+/* Light mode semantic status color overrides - darker for better contrast */
+[data-theme-mode="light"] {
+  --status-success: #16a34a;
+  --status-success-text: #15803d;
+  --status-success-bg: rgba(22, 163, 74, 0.12);
+  --status-success-border: rgba(22, 163, 74, 0.35);
+
+  --status-warning: #d97706;
+  --status-warning-text: #b45309;
+  --status-warning-bg: rgba(217, 119, 6, 0.12);
+  --status-warning-border: rgba(217, 119, 6, 0.35);
+
+  --status-error: #dc2626;
+  --status-error-text: #b91c1c;
+  --status-error-bg: rgba(220, 38, 38, 0.12);
+  --status-error-border: rgba(220, 38, 38, 0.35);
+
+  --status-info: #2563eb;
+  --status-info-text: #1d4ed8;
+  --status-info-bg: rgba(37, 99, 235, 0.12);
+  --status-info-border: rgba(37, 99, 235, 0.35);
+}
+
+/* Semantic intensity classes - theme-aware */
+.intensity-high {
+  color: var(--status-error-text);
+  background: var(--status-error-bg);
+}
+
+.intensity-medium {
+  color: var(--status-warning-text);
+  background: var(--status-warning-bg);
+}
+
+.intensity-low {
+  color: var(--status-success-text);
+  background: var(--status-success-bg);
+}
+
+/* Semantic status badge classes */
+.status-badge-success {
+  color: var(--status-success-text);
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
+}
+
+.status-badge-warning {
+  color: var(--status-warning-text);
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning-border);
+}
+
+.status-badge-error {
+  color: var(--status-error-text);
+  background: var(--status-error-bg);
+  border-color: var(--status-error-border);
+}
+
+.status-badge-info {
+  color: var(--status-info-text);
+  background: var(--status-info-bg);
+  border-color: var(--status-info-border);
+}
+
+/* Trend indicator classes */
+.trend-improving {
+  color: var(--status-success-text);
+}
+
+.trend-declining {
+  color: var(--status-error-text);
+}
+
+.trend-stable {
+  color: var(--status-warning-text);
+}
+
+/* Complexity icon classes */
+.complexity-icon-low {
+  color: var(--status-success-text);
+}
+
+.complexity-icon-medium {
+  color: var(--status-warning-text);
+}
+
+.complexity-icon-high {
+  color: var(--status-error-text);
+}
+
+/* Text color utility classes for status colors */
+.text-status-success {
+  color: var(--status-success-text);
+}
+
+.text-status-warning {
+  color: var(--status-warning-text);
+}
+
+.text-status-error {
+  color: var(--status-error-text);
+}
+
+.text-status-info {
+  color: var(--status-info-text);
+}
+
+/* Background color utility classes for status colors */
+.bg-status-success {
+  background-color: var(--status-success);
+}
+
+.bg-status-warning {
+  background-color: var(--status-warning);
+}
+
+.bg-status-error {
+  background-color: var(--status-error);
+}
+
+.bg-status-info {
+  background-color: var(--status-info);
+}
+
+/* Checkboxes and radio buttons in light mode */
+[data-theme-mode="light"] input[type="checkbox"],
+[data-theme-mode="light"] input[type="radio"] {
+  border-color: rgba(0, 0, 0, 0.3);
+  background: white;
+}
+
+[data-theme-mode="light"] input[type="checkbox"]:checked,
+[data-theme-mode="light"] input[type="radio"]:checked {
+  background: var(--theme-primary);
+  border-color: var(--theme-primary);
+}
+
+/* Select dropdowns in light mode */
+[data-theme-mode="light"] select {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: var(--theme-text-primary);
+}
+
+[data-theme-mode="light"] select:focus {
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 3px var(--theme-primary-bg);
+}
+
+/* Code blocks in light mode */
+[data-theme-mode="light"] code,
+[data-theme-mode="light"] pre {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+/* Tables in light mode */
+[data-theme-mode="light"] table {
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme-mode="light"] th {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme-mode="light"] td {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme-mode="light"] tr:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* Modal overlays in light mode */
+[data-theme-mode="light"] .modal-backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Hover states for interactive elements in light mode */
+[data-theme-mode="light"] .hover-lift:hover {
+  box-shadow: var(--light-shadow-lg);
+}
+
+/* Tag/chip styling in light mode */
+[data-theme-mode="light"] .tag,
+[data-theme-mode="light"] .chip {
+  background: rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: var(--theme-text-primary);
+}
+
+[data-theme-mode="light"] .tag:hover,
+[data-theme-mode="light"] .chip:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+/* Memory row cards - theme-aware shadows */
+.memory-row-card {
+  backdrop-filter: blur(12px);
+  box-shadow:
+    0 0 15px var(--theme-primary-glow),
+    inset 0 0 20px var(--theme-primary-bg);
+  transition:
+    all 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.memory-row-card:hover {
+  box-shadow:
+    0 0 25px var(--theme-primary-glow),
+    0 0 50px var(--theme-primary-bg),
+    inset 0 0 30px var(--theme-primary-bg);
+}
+
+[data-theme-mode="light"] .memory-row-card {
+  backdrop-filter: blur(8px);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme-mode="light"] .memory-row-card:hover {
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* ============================================================================
+   LIGHT MODE - ACCENT COLOR OVERRIDES
+   Replace low-contrast cyan (#00FFFF) and yellow (#FFD700) with darker variants
+   ============================================================================ */
+
+/* Cyan text color overrides for light mode */
+[data-theme-mode="light"] .text-\[\#00FFFF\],
+[data-theme-mode="light"] .text-\[\#00ffff\] {
+  color: #0077b6 !important;
+}
+
+/* Yellow/Gold text color overrides for light mode */
+[data-theme-mode="light"] .text-\[\#FFD700\],
+[data-theme-mode="light"] .text-\[\#ffd700\] {
+  color: #b45309 !important;
+}
+
+/* Cyan border overrides for light mode */
+[data-theme-mode="light"] .border-\[\#00FFFF\],
+[data-theme-mode="light"] .border-\[\#00ffff\] {
+  border-color: #0077b6 !important;
+}
+
+/* Yellow/Gold border overrides for light mode */
+[data-theme-mode="light"] .border-\[\#FFD700\],
+[data-theme-mode="light"] .border-\[\#ffd700\] {
+  border-color: #b45309 !important;
+}
+
+/* Cyan background overrides for light mode */
+[data-theme-mode="light"] .bg-\[\#00FFFF\],
+[data-theme-mode="light"] .bg-\[\#00ffff\] {
+  background-color: #0077b6 !important;
+}
+
+[data-theme-mode="light"] .bg-\[rgba\(0\,255\,255\,0\.15\)\] {
+  background-color: rgba(0, 119, 182, 0.12) !important;
+}
+
+/* Yellow/Gold background overrides for light mode */
+[data-theme-mode="light"] .bg-\[\#FFD700\],
+[data-theme-mode="light"] .bg-\[\#ffd700\] {
+  background-color: #b45309 !important;
+}
+
+[data-theme-mode="light"] .bg-\[rgba\(255\,215\,0\,0\.15\)\] {
+  background-color: rgba(180, 83, 9, 0.12) !important;
+}
+
+/* Gradient overrides for light mode */
+[data-theme-mode="light"] .from-\[\#00FFFF\] {
+  --tw-gradient-from: #0077b6 !important;
+}
+
+[data-theme-mode="light"] .to-\[\#FFD700\] {
+  --tw-gradient-to: #b45309 !important;
+}
+
+[data-theme-mode="light"] .via-\[\#9B59B6\] {
+  --tw-gradient-via: #7c3aed !important;
+}
+
+/* Override gradient backgrounds with hardcoded colors for light mode */
+[data-theme-mode="light"] .bg-gradient-to-r.from-\[\#00FFFF\] {
+  --tw-gradient-from: #0077b6 !important;
+  --tw-gradient-to: rgb(0 119 182 / 0) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+[data-theme-mode="light"] .bg-\[\#00FFFF\],
+[data-theme-mode="light"] .bg-\[\#00ffff\] {
+  background-color: #0077b6 !important;
+}
+
+[data-theme-mode="light"] .bg-\[\#FFD700\],
+[data-theme-mode="light"] .bg-\[\#ffd700\] {
+  background-color: #b45309 !important;
+}
+
+/* Shadow/glow overrides for light mode - remove glows, use subtle shadows */
+[data-theme-mode="light"] .shadow-glow-sm,
+[data-theme-mode="light"] .shadow-glow,
+[data-theme-mode="light"] .shadow-glow-lg {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme-mode="light"] .shadow-glow-purple-sm,
+[data-theme-mode="light"] .shadow-glow-purple {
+  box-shadow:
+    0 1px 3px rgba(124, 58, 237, 0.15),
+    0 1px 2px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme-mode="light"] .shadow-glow-gold-sm,
+[data-theme-mode="light"] .shadow-glow-gold {
+  box-shadow:
+    0 1px 3px rgba(180, 83, 9, 0.15),
+    0 1px 2px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme-mode="light"] .shadow-glow-error {
+  box-shadow:
+    0 1px 3px rgba(220, 38, 38, 0.15),
+    0 1px 2px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* UI accent color classes for light mode */
+[data-theme-mode="light"] .text-ui-accent-primary {
+  color: #0066cc !important;
+}
+
+[data-theme-mode="light"] .text-ui-accent-secondary {
+  color: #7c3aed !important;
+}
+
+[data-theme-mode="light"] .border-ui-accent-primary {
+  border-color: #0066cc !important;
+}
+
+[data-theme-mode="light"] .bg-ui-accent-primary {
+  background-color: #0066cc !important;
+}
+
+/* Sector colors for light mode - darker variants */
+[data-theme-mode="light"] .text-sector-semantic,
+[data-theme-mode="light"] .text-\[var\(--sector-semantic\)\] {
+  color: #0077b6 !important;
+}
+
+[data-theme-mode="light"] .text-sector-episodic,
+[data-theme-mode="light"] .text-\[var\(--sector-episodic\)\] {
+  color: #b45309 !important;
+}
+
+[data-theme-mode="light"] .bg-sector-semantic {
+  background-color: #0077b6 !important;
+}
+
+[data-theme-mode="light"] .bg-sector-episodic {
+  background-color: #b45309 !important;
+}
+
+/* Empty state illustrations in light mode */
+[data-theme-mode="light"] .empty-state {
+  color: var(--theme-text-muted);
+}
+
+/* Loading spinners in light mode */
+[data-theme-mode="light"] .loading-spinner {
+  border-color: rgba(0, 0, 0, 0.1);
+  border-top-color: var(--theme-primary);
+}
+
+/* Accordion/collapsible headers in light mode */
+[data-theme-mode="light"] .accordion-header {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme-mode="light"] .accordion-header:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* Navigation items in light mode */
+[data-theme-mode="light"] .nav-item {
+  color: var(--theme-text-secondary);
+}
+
+[data-theme-mode="light"] .nav-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--theme-text-primary);
+}
+
+[data-theme-mode="light"] .nav-item.active {
+  background: var(--theme-primary-bg);
+  color: var(--theme-primary);
+}
+
+/* Sidebar styling in light mode */
+[data-theme-mode="light"] .sidebar {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: var(--light-shadow-lg);
+}
+
+/* Header/toolbar styling in light mode */
+[data-theme-mode="light"] .header,
+[data-theme-mode="light"] .toolbar {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: var(--light-shadow-sm);
+}
+
+/* Footer styling in light mode */
+[data-theme-mode="light"] .footer {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================================================
+   LIGHT THEME - MODAL AND PANEL OVERRIDES
+   Fix dark backgrounds in modals, panels, and inputs for light themes
+   ============================================================================ */
+
+/* Fix bg-ui-background and bg-ui-surface classes in light mode */
+[data-theme-mode="light"] .bg-ui-background,
+[data-theme-mode="light"] .bg-ui-background\/50,
+[data-theme-mode="light"] .bg-ui-background\/70,
+[data-theme-mode="light"] .bg-ui-background\/40,
+[data-theme-mode="light"] .bg-ui-background\/30 {
+  background-color: var(--theme-background) !important;
+}
+
+[data-theme-mode="light"] .bg-ui-surface,
+[data-theme-mode="light"] .bg-ui-surface\/50,
+[data-theme-mode="light"] .bg-ui-surface\/95,
+[data-theme-mode="light"] .bg-ui-surface-elevated,
+[data-theme-mode="light"] .bg-ui-surface-elevated\/50 {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+}
+
+[data-theme-mode="light"] .bg-ui-surface-sunken {
+  background-color: var(--theme-surface-sunken) !important;
+}
+
+/* Fix modal backdrop and content in light mode */
+[data-theme-mode="light"] [role="dialog"] > div:not(.bg-black) {
+  background: rgba(255, 255, 255, 0.98) !important;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Fix textarea and input backgrounds in light mode */
+[data-theme-mode="light"] textarea,
+[data-theme-mode="light"] input[type="text"],
+[data-theme-mode="light"] input[type="search"],
+[data-theme-mode="light"] input[type="email"],
+[data-theme-mode="light"] input[type="password"],
+[data-theme-mode="light"] input[type="number"] {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+[data-theme-mode="light"] textarea:focus,
+[data-theme-mode="light"] input:focus {
+  border-color: var(--theme-primary) !important;
+  box-shadow: 0 0 0 3px var(--theme-primary-bg) !important;
+}
+
+[data-theme-mode="light"] textarea::placeholder,
+[data-theme-mode="light"] input::placeholder {
+  color: var(--theme-text-muted) !important;
+}
+
+/* Fix select dropdowns in light mode */
+[data-theme-mode="light"] select,
+[data-theme-mode="light"] .appearance-none {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+/* Fix delete confirmation modal in light mode */
+[data-theme-mode="light"] .bg-ui-surface\/95 {
+  background: rgba(255, 255, 255, 0.98) !important;
+}
+
+/* Fix shadow-glow in light mode - use subtle shadows instead */
+[data-theme-mode="light"] .shadow-glow {
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme-mode="light"] .shadow-glow-sm {
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Fix backdrop-blur-glass panels in light mode */
+[data-theme-mode="light"] .backdrop-blur-glass,
+[data-theme-mode="light"] .backdrop-blur-glass-medium {
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Fix border colors in light mode */
+[data-theme-mode="light"] .border-ui-border,
+[data-theme-mode="light"] .border-ui-border\/30,
+[data-theme-mode="light"] .border-ui-border\/50 {
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+[data-theme-mode="light"] .border-ui-accent-primary\/30 {
+  border-color: var(--theme-primary-glow) !important;
+}
+
+/* Fix text colors that might be too light in light mode */
+[data-theme-mode="light"] .text-white,
+[data-theme-mode="light"] .text-white\/90,
+[data-theme-mode="light"] .text-white\/70,
+[data-theme-mode="light"] .text-white\/60,
+[data-theme-mode="light"] .text-white\/50 {
+  color: var(--theme-text-primary) !important;
+}
+
+/* Fix hover states in light mode */
+[data-theme-mode="light"] .hover\:bg-ui-border\/50:hover,
+[data-theme-mode="light"] .hover\:bg-ui-border\/30:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme-mode="light"] .hover\:bg-ui-surface-elevated\/50:hover {
+  background-color: rgba(255, 255, 255, 1) !important;
+}
+
+/* Fix memory card backgrounds in light mode */
+[data-theme-mode="light"] .border-ui-border\/30.bg-ui-surface\/50 {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Fix context indicator backgrounds */
+[data-theme-mode="light"] .bg-ui-background\/50.rounded-lg {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Fix option elements in select */
+[data-theme-mode="light"] option {
+  background: white !important;
+  color: var(--theme-text-primary) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - MEMORY MODAL AND EXPANDED PANEL FIXES
+   ============================================================================ */
+
+/* Fix MemoryModal shadow-glow with cyan colors */
+[data-theme-mode="light"] [role="dialog"] > div[class*="shadow-glow"] {
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Fix expanded node panel in 3D view */
+[data-theme-mode="light"] .expanded-node-panel {
+  background: rgba(255, 255, 255, 0.98) !important;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Fix inline bg-ui-background styles in light mode */
+[data-theme-mode="light"] [style*="background"][style*="rgba(8, 8, 12"],
+[data-theme-mode="light"] [style*="background"][style*="rgba(10, 10, 20"],
+[data-theme-mode="light"] [style*="background"][style*="rgba(15, 15, 25"],
+[data-theme-mode="light"] [style*="background"][style*="rgba(25, 25, 40"] {
+  background: rgba(255, 255, 255, 0.98) !important;
+}
+
+/* Fix WikiLinkInput textarea/input backgrounds */
+[data-theme-mode="light"] .bg-ui-background\/70,
+[data-theme-mode="light"] [class*="bg-ui-background"] {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Fix search input specifically */
+[data-theme-mode="light"] input[type="text"].bg-ui-background\/70,
+[data-theme-mode="light"] input[type="search"].bg-ui-background\/70 {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Fix select dropdown backgrounds */
+[data-theme-mode="light"] select.bg-ui-background\/70 {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Fix kbd elements in light mode */
+[data-theme-mode="light"] kbd {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: var(--theme-text-primary) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Fix context indicator in MemoryModal */
+[data-theme-mode="light"] .bg-ui-background\/50.rounded-lg.border {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Fix sector type buttons in light mode */
+[data-theme-mode="light"] button[class*="border-ui-border\/50"] {
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme-mode="light"] button[class*="border-ui-accent-primary\/50"] {
+  border-color: var(--theme-primary) !important;
+  background: var(--theme-primary-bg) !important;
+}
+
+/* Fix auto-suggested links background */
+[data-theme-mode="light"] button.bg-ui-background\/50 {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme-mode="light"] button.bg-ui-background\/50:hover {
+  background: rgba(255, 255, 255, 1) !important;
+  border-color: var(--theme-primary-glow) !important;
+}
+
+/* Fix error message background */
+[data-theme-mode="light"] .bg-status-error\/10 {
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* Fix footer keyboard shortcuts background */
+[data-theme-mode="light"] .bg-ui-background\/50.rounded {
+  background: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Fix cancel button in light mode */
+[data-theme-mode="light"] button.bg-ui-border\/30 {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: var(--theme-text-secondary) !important;
+}
+
+[data-theme-mode="light"] button.bg-ui-border\/30:hover {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Fix save/capture button in light mode */
+[data-theme-mode="light"] button.bg-ui-accent-primary\/20 {
+  background: var(--theme-primary) !important;
+  color: white !important;
+  border-color: var(--theme-primary) !important;
+}
+
+[data-theme-mode="light"] button.bg-ui-accent-primary\/20:hover:not(:disabled) {
+  background: var(--theme-primary-muted) !important;
+}
+
+/* Fix tags in light mode */
+[data-theme-mode="light"] span.bg-ui-accent-primary\/10 {
+  background: var(--theme-primary-bg) !important;
+  border-color: var(--theme-primary-glow) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - 3D SCENE AND NODE VISIBILITY FIXES
+   ============================================================================ */
+
+/* Ensure 3D canvas has proper background in light mode */
+[data-theme-mode="light"] canvas {
+  background: var(--theme-background) !important;
+}
+
+/* Fix node labels in 3D view for light mode - make text darker */
+[data-theme-mode="light"] .text-white {
+  color: var(--theme-text-primary) !important;
+}
+
+/* Fix minimap in light mode */
+[data-theme-mode="light"] .minimap-container,
+[data-theme-mode="light"] [class*="minimap"] {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  box-shadow: var(--light-shadow-lg) !important;
+}
+
+/* Fix zoom controls in light mode */
+[data-theme-mode="light"] button[class*="bg-ui-surface"] {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Fix node count indicator */
+[data-theme-mode="light"] .bg-ui-surface\/80 {
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - MEMORY DETAIL PANEL FIXES
+   ============================================================================ */
+
+/* Fix GlassPanel backgrounds in light mode */
+[data-theme-mode="light"] .glass-panel,
+[data-theme-mode="light"] [class*="GlassPanel"] {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: var(--light-shadow-lg) !important;
+}
+
+/* Fix action buttons in panels */
+[data-theme-mode="light"] .bg-ui-border\/30.rounded {
+  background: rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme-mode="light"] .bg-ui-border\/30.rounded:hover {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Fix metadata rows text */
+[data-theme-mode="light"] .text-ui-text-muted {
+  color: var(--theme-text-muted) !important;
+}
+
+[data-theme-mode="light"] .text-ui-text-secondary {
+  color: var(--theme-text-secondary) !important;
+}
+
+[data-theme-mode="light"] .text-ui-text-primary {
+  color: var(--theme-text-primary) !important;
+}
+
+/* Fix accent colors in light mode */
+[data-theme-mode="light"] .text-ui-accent-primary {
+  color: var(--theme-primary) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - SEARCH FILTER PANEL FIXES
+   ============================================================================ */
+
+/* Fix search panel backgrounds */
+[data-theme-mode="light"] .bg-ui-surface-elevated\/50 {
+  background: rgba(255, 255, 255, 0.98) !important;
+}
+
+/* Fix filter chips/tags */
+[data-theme-mode="light"] .bg-ui-surface\/50 {
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Fix range sliders */
+[data-theme-mode="light"] input[type="range"] {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme-mode="light"] input[type="range"]::-webkit-slider-thumb {
+  background: var(--theme-primary) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - COGNITIVE TOOLS PANEL FIXES
+   ============================================================================ */
+
+/* Fix tool buttons in cognitive panel */
+[data-theme-mode="light"] .hover\:bg-ui-surface-elevated:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Fix tool icons */
+[data-theme-mode="light"] .text-ui-accent-secondary {
+  color: var(--theme-secondary) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - NEIGHBOR PREVIEW PANEL FIXES
+   ============================================================================ */
+
+/* Fix neighbor cards */
+[data-theme-mode="light"] .border-ui-border\/30.rounded-lg {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  box-shadow: var(--light-shadow-sm) !important;
+}
+
+[data-theme-mode="light"] .border-ui-border\/30.rounded-lg:hover {
+  border-color: rgba(0, 0, 0, 0.2) !important;
+  box-shadow: var(--light-shadow-md) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - 3D MEMORY EXPLORER SPECIFIC FIXES
+   ============================================================================ */
+
+/* Ensure the 3D canvas container has proper background */
+[data-theme-mode="light"] [data-testid="memory-graph-scene"] {
+  background: var(--theme-background) !important;
+}
+
+/* Fix nebula and star field visibility in light mode - hide them */
+[data-theme-mode="light"] .nebula-bg,
+[data-theme-mode="light"] .star-field {
+  opacity: 0.1 !important;
+}
+
+/* Fix ambient particles in light mode - make them darker */
+[data-theme-mode="light"] .ambient-particles {
+  opacity: 0.3 !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - WIKI LINK AUTOCOMPLETE FIXES
+   ============================================================================ */
+
+/* Fix autocomplete dropdown in light mode */
+[data-theme-mode="light"] [class*="autocomplete"],
+[data-theme-mode="light"] [class*="Autocomplete"] {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  box-shadow: var(--light-shadow-lg) !important;
+}
+
+/* Fix autocomplete items */
+[data-theme-mode="light"] [class*="autocomplete"] button,
+[data-theme-mode="light"] [class*="Autocomplete"] button {
+  background: transparent !important;
+}
+
+[data-theme-mode="light"] [class*="autocomplete"] button:hover,
+[data-theme-mode="light"] [class*="Autocomplete"] button:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - MEMORY MANAGEMENT CHECKBOX FIXES
+   ============================================================================ */
+
+/* Fix checkboxes in memory management page */
+[data-theme-mode="light"] input[type="checkbox"] {
+  background-color: white !important;
+  border: 2px solid rgba(0, 0, 0, 0.25) !important;
+  accent-color: var(--theme-primary);
+}
+
+[data-theme-mode="light"] input[type="checkbox"]:checked {
+  background-color: var(--theme-primary) !important;
+  border-color: var(--theme-primary) !important;
+}
+
+[data-theme-mode="light"] input[type="checkbox"]:hover {
+  border-color: var(--theme-primary) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - MINIMAP FIXES
+   ============================================================================ */
+
+/* Override MiniMap inline styles in light mode */
+[data-theme-mode="light"] .relative.rounded-xl.overflow-hidden[style*="background"] {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: var(--theme-primary) !important;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Fix MiniMap SVG background gradient */
+[data-theme-mode="light"] svg[aria-label="Memory graph mini-map"] rect[fill*="gradient"] {
+  fill: rgba(245, 245, 250, 0.9) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - NEIGHBOR PREVIEW PANEL (CONNECTION POPUP) FIXES
+   ============================================================================ */
+
+/* Fix the GlassPanel used in NeighborPreviewPanel */
+[data-theme-mode="light"] .rounded-xl[style*="backdrop-filter"][style*="border"] {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Fix pointer-events-none panels (NeighborPreviewPanel) */
+[data-theme-mode="light"] .pointer-events-none.rounded-xl {
+  background: rgba(255, 255, 255, 0.98) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - 3D MEMORY GRAPH NODE VISIBILITY FIXES
+   ============================================================================ */
+
+/* These are handled in the component props - see NeuronNode3D and MemoryNode3D lightMode prop */
+
+/* ============================================================================
+   LIGHT THEME - ADDITIONAL COMPONENT FIXES
+   ============================================================================ */
+
+/* Fix any remaining rgba backgrounds with dark colors */
+[data-theme-mode="light"] [class*="bg-"][class*="rgba(0"],
+[data-theme-mode="light"] [class*="bg-"][class*="rgba(8"],
+[data-theme-mode="light"] [class*="bg-"][class*="rgba(10"],
+[data-theme-mode="light"] [class*="bg-"][class*="rgba(15"],
+[data-theme-mode="light"] [class*="bg-"][class*="rgba(20"],
+[data-theme-mode="light"] [class*="bg-"][class*="rgba(25"] {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Fix any inline style backgrounds */
+[data-theme-mode="light"] [style*="background: rgba(8"],
+[data-theme-mode="light"] [style*="background: rgba(10"],
+[data-theme-mode="light"] [style*="background: rgba(15"],
+[data-theme-mode="light"] [style*="background: rgba(20"],
+[data-theme-mode="light"] [style*="background: rgba(25"],
+[data-theme-mode="light"] [style*="background-color: rgba(8"],
+[data-theme-mode="light"] [style*="background-color: rgba(10"],
+[data-theme-mode="light"] [style*="background-color: rgba(15"],
+[data-theme-mode="light"] [style*="background-color: rgba(20"],
+[data-theme-mode="light"] [style*="background-color: rgba(25"] {
+  background: rgba(255, 255, 255, 0.98) !important;
+  background-color: rgba(255, 255, 255, 0.98) !important;
+}
+
+/* Fix delete modal and confirmation dialogs */
+[data-theme-mode="light"] .bg-ui-surface\/95.backdrop-blur-glass {
+  background: rgba(255, 255, 255, 0.98) !important;
+}
+
+/* Fix memory creation form */
+[data-theme-mode="light"] .memory-creation-form,
+[data-theme-mode="light"] [class*="MemoryCreation"] {
+  background: rgba(255, 255, 255, 0.98) !important;
+}
+
+/* Fix tooltip backgrounds */
+[data-theme-mode="light"] [role="tooltip"],
+[data-theme-mode="light"] .tooltip {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  box-shadow: var(--light-shadow-lg) !important;
+  color: var(--theme-text-primary) !important;
+}
+
+/* Fix popover backgrounds */
+[data-theme-mode="light"] [role="menu"],
+[data-theme-mode="light"] .popover {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  box-shadow: var(--light-shadow-lg) !important;
+}
+
+/* Fix dropdown menu items */
+[data-theme-mode="light"] [role="menuitem"] {
+  color: var(--theme-text-primary) !important;
+}
+
+[data-theme-mode="light"] [role="menuitem"]:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Fix any remaining dark text on light backgrounds */
+[data-theme-mode="light"] .text-white\/90,
+[data-theme-mode="light"] .text-white\/80,
+[data-theme-mode="light"] .text-white\/70,
+[data-theme-mode="light"] .text-white\/60 {
+  color: var(--theme-text-primary) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - WIKI LINK AUTOCOMPLETE POPUP FIXES
+   ============================================================================ */
+
+/* WikiLinkAutocomplete popup styling */
+[data-theme-mode="light"] .wiki-link-autocomplete {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* WikiLinkAutocomplete item hover highlight */
+[data-theme-mode="light"] .wiki-link-autocomplete button[style*="background"] {
+  background: var(--theme-primary-bg) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - MINIMAP CONTAINER FIXES
+   ============================================================================ */
+
+/* MiniMap container with class */
+[data-theme-mode="light"] .minimap-container {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* MiniMap SVG background */
+[data-theme-mode="light"] .minimap-container svg rect {
+  fill: rgba(250, 250, 255, 0.5) !important;
+}
+
+/* MiniMap zoom controls */
+[data-theme-mode="light"] .minimap-container button {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+/* MiniMap node count indicator */
+[data-theme-mode="light"] .minimap-container .text-ui-text-tertiary {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - NEIGHBOR PREVIEW PANEL FIXES
+   ============================================================================ */
+
+/* NeighborPreviewPanel with class */
+[data-theme-mode="light"] .neighbor-preview-panel {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - MEMORY CHECKBOX FIXES
+   ============================================================================ */
+
+/* Custom checkbox styling for memory management */
+.memory-checkbox {
+  position: relative;
+  transition: all 150ms ease;
+}
+
+.memory-checkbox:checked::after {
+  content: "✓";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+[data-theme-mode="light"] .memory-checkbox {
+  background-color: white !important;
+  border-color: rgba(0, 0, 0, 0.25) !important;
+}
+
+[data-theme-mode="light"] .memory-checkbox:checked {
+  background-color: var(--theme-primary) !important;
+  border-color: var(--theme-primary) !important;
+}
+
+[data-theme-mode="light"] .memory-checkbox:hover {
+  border-color: var(--theme-primary) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - NEIGHBOR PREVIEW PANEL FIXES
+   ============================================================================ */
+
+[data-theme-mode="light"] .neighbor-preview-panel {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme-mode="light"] .neighbor-preview-panel .text-ui-text-primary {
+  color: var(--theme-text-primary) !important;
+}
+
+[data-theme-mode="light"] .neighbor-preview-panel .text-ui-text-secondary {
+  color: var(--theme-text-secondary) !important;
+}
+
+[data-theme-mode="light"] .neighbor-preview-panel .text-ui-text-muted {
+  color: var(--theme-text-muted) !important;
+}
+
+[data-theme-mode="light"] .neighbor-preview-panel .border-ui-border {
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ============================================================================
+   LIGHT THEME - WIKI LINK AUTOCOMPLETE PANEL FIXES
+   ============================================================================ */
+
+[data-theme-mode="light"] .wiki-link-autocomplete {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme-mode="light"] .wiki-link-autocomplete button {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme-mode="light"] .wiki-link-autocomplete button:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED BASE - Comprehensive Thematic Customization Engine
+   Single source of truth for all BlockNote styling across editor, viewer, preview
+
+   Features:
+   - Disabled unsupported block types (toggles)
+   - Fixed quote rendering (single left border)
+   - Themed heading hierarchy with color tints
+   - Themed checkboxes with strikethrough for checked items
+   - Themed numbered list numbers and bullet markers
+   - Consistent styles across all wrapper contexts
+   ============================================================================ */
+
+/* Remove BlockNote's default background to match our UI */
+.blocknote-themed .bn-editor,
+.blocknote-themed .bn-container,
+.blocknote-themed [data-node-type="blockContainer"],
+.blocknote-themed .bn-block-content,
+.blocknote-themed .bn-inline-content {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Base container styles */
+.blocknote-themed {
+  background: transparent;
+}
+
+/* Override BlockNote's dark theme background */
+.blocknote-themed [data-bn-theme="dark"] {
+  --bn-colors-editor-background: transparent !important;
+  --bn-colors-menu-background: var(--theme-surface-elevated) !important;
+}
+
+/* Override BlockNote's light theme */
+.blocknote-themed [data-bn-theme="light"] {
+  --bn-colors-editor-background: transparent !important;
+  --bn-colors-menu-background: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Ensure text colors match our theme */
+.blocknote-themed .bn-editor {
+  color: var(--theme-text-primary, rgba(255, 255, 255, 0.87));
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+/* Hide side menu by default (editor will override) */
+.blocknote-themed .bn-side-menu {
+  display: none !important;
+}
+
+/* ============================================================================
+   DISABLED BLOCK TYPES - Hide unsupported blocks in slash menu
+   Toggle lists are not supported by markdown translation layer
+   ============================================================================ */
+
+/* Hide Toggle List and Toggle Heading items from slash menu using :has() selector */
+.blocknote-themed
+  .bn-suggestion-menu-item:has(.bn-mt-suggestion-menu-item-title:is([class*="Toggle"])),
+.blocknote-editor-wrapper .bn-suggestion-menu-item:has(.bn-mt-suggestion-menu-item-title) {
+  /* Can't hide by text content with CSS alone */
+}
+
+/* Hide toggle blocks if they somehow get rendered - render as bullet list */
+.blocknote-themed [data-content-type="toggleListItem"] {
+  list-style-type: disc !important;
+}
+
+/* Hide the toggle arrow/chevron */
+.blocknote-themed [data-content-type="toggleListItem"] .bn-toggle-button,
+.blocknote-themed [data-content-type="toggleListItem"] [data-toggle-button],
+.blocknote-themed .bn-toggle-list-item-toggle {
+  display: none !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED - Code Blocks (inner glass tint)
+   ============================================================================ */
+.blocknote-themed [data-content-type="codeBlock"] {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 255, 255, 0.05) 0%,
+    rgba(0, 255, 255, 0.02) 100%
+  ) !important;
+  border: 1px solid var(--theme-primary-subtle) !important;
+  border-radius: 0.5rem !important;
+  overflow: hidden !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* Light mode code blocks - blue glass tint */
+[data-theme-mode="light"] .blocknote-themed [data-content-type="codeBlock"] {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 102, 204, 0.05) 0%,
+    rgba(0, 102, 204, 0.02) 100%
+  ) !important;
+}
+
+.blocknote-themed [data-content-type="codeBlock"] pre {
+  background: transparent !important;
+  border: none !important;
+  margin: 0 !important;
+  font-family: "JetBrains Mono", Menlo, Monaco, monospace !important;
+  overflow-x: auto !important;
+}
+
+.blocknote-themed [data-content-type="codeBlock"] code {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  font-family: "JetBrains Mono", Monaco, monospace !important;
+  color: var(--theme-text-primary) !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED - Inline Code (subtle glass tint like code blocks)
+   ============================================================================ */
+.blocknote-themed .bn-inline-content code {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 255, 255, 0.06) 0%,
+    rgba(0, 255, 255, 0.03) 100%
+  ) !important;
+  border: 1px solid rgba(0, 255, 255, 0.15) !important;
+  color: var(--theme-text-primary) !important;
+  border-radius: 0.25rem !important;
+  font-family: "JetBrains Mono", Menlo, Monaco, monospace !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* Light mode inline code - subtle blue glass tint */
+[data-theme-mode="light"] .blocknote-themed .bn-inline-content code {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 102, 204, 0.06) 0%,
+    rgba(0, 102, 204, 0.03) 100%
+  ) !important;
+  border: 1px solid rgba(0, 102, 204, 0.15) !important;
+  color: #1a1a2e !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED - Headings with Multi-Dimensional Differentiation
+
+   Design Philosophy:
+   - Sizes are kept close together for UI consistency (14-18px range)
+   - Differentiation through: color intensity, weight, shadow, letter-spacing, borders
+   - H1: Bold statement with glow and underline accent
+   - H2: Strong presence with subtle glow, slightly lighter
+   - H3: Medium weight, border-left accent instead of glow
+   - H4: Lighter, more subtle, no special effects
+   - H5: Small caps style for distinction
+   - H6: Minimal, muted, italic appearance
+
+   Note: BlockNote uses actual HTML heading tags (h1-h6) with .bn-inline-content class
+   ============================================================================ */
+
+/* H1 - Primary heading: Full cyan, bold, glow, underline accent */
+.blocknote-themed h1.bn-inline-content,
+.blocknote-themed [data-content-type="heading"] h1 {
+  color: var(--theme-primary) !important;
+  font-weight: 700 !important;
+  font-size: 1.125rem !important;
+  letter-spacing: -0.02em !important;
+  text-shadow:
+    0 0 12px rgba(0, 255, 255, 0.5),
+    0 0 24px rgba(0, 255, 255, 0.25) !important;
+  border-bottom: 2px solid rgba(0, 255, 255, 0.4) !important;
+  padding-bottom: 0.25em !important;
+  margin-bottom: 0.5em !important;
+  margin-top: 0 !important;
+}
+
+/* H2 - Secondary heading: Strong cyan, semibold, subtle glow */
+.blocknote-themed h2.bn-inline-content,
+.blocknote-themed [data-content-type="heading"] h2 {
+  color: var(--theme-primary) !important;
+  font-weight: 600 !important;
+  font-size: 1.0625rem !important;
+  letter-spacing: -0.01em !important;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.3) !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.375em !important;
+}
+
+/* H3 - Tertiary heading: Cyan with left border accent, no glow */
+.blocknote-themed h3.bn-inline-content,
+.blocknote-themed [data-content-type="heading"] h3 {
+  color: color-mix(in srgb, var(--theme-primary) 85%, var(--theme-text-primary)) !important;
+  font-weight: 600 !important;
+  font-size: 1rem !important;
+  letter-spacing: 0 !important;
+  border-left: 3px solid var(--theme-primary) !important;
+  padding-left: 0.5em !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.375em !important;
+}
+
+/* H4 - Quaternary heading: Lighter cyan tint, medium weight */
+.blocknote-themed h4.bn-inline-content,
+.blocknote-themed [data-content-type="heading"] h4 {
+  color: color-mix(in srgb, var(--theme-primary) 60%, var(--theme-text-primary)) !important;
+  font-weight: 500 !important;
+  font-size: 0.9375rem !important;
+  letter-spacing: 0.01em !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.25em !important;
+}
+
+/* H5 - Quinary heading: Small caps style, subtle cyan */
+.blocknote-themed h5.bn-inline-content,
+.blocknote-themed [data-content-type="heading"] h5 {
+  color: color-mix(in srgb, var(--theme-primary) 45%, var(--theme-text-secondary)) !important;
+  font-weight: 600 !important;
+  font-size: 0.8125rem !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.25em !important;
+}
+
+/* H6 - Senary heading: Muted, italic style */
+.blocknote-themed h6.bn-inline-content,
+.blocknote-themed [data-content-type="heading"] h6 {
+  color: var(--theme-text-muted) !important;
+  font-weight: 500 !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.02em !important;
+  font-style: italic !important;
+  opacity: 0.85 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.25em !important;
+}
+
+/* Light mode heading colors */
+[data-theme-mode="light"] .blocknote-themed h1.bn-inline-content,
+[data-theme-mode="light"] .blocknote-themed [data-content-type="heading"] h1 {
+  color: #007799 !important;
+  text-shadow: none !important;
+  border-bottom-color: rgba(0, 119, 153, 0.4) !important;
+}
+
+[data-theme-mode="light"] .blocknote-themed h2.bn-inline-content,
+[data-theme-mode="light"] .blocknote-themed [data-content-type="heading"] h2 {
+  color: #008899 !important;
+  text-shadow: none !important;
+}
+
+[data-theme-mode="light"] .blocknote-themed h3.bn-inline-content,
+[data-theme-mode="light"] .blocknote-themed [data-content-type="heading"] h3 {
+  color: #1a5a6a !important;
+  border-left-color: #007799 !important;
+}
+
+[data-theme-mode="light"] .blocknote-themed h4.bn-inline-content,
+[data-theme-mode="light"] .blocknote-themed [data-content-type="heading"] h4 {
+  color: #2a5a6a !important;
+}
+
+[data-theme-mode="light"] .blocknote-themed h5.bn-inline-content,
+[data-theme-mode="light"] .blocknote-themed [data-content-type="heading"] h5 {
+  color: #3a6a7a !important;
+}
+
+[data-theme-mode="light"] .blocknote-themed h6.bn-inline-content,
+[data-theme-mode="light"] .blocknote-themed [data-content-type="heading"] h6 {
+  color: #5a7a8a !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED - Paragraphs
+   ============================================================================ */
+.blocknote-themed [data-content-type="paragraph"] {
+  color: var(--theme-text-primary) !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED - Bullet Lists with Themed Markers
+   ============================================================================ */
+.blocknote-themed [data-content-type="bulletListItem"] {
+  color: var(--theme-text-primary) !important;
+  position: relative !important;
+}
+
+/* Style the bullet marker with theme color - multiple selectors for coverage */
+.blocknote-themed [data-content-type="bulletListItem"]::marker {
+  color: var(--theme-primary) !important;
+}
+
+.blocknote-themed [data-content-type="bulletListItem"] .bn-list-item-marker,
+.blocknote-themed [data-content-type="bulletListItem"] [data-list-marker] {
+  color: var(--theme-primary) !important;
+}
+
+/* Target the bullet point element in BlockNote's structure */
+.blocknote-themed .bn-block-content[data-content-type="bulletListItem"]::before,
+.blocknote-themed [data-content-type="bulletListItem"] > .bn-block-content::before {
+  color: var(--theme-primary) !important;
+}
+
+/* Mantine/BlockNote specific bullet styling */
+.blocknote-themed [data-content-type="bulletListItem"] .mantine-List-itemWrapper::before,
+.blocknote-themed .bn-bullet-list-item-bullet {
+  background-color: var(--theme-primary) !important;
+  color: var(--theme-primary) !important;
+}
+
+/* Light mode bullet list */
+[data-theme-mode="light"] .blocknote-themed [data-content-type="bulletListItem"]::marker,
+[data-theme-mode="light"]
+  .blocknote-themed
+  [data-content-type="bulletListItem"]
+  .bn-list-item-marker,
+[data-theme-mode="light"] .blocknote-themed .bn-bullet-list-item-bullet {
+  color: #007799 !important;
+  background-color: #007799 !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED - Numbered Lists with Themed Numbers
+   ============================================================================ */
+.blocknote-themed [data-content-type="numberedListItem"] {
+  color: var(--theme-text-primary) !important;
+  position: relative !important;
+}
+
+/* Style the number via ::before pseudo-element - BlockNote uses this for numbers */
+.blocknote-themed [data-content-type="numberedListItem"]::before,
+.blocknote-themed .bn-block-content[data-content-type="numberedListItem"]::before,
+.blocknote-viewer-wrapper [data-content-type="numberedListItem"]::before,
+.blocknote-editor-wrapper [data-content-type="numberedListItem"]::before {
+  color: var(--theme-primary) !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* Style the number marker with theme color - multiple selectors for coverage */
+.blocknote-themed [data-content-type="numberedListItem"]::marker {
+  color: var(--theme-primary) !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* Target the number element directly in BlockNote's structure */
+.blocknote-themed [data-content-type="numberedListItem"] .bn-numbered-list-item-number,
+.blocknote-themed [data-content-type="numberedListItem"] [data-list-item-index],
+.blocknote-themed [data-content-type="numberedListItem"] .bn-list-item-number {
+  color: var(--theme-primary) !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums !important;
+  min-width: 1.5em !important;
+}
+
+/* Mantine/BlockNote specific number styling */
+.blocknote-themed .bn-numbered-list-item-index {
+  color: var(--theme-primary) !important;
+  font-weight: 600 !important;
+}
+
+/* Light mode numbered list */
+[data-theme-mode="light"] .blocknote-themed [data-content-type="numberedListItem"]::before,
+[data-theme-mode="light"] .blocknote-viewer-wrapper [data-content-type="numberedListItem"]::before,
+[data-theme-mode="light"] .blocknote-editor-wrapper [data-content-type="numberedListItem"]::before,
+[data-theme-mode="light"] .blocknote-themed [data-content-type="numberedListItem"]::marker,
+[data-theme-mode="light"]
+  .blocknote-themed
+  [data-content-type="numberedListItem"]
+  .bn-numbered-list-item-number,
+[data-theme-mode="light"] .blocknote-themed .bn-numbered-list-item-index {
+  color: #007799 !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED - Checkboxes with Custom Styling
+   ============================================================================ */
+.blocknote-themed [data-content-type="checkListItem"] {
+  color: var(--theme-text-primary) !important;
+  position: relative !important;
+}
+
+/* Style the checkbox container */
+.blocknote-themed [data-content-type="checkListItem"] .bn-check-list-item-checkbox,
+.blocknote-themed [data-content-type="checkListItem"] input[type="checkbox"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 1.125rem !important;
+  height: 1.125rem !important;
+  border: 2px solid var(--theme-primary) !important;
+  border-radius: 0.25rem !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  position: relative !important;
+  transition: all 150ms ease !important;
+  flex-shrink: 0 !important;
+}
+
+/* Checkbox hover state */
+.blocknote-themed [data-content-type="checkListItem"] .bn-check-list-item-checkbox:hover,
+.blocknote-themed [data-content-type="checkListItem"] input[type="checkbox"]:hover {
+  background: var(--theme-primary-bg) !important;
+  border-color: var(--theme-primary) !important;
+  box-shadow: 0 0 8px var(--theme-primary-glow) !important;
+}
+
+/* Checked checkbox styling */
+.blocknote-themed [data-content-type="checkListItem"] .bn-check-list-item-checkbox:checked,
+.blocknote-themed [data-content-type="checkListItem"] input[type="checkbox"]:checked,
+.blocknote-themed
+  [data-content-type="checkListItem"][data-checked="true"]
+  .bn-check-list-item-checkbox,
+.blocknote-themed [data-content-type="checkListItem"][data-checked="true"] input[type="checkbox"] {
+  background: var(--theme-primary) !important;
+  border-color: var(--theme-primary) !important;
+}
+
+/* Checkmark icon for checked state */
+.blocknote-themed [data-content-type="checkListItem"] .bn-check-list-item-checkbox:checked::after,
+.blocknote-themed [data-content-type="checkListItem"] input[type="checkbox"]:checked::after,
+.blocknote-themed
+  [data-content-type="checkListItem"][data-checked="true"]
+  .bn-check-list-item-checkbox::after {
+  content: "" !important;
+  position: absolute !important;
+  left: 4px !important;
+  top: 1px !important;
+  width: 5px !important;
+  height: 9px !important;
+  border: solid var(--theme-background) !important;
+  border-width: 0 2px 2px 0 !important;
+  transform: rotate(45deg) !important;
+}
+
+/* Strikethrough for checked items */
+.blocknote-themed [data-content-type="checkListItem"][data-checked="true"] .bn-inline-content,
+.blocknote-themed [data-content-type="checkListItem"]:has(input:checked) .bn-inline-content,
+.blocknote-themed
+  [data-content-type="checkListItem"]:has(.bn-check-list-item-checkbox:checked)
+  .bn-inline-content {
+  text-decoration: line-through !important;
+  text-decoration-color: var(--theme-text-muted) !important;
+  color: var(--theme-text-muted) !important;
+  opacity: 0.7 !important;
+}
+
+/* Light mode checkbox */
+[data-theme-mode="light"]
+  .blocknote-themed
+  [data-content-type="checkListItem"]
+  .bn-check-list-item-checkbox,
+[data-theme-mode="light"]
+  .blocknote-themed
+  [data-content-type="checkListItem"]
+  input[type="checkbox"] {
+  border-color: #0088aa !important;
+}
+
+[data-theme-mode="light"]
+  .blocknote-themed
+  [data-content-type="checkListItem"]
+  .bn-check-list-item-checkbox:checked,
+[data-theme-mode="light"]
+  .blocknote-themed
+  [data-content-type="checkListItem"]
+  input[type="checkbox"]:checked {
+  background: #0088aa !important;
+  border-color: #0088aa !important;
+}
+
+[data-theme-mode="light"]
+  .blocknote-themed
+  [data-content-type="checkListItem"]
+  .bn-check-list-item-checkbox:checked::after {
+  border-color: #ffffff !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED - Blockquotes (Fixed: Single left border, no double bars)
+   ============================================================================ */
+.blocknote-themed [data-content-type="quote"] {
+  border-left: 4px solid var(--theme-primary) !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  padding-left: 1rem !important;
+  margin-left: 0 !important;
+  color: var(--theme-text-secondary) !important;
+  font-style: italic !important;
+  background: linear-gradient(90deg, rgba(0, 255, 255, 0.05) 0%, transparent 100%) !important;
+}
+
+/* Remove any pseudo-elements that might create double bars */
+.blocknote-themed [data-content-type="quote"]::before,
+.blocknote-themed [data-content-type="quote"]::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Ensure nested quote elements don't add extra borders */
+.blocknote-themed [data-content-type="quote"] .bn-block-content,
+.blocknote-themed [data-content-type="quote"] .bn-inline-content {
+  border: none !important;
+}
+
+/* Light mode blockquote */
+[data-theme-mode="light"] .blocknote-themed [data-content-type="quote"] {
+  border-left-color: #0088aa !important;
+  background: linear-gradient(90deg, rgba(0, 136, 170, 0.05) 0%, transparent 100%) !important;
+  color: #4a4a5e !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED - Links
+   ============================================================================ */
+.blocknote-themed a {
+  color: var(--theme-primary) !important;
+  text-decoration: none !important;
+}
+
+.blocknote-themed a:hover {
+  text-decoration: underline !important;
+}
+
+[data-theme-mode="light"] .blocknote-themed a {
+  color: #0066cc !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED - Tables
+   ============================================================================ */
+.blocknote-themed table {
+  border: 1px solid var(--theme-border) !important;
+  overflow: hidden !important;
+}
+
+.blocknote-themed th {
+  background: rgba(0, 255, 255, 0.1) !important;
+  border-bottom: 1px solid var(--theme-border) !important;
+  color: var(--theme-text-primary) !important;
+  font-weight: 600 !important;
+}
+
+.blocknote-themed th:last-child {
+  border-right: none !important;
+}
+
+.blocknote-themed td {
+  color: var(--theme-text-primary) !important;
+  border-bottom: 1px solid var(--theme-border) !important;
+}
+
+.blocknote-themed td:last-child {
+  border-right: none !important;
+}
+
+.blocknote-themed tr:last-child td {
+  border-bottom: none !important;
+}
+
+.blocknote-themed tbody {
+  background: rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED - Horizontal Rule
+   ============================================================================ */
+.blocknote-themed hr {
+  border: none !important;
+  border-top: 1px solid var(--theme-border) !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED - Text Formatting
+   ============================================================================ */
+.blocknote-themed strong {
+  font-weight: 600 !important;
+  color: var(--theme-text-primary) !important;
+}
+
+.blocknote-themed em {
+  font-style: italic !important;
+  color: var(--theme-text-primary) !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED - Selection
+   ============================================================================ */
+.blocknote-themed ::selection {
+  background: rgba(0, 255, 255, 0.3) !important;
+  color: #ffffff !important;
+}
+
+[data-theme-mode="light"] .blocknote-themed ::selection {
+  background: rgba(0, 102, 204, 0.3) !important;
+  color: #000000 !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE THEMED - Remove Selection Outlines
+   ============================================================================ */
+.blocknote-themed .ProseMirror-selectednode,
+.blocknote-themed [data-node-type],
+.blocknote-themed .bn-block-outer,
+.blocknote-themed .bn-block,
+.blocknote-themed .bn-react-node-view-renderer {
+  outline: none !important;
+  outline-width: 0 !important;
+  outline-style: none !important;
+  outline-color: transparent !important;
+}
+
+.blocknote-themed * {
+  outline-color: transparent !important;
+}
+
+.blocknote-themed [style*="outline"] {
+  outline: none !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE EDITOR & VIEWER - Full-size context overrides
+   Extends .blocknote-themed with full-size specific styles
+   ============================================================================ */
+.blocknote-editor-wrapper,
+.blocknote-viewer-wrapper {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Ensure the inner editor takes full height */
+.blocknote-editor-wrapper .bn-editor,
+.blocknote-viewer-wrapper .bn-editor {
+  min-height: 100%;
+}
+
+/* Full-size headings with multi-dimensional differentiation
+   Note: BlockNote uses actual HTML heading tags (h1-h6) with .bn-inline-content class */
+
+/* H1 - Full-size: Bold statement with glow and underline accent */
+.blocknote-editor-wrapper h1.bn-inline-content,
+.blocknote-viewer-wrapper h1.bn-inline-content,
+.blocknote-editor-wrapper [data-content-type="heading"] h1,
+.blocknote-viewer-wrapper [data-content-type="heading"] h1 {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--theme-primary) !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.75rem !important;
+  text-shadow:
+    0 0 12px rgba(0, 255, 255, 0.5),
+    0 0 24px rgba(0, 255, 255, 0.25) !important;
+  border-bottom: 2px solid rgba(0, 255, 255, 0.4) !important;
+  padding-bottom: 0.375rem !important;
+}
+
+/* H2 - Full-size: Strong cyan, semibold, subtle glow */
+.blocknote-editor-wrapper h2.bn-inline-content,
+.blocknote-viewer-wrapper h2.bn-inline-content,
+.blocknote-editor-wrapper [data-content-type="heading"] h2,
+.blocknote-viewer-wrapper [data-content-type="heading"] h2 {
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--theme-primary) !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.625rem !important;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.3) !important;
+}
+
+/* H3 - Full-size: Cyan with left border accent, no glow */
+.blocknote-editor-wrapper h3.bn-inline-content,
+.blocknote-viewer-wrapper h3.bn-inline-content,
+.blocknote-editor-wrapper [data-content-type="heading"] h3,
+.blocknote-viewer-wrapper [data-content-type="heading"] h3 {
+  font-size: 1.0625rem !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  letter-spacing: 0 !important;
+  color: color-mix(in srgb, var(--theme-primary) 85%, var(--theme-text-primary)) !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.5rem !important;
+  border-left: 3px solid var(--theme-primary) !important;
+  padding-left: 0.5em !important;
+}
+
+/* H4 - Full-size: Lighter cyan tint, medium weight */
+.blocknote-editor-wrapper h4.bn-inline-content,
+.blocknote-viewer-wrapper h4.bn-inline-content,
+.blocknote-editor-wrapper [data-content-type="heading"] h4,
+.blocknote-viewer-wrapper [data-content-type="heading"] h4 {
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+  letter-spacing: 0.01em !important;
+  color: color-mix(in srgb, var(--theme-primary) 60%, var(--theme-text-primary)) !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* H5 - Full-size: Small caps style, subtle cyan */
+.blocknote-editor-wrapper h5.bn-inline-content,
+.blocknote-viewer-wrapper h5.bn-inline-content,
+.blocknote-editor-wrapper [data-content-type="heading"] h5,
+.blocknote-viewer-wrapper [data-content-type="heading"] h5 {
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: color-mix(in srgb, var(--theme-primary) 45%, var(--theme-text-secondary)) !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.375rem !important;
+}
+
+/* H6 - Full-size: Muted, italic style */
+.blocknote-editor-wrapper h6.bn-inline-content,
+.blocknote-viewer-wrapper h6.bn-inline-content,
+.blocknote-editor-wrapper [data-content-type="heading"] h6,
+.blocknote-viewer-wrapper [data-content-type="heading"] h6 {
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+  letter-spacing: 0.02em !important;
+  font-style: italic !important;
+  color: var(--theme-text-muted) !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.375rem !important;
+  opacity: 0.85 !important;
+}
+
+/* Light mode full-size headings */
+[data-theme-mode="light"] .blocknote-editor-wrapper h1.bn-inline-content,
+[data-theme-mode="light"] .blocknote-viewer-wrapper h1.bn-inline-content,
+[data-theme-mode="light"] .blocknote-editor-wrapper [data-content-type="heading"] h1,
+[data-theme-mode="light"] .blocknote-viewer-wrapper [data-content-type="heading"] h1 {
+  color: #007799 !important;
+  text-shadow: none !important;
+  border-bottom-color: rgba(0, 119, 153, 0.4) !important;
+}
+
+[data-theme-mode="light"] .blocknote-editor-wrapper h2.bn-inline-content,
+[data-theme-mode="light"] .blocknote-viewer-wrapper h2.bn-inline-content,
+[data-theme-mode="light"] .blocknote-editor-wrapper [data-content-type="heading"] h2,
+[data-theme-mode="light"] .blocknote-viewer-wrapper [data-content-type="heading"] h2 {
+  color: #008899 !important;
+  text-shadow: none !important;
+}
+
+[data-theme-mode="light"] .blocknote-editor-wrapper h3.bn-inline-content,
+[data-theme-mode="light"] .blocknote-viewer-wrapper h3.bn-inline-content,
+[data-theme-mode="light"] .blocknote-editor-wrapper [data-content-type="heading"] h3,
+[data-theme-mode="light"] .blocknote-viewer-wrapper [data-content-type="heading"] h3 {
+  color: #1a5a6a !important;
+  border-left-color: #007799 !important;
+}
+
+[data-theme-mode="light"] .blocknote-editor-wrapper h4.bn-inline-content,
+[data-theme-mode="light"] .blocknote-viewer-wrapper h4.bn-inline-content,
+[data-theme-mode="light"] .blocknote-editor-wrapper [data-content-type="heading"] h4,
+[data-theme-mode="light"] .blocknote-viewer-wrapper [data-content-type="heading"] h4 {
+  color: #2a5a6a !important;
+}
+
+[data-theme-mode="light"] .blocknote-editor-wrapper h5.bn-inline-content,
+[data-theme-mode="light"] .blocknote-viewer-wrapper h5.bn-inline-content,
+[data-theme-mode="light"] .blocknote-editor-wrapper [data-content-type="heading"] h5,
+[data-theme-mode="light"] .blocknote-viewer-wrapper [data-content-type="heading"] h5 {
+  color: #3a6a7a !important;
+}
+
+[data-theme-mode="light"] .blocknote-editor-wrapper h6.bn-inline-content,
+[data-theme-mode="light"] .blocknote-viewer-wrapper h6.bn-inline-content,
+[data-theme-mode="light"] .blocknote-editor-wrapper [data-content-type="heading"] h6,
+[data-theme-mode="light"] .blocknote-viewer-wrapper [data-content-type="heading"] h6 {
+  color: #5a7a8a !important;
+}
+
+/* Full-size paragraph spacing */
+.blocknote-editor-wrapper [data-content-type="paragraph"],
+.blocknote-viewer-wrapper [data-content-type="paragraph"] {
+  margin-bottom: 0.75rem !important;
+}
+
+/* Full-size code block spacing */
+.blocknote-editor-wrapper [data-content-type="codeBlock"],
+.blocknote-viewer-wrapper [data-content-type="codeBlock"] {
+  margin: 1rem 0 !important;
+}
+
+.blocknote-editor-wrapper [data-content-type="codeBlock"] pre,
+.blocknote-viewer-wrapper [data-content-type="codeBlock"] pre {
+  padding: 2.5rem 1rem 1rem 1rem !important; /* Extra space at top for toolbar */
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+}
+
+/* Full-size inline code */
+.blocknote-editor-wrapper .bn-inline-content code,
+.blocknote-viewer-wrapper .bn-inline-content code {
+  padding: 0.125rem 0.375rem !important;
+  font-size: 0.9em !important;
+}
+
+/* Full-size list spacing */
+.blocknote-editor-wrapper [data-content-type="bulletListItem"],
+.blocknote-viewer-wrapper [data-content-type="bulletListItem"],
+.blocknote-editor-wrapper [data-content-type="numberedListItem"],
+.blocknote-viewer-wrapper [data-content-type="numberedListItem"] {
+  margin-bottom: 0.25rem !important;
+}
+
+/* Full-size blockquote - single left border, no double bars */
+.blocknote-editor-wrapper [data-content-type="quote"],
+.blocknote-viewer-wrapper [data-content-type="quote"] {
+  border-left: 4px solid var(--theme-primary) !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  padding-left: 1rem !important;
+  margin: 0.75rem 0 !important;
+  background: linear-gradient(90deg, rgba(0, 255, 255, 0.05) 0%, transparent 100%) !important;
+}
+
+/* Remove any pseudo-elements in full-size context */
+.blocknote-editor-wrapper [data-content-type="quote"]::before,
+.blocknote-editor-wrapper [data-content-type="quote"]::after,
+.blocknote-viewer-wrapper [data-content-type="quote"]::before,
+.blocknote-viewer-wrapper [data-content-type="quote"]::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Full-size table */
+.blocknote-editor-wrapper table,
+.blocknote-viewer-wrapper table {
+  border-radius: 0.5rem !important;
+  margin: 1rem 0 !important;
+}
+
+.blocknote-editor-wrapper th,
+.blocknote-viewer-wrapper th {
+  padding: 0.625rem 1rem !important;
+}
+
+.blocknote-editor-wrapper td,
+.blocknote-viewer-wrapper td {
+  padding: 0.625rem 1rem !important;
+}
+
+/* Full-size horizontal rule */
+.blocknote-editor-wrapper hr,
+.blocknote-viewer-wrapper hr {
+  margin: 1.5rem 0 !important;
+}
+
+/* ProseMirror padding for full-size */
+.blocknote-editor-wrapper .ProseMirror,
+.blocknote-viewer-wrapper .ProseMirror {
+  background: transparent !important;
+  padding-left: 1rem !important;
+  padding-right: 0.5rem !important;
+}
+
+.blocknote-editor-wrapper .ProseMirror:focus,
+.blocknote-viewer-wrapper .ProseMirror:focus {
+  outline: none !important;
+}
+
+/* Block content layout */
+.blocknote-editor-wrapper .bn-block-content,
+.blocknote-viewer-wrapper .bn-block-content {
+  display: flex !important;
+  width: 100% !important;
+}
+
+.blocknote-editor-wrapper .bn-inline-content,
+.blocknote-viewer-wrapper .bn-inline-content {
+  flex-grow: 1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE EDITOR - Editor-specific overrides
+   ============================================================================ */
+
+/* Show side menu in editor */
+.blocknote-editor-wrapper .bn-side-menu {
+  display: flex !important;
+  opacity: 0 !important;
+  transition: opacity 150ms ease !important;
+}
+
+.blocknote-editor-wrapper .bn-side-menu:hover {
+  opacity: 1 !important;
+}
+
+.blocknote-editor-wrapper .bn-side-menu button {
+  color: var(--theme-text-muted) !important;
+}
+
+.blocknote-editor-wrapper .bn-side-menu button:hover {
+  color: var(--theme-primary) !important;
+  background: var(--theme-primary-bg) !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE VIEWER - Viewer-specific overrides
+   ============================================================================ */
+
+/* Remove editing-specific UI in viewer */
+.blocknote-viewer-wrapper .bn-drag-handle,
+.blocknote-viewer-wrapper .bn-add-block-button,
+.blocknote-viewer-wrapper [data-drag-handle],
+.blocknote-viewer-wrapper [contenteditable="true"] {
+  cursor: default !important;
+}
+
+/* Ensure viewer content is not editable visually */
+.blocknote-viewer-wrapper .ProseMirror {
+  cursor: default !important;
+  user-select: text !important;
+}
+
+/* ============================================================================
+   CODE BLOCK TOOLBAR CONTAINER - Positioned inside code blocks
+   ============================================================================ */
+.code-block-toolbar-container {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.code-block-toolbar-container .code-block-toolbar {
+  pointer-events: auto;
+}
+
+/* ============================================================================
+   CODE BLOCK TOOLBAR - Language badge, copy button, and word wrap toggle
+   Positioned at top-right corner for better UX
+   ============================================================================ */
+.code-block-toolbar {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  z-index: 10;
+  padding: 0.25rem;
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.08) 0%, rgba(0, 255, 255, 0.04) 100%);
+  border: 1px solid var(--theme-primary-subtle);
+  border-radius: 0.5rem;
+  backdrop-filter: blur(8px);
+}
+
+/* Light mode toolbar */
+[data-theme-mode="light"] .code-block-toolbar {
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.08) 0%, rgba(0, 102, 204, 0.04) 100%);
+}
+
+.code-block-language {
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.1) 0%, rgba(0, 255, 255, 0.05) 100%);
+  color: var(--theme-accent-primary);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 0.625rem;
+  font-weight: 500;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--theme-primary-subtle);
+}
+
+.code-block-copy-btn,
+.code-block-wrap-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.08) 0%, rgba(0, 255, 255, 0.04) 100%);
+  border: 1px solid var(--theme-primary-subtle);
+  border-radius: 0.25rem;
+  color: var(--theme-text-secondary);
+  cursor: pointer;
+  transition: all 150ms ease;
+  backdrop-filter: blur(4px);
+}
+
+.code-block-copy-btn:hover,
+.code-block-wrap-btn:hover {
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.15) 0%, rgba(0, 255, 255, 0.08) 100%);
+  color: var(--theme-accent-primary);
+  border-color: var(--theme-accent-primary);
+}
+
+.code-block-copy-btn:active,
+.code-block-wrap-btn:active {
+  transform: scale(0.95);
+}
+
+.code-block-copy-btn.copied {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(34, 197, 94, 0.08) 100%);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.code-block-wrap-btn.active {
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.15) 0%, rgba(0, 255, 255, 0.08) 100%);
+  color: var(--theme-accent-primary);
+  border-color: var(--theme-accent-primary);
+}
+
+.code-block-copy-btn svg,
+.code-block-wrap-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Light mode code block toolbar */
+[data-theme-mode="light"] .code-block-language {
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.1) 0%, rgba(0, 102, 204, 0.05) 100%);
+  color: #0066cc;
+}
+
+[data-theme-mode="light"] .code-block-copy-btn,
+[data-theme-mode="light"] .code-block-wrap-btn {
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.08) 0%, rgba(0, 102, 204, 0.04) 100%);
+  color: #6b7280;
+}
+
+[data-theme-mode="light"] .code-block-copy-btn:hover,
+[data-theme-mode="light"] .code-block-wrap-btn:hover {
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.15) 0%, rgba(0, 102, 204, 0.08) 100%);
+  color: #0066cc;
+}
+
+[data-theme-mode="light"] .code-block-copy-btn.copied {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(34, 197, 94, 0.08) 100%);
+  color: #16a34a;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+[data-theme-mode="light"] .code-block-wrap-btn.active {
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.15) 0%, rgba(0, 102, 204, 0.08) 100%);
+  color: #0066cc;
+}
+
+/* ============================================================================
+   MERGED CODE BLOCK - Styling for inline code merged into blocks
+   ============================================================================ */
+.merged-code-block {
+  background: var(--theme-surface) !important;
+  border: 1px solid var(--theme-primary-subtle) !important;
+  border-radius: 0.5rem !important;
+  margin: 0.5rem 0 !important;
+  overflow: hidden !important;
+  box-shadow:
+    0 0 10px var(--theme-primary-glow),
+    inset 0 0 20px var(--theme-primary-bg) !important;
+}
+
+.merged-code-block pre {
+  background: transparent !important;
+  border: none !important;
+  padding: 2.5rem 1rem 1rem 1rem !important;
+  margin: 0 !important;
+  font-family: "JetBrains Mono", Menlo, Monaco, monospace !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  overflow-x: auto !important;
+  white-space: pre !important;
+}
+
+.merged-code-block code {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  font-family: "JetBrains Mono", Menlo, Monaco, monospace !important;
+  color: var(--theme-text-primary) !important;
+  white-space: pre !important;
+  display: block !important;
+}
+
+/* Override inline code styling inside merged blocks */
+.bn-inline-content .merged-code-block code {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  color: var(--theme-text-primary) !important;
+  display: block !important;
+}
+
+/* Hide the default paragraph styling when it contains a merged code block */
+.has-merged-code-block {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.has-merged-code-block .bn-inline-content {
+  display: block !important;
+}
+
+/* Ensure merged code block takes full width */
+.has-merged-code-block .bn-inline-content .merged-code-block {
+  width: 100% !important;
+}
+
+/* Light mode merged code block */
+[data-theme-mode="light"] .merged-code-block {
+  background: #f5f5f5 !important;
+  border-color: #e0e0e0 !important;
+}
+
+[data-theme-mode="light"] .merged-code-block code {
+  color: #333333 !important;
+}
+
+/* ============================================================================
+   CUSTOM CODE BLOCK - bn-code-block styling with app theme
+   ============================================================================ */
+.bn-code-block {
+  position: relative;
+  background: var(--theme-surface) !important;
+  border: 1px solid var(--theme-primary-subtle) !important;
+  border-radius: 0.75rem !important;
+  margin: 1rem 0.5rem !important;
+  overflow: visible !important;
+  width: calc(100% - 1rem) !important;
+  box-shadow:
+    0 0 15px var(--theme-primary-glow),
+    0 0 30px var(--theme-primary-bg),
+    inset 0 0 30px var(--theme-primary-bg) !important;
+}
+
+/* Ensure code block content clips properly while glow shows */
+.bn-code-block-pre,
+.bn-code-block-textarea {
+  overflow: auto !important;
+}
+
+/* Remove border and outline from BlockNote wrapper for code blocks */
+.bn-block-content:has(.bn-code-block),
+.node-codeBlock .bn-block-content,
+[data-content-type="codeBlock"],
+.node-codeBlock,
+.bn-block:has(.bn-code-block),
+.bn-block-outer:has(.bn-code-block) {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+/* Remove selection outline from code blocks - comprehensive override */
+/* BlockNote uses rgb(100, 160, 255) for selection outline - override it */
+.ProseMirror-selectednode:has(.bn-code-block),
+.ProseMirror-selectednode .bn-code-block,
+.bn-react-node-view-renderer:has(.bn-code-block),
+.node-codeBlock.ProseMirror-selectednode,
+.node-codeBlock .bn-block-content,
+.bn-block-outer.ProseMirror-selectednode,
+.bn-block.ProseMirror-selectednode,
+[data-node-type="codeBlock"].ProseMirror-selectednode,
+.ProseMirror .node-codeBlock,
+.ProseMirror [data-node-type="codeBlock"] {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Override BlockNote's default selection outline for all custom blocks */
+.blocknote-viewer-wrapper .ProseMirror-selectednode,
+.blocknote-editor-wrapper .ProseMirror-selectednode,
+.blocknote-viewer-wrapper [data-node-type="codeBlock"],
+.blocknote-editor-wrapper [data-node-type="codeBlock"],
+.blocknote-viewer-wrapper .bn-react-node-view-renderer,
+.blocknote-editor-wrapper .bn-react-node-view-renderer {
+  outline: none !important;
+}
+
+/* Specifically target the blue outline color BlockNote uses */
+.blocknote-viewer-wrapper *,
+.blocknote-editor-wrapper * {
+  outline-color: transparent !important;
+}
+
+/* Override any outline on the code block container itself */
+.bn-code-block,
+.bn-code-block * {
+  outline: none !important;
+  border-color: transparent !important;
+}
+
+/* Remove focus outline from code blocks */
+.bn-code-block:focus,
+.bn-code-block:focus-visible,
+.bn-code-block:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Make code block full width */
+.bn-block-content:has(.bn-code-block) {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.bn-code-block-pre {
+  background: transparent !important;
+  border: none !important;
+  padding: 2.75rem 1.25rem 1.25rem 1.25rem !important; /* Extra space at top for toolbar */
+  margin: 0 !important;
+  font-family: "JetBrains Mono", "Fira Code", Menlo, Monaco, monospace !important;
+  font-size: 0.8125rem !important;
+  line-height: 1.6 !important;
+  overflow-x: auto !important;
+  white-space: pre !important;
+  tab-size: 2 !important;
+}
+
+/* Code block textarea for editing */
+.bn-code-block-textarea {
+  background: transparent !important;
+  border: none !important;
+  padding: 2.75rem 1.25rem 1.25rem 1.25rem !important; /* Extra space at top for toolbar */
+  margin: 0 !important;
+  font-family: "JetBrains Mono", "Fira Code", Menlo, Monaco, monospace !important;
+  font-size: 0.8125rem !important;
+  line-height: 1.6 !important;
+  overflow-x: auto !important;
+  white-space: pre !important;
+  tab-size: 2 !important;
+  width: 100% !important;
+  min-height: 3rem !important;
+  resize: none !important;
+  color: var(--theme-text-primary) !important;
+  outline: none !important;
+  caret-color: var(--theme-accent-primary) !important;
+}
+
+.bn-code-block-textarea:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Word wrap mode for textarea */
+.bn-code-block-textarea.word-wrap {
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+  overflow-x: hidden !important;
+}
+
+/* Light mode textarea */
+[data-theme-mode="light"] .bn-code-block-textarea {
+  color: #1e293b !important;
+  caret-color: #0066cc !important;
+}
+
+/* Word wrap mode */
+.bn-code-block-pre.word-wrap {
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+  overflow-x: hidden !important;
+}
+
+.bn-code-block-pre.word-wrap code {
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+}
+
+.bn-code-block code {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  font-family: "JetBrains Mono", "Fira Code", Menlo, Monaco, monospace !important;
+  color: var(--theme-text-primary) !important;
+  white-space: pre !important;
+  display: block !important;
+}
+
+/* Light mode custom code block */
+[data-theme-mode="light"] .bn-code-block {
+  background: #f8fafc !important;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+[data-theme-mode="light"] .bn-code-block code {
+  color: #1e293b !important;
+}
+
+/* ============================================================================
+   SLASH MENU & TOOLBARS
+   ============================================================================ */
+.blocknote-editor-wrapper .bn-suggestion-menu,
+.blocknote-editor-wrapper .bn-toolbar,
+.blocknote-editor-wrapper .bn-formatting-toolbar {
+  background: var(--theme-surface-elevated) !important;
+  border: 1px solid var(--theme-border) !important;
+  border-radius: 0.5rem !important;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 20px var(--theme-primary-glow) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+/* Slash menu width and height fix - double width and ensure scrollable */
+.blocknote-editor-wrapper .bn-suggestion-menu {
+  min-width: 400px !important;
+  max-width: 450px !important;
+  max-height: 400px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* Ensure the menu container doesn't clip content */
+.blocknote-editor-wrapper .bn-suggestion-menu-wrapper,
+.blocknote-editor-wrapper [data-tippy-root] {
+  overflow: visible !important;
+}
+
+/* Mantine menu overrides for BlockNote slash menu */
+.blocknote-editor-wrapper .mantine-Menu-dropdown {
+  min-width: 400px !important;
+  max-width: 450px !important;
+  max-height: 400px !important;
+  overflow-y: auto !important;
+  background: var(--theme-surface-elevated) !important;
+  border: 1px solid var(--theme-border) !important;
+  border-radius: 0.5rem !important;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 20px var(--theme-primary-glow) !important;
+}
+
+.blocknote-editor-wrapper .bn-suggestion-menu-item {
+  color: var(--theme-text-primary) !important;
+  border-radius: 0.25rem !important;
+}
+
+.blocknote-editor-wrapper .bn-suggestion-menu-item:hover,
+.blocknote-editor-wrapper .bn-toolbar button:hover {
+  background: var(--theme-primary-bg) !important;
+  color: var(--theme-primary) !important;
+}
+
+.blocknote-editor-wrapper .bn-suggestion-menu-item[data-is-selected="true"] {
+  background: var(--theme-primary-subtle) !important;
+  color: var(--theme-primary) !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE PREVIEW - Compact preview for cards and lists
+   Extends .blocknote-themed with compact-specific overrides
+   ============================================================================ */
+.blocknote-preview-wrapper {
+  overflow: hidden;
+}
+
+/* Compact spacing for preview */
+.blocknote-preview-wrapper .bn-editor {
+  padding: 0 !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.blocknote-preview-wrapper .ProseMirror {
+  padding: 0 !important;
+  padding-left: 0 !important;
+}
+
+/* Compact paragraph spacing */
+.blocknote-preview-wrapper [data-content-type="paragraph"] {
+  margin: 0 0 0.25rem 0 !important;
+  padding: 0 !important;
+}
+
+/* Compact list spacing */
+.blocknote-preview-wrapper [data-content-type="bulletListItem"],
+.blocknote-preview-wrapper [data-content-type="numberedListItem"] {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Compact heading sizes - multi-dimensional differentiation
+   Note: BlockNote uses actual HTML heading tags (h1-h6) with .bn-inline-content class */
+
+/* H1 - Preview: Bold statement with glow and underline accent */
+.blocknote-preview-wrapper h1.bn-inline-content,
+.blocknote-preview-wrapper [data-content-type="heading"] h1 {
+  font-size: 0.9375rem !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--theme-primary) !important;
+  margin: 0 0 0.25rem 0 !important;
+  padding: 0 !important;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.4) !important;
+  border-bottom: 1px solid rgba(0, 255, 255, 0.25) !important;
+  padding-bottom: 0.2rem !important;
+}
+
+/* H2 - Preview: Strong cyan, semibold, subtle glow */
+.blocknote-preview-wrapper h2.bn-inline-content,
+.blocknote-preview-wrapper [data-content-type="heading"] h2 {
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--theme-primary) !important;
+  margin: 0 0 0.25rem 0 !important;
+  padding: 0 !important;
+  text-shadow: 0 0 6px rgba(0, 255, 255, 0.25) !important;
+}
+
+/* Remove the em-dash prefix that was causing issues */
+.blocknote-preview-wrapper h2.bn-inline-content::before,
+.blocknote-preview-wrapper [data-content-type="heading"] h2::before {
+  content: none !important;
+  display: none !important;
+}
+
+/* H3 - Preview: Cyan with left border accent, no glow */
+.blocknote-preview-wrapper h3.bn-inline-content,
+.blocknote-preview-wrapper [data-content-type="heading"] h3 {
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  letter-spacing: 0 !important;
+  color: color-mix(in srgb, var(--theme-primary) 85%, var(--theme-text-primary)) !important;
+  margin: 0 0 0.25rem 0 !important;
+  padding: 0 !important;
+  border-left: 2px solid var(--theme-primary) !important;
+  padding-left: 0.375em !important;
+}
+
+/* H4 - Preview: Lighter cyan tint, medium weight */
+.blocknote-preview-wrapper h4.bn-inline-content,
+.blocknote-preview-wrapper [data-content-type="heading"] h4 {
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  line-height: 1.3 !important;
+  letter-spacing: 0.01em !important;
+  color: color-mix(in srgb, var(--theme-primary) 60%, var(--theme-text-primary)) !important;
+  margin: 0 0 0.25rem 0 !important;
+  padding: 0 !important;
+}
+
+/* H5 - Preview: Small caps style, subtle cyan */
+.blocknote-preview-wrapper h5.bn-inline-content,
+.blocknote-preview-wrapper [data-content-type="heading"] h5 {
+  font-size: 0.6875rem !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: color-mix(in srgb, var(--theme-primary) 45%, var(--theme-text-secondary)) !important;
+  margin: 0 0 0.25rem 0 !important;
+  padding: 0 !important;
+}
+
+/* H6 - Preview: Muted, italic style */
+.blocknote-preview-wrapper h6.bn-inline-content,
+.blocknote-preview-wrapper [data-content-type="heading"] h6 {
+  font-size: 0.625rem !important;
+  font-weight: 500 !important;
+  line-height: 1.3 !important;
+  letter-spacing: 0.02em !important;
+  font-style: italic !important;
+  color: var(--theme-text-muted) !important;
+  margin: 0 0 0.25rem 0 !important;
+  padding: 0 !important;
+  opacity: 0.85 !important;
+}
+
+/* Light mode preview headings */
+[data-theme-mode="light"] .blocknote-preview-wrapper h1.bn-inline-content,
+[data-theme-mode="light"] .blocknote-preview-wrapper [data-content-type="heading"] h1 {
+  color: #007799 !important;
+  text-shadow: none !important;
+  border-bottom-color: rgba(0, 119, 153, 0.25) !important;
+}
+
+[data-theme-mode="light"] .blocknote-preview-wrapper h2.bn-inline-content,
+[data-theme-mode="light"] .blocknote-preview-wrapper [data-content-type="heading"] h2 {
+  color: #008899 !important;
+  text-shadow: none !important;
+}
+
+[data-theme-mode="light"] .blocknote-preview-wrapper h3.bn-inline-content,
+[data-theme-mode="light"] .blocknote-preview-wrapper [data-content-type="heading"] h3 {
+  color: #1a5a6a !important;
+  border-left-color: #007799 !important;
+}
+
+[data-theme-mode="light"] .blocknote-preview-wrapper h4.bn-inline-content,
+[data-theme-mode="light"] .blocknote-preview-wrapper [data-content-type="heading"] h4 {
+  color: #2a5a6a !important;
+}
+
+[data-theme-mode="light"] .blocknote-preview-wrapper h5.bn-inline-content,
+[data-theme-mode="light"] .blocknote-preview-wrapper [data-content-type="heading"] h5 {
+  color: #3a6a7a !important;
+}
+
+[data-theme-mode="light"] .blocknote-preview-wrapper h6.bn-inline-content,
+[data-theme-mode="light"] .blocknote-preview-wrapper [data-content-type="heading"] h6 {
+  color: #5a7a8a !important;
+}
+
+/* Compact code block spacing and size */
+.blocknote-preview-wrapper [data-content-type="codeBlock"] {
+  border-radius: 0.375rem !important;
+  margin: 0.25rem 0 !important;
+}
+
+.blocknote-preview-wrapper [data-content-type="codeBlock"] pre {
+  padding: 0.5rem !important;
+  font-size: 0.75rem !important;
+}
+
+/* Compact inline code */
+.blocknote-preview-wrapper .bn-inline-content code {
+  font-size: 0.85em !important;
+  padding: 0.1rem 0.25rem !important;
+}
+
+/* Compact blockquote - single left border, no double bars */
+.blocknote-preview-wrapper [data-content-type="quote"] {
+  border-left: 3px solid var(--theme-primary) !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  padding-left: 0.75rem !important;
+  margin: 0.25rem 0 !important;
+  background: linear-gradient(90deg, rgba(0, 255, 255, 0.03) 0%, transparent 100%) !important;
+}
+
+/* Remove any pseudo-elements in preview context */
+.blocknote-preview-wrapper [data-content-type="quote"]::before,
+.blocknote-preview-wrapper [data-content-type="quote"]::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Compact table */
+.blocknote-preview-wrapper table {
+  border-radius: 0.375rem !important;
+  font-size: 0.75rem !important;
+  margin: 0.25rem 0 !important;
+}
+
+.blocknote-preview-wrapper th,
+.blocknote-preview-wrapper td {
+  padding: 0.25rem 0.5rem !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE PREVIEW - Compact Checkbox Styling
+   ============================================================================ */
+.blocknote-preview-wrapper [data-content-type="checkListItem"] .bn-check-list-item-checkbox,
+.blocknote-preview-wrapper [data-content-type="checkListItem"] input[type="checkbox"] {
+  width: 0.875rem !important;
+  height: 0.875rem !important;
+  border-width: 1.5px !important;
+}
+
+.blocknote-preview-wrapper
+  [data-content-type="checkListItem"]
+  .bn-check-list-item-checkbox:checked::after {
+  left: 3px !important;
+  top: 0px !important;
+  width: 4px !important;
+  height: 7px !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE PREVIEW - Compact List Styling
+   ============================================================================ */
+.blocknote-preview-wrapper [data-content-type="numberedListItem"]::marker,
+.blocknote-preview-wrapper [data-content-type="numberedListItem"] .bn-numbered-list-item-number {
+  color: var(--theme-primary) !important;
+  font-weight: 600 !important;
+  font-size: 0.75rem !important;
+}
+
+.blocknote-preview-wrapper [data-content-type="bulletListItem"]::marker {
+  color: var(--theme-primary) !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE FULL-SIZE - Checkbox Styling
+   ============================================================================ */
+.blocknote-editor-wrapper [data-content-type="checkListItem"],
+.blocknote-viewer-wrapper [data-content-type="checkListItem"] {
+  margin-bottom: 0.375rem !important;
+}
+
+.blocknote-editor-wrapper [data-content-type="checkListItem"] .bn-check-list-item-checkbox,
+.blocknote-editor-wrapper [data-content-type="checkListItem"] input[type="checkbox"],
+.blocknote-viewer-wrapper [data-content-type="checkListItem"] .bn-check-list-item-checkbox,
+.blocknote-viewer-wrapper [data-content-type="checkListItem"] input[type="checkbox"] {
+  margin-right: 0.5rem !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE FULL-SIZE - List Styling
+   ============================================================================ */
+.blocknote-editor-wrapper [data-content-type="numberedListItem"],
+.blocknote-viewer-wrapper [data-content-type="numberedListItem"] {
+  margin-bottom: 0.375rem !important;
+}
+
+.blocknote-editor-wrapper [data-content-type="numberedListItem"]::marker,
+.blocknote-editor-wrapper [data-content-type="numberedListItem"] .bn-numbered-list-item-number,
+.blocknote-viewer-wrapper [data-content-type="numberedListItem"]::marker,
+.blocknote-viewer-wrapper [data-content-type="numberedListItem"] .bn-numbered-list-item-number {
+  color: var(--theme-primary) !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.blocknote-editor-wrapper [data-content-type="bulletListItem"],
+.blocknote-viewer-wrapper [data-content-type="bulletListItem"] {
+  margin-bottom: 0.375rem !important;
+}
+
+.blocknote-editor-wrapper [data-content-type="bulletListItem"]::marker,
+.blocknote-viewer-wrapper [data-content-type="bulletListItem"]::marker {
+  color: var(--theme-primary) !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE - Callout Block Styling (if supported)
+   ============================================================================ */
+.blocknote-themed [data-content-type="callout"] {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 255, 255, 0.08) 0%,
+    rgba(0, 255, 255, 0.03) 100%
+  ) !important;
+  border: 1px solid var(--theme-primary-subtle) !important;
+  border-radius: 0.5rem !important;
+  padding: 0.75rem 1rem !important;
+}
+
+[data-theme-mode="light"] .blocknote-themed [data-content-type="callout"] {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 102, 204, 0.08) 0%,
+    rgba(0, 102, 204, 0.03) 100%
+  ) !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE - Image Block Styling
+   ============================================================================ */
+.blocknote-themed [data-content-type="image"] {
+  border-radius: 0.5rem !important;
+  overflow: hidden !important;
+}
+
+.blocknote-themed [data-content-type="image"] img {
+  border-radius: 0.5rem !important;
+  max-width: 100% !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE - File/Audio/Video Block Styling
+   ============================================================================ */
+.blocknote-themed [data-content-type="file"],
+.blocknote-themed [data-content-type="audio"],
+.blocknote-themed [data-content-type="video"] {
+  background: var(--theme-surface) !important;
+  border: 1px solid var(--theme-border) !important;
+  border-radius: 0.5rem !important;
+  padding: 0.5rem !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE - Strikethrough Text Styling
+   ============================================================================ */
+.blocknote-themed s,
+.blocknote-themed del,
+.blocknote-themed [style*="text-decoration: line-through"] {
+  text-decoration: line-through !important;
+  text-decoration-color: var(--theme-text-muted) !important;
+  opacity: 0.7 !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE - Underline Text Styling
+   ============================================================================ */
+.blocknote-themed u,
+.blocknote-themed [style*="text-decoration: underline"] {
+  text-decoration: underline !important;
+  text-decoration-color: var(--theme-primary) !important;
+  text-underline-offset: 2px !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE - Highlight/Mark Text Styling
+   ============================================================================ */
+.blocknote-themed mark,
+.blocknote-themed [data-text-color],
+.blocknote-themed [data-background-color] {
+  border-radius: 0.125rem !important;
+  padding: 0 0.125rem !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE - Ensure consistent font across all elements
+   ============================================================================ */
+.blocknote-themed .bn-editor,
+.blocknote-themed .bn-block-content,
+.blocknote-themed .bn-inline-content,
+.blocknote-themed [data-content-type="paragraph"],
+.blocknote-themed [data-content-type="bulletListItem"],
+.blocknote-themed [data-content-type="numberedListItem"],
+.blocknote-themed [data-content-type="checkListItem"],
+.blocknote-themed [data-content-type="quote"] {
+  font-family: "Inter", system-ui, sans-serif !important;
+}
+
+/* ============================================================================
+   BLOCKNOTE - Placeholder text styling
+   ============================================================================ */
+.blocknote-themed .bn-editor .is-empty::before,
+.blocknote-themed .ProseMirror p.is-empty::before {
+  color: var(--theme-text-muted) !important;
+  font-style: italic !important;
+}

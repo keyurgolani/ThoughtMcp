@@ -18,29 +18,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20.x"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Create test directories
-        run: mkdir -p tmp/test-brain development/reports/coverage
+        run: mkdir -p packages/server/tmp/test-brain development/reports/coverage
 
       - name: Security audit
-        run: npm run audit:check
+        run: pnpm --filter @thought/server audit:check
 
       - name: Check formatting
-        run: npm run format:check
+        run: pnpm format:check
 
       - name: Run linting (strict - zero warnings)
-        run: npm run lint:strict
+        run: pnpm --filter @thought/server lint:strict
 
       - name: Run type checking
-        run: npm run typecheck
+        run: pnpm typecheck
 
   # Local tests: Unit + Integration (parallel execution, all deps mocked)
   local-tests:
@@ -54,20 +59,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Create test directories
-        run: mkdir -p tmp/test-brain development/reports/coverage
+        run: mkdir -p packages/server/tmp/test-brain development/reports/coverage
 
       - name: Run Local Tests (Unit + Integration)
-        run: npm run test:coverage
+        run: pnpm test:coverage
         env:
           NODE_ENV: test
 
@@ -89,13 +99,13 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_USER: thoughtmcp_test
+          POSTGRES_USER: thought_test
           POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: thoughtmcp_test
+          POSTGRES_DB: thought_test
         ports:
           - 5433:5432
         options: >-
-          --health-cmd "pg_isready -U thoughtmcp_test -d thoughtmcp_test"
+          --health-cmd "pg_isready -U thought_test -d thought_test"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
@@ -105,23 +115,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20.x"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Create test directories
-        run: mkdir -p tmp/test-brain development/reports/coverage
+        run: mkdir -p packages/server/tmp/test-brain development/reports/coverage
 
       - name: Wait for PostgreSQL
         run: |
           echo "Waiting for PostgreSQL to be ready..."
           for i in {1..30}; do
-            if pg_isready -h localhost -p 5433 -U thoughtmcp_test; then
+            if pg_isready -h localhost -p 5433 -U thought_test; then
               echo "PostgreSQL is ready!"
               break
             fi
@@ -132,15 +147,15 @@ jobs:
       - name: Initialize database schema
         run: |
           echo "Initializing database schema..."
-          PGPASSWORD=test_password psql -h localhost -p 5433 -U thoughtmcp_test -d thoughtmcp_test -f scripts/db/init.sql
-          PGPASSWORD=test_password psql -h localhost -p 5433 -U thoughtmcp_test -d thoughtmcp_test -f scripts/db/enable-pgvector.sql
+          PGPASSWORD=test_password psql -h localhost -p 5433 -U thought_test -d thought_test -f packages/server/scripts/db/init.sql
+          PGPASSWORD=test_password psql -h localhost -p 5433 -U thought_test -d thought_test -f packages/server/scripts/db/enable-pgvector.sql
           echo "Database schema initialized successfully"
 
       - name: Cache Docker images
         uses: actions/cache@v4
         with:
           path: /tmp/docker-images
-          key: docker-ollama-${{ runner.os }}-${{ hashFiles('docker-compose.test.yml') }}
+          key: docker-ollama-${{ runner.os }}-${{ hashFiles('docker/docker-compose.test.yml') }}
           restore-keys: |
             docker-ollama-${{ runner.os }}-
 
@@ -168,14 +183,14 @@ jobs:
           done
 
       - name: Run E2E Tests
-        run: npm run test:e2e
+        run: pnpm test:e2e
         env:
           NODE_ENV: test
           DB_HOST: localhost
           DB_PORT: "5433"
-          DB_USER: thoughtmcp_test
+          DB_USER: thought_test
           DB_PASSWORD: test_password
-          DB_NAME: thoughtmcp_test
+          DB_NAME: thought_test
           OLLAMA_HOST: http://localhost:11435
           # Skip container management - using GitHub Actions services
           SKIP_CONTAINER_MANAGEMENT: "true"
@@ -199,14 +214,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20.x"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Create directories
         run: mkdir -p development/reports/coverage
@@ -219,16 +239,16 @@ jobs:
         continue-on-error: true
 
       - name: Build project
-        run: npm run build:quick
+        run: pnpm build
 
       - name: Verify build artifacts
         run: |
           required_files=(
-            "dist/index.js"
-            "dist/index.d.ts"
-            "dist/server/mcp-server.d.ts"
-            "dist/reasoning/orchestrator.d.ts"
-            "dist/utils/index.js"
+            "packages/server/dist/index.js"
+            "packages/server/dist/index.d.ts"
+            "packages/server/dist/server/mcp-server.d.ts"
+            "packages/server/dist/reasoning/orchestrator.d.ts"
+            "packages/server/dist/utils/index.js"
           )
 
           for file in "${required_files[@]}"; do
@@ -241,13 +261,38 @@ jobs:
 
       - name: Test MCP server startup
         run: |
-          timeout 10s node dist/index.js --help || true
+          timeout 10s node packages/server/dist/index.js --help || true
           echo "MCP server startup test completed"
 
-      - name: Validate package.json
+      - name: Validate root package.json
         run: |
           node -e "
             const pkg = require('./package.json');
+            const required = ['name', 'description', 'scripts', 'author', 'license'];
+            const missing = required.filter(field => !pkg[field]);
+
+            if (missing.length > 0) {
+              console.error('Missing required package.json fields:', missing);
+              process.exit(1);
+            }
+
+            if (!pkg.scripts.build || !pkg.scripts.test || !pkg.scripts.lint) {
+              console.error('Missing required npm scripts');
+              process.exit(1);
+            }
+
+            if (!pkg.engines || !pkg.engines.node) {
+              console.error('Missing Node.js engine specification');
+              process.exit(1);
+            }
+
+            console.log('Root package.json validation passed');
+          "
+
+      - name: Validate server package.json
+        run: |
+          node -e "
+            const pkg = require('./packages/server/package.json');
             const required = ['name', 'version', 'description', 'main', 'scripts', 'keywords', 'author', 'license'];
             const missing = required.filter(field => !pkg[field]);
 
@@ -266,23 +311,24 @@ jobs:
               process.exit(1);
             }
 
-            console.log('package.json validation passed');
+            console.log('Server package.json validation passed');
           "
 
-      - name: Test package installation
+      - name: Test server package installation
         run: |
-          npm pack
+          cd packages/server
+          pnpm pack
           PACKAGE_NAME=$(ls *.tgz | head -1)
           echo "Package created: $PACKAGE_NAME"
 
           mkdir -p /tmp/test-install
           cd /tmp/test-install
           npm init -y
-          npm install $GITHUB_WORKSPACE/$PACKAGE_NAME
+          npm install $GITHUB_WORKSPACE/packages/server/$PACKAGE_NAME
 
           node --input-type=module -e "
             try {
-              const pkg = await import('thoughtmcp');
+              const pkg = await import('@thought/server');
               console.log('Package installation and import successful');
               console.log('Available exports:', Object.keys(pkg));
             } catch (error) {
@@ -316,30 +362,35 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20.x"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run security audit
-        run: npm run audit:check
+        run: pnpm --filter @thought/server audit:check
 
       - name: Check for sensitive files
         run: |
-          if find . -name "*.env*" -not -path "./node_modules/*" -not -name "*.example" | grep -q .; then
+          if find . -name "*.env*" -not -path "./node_modules/*" -not -path "./packages/*/node_modules/*" -not -name "*.example" | grep -q .; then
             echo "Warning: Found potential environment files"
-            find . -name "*.env*" -not -path "./node_modules/*" -not -name "*.example"
+            find . -name "*.env*" -not -path "./node_modules/*" -not -path "./packages/*/node_modules/*" -not -name "*.example"
           fi
 
       - name: Scan for secrets
         run: |
-          if grep -r -i "password\|secret\|key\|token" --include="*.ts" --include="*.js" --include="*.json" src/ | grep -v "// " | grep -v "test" | grep -q .; then
+          if grep -r -i "password\|secret\|key\|token" --include="*.ts" --include="*.js" --include="*.json" packages/server/src/ | grep -v "// " | grep -v "test" | grep -q .; then
             echo "Warning: Potential secrets found in source code"
-            grep -r -i "password\|secret\|key\|token" --include="*.ts" --include="*.js" --include="*.json" src/ | grep -v "// " | grep -v "test" || true
+            grep -r -i "password\|secret\|key\|token" --include="*.ts" --include="*.js" --include="*.json" packages/server/src/ | grep -v "// " | grep -v "test" || true
           fi
 
   # Compatibility job
@@ -361,22 +412,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Create test directories
-        run: mkdir -p tmp/test-brain
+        run: mkdir -p packages/server/tmp/test-brain
 
       - name: Build project
-        run: npm run build:quick
+        run: pnpm build
 
       - name: Validate build
         run: |
-          npm run typecheck
+          pnpm typecheck
           echo "✅ TypeScript compilation successful on ${{ matrix.os }}"

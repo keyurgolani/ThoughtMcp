@@ -1,16 +1,19 @@
-# ThoughtMCP MCP Server Dockerfile
+# Thought MCP Server Dockerfile
 # Multi-stage build for optimized production image
 #
-# Requirements: 11.1, 11.4
+# Requirements: 0.4, 11.1, 11.4
+#
+# NOTE: This is a convenience Dockerfile at the root level.
+# For monorepo builds, use: docker build -f packages/server/Dockerfile -t thought-server .
 #
 # Build:
-#   docker build -t thoughtmcp .
+#   docker build -t thought-server .
 #
 # Run (standalone):
-#   docker run -it --rm thoughtmcp
+#   docker run -it --rm thought-server
 #
 # Run (with docker-compose):
-#   docker compose -f docker-compose.prod.yml up -d
+#   docker compose -f docker/docker-compose.prod.yml up -d
 #
 # The image uses a multi-stage build:
 #   1. Builder stage: Installs all dependencies and builds the application
@@ -27,20 +30,27 @@ WORKDIR /app
 # Install build dependencies for native modules (pg requires these)
 RUN apk add --no-cache python3 make g++
 
-# Copy package files first for better layer caching
-COPY package.json package-lock.json ./
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+
+# Copy root workspace files first for better layer caching
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY tsconfig.base.json ./
+
+# Copy server package files
+COPY packages/server/package.json ./packages/server/
 
 # Install all dependencies (including devDependencies for build)
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 
-# Copy source code and build configuration
-COPY tsconfig.json ./
-COPY scripts/ ./scripts/
-COPY src/ ./src/
+# Copy server source code and build configuration
+COPY packages/server/tsconfig.json ./packages/server/
+COPY packages/server/scripts/ ./packages/server/scripts/
+COPY packages/server/src/ ./packages/server/src/
 
-# Build the application
-# This runs: tsc --emitDeclarationOnly && node scripts/build.mjs
-RUN npm run build:quick
+# Build the application from packages/server
+WORKDIR /app/packages/server
+RUN pnpm build:quick
 
 # =============================================================================
 # Stage 2: Runtime
@@ -51,34 +61,43 @@ FROM node:20-alpine AS runtime
 WORKDIR /app
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S thoughtmcp && \
-    adduser -S thoughtmcp -u 1001 -G thoughtmcp
+RUN addgroup -g 1001 -S thought && \
+    adduser -S thought -u 1001 -G thought
 
 # Install runtime dependencies only (curl for health checks)
 RUN apk add --no-cache curl
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+
+# Copy root workspace files
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+
+# Copy server package files
+COPY packages/server/package.json ./packages/server/
 
 # Install production dependencies only
-RUN npm ci --omit=dev && \
-    npm cache clean --force
+RUN pnpm install --prod --frozen-lockfile && \
+    pnpm store prune
 
 # Copy built artifacts from builder stage
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/packages/server/dist ./packages/server/dist
 
 # Copy database initialization scripts (needed for migrations)
-COPY scripts/db/ ./scripts/db/
+COPY packages/server/scripts/db/ ./packages/server/scripts/db/
 
 # Copy entrypoint script
-COPY docker/entrypoint.sh ./docker/entrypoint.sh
+COPY packages/server/docker/entrypoint.sh ./docker/entrypoint.sh
 RUN chmod +x ./docker/entrypoint.sh
 
 # Set ownership to non-root user
-RUN chown -R thoughtmcp:thoughtmcp /app
+RUN chown -R thought:thought /app
 
 # Switch to non-root user
-USER thoughtmcp
+USER thought
+
+# Set working directory to server package
+WORKDIR /app/packages/server
 
 # Set environment defaults
 ENV NODE_ENV=production \
@@ -94,5 +113,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # MCP servers communicate via stdio
 # The entrypoint script waits for Ollama and pulls the embedding model
-ENTRYPOINT ["./docker/entrypoint.sh"]
+ENTRYPOINT ["/app/docker/entrypoint.sh"]
 CMD []

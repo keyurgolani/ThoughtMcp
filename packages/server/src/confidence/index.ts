@@ -1,0 +1,19 @@
+/**
+ * Confidence Calibration System
+ *
+ * Multi-dimensional confidence assessment, calibration learning, and
+ * confidence communication for the Thought cognitive architecture.
+ */
+
+export { CalibrationLearningEngine } from "./calibration-learning-engine";
+export type { CalibrationErrorByRange, ImprovementMetrics } from "./calibration-learning-engine";
+export { ConfidenceCommunicationModule } from "./confidence-communication";
+export type { InterpretationContext } from "./confidence-communication";
+export { EvidenceExtractor } from "./evidence-extractor";
+export type {
+  EvidenceExtractionResult,
+  EvidenceType,
+  ExtractedEvidence,
+} from "./evidence-extractor";
+export { MultiDimensionalConfidenceAssessor } from "./multi-dimensional-assessor";
+export * from "./types";

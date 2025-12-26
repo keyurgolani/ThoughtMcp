@@ -13,7 +13,9 @@ ThoughtMCP provides AI systems with persistent memory, parallel reasoning, and m
 ## Key Features
 
 - **Five-Sector Memory**: Episodic, Semantic, Procedural, Emotional, and Reflective memory types
-- **Web UI**: Visual interface for memory exploration and reasoning (⚠️ Beta)
+- **Glass Box Observability**: Real-time visualization of internal reasoning streams (Thought Console)
+- **Cognitive Personalization**: Configurable skepticism levels and thinking styles via User Profile
+- **Visual Intelligence**: 3D memory graph with Semantic Zooming and Level-of-Detail (LOD)
 - **Parallel Reasoning**: Four concurrent streams (Analytical, Creative, Critical, Synthetic)
 - **Framework Selection**: Eight systematic thinking frameworks with >80% selection accuracy
 - **Metacognition**: Confidence calibration, bias detection, emotion analysis

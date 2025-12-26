@@ -1,0 +1,181 @@
+# docker/docker-compose.prod.yml - Production deployment
+# Used by: Production deployment with `docker compose -f docker/docker-compose.prod.yml up`
+#
+# This file is the SINGLE SOURCE OF TRUTH for production container configuration.
+# All values use environment variable substitution from .env or .env.production files.
+# Named volumes persist data between container restarts.
+#
+# Requirements: 0.4, 11.1, 11.2, 11.3, 15.3, 16.3
+#
+# Prerequisites:
+#   1. Copy .env.production.example to .env.production and configure
+#   2. (Optional) Build Docker image: docker build -f packages/server/Dockerfile -t thought-server .
+#
+# Usage:
+#   Start all services:     docker compose -f docker/docker-compose.prod.yml up -d
+#   View logs:              docker compose -f docker/docker-compose.prod.yml logs -f
+#   Stop services:          docker compose -f docker/docker-compose.prod.yml down
+#   Stop and remove data:   docker compose -f docker/docker-compose.prod.yml down -v
+#
+# MCP Client Connection:
+#   By default, the thought container runs in MCP_STANDBY_MODE. This means:
+#   - The container stays alive without starting the MCP server process
+#   - MCP clients connect via: docker exec -i thought-server node dist/index.js
+#   - Each client connection spawns a dedicated MCP server process
+#   - All environment variables are pre-configured inside the container
+#
+#   Configure your MCP client (e.g., .kiro/settings/mcp.json):
+#   {
+#     "mcpServers": {
+#       "thought": {
+#         "command": "docker",
+#         "args": ["exec", "-i", "thought-server", "node", "dist/index.js"],
+#         "env": {},
+#         "disabled": false
+#       }
+#     }
+#   }
+#
+#   To disable standby mode and run the MCP server directly (legacy behavior):
+#   Set MCP_STANDBY_MODE=false in .env.production
+#
+# REST API Access:
+#   By default, the REST API is enabled and accessible at:
+#   http://localhost:${REST_API_PORT:-3000}/api/v1/
+#
+#   Configure CORS_ORIGINS in .env.production to allow your Mind Palace UI origin.
+#   To disable REST API: Set REST_API_ENABLED=false in .env.production
+#
+# The thought service waits for postgres and ollama to be healthy before starting.
+# Ollama will automatically pull the embedding model on first startup.
+
+services:
+  # PostgreSQL with pgvector extension for production
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: thought-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-thought}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-thought_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-thought}
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Persist database data
+      - postgres_data:/var/lib/postgresql/data
+      # Initialize database with schema
+      - ../packages/server/scripts/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      # Create pgvector extension
+      - ../packages/server/scripts/db/enable-pgvector.sql:/docker-entrypoint-initdb.d/02-enable-pgvector.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-thought} -d ${POSTGRES_DB:-thought}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - thought-network
+
+  # Ollama for embedding generation
+  ollama:
+    image: ollama/ollama:latest
+    container_name: thought-ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      # Persist downloaded models to avoid re-downloading on restart
+      - ollama_models:/root/.ollama
+    healthcheck:
+      # Use ollama list instead of curl since curl is not available in the ollama image
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 15s
+    networks:
+      - thought-network
+
+  # Thought MCP Server
+  thought:
+    build:
+      context: ..
+      dockerfile: packages/server/Dockerfile
+    container_name: thought-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    environment:
+      # Database configuration (uses internal Docker network)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-thought}:${POSTGRES_PASSWORD:-thought_secret}@postgres:5432/${POSTGRES_DB:-thought}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-thought}
+      DB_USER: ${POSTGRES_USER:-thought}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-thought_secret}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-20}
+      # Ollama configuration (uses internal Docker network)
+      OLLAMA_HOST: http://ollama:11434
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
+      # Application configuration
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-WARN}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      # Performance configuration
+      CACHE_TTL: ${CACHE_TTL:-300}
+      MAX_PROCESSING_TIME: ${MAX_PROCESSING_TIME:-30000}
+      ENABLE_CACHE: ${ENABLE_CACHE:-true}
+      ENABLE_MONITORING: ${ENABLE_MONITORING:-true}
+      # Feature flags
+      ENABLE_BIAS_DETECTION: ${ENABLE_BIAS_DETECTION:-true}
+      ENABLE_EMOTION_DETECTION: ${ENABLE_EMOTION_DETECTION:-true}
+      ENABLE_METACOGNITION: ${ENABLE_METACOGNITION:-true}
+      # Standby mode - container stays alive, MCP clients connect via docker exec
+      MCP_STANDBY_MODE: ${MCP_STANDBY_MODE:-true}
+      # REST API configuration (Requirements: 16.1)
+      REST_API_ENABLED: ${REST_API_ENABLED:-true}
+      REST_API_PORT: ${REST_API_PORT:-3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+    # MCP servers communicate via stdio
+    stdin_open: true
+    tty: true
+    # Expose REST API port (Requirements: 16.1)
+    ports:
+      - "${REST_API_PORT:-3000}:3000"
+    networks:
+      - thought-network
+
+  # Thought UI (optional)
+  # Start with: docker compose -f docker/docker-compose.prod.yml --profile ui up -d
+  ui:
+    build:
+      context: ..
+      dockerfile: packages/ui/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    container_name: thought-ui
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    ports:
+      - "${UI_PORT:-5173}:80"
+    networks:
+      - thought-network
+    profiles:
+      - ui
+
+volumes:
+  postgres_data:
+    driver: local
+  ollama_models:
+    driver: local
+
+networks:
+  thought-network:
+    driver: bridge

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" class="dark" style="background-color: #0a0a0f">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Critical: Set dark background before anything loads to prevent white flash -->
+    <style>
+      /* Critical dark mode styles - loaded synchronously before any content */
+      /* Only apply to root-level elements to prevent making all divs opaque */
+      html,
+      body,
+      #root {
+        background-color: #0a0a0f !important;
+      }
+      html,
+      body {
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
+      }
+      /* Hide content until styles load to prevent FOUC */
+      .loading-hidden {
+        opacity: 0;
+      }
+    </style>
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Memory Exploration UI - Immersive 3D interface for Thought cognitive memory graph"
+    />
+    <meta name="theme-color" content="#0a0a0f" />
+    <meta name="color-scheme" content="dark" />
+    <title>Memory Exploration UI</title>
+  </head>
+  <body style="background-color: #0a0a0f; margin: 0">
+    <div id="root" style="background-color: #0a0a0f; min-height: 100vh"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
