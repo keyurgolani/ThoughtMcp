@@ -15,6 +15,7 @@ import {
   CreateMemoryModal,
   type CreateMemorySaveResult,
 } from "../components/hud/CreateMemoryModal";
+import { FloatingActionButton, PlusIcon } from "../components/hud/FloatingActionButton";
 import { RecentMemoriesMasonry } from "../components/hud/RecentMemoriesMasonry";
 import { RecentMemoriesIcon } from "../components/icons";
 import { useMemoryStore } from "../stores/memoryStore";
@@ -174,9 +175,10 @@ export function Dashboard({
       />
 
       {/* Recent Memories - Masonry Grid taking prime real estate (Requirements: 3.4, 4.1) */}
+      {/* overflow-visible allows card glow effects to extend beyond container boundaries */}
       <section
         aria-labelledby="recent-memories-heading"
-        className="flex-1 min-h-0 glass-panel-glow p-4 flex flex-col"
+        className="flex-1 min-h-0 glass-panel-glow p-4 flex flex-col overflow-visible"
       >
         <div className="flex items-center justify-between mb-3 flex-shrink-0">
           <h2
@@ -212,7 +214,7 @@ export function Dashboard({
               }}
               className="text-xs text-ui-text-muted hover:text-ui-accent-primary transition-colors"
             >
-              View all ({memoriesForMasonry.length})
+              View all ({stats.totalMemories})
             </button>
           </div>
         </div>
@@ -230,26 +232,13 @@ export function Dashboard({
         />
       </section>
 
-      {/* New Memory FAB - Same style as Memory Explorer */}
-      <button
+      {/* New Memory FAB - Standardized component */}
+      <FloatingActionButton
+        label="New Memory"
         onClick={handleCreateMemory}
-        className="fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50 w-48 h-12 rounded-xl bg-[#0a1628] hover:bg-[#0d1e38] text-[#00FFFF] border border-[#00FFFF]/40 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 group hover:scale-105 active:scale-95"
-        aria-label="Create new memory"
-        style={{ boxShadow: "0 0 20px rgba(0, 255, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.4)" }}
-      >
-        <svg
-          className="w-5 h-5 transition-transform group-hover:rotate-90 duration-200"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-        </svg>
-        <span className="font-semibold text-sm">New Memory</span>
-        <kbd className="ml-1 px-2 py-1 text-xs font-medium bg-[#00FFFF]/20 text-[#00FFFF] rounded border border-[#00FFFF]/40">
-          ⌘↵
-        </kbd>
-      </button>
+        icon={<PlusIcon />}
+        ariaLabel="Create new memory"
+      />
 
       {/* CreateMemoryModal */}
       <CreateMemoryModal

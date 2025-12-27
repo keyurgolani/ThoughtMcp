@@ -7,26 +7,26 @@
  * Requirements: 5.7, 17.7, 23.5, 31.1, 38.4, 38.5, 38.6
  */
 
-import { forwardRef } from 'react';
-import { borderRadius, glassmorphism } from '../../utils/theme';
+import { forwardRef } from "react";
+import { borderRadius, glassmorphism } from "../../utils/theme";
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export type GlassPanelVariant =
-  | 'default'
-  | 'glow'
-  | 'glow-cyan'
-  | 'glow-purple'
-  | 'glow-gold'
-  | 'light'
-  | 'heavy'
-  | 'elevated'
-  | 'floating'
-  | 'sunken';
+  | "default"
+  | "glow"
+  | "glow-cyan"
+  | "glow-purple"
+  | "glow-gold"
+  | "light"
+  | "heavy"
+  | "elevated"
+  | "floating"
+  | "sunken";
 
-export type GlassPanelSize = 'sm' | 'md' | 'lg';
+export type GlassPanelSize = "sm" | "md" | "lg";
 
 export interface GlassPanelProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Visual variant of the panel */
@@ -57,36 +57,32 @@ const variantStyles: Record<GlassPanelVariant, React.CSSProperties> = {
     boxShadow: glassmorphism.standard.boxShadow,
   },
   glow: {
-    background: glassmorphism.standard.background,
+    background: "var(--theme-surface)",
     backdropFilter: glassmorphism.standard.backdropFilter,
     WebkitBackdropFilter: glassmorphism.standard.backdropFilter,
-    border: glassmorphism.standard.border,
-    boxShadow: `
-      0 0 20px rgba(0, 255, 255, 0.15),
-      0 0 40px rgba(0, 255, 255, 0.08),
-      inset 0 0 30px rgba(0, 255, 255, 0.04)
-    `,
+    border: "1px solid var(--theme-primary-subtle)",
+    boxShadow: "var(--unified-panel-glow)",
   },
-  'glow-cyan': {
-    background: glassmorphism.glowCyan.background,
+  "glow-cyan": {
+    background: "var(--theme-surface)",
     backdropFilter: glassmorphism.glowCyan.backdropFilter,
     WebkitBackdropFilter: glassmorphism.glowCyan.backdropFilter,
-    border: glassmorphism.glowCyan.border,
-    boxShadow: glassmorphism.glowCyan.boxShadow,
+    border: "1px solid var(--theme-primary-subtle)",
+    boxShadow: "var(--unified-panel-glow)",
   },
-  'glow-purple': {
-    background: glassmorphism.glowPurple.background,
+  "glow-purple": {
+    background: "var(--theme-surface)",
     backdropFilter: glassmorphism.glowPurple.backdropFilter,
     WebkitBackdropFilter: glassmorphism.glowPurple.backdropFilter,
-    border: glassmorphism.glowPurple.border,
-    boxShadow: glassmorphism.glowPurple.boxShadow,
+    border: "1px solid var(--theme-secondary-subtle)",
+    boxShadow: "var(--unified-panel-glow-secondary)",
   },
-  'glow-gold': {
-    background: glassmorphism.glowGold.background,
+  "glow-gold": {
+    background: "var(--theme-surface)",
     backdropFilter: glassmorphism.glowGold.backdropFilter,
     WebkitBackdropFilter: glassmorphism.glowGold.backdropFilter,
-    border: glassmorphism.glowGold.border,
-    boxShadow: glassmorphism.glowGold.boxShadow,
+    border: "1px solid var(--theme-highlight-subtle)",
+    boxShadow: "var(--unified-panel-glow-highlight)",
   },
   light: {
     background: glassmorphism.light.background,
@@ -128,22 +124,22 @@ const variantStyles: Record<GlassPanelVariant, React.CSSProperties> = {
 // Size configurations using design tokens
 // Requirements: 31.1, 31.3
 const sizeStyles: Record<GlassPanelSize, string> = {
-  sm: 'p-2', // 8px
-  md: 'p-4', // 16px
-  lg: 'p-6', // 24px
+  sm: "p-2", // 8px
+  md: "p-4", // 16px
+  lg: "p-6", // 24px
 };
 
 const animationClasses: Record<GlassPanelVariant, string> = {
-  default: '',
-  glow: 'animate-glow-slow',
-  'glow-cyan': 'animate-glow-slow',
-  'glow-purple': 'animate-glow-purple',
-  'glow-gold': 'animate-glow-gold',
-  light: '',
-  heavy: '',
-  elevated: '',
-  floating: '',
-  sunken: '',
+  default: "",
+  glow: "animate-glow-slow",
+  "glow-cyan": "animate-glow-slow",
+  "glow-purple": "animate-glow-purple",
+  "glow-gold": "animate-glow-gold",
+  light: "",
+  heavy: "",
+  elevated: "",
+  floating: "",
+  sunken: "",
 };
 
 // ============================================================================
@@ -167,11 +163,11 @@ const animationClasses: Record<GlassPanelVariant, string> = {
 export const GlassPanel = forwardRef<HTMLDivElement, GlassPanelProps>(
   (
     {
-      variant = 'default',
+      variant = "default",
       size,
       animated = false,
       hoverable = false,
-      className = '',
+      className = "",
       children,
       style,
       ...props
@@ -179,11 +175,11 @@ export const GlassPanel = forwardRef<HTMLDivElement, GlassPanelProps>(
     ref
   ) => {
     const variantStyle = variantStyles[variant];
-    const animationClass = animated ? animationClasses[variant] : '';
-    const sizeClass = size ? sizeStyles[size] : '';
+    const animationClass = animated ? animationClasses[variant] : "";
+    const sizeClass = size ? sizeStyles[size] : "";
     const hoverClass = hoverable
-      ? 'transition-all duration-normal hover:border-ui-border-hover hover:shadow-glow-sm cursor-pointer'
-      : '';
+      ? "transition-all duration-normal hover:border-ui-border-hover hover:shadow-glow-sm cursor-pointer"
+      : "";
 
     return (
       <div
@@ -192,7 +188,7 @@ export const GlassPanel = forwardRef<HTMLDivElement, GlassPanelProps>(
         style={{
           ...variantStyle,
           borderRadius: borderRadius.lg,
-          transition: hoverable ? 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)' : undefined,
+          transition: hoverable ? "all 200ms cubic-bezier(0.4, 0, 0.2, 1)" : undefined,
           ...style,
         }}
         {...props}
@@ -203,6 +199,6 @@ export const GlassPanel = forwardRef<HTMLDivElement, GlassPanelProps>(
   }
 );
 
-GlassPanel.displayName = 'GlassPanel';
+GlassPanel.displayName = "GlassPanel";
 
 export default GlassPanel;

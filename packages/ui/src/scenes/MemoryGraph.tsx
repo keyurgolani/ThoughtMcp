@@ -19,16 +19,40 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MemoryGraph3DEnhanced } from "../components/graph/MemoryGraph3DEnhanced";
+import { MemoryGraph3D } from "../components/graph/MemoryGraph3D";
 import { BlockNotePreview } from "../components/hud/BlockNotePreview";
 import { MasonryMemoryCard } from "../components/hud/MasonryMemoryCard";
+import { SectorBadge } from "../components/hud/SectorBadge";
 import { useMemoryStore } from "../stores/memoryStore";
-import { useThemeStore } from "../stores/themeStore";
+import { themes, useThemeStore } from "../stores/themeStore";
 import { useUIStore } from "../stores/uiStore";
 import type { GraphNode, Memory, MemorySectorType } from "../types/api";
 import type { GraphEdgeType } from "../utils/graphEdges";
 import { generateEdges } from "../utils/graphEdges";
-import { getSectorColor } from "../utils/visualization";
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Detect if the user is on macOS
+ */
+function isMacOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  // Use userAgentData if available (modern browsers), fallback to userAgent
+  const platform =
+    (navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform ??
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    navigator.platform;
+  return platform.toUpperCase().indexOf("MAC") >= 0;
+}
+
+/**
+ * Get the keyboard shortcut display string based on OS
+ */
+function getKeyboardShortcutDisplay(): string {
+  return isMacOS() ? "⌘↵" : "Ctrl+↵";
+}
 
 // ============================================================================
 // Types
@@ -275,7 +299,7 @@ function RelatedMemoriesTab({
       resizeObserver.observe(containerRef.current);
     }
 
-    return () => {
+    return (): void => {
       clearTimeout(timer);
       resizeObserver.disconnect();
     };
@@ -337,7 +361,6 @@ function RelatedMemoryCard({
   onView,
 }: RelatedMemoryCardProps): React.ReactElement {
   const { memory, connectionType, relevanceScore } = item;
-  const sectorColor = getSectorColor(memory.primarySector);
 
   // In compact mode, limit to 3 lines; otherwise show more content
   const maxLines = compact ? 3 : 8;
@@ -349,8 +372,14 @@ function RelatedMemoryCard({
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: sectorColor }} />
-          <span className="text-xs text-ui-text-muted capitalize">{memory.primarySector}</span>
+          {/* Icon indicator for memory type */}
+          <SectorBadge sector={memory.primarySector} variant="icon" size="sm" />
+          <span
+            className="text-xs font-medium capitalize"
+            style={{ color: `var(--sector-${memory.primarySector}-color)` }}
+          >
+            {memory.primarySector}
+          </span>
         </div>
         <span
           className={`px-1.5 py-0.5 text-[10px] rounded ${
@@ -415,7 +444,13 @@ interface SearchFABProps {
   onToggleFocusMode: () => void;
   /** Fit to canvas callback */
   onFitToCanvas: () => void;
+  /** Total count of memories (from API) */
+  totalCount: number | null;
+  /** Whether more memories are being loaded */
+  isLoadingMore: boolean;
 }
+
+type SearchFABState = "collapsed" | "expanding" | "expanded" | "collapsing";
 
 function SearchFAB({
   nodes,
@@ -425,11 +460,18 @@ function SearchFAB({
   isFocusedMode,
   onToggleFocusMode,
   onFitToCanvas,
+  totalCount,
+  isLoadingMore,
 }: SearchFABProps): React.ReactElement {
-  const [isOpen, setIsOpen] = useState(false);
+  const [state, setState] = useState<SearchFABState>("collapsed");
+  const [showResults, setShowResults] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Animation durations
+  const EXPAND_DURATION = 250;
+  const RESULTS_DURATION = 200;
 
   // Search results - show all nodes when query is empty, filter when query exists
   const searchResults = useMemo(() => {
@@ -443,91 +485,128 @@ function SearchFAB({
     return nodes.filter((n) => n.content.toLowerCase().includes(query));
   }, [nodes, searchQuery]);
 
-  // Focus input when opening
+  // Focus input when expanded
   useEffect(() => {
-    if (isOpen && inputRef.current) {
+    if (state === "expanded" && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [isOpen]);
+  }, [state]);
 
-  // Scroll to bottom of results when opening or when results change
+  // Scroll to bottom of results when results change
   useEffect(() => {
-    if (isOpen && resultsRef.current) {
+    if (showResults && resultsRef.current) {
       resultsRef.current.scrollTop = resultsRef.current.scrollHeight;
     }
-  }, [isOpen, searchResults]);
+  }, [showResults, searchResults]);
+
+  // Handle open: FAB → expanding → expanded → show results
+  const handleOpen = useCallback((): void => {
+    setState("expanding");
+    // After search bar expands, show results
+    setTimeout(() => {
+      setState("expanded");
+      // Small delay before showing results for smooth sequence
+      setTimeout(() => {
+        setShowResults(true);
+      }, 50);
+    }, EXPAND_DURATION);
+  }, []);
+
+  // Handle close: hide results → collapsing → collapsed
+  const handleClose = useCallback((): void => {
+    // First hide results (roll down)
+    setShowResults(false);
+    // After results are hidden, start collapsing search bar
+    setTimeout(() => {
+      setState("collapsing");
+      onSearchChange("");
+      // After search bar collapses, return to collapsed state
+      setTimeout(() => {
+        setState("collapsed");
+      }, EXPAND_DURATION);
+    }, RESULTS_DURATION);
+  }, [onSearchChange]);
+
+  const handleResultClick = useCallback(
+    (nodeId: string): void => {
+      // Quick close without full animation for result clicks
+      setShowResults(false);
+      setState("collapsed");
+      onSearchChange("");
+      onResultClick(nodeId);
+    },
+    [onResultClick, onSearchChange]
+  );
 
   // Handle escape key to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
-      if (e.key === "Escape" && isOpen) {
+      if (e.key === "Escape" && (state === "expanded" || state === "expanding")) {
         e.preventDefault();
         handleClose();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
+    return (): void => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [state, handleClose]);
 
   // Handle click outside to close
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent): void => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node) &&
+        state === "expanded"
+      ) {
         handleClose();
       }
     };
 
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+    if (state === "expanded") {
+      // Small delay to prevent immediate close on the click that opened it
+      const timeoutId = setTimeout(() => {
+        document.addEventListener("mousedown", handleClickOutside);
+      }, 100);
+      return (): void => {
+        clearTimeout(timeoutId);
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
     }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
-
-  const handleOpen = (): void => {
-    setIsOpen(true);
-  };
-
-  const handleClose = (): void => {
-    setIsOpen(false);
-    onSearchChange("");
-  };
-
-  const handleResultClick = (nodeId: string): void => {
-    handleClose();
-    onResultClick(nodeId);
-  };
+    return undefined;
+  }, [state, handleClose]);
 
   // Handle Cmd+Enter keyboard shortcut to open search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !isOpen) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && state === "collapsed") {
         e.preventDefault();
         handleOpen();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
+    return (): void => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [state, handleOpen]);
+
+  const isCollapsed = state === "collapsed";
 
   // FAB button (collapsed state)
-  if (!isOpen) {
+  if (isCollapsed) {
     return (
       <div className="fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50 flex items-center gap-3">
         {/* Focus Mode Toggle */}
         <button
           onClick={onToggleFocusMode}
-          className={`w-12 h-12 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center hover:scale-105 active:scale-95 ${
+          className={`w-12 h-12 rounded-xl transition-all duration-200 flex items-center justify-center hover:scale-105 active:scale-95 ${
             isFocusedMode
-              ? "bg-ui-accent-primary text-ui-background"
-              : "bg-ui-surface/90 backdrop-blur-sm border border-ui-border/50 text-ui-text-secondary hover:text-ui-accent-primary hover:border-ui-accent-primary/50"
+              ? "bg-ui-accent-primary text-ui-background shadow-glow"
+              : "bg-ui-surface-elevated backdrop-blur-sm border border-ui-border/50 text-ui-text-secondary hover:text-ui-accent-primary hover:border-ui-accent-primary/50 shadow-glow-sm"
           }`}
-          style={{
-            boxShadow: isFocusedMode
-              ? "0 0 20px rgba(0, 255, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3)"
-              : "0 0 15px rgba(0, 255, 255, 0.2), 0 4px 12px rgba(0, 0, 0, 0.3)",
-          }}
           title={isFocusedMode ? "Exit Focus Mode" : "Enter Focus Mode"}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -552,8 +631,7 @@ function SearchFAB({
         {/* Search FAB */}
         <button
           onClick={handleOpen}
-          className="w-48 h-12 rounded-xl bg-[#0a1628] hover:bg-[#0d1e38] text-[#00FFFF] border border-[#00FFFF]/40 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 group hover:scale-105 active:scale-95"
-          style={{ boxShadow: "0 0 20px rgba(0, 255, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.4)" }}
+          className="w-48 h-12 rounded-xl bg-ui-surface-elevated text-ui-accent-primary border border-ui-accent-primary/40 shadow-glow hover:shadow-glow-lg transition-all duration-200 flex items-center justify-center gap-2 group hover:scale-105 active:scale-95 hover:border-ui-accent-primary/60"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -564,16 +642,15 @@ function SearchFAB({
             />
           </svg>
           <span className="font-semibold text-sm">Search</span>
-          <kbd className="ml-1 px-2 py-1 text-xs font-medium bg-[#00FFFF]/20 text-[#00FFFF] rounded border border-[#00FFFF]/40">
-            ⌘↵
+          <kbd className="ml-1 px-2 py-1 text-xs font-medium bg-ui-accent-primary-bg text-ui-accent-primary rounded border border-ui-accent-primary/40">
+            {getKeyboardShortcutDisplay()}
           </kbd>
         </button>
 
         {/* Fit to View */}
         <button
           onClick={onFitToCanvas}
-          className="w-12 h-12 rounded-xl bg-ui-surface/90 backdrop-blur-sm border border-ui-border/50 shadow-lg transition-all duration-200 flex items-center justify-center text-ui-text-secondary hover:text-ui-accent-primary hover:border-ui-accent-primary/50 hover:scale-105 active:scale-95"
-          style={{ boxShadow: "0 0 15px rgba(0, 255, 255, 0.2), 0 4px 12px rgba(0, 0, 0, 0.3)" }}
+          className="w-12 h-12 rounded-xl bg-ui-surface-elevated backdrop-blur-sm border border-ui-border/50 shadow-glow-sm transition-all duration-200 flex items-center justify-center text-ui-text-secondary hover:text-ui-accent-primary hover:border-ui-accent-primary/50 hover:scale-105 active:scale-95"
           title="Fit graph to view"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -589,52 +666,113 @@ function SearchFAB({
     );
   }
 
-  // Expanded search bar state
-  // Use absolute positioning with top/bottom constraints to fill available space within graph container
+  // Expanded/Expanding/Collapsing states
+  const isExpanding = state === "expanding";
+  const isCollapsing = state === "collapsing";
 
   return (
     <div
       ref={containerRef}
-      className="absolute inset-x-0 top-4 bottom-4 z-50 flex flex-col items-center pointer-events-none"
+      className="fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50 flex flex-col items-center"
+      style={{ width: "min(600px, 90vw)" }}
     >
-      {/* Search Results - fills available space above search bar */}
-      {searchResults.length > 0 && (
-        <div
-          className="flex-1 min-h-0 w-full flex flex-col items-center pointer-events-auto"
-          style={{ maxWidth: "min(600px, 90vw)", marginLeft: "auto", marginRight: "auto" }}
-        >
-          <div className="w-full h-full glass-panel-glow rounded-xl overflow-hidden animate-fade-in flex flex-col">
+      {/* Search Results - rolls up from search bar */}
+      <div
+        className={`w-full mb-3 transition-all ease-out ${
+          showResults ? "opacity-100" : "opacity-0"
+        }`}
+        style={{
+          maxHeight: showResults ? "calc(100vh - 200px)" : "0px",
+          transitionDuration: `${String(RESULTS_DURATION)}ms`,
+          transformOrigin: "bottom center",
+        }}
+      >
+        {searchResults.length > 0 && (
+          <div
+            className="w-full flex flex-col"
+            style={{
+              maxHeight: "calc(100vh - 200px)",
+              transform: showResults ? "translateY(0)" : "translateY(20px)",
+              transition: `transform ${String(RESULTS_DURATION)}ms ease-out`,
+              background: "var(--theme-surface)",
+              backdropFilter: "blur(16px)",
+              border: "1px solid var(--theme-primary-subtle)",
+              boxShadow:
+                "0 0 20px var(--theme-primary-glow), 0 0 40px var(--theme-primary-bg), inset 0 0 30px var(--theme-primary-bg)",
+              borderRadius: "12px",
+              overflow: "hidden",
+            }}
+          >
             <div
               ref={resultsRef}
-              className="flex-1 p-3 overflow-y-auto custom-scrollbar flex flex-col-reverse min-h-0"
+              className="flex-1 overflow-y-auto custom-scrollbar flex flex-col-reverse min-h-0"
+              style={{
+                maxHeight: "calc(100vh - 260px)",
+                padding: "12px",
+              }}
             >
               <div className="space-y-2">
                 {searchResults.map((node) => (
                   <SearchResultCard
                     key={node.id}
                     node={node}
-                    onClick={() => handleResultClick(node.id)}
+                    onClick={() => {
+                      handleResultClick(node.id);
+                    }}
                   />
                 ))}
               </div>
             </div>
-            <div className="px-3 py-2 border-t border-ui-border/30 text-xs text-ui-text-muted flex-shrink-0">
-              {searchResults.length} {searchResults.length === 1 ? "memory" : "memories"}
-              {searchQuery ? " found" : " available"}
+            <div
+              className="px-3 py-2 border-t border-ui-border/30 text-xs text-ui-text-muted flex-shrink-0"
+              style={{
+                background: "var(--theme-surface-elevated)",
+                borderBottomLeftRadius: "12px",
+                borderBottomRightRadius: "12px",
+              }}
+            >
+              {searchQuery
+                ? `${String(searchResults.length)} ${searchResults.length === 1 ? "memory" : "memories"} found`
+                : totalCount !== null && totalCount > 0
+                  ? `${String(totalCount)} ${totalCount === 1 ? "memory" : "memories"} total${nodes.length < totalCount ? ` (${String(nodes.length)} loaded)` : ""}`
+                  : `${String(searchResults.length)} ${searchResults.length === 1 ? "memory" : "memories"} available`}
+              {isLoadingMore && (
+                <span className="ml-2 text-ui-accent-primary">
+                  <svg
+                    className="inline-block animate-spin h-3 w-3 mr-1"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                    <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                  </svg>
+                  loading...
+                </span>
+              )}
               <span className="float-right text-ui-text-tertiary">Scroll up for more</span>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Search Input Bar - fixed at bottom with top padding for gap */}
+      {/* Search Input Bar - expands from FAB */}
       <div
-        className="w-full flex-shrink-0 pointer-events-auto pt-4"
-        style={{ maxWidth: "min(600px, 90vw)", marginLeft: "auto", marginRight: "auto" }}
+        className="w-full transition-all ease-out"
+        style={{
+          transform: isExpanding || isCollapsing ? "scale(0.95)" : "scale(1)",
+          opacity: isExpanding || isCollapsing ? 0.8 : 1,
+          transitionDuration: `${String(EXPAND_DURATION)}ms`,
+        }}
       >
         <div
-          className="w-full glass-panel-glow rounded-xl overflow-hidden animate-scale-in"
-          style={{ boxShadow: "0 0 25px rgba(0, 255, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.3)" }}
+          className="w-full glass-panel-glow rounded-xl overflow-hidden shadow-glow-lg"
+          style={{
+            transform: isExpanding ? "scaleX(0.3)" : isCollapsing ? "scaleX(0.3)" : "scaleX(1)",
+            transformOrigin: "center center",
+            transition: `transform ${String(EXPAND_DURATION)}ms ease-out`,
+          }}
         >
           <div className="p-3 flex items-center gap-3">
             {/* Search Icon */}
@@ -657,15 +795,19 @@ function SearchFAB({
               ref={inputRef}
               type="text"
               value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
+              onChange={(e) => {
+                onSearchChange(e.target.value);
+              }}
               placeholder="Search memories..."
-              className="flex-1 bg-transparent text-ui-text-primary placeholder-ui-text-muted focus:outline-none text-sm"
+              className="flex-1 bg-transparent text-ui-text-primary placeholder-ui-text-muted focus:outline-none text-sm border border-transparent rounded px-2 py-1 -mx-2 -my-1 transition-all duration-normal focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20 focus:shadow-glow-sm"
             />
 
-            {/* Clear / Close button */}
+            {/* Clear button */}
             {searchQuery ? (
               <button
-                onClick={() => onSearchChange("")}
+                onClick={() => {
+                  onSearchChange("");
+                }}
                 className="p-1.5 rounded-lg text-ui-text-muted hover:text-ui-text-primary hover:bg-ui-border/30 transition-colors"
                 title="Clear search"
               >
@@ -709,13 +851,8 @@ function SearchResultCard({ node, onClick }: SearchResultCardProps): React.React
       className="w-full p-3 text-left text-sm bg-ui-surface/50 hover:bg-ui-accent-primary/10 border border-ui-border/30 hover:border-ui-accent-primary/30 rounded-lg transition-all cursor-pointer group flex flex-col"
     >
       <div className="flex items-center gap-2 mb-2 flex-shrink-0">
-        <span
-          className="w-2 h-2 rounded-full flex-shrink-0"
-          style={{ backgroundColor: getSectorColor(node.primarySector) }}
-        />
-        <span className="text-xs text-ui-text-muted uppercase tracking-wider font-medium">
-          {node.primarySector}
-        </span>
+        {/* Full pill badge for search results */}
+        <SectorBadge sector={node.primarySector} variant="pill" size="sm" />
       </div>
 
       {/* Content preview - no scroll, uses line clamp */}
@@ -772,8 +909,12 @@ function FilterPanel({
       className={`w-96 rounded-xl overflow-hidden flex flex-col-reverse shadow-lg transition-all duration-300 ${
         isActive ? "glass-panel-glow opacity-100" : "bg-ui-surface/30 backdrop-blur-sm opacity-50"
       }`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={() => {
+        setIsHovered(true);
+      }}
+      onMouseLeave={() => {
+        setIsHovered(false);
+      }}
     >
       {/* Expand/Collapse Toggle (at bottom because panel is bottom-aligned) */}
       <button
@@ -802,23 +943,18 @@ function FilterPanel({
             <div className="flex flex-wrap gap-1">
               {sectors.map((sector) => {
                 const isSelected = selectedSectors.includes(sector);
-                const color = getSectorColor(sector);
+                const sectorClass = `sector-badge-${sector}`;
                 return (
                   <button
                     key={sector}
                     onClick={() => {
                       onSectorToggle(sector);
                     }}
-                    className={`px-2 py-1 text-xs rounded-full border transition-all ${
+                    className={`px-2 py-1 text-xs rounded-full transition-all ${sectorClass} ${
                       isSelected
                         ? "ring-1 ring-offset-1 ring-offset-ui-background"
                         : "opacity-50 hover:opacity-75"
                     }`}
-                    style={{
-                      backgroundColor: isSelected ? `${color}30` : "transparent",
-                      color: color,
-                      borderColor: color,
-                    }}
                   >
                     {sector}
                   </button>
@@ -921,16 +1057,18 @@ export function MemoryGraph({
   ]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [connectionFilter, setConnectionFilter] = useState<"all" | "direct" | "semantic">("all");
-  const [_isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [, setIsFilterExpanded] = useState(false);
 
   // Theme
   const currentTheme = useThemeStore((state) => state.currentTheme);
-  const isLightMode = currentTheme === "light";
+  const isLightMode = themes[currentTheme].isLight;
 
   // Store
   const memories = useMemoryStore((state) => state.memories);
   const fetchMemories = useMemoryStore((state) => state.fetchMemories);
   const isLoading = useMemoryStore((state) => state.isLoading);
+  const isLoadingMore = useMemoryStore((state) => state.isLoadingMore);
+  const totalCount = useMemoryStore((state) => state.totalCount);
 
   // Fetch memories on mount
   useEffect(() => {
@@ -1134,7 +1272,7 @@ export function MemoryGraph({
 
   return (
     <div className="h-full relative" ref={containerRef}>
-      <MemoryGraph3DEnhanced
+      <MemoryGraph3D
         nodes={filteredNodes}
         edges={filteredEdges}
         selectedNodeId={focusedMemory?.id ?? null}
@@ -1143,7 +1281,7 @@ export function MemoryGraph({
           if (memory) setFocusedMemory(memory);
         }}
         onNodeHover={() => {
-          // Hover highlighting is handled internally by MemoryGraph3DEnhanced
+          // Hover highlighting is handled internally by MemoryGraph3D
         }}
         onLinkHover={() => {
           // Optional: Handle link hover if needed specifically
@@ -1181,12 +1319,16 @@ export function MemoryGraph({
           onSearchChange={setSearchQuery}
           onResultClick={handleMemoryNavigate}
           isFocusedMode={isFocusedMode}
-          onToggleFocusMode={() => setIsFocusedMode(!isFocusedMode)}
+          onToggleFocusMode={() => {
+            setIsFocusedMode(!isFocusedMode);
+          }}
           onFitToCanvas={() => {
             if (graphRef.current) {
               graphRef.current.fitToCanvas();
             }
           }}
+          totalCount={totalCount}
+          isLoadingMore={isLoadingMore}
         />
       )}
 
@@ -1194,7 +1336,9 @@ export function MemoryGraph({
       {isFocusedMode && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40">
           <button
-            onClick={() => setIsFocusedMode(false)}
+            onClick={() => {
+              setIsFocusedMode(false);
+            }}
             className="glass-panel-glow rounded-xl px-4 py-2.5 flex items-center gap-3 text-ui-text-secondary hover:text-ui-accent-primary transition-colors group"
           >
             <span className="text-sm">Focus Mode</span>

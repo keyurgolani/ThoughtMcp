@@ -141,7 +141,12 @@ export class RestApiServer {
       );
     }
 
+    // Body parsing middleware - must come before response cache to enable body-based cache keys
+    this.app.use(express.json({ limit: this.config.bodyLimit }));
+    this.app.use(express.urlencoded({ extended: true, limit: this.config.bodyLimit }));
+
     // Response caching middleware - Requirements: 17.1
+    // NOTE: Must come AFTER body parsing so req.body is available for cache key generation
     if (this.config.enableResponseCache) {
       this.app.use(
         createResponseCacheMiddleware({
@@ -149,9 +154,6 @@ export class RestApiServer {
         })
       );
     }
-
-    this.app.use(express.json({ limit: this.config.bodyLimit }));
-    this.app.use(express.urlencoded({ extended: true, limit: this.config.bodyLimit }));
 
     this.app.use((req: Request, res: Response, next: NextFunction) => {
       req.setTimeout(this.config.requestTimeout, () => {

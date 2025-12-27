@@ -10,6 +10,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getDefaultClient } from "../api/client";
+import { AnalyzeIcon, FloatingActionButton } from "../components/hud/FloatingActionButton";
 import {
   AlertCircle,
   BarChart3,
@@ -22,6 +23,8 @@ import {
 } from "../components/icons/Icons";
 import { useCognitiveStore } from "../stores/cognitiveStore";
 import type { AssessConfidenceResponse, BiasDetection, DetectBiasResponse } from "../types/api";
+import { getSeverityColorClass } from "../utils/dashboardUtils";
+import { formatPercentage } from "../utils/formatUtils";
 
 // ============================================================================
 // Types
@@ -97,60 +100,14 @@ function GlassPanel({ children, className = "" }: GlassPanelProps): React.ReactE
   return (
     <div
       className={`
-        bg-ui-surface
-        backdrop-blur-glass
-        border border-ui-border
-        rounded-lg
-        shadow-glow
+        glass-panel-glow
         ${className}
       `}
-      style={{
-        boxShadow: `
-          0 0 20px rgba(0, 255, 255, 0.15),
-          inset 0 0 30px rgba(0, 255, 255, 0.05)
-        `,
-      }}
     >
       {children}
     </div>
   );
 }
-
-interface LoadingSpinnerProps {
-  size?: number;
-}
-
-/**
- * Loading spinner component
- */
-function LoadingSpinner({ size = 24 }: LoadingSpinnerProps): React.ReactElement {
-  return (
-    <svg
-      className="animate-spin text-ui-accent-primary"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-      />
-    </svg>
-  );
-}
-
-/**
- * Format a number as percentage
- */
-function formatPercentage(value: number): string {
-  return `${String(Math.round(value * 100))}%`;
-}
-
-import { getSeverityColorClass } from "../utils/dashboardUtils";
 
 /**
  * Get severity label
@@ -238,7 +195,10 @@ function ReasoningInput({
           bg-ui-background/50 border border-ui-border rounded-lg
           text-ui-text-primary placeholder-ui-text-muted
           resize-none
-          focus:outline-none focus:border-ui-accent-primary focus:ring-1 focus:ring-ui-accent-primary
+          transition-all duration-normal
+          focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
+          focus:shadow-glow-sm
+          hover:border-ui-border-hover
           ${disabled ? "opacity-50 cursor-not-allowed" : ""}
         `}
         aria-describedby="reasoning-input-hint"
@@ -317,7 +277,10 @@ function EvidenceInput({
                 bg-ui-background/50 border border-ui-border rounded
                 text-sm text-ui-text-primary placeholder-ui-text-muted
                 resize-none
-                focus:outline-none focus:border-ui-accent-primary
+                transition-all duration-normal
+                focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
+                focus:shadow-glow-sm
+                hover:border-ui-border-hover
                 ${disabled ? "opacity-50 cursor-not-allowed" : ""}
               `}
             />
@@ -341,7 +304,10 @@ function EvidenceInput({
                 bg-ui-background/50 border border-ui-border rounded
                 text-sm text-ui-text-primary placeholder-ui-text-muted
                 resize-none
-                focus:outline-none focus:border-ui-accent-primary
+                transition-all duration-normal
+                focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
+                focus:shadow-glow-sm
+                hover:border-ui-border-hover
                 ${disabled ? "opacity-50 cursor-not-allowed" : ""}
               `}
             />
@@ -447,8 +413,8 @@ function RadarChart({ dimensions, size = 300 }: RadarChartProps): React.ReactEle
             </feMerge>
           </filter>
           <linearGradient id="radarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="rgba(0, 255, 255, 0.3)" />
-            <stop offset="100%" stopColor="rgba(155, 89, 182, 0.2)" />
+            <stop offset="0%" style={{ stopColor: "var(--theme-primary-glow)" }} />
+            <stop offset="100%" style={{ stopColor: "var(--theme-secondary-glow)" }} />
           </linearGradient>
         </defs>
 
@@ -458,7 +424,7 @@ function RadarChart({ dimensions, size = 300 }: RadarChartProps): React.ReactEle
           cy={center}
           r={radius}
           fill="none"
-          stroke="rgba(0, 255, 255, 0.1)"
+          style={{ stroke: "var(--theme-primary-bg)" }}
           strokeWidth="20"
           filter="url(#glow)"
         />
@@ -469,7 +435,7 @@ function RadarChart({ dimensions, size = 300 }: RadarChartProps): React.ReactEle
             key={`grid-${String(index)}`}
             d={path}
             fill="none"
-            stroke={`rgba(0, 255, 255, ${String(0.05 + index * 0.03)})`}
+            style={{ stroke: "var(--theme-primary-subtle)", opacity: 0.3 + index * 0.15 }}
             strokeWidth="1"
           />
         ))}
@@ -482,7 +448,7 @@ function RadarChart({ dimensions, size = 300 }: RadarChartProps): React.ReactEle
             y1={line.y1}
             x2={line.x2}
             y2={line.y2}
-            stroke="rgba(0, 255, 255, 0.2)"
+            style={{ stroke: "var(--theme-primary-subtle)" }}
             strokeWidth="1"
             strokeDasharray="4 4"
           />
@@ -492,7 +458,7 @@ function RadarChart({ dimensions, size = 300 }: RadarChartProps): React.ReactEle
         <path
           d={polygonPath}
           fill="url(#radarGradient)"
-          stroke="rgba(0, 255, 255, 0.9)"
+          style={{ stroke: "var(--theme-primary)" }}
           strokeWidth="2"
           filter="url(#glow)"
         />
@@ -728,22 +694,22 @@ function getSeverityStyles(severity: number): {
 } {
   if (severity >= 0.7) {
     return {
-      bgGradient: "bg-gradient-to-r from-red-500/20 to-red-500/5",
-      borderGlow: "shadow-[0_0_15px_rgba(231,76,60,0.3)]",
-      icon: <CircleDot size={20} className="text-red-400" />,
+      bgGradient: "risk-indicator-high",
+      borderGlow: "complexity-glow-high",
+      icon: <CircleDot size={20} className="text-status-error" />,
     };
   }
   if (severity >= 0.4) {
     return {
-      bgGradient: "bg-gradient-to-r from-yellow-500/20 to-yellow-500/5",
-      borderGlow: "shadow-[0_0_15px_rgba(243,156,18,0.3)]",
-      icon: <CircleDot size={20} className="text-yellow-400" />,
+      bgGradient: "risk-indicator-medium",
+      borderGlow: "complexity-glow-medium",
+      icon: <CircleDot size={20} className="text-status-warning" />,
     };
   }
   return {
-    bgGradient: "bg-gradient-to-r from-green-500/20 to-green-500/5",
-    borderGlow: "shadow-[0_0_15px_rgba(39,174,96,0.3)]",
-    icon: <CircleDot size={20} className="text-green-400" />,
+    bgGradient: "risk-indicator-low",
+    borderGlow: "complexity-glow-low",
+    icon: <CircleDot size={20} className="text-status-success" />,
   };
 }
 
@@ -1192,7 +1158,9 @@ export function ConfidenceBiasDashboard({
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return (): void => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [canAnalyze, handleAnalyze]);
 
   return (
@@ -1284,47 +1252,17 @@ export function ConfidenceBiasDashboard({
       </div>
 
       {/* Floating Action Button - Bottom center */}
-      <button
+      <FloatingActionButton
+        label="Analyze"
         onClick={(): void => {
           void handleAnalyze();
         }}
+        icon={<AnalyzeIcon />}
         disabled={!canAnalyze}
-        className={`fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50 w-48 h-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 group hover:scale-105 active:scale-95 ${
-          canAnalyze
-            ? "bg-[#0a1628] hover:bg-[#0d1e38] text-[#00FFFF] border border-[#00FFFF]/40"
-            : "bg-[#0a1628]/50 text-[#00FFFF]/30 border border-[#00FFFF]/10 cursor-not-allowed"
-        }`}
-        aria-label="Analyze"
-        style={
-          canAnalyze
-            ? {
-                boxShadow: "0 0 20px rgba(0, 255, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.4)",
-              }
-            : undefined
-        }
-      >
-        {isProcessing ? (
-          <>
-            <LoadingSpinner size={20} />
-            <span className="font-semibold text-sm">Analyzing...</span>
-          </>
-        ) : (
-          <>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              />
-            </svg>
-            <span className="font-semibold text-sm">Analyze</span>
-            <kbd className="ml-1 px-2 py-1 text-xs font-medium bg-[#00FFFF]/20 text-[#00FFFF] rounded border border-[#00FFFF]/40">
-              ⌘↵
-            </kbd>
-          </>
-        )}
-      </button>
+        isLoading={isProcessing}
+        loadingText="Analyzing..."
+        ariaLabel="Analyze"
+      />
     </div>
   );
 }

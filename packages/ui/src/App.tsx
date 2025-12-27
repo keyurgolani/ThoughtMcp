@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from
 import { UsernameModal } from "./components/auth";
 import {
   CreateMemoryModal,
+  KeyboardShortcutsModal,
   MemoryPreviewModal,
   type CreateMemorySaveResult,
 } from "./components/hud";
@@ -14,6 +15,7 @@ import {
 } from "./components/navigation";
 import type { RecentMemory } from "./components/navigation/QuickAccessPanel";
 import { useCleanMode } from "./hooks/useCleanMode";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import {
   ConfidenceBiasDashboard,
   Dashboard,
@@ -21,11 +23,6 @@ import {
   FrameworkAnalysis,
   MemoryExplorer,
   MemoryGraph,
-  MemoryGraph1,
-  MemoryGraph2,
-  MemoryGraph3,
-  MemoryGraph4,
-  MemoryGraph5,
   ProblemDecomposition,
   ReasoningConsole,
   type CognitiveSession,
@@ -87,12 +84,6 @@ const ROUTE_TO_SCREEN: Record<string, ScreenId> = {
   "/decomposition": "problem-decomposition",
   "/confidence-bias": "confidence-bias",
   "/emotion": "emotion-analysis",
-  // Reference graph routes (isolated for comparison)
-  "/memorygraph1": "memory-graph",
-  "/memorygraph2": "memory-graph",
-  "/memorygraph3": "memory-graph",
-  "/memorygraph4": "memory-graph",
-  "/memorygraph5": "memory-graph",
 };
 
 const SCREEN_TO_ROUTE: Record<ScreenId, string> = {
@@ -130,6 +121,7 @@ function AppContent(): React.ReactElement {
 
   // Get memories from central memory store for WikiLink autocomplete
   const memories = useMemoryStore((state) => state.memories);
+  const totalCount = useMemoryStore((state) => state.totalCount);
   const fetchMemories = useMemoryStore((state) => state.fetchMemories);
 
   // Fetch memories on mount and when user changes
@@ -212,18 +204,18 @@ function AppContent(): React.ReactElement {
     [navigate]
   );
 
-  // Create stats from real memories
+  // Create stats from real memories - use totalCount from API for accurate count
   const demoStats: QuickStats = useMemo(
     () => ({
-      totalMemories: availableMemories.length,
-      totalConnections: Math.max(0, availableMemories.length - 1), // Approximate connections
+      totalMemories: totalCount ?? availableMemories.length,
+      totalConnections: Math.max(0, (totalCount ?? availableMemories.length) - 1), // Approximate connections
       memoriesThisWeek: availableMemories.filter((m) => {
         const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
         return new Date(m.createdAt).getTime() > weekAgo;
       }).length,
-      hubNodes: availableMemories.length > 0 ? 1 : 0,
+      hubNodes: (totalCount ?? availableMemories.length) > 0 ? 1 : 0,
     }),
-    [availableMemories]
+    [availableMemories, totalCount]
   );
 
   // Create recent memories from real data - pass full content, let UI handle truncation
@@ -428,18 +420,32 @@ function AppContent(): React.ReactElement {
     };
   }, []);
 
+  // Keyboard shortcuts hook for global navigation and actions
+  const { shortcuts, isHelpOpen, closeHelp, modifierKey } = useKeyboardShortcuts({
+    onNavigate: (route: string) => {
+      // Map routes to screen IDs
+      const routeToScreen: Record<string, ScreenId> = {
+        "/dashboard": "dashboard",
+        "/explorer": "memory-graph",
+        "/reasoning": "reasoning-console",
+        "/framework": "framework-analysis",
+        "/decomposition": "problem-decomposition",
+        "/confidence-bias": "confidence-bias",
+        "/emotion": "emotion-analysis",
+      };
+      const screenId = routeToScreen[route];
+      if (screenId) {
+        handleNavigate(screenId);
+      }
+    },
+    enabled: true,
+  });
+
   // Render the current screen - requires userId and sessionId
   const renderScreen = (): React.ReactElement => {
     // These should always be set when AppContent renders (guarded by App component)
     const currentUserId = userId ?? "";
     const currentSessionId = sessionId ?? "";
-
-    // Handle reference graph routes (isolated for comparison)
-    if (location.pathname === "/memorygraph1") return <MemoryGraph1 />;
-    if (location.pathname === "/memorygraph2") return <MemoryGraph2 />;
-    if (location.pathname === "/memorygraph3") return <MemoryGraph3 />;
-    if (location.pathname === "/memorygraph4") return <MemoryGraph4 />;
-    if (location.pathname === "/memorygraph5") return <MemoryGraph5 />;
 
     switch (activeScreen) {
       case "dashboard":
@@ -558,6 +564,14 @@ function AppContent(): React.ReactElement {
         availableMemories={availableMemories}
         userId={userId ?? ""}
         sessionId={sessionId ?? ""}
+      />
+
+      {/* KeyboardShortcutsModal - Press ? to show */}
+      <KeyboardShortcutsModal
+        isOpen={isHelpOpen}
+        onClose={closeHelp}
+        shortcuts={shortcuts}
+        modifierKey={modifierKey}
       />
     </div>
   );

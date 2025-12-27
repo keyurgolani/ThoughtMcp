@@ -11,6 +11,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getDefaultClient } from "../api/client";
 import { BlockNotePreview } from "../components/hud/BlockNotePreview";
+import { DecomposeIcon, FloatingActionButton } from "../components/hud/FloatingActionButton";
 import {
   BarChart3,
   CircleDot,
@@ -68,9 +69,9 @@ const COMPLEXITY_ICONS: Record<SubProblem["complexity"], React.ReactElement> = {
 };
 
 const COMPLEXITY_GLOW: Record<SubProblem["complexity"], string> = {
-  low: "shadow-[0_0_10px_rgba(39,174,96,0.3)]",
-  medium: "shadow-[0_0_10px_rgba(243,156,18,0.3)]",
-  high: "shadow-[0_0_10px_rgba(231,76,60,0.3)]",
+  low: "complexity-glow-low",
+  medium: "complexity-glow-medium",
+  high: "complexity-glow-high",
 };
 
 // ============================================================================
@@ -89,49 +90,12 @@ function GlassPanel({ children, className = "" }: GlassPanelProps): React.ReactE
   return (
     <div
       className={`
-        bg-ui-surface
-        backdrop-blur-glass
-        border border-ui-border
-        rounded-lg
-        shadow-glow
+        glass-panel-glow
         ${className}
       `}
-      style={{
-        boxShadow: `
-          0 0 20px rgba(0, 255, 255, 0.15),
-          inset 0 0 30px rgba(0, 255, 255, 0.05)
-        `,
-      }}
     >
       {children}
     </div>
-  );
-}
-
-interface LoadingSpinnerProps {
-  size?: number;
-}
-
-/**
- * Loading spinner component
- */
-function LoadingSpinner({ size = 24 }: LoadingSpinnerProps): React.ReactElement {
-  return (
-    <svg
-      className="animate-spin text-ui-accent-primary"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-      />
-    </svg>
   );
 }
 
@@ -198,7 +162,10 @@ function ProblemInput({
           bg-ui-background/50 border border-ui-border rounded-lg
           text-ui-text-primary placeholder-ui-text-muted
           resize-none
-          focus:outline-none focus:border-ui-accent-primary focus:ring-1 focus:ring-ui-accent-primary
+          transition-all duration-normal
+          focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
+          focus:shadow-glow-sm
+          hover:border-ui-border-hover
           ${disabled ? "opacity-50 cursor-not-allowed" : ""}
         `}
         aria-describedby="decomposition-problem-hint"
@@ -394,7 +361,10 @@ function ContextInput({
                 bg-ui-background/50 border border-ui-border rounded
                 text-sm text-ui-text-primary placeholder-ui-text-muted
                 resize-none
-                focus:outline-none focus:border-ui-accent-primary
+                transition-all duration-normal
+                focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
+                focus:shadow-glow-sm
+                hover:border-ui-border-hover
                 ${disabled ? "opacity-50 cursor-not-allowed" : ""}
               `}
             />
@@ -421,7 +391,10 @@ function ContextInput({
                 bg-ui-background/50 border border-ui-border rounded
                 text-sm text-ui-text-primary placeholder-ui-text-muted
                 resize-none
-                focus:outline-none focus:border-ui-accent-primary
+                transition-all duration-normal
+                focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
+                focus:shadow-glow-sm
+                hover:border-ui-border-hover
                 ${disabled ? "opacity-50 cursor-not-allowed" : ""}
               `}
             />
@@ -474,7 +447,7 @@ function TreeNode({
           style={{
             marginLeft: "-1.25rem",
             marginTop: "0.75rem",
-            borderColor: "rgba(0, 255, 255, 0.3)",
+            borderColor: "var(--theme-primary-subtle)",
           }}
         />
       )}
@@ -534,7 +507,7 @@ function TreeNode({
             {subProblem.description.includes("Relevant context from previous interactions:") ? (
               <div className="text-sm text-ui-text-primary font-medium leading-relaxed">
                 {/* Split and render memory context separately */}
-                {(() => {
+                {((): React.ReactElement => {
                   const contextMatch = subProblem.description.match(
                     /Relevant context from previous interactions:\s*([\s\S]*?)(?=\n\n|$)/
                   );
@@ -542,10 +515,14 @@ function TreeNode({
                     .replace(/Relevant context from previous interactions:[\s\S]*?(?=\n\n|$)/, "")
                     .trim();
 
+                  const contextText = contextMatch?.[1];
+                  const hasMainDescription = mainDescription !== "";
+                  const hasContextText = contextText !== undefined && contextText !== "";
+
                   return (
                     <>
-                      {mainDescription && <p className="mb-2">{mainDescription}</p>}
-                      {contextMatch && contextMatch[1] && (
+                      {hasMainDescription && <p className="mb-2">{mainDescription}</p>}
+                      {hasContextText && (
                         <div className="mt-2 p-2 rounded-lg bg-ui-background/50 border border-ui-border/50">
                           <div className="text-xs text-ui-accent-secondary font-semibold uppercase tracking-wide mb-1 flex items-center gap-1">
                             <svg
@@ -565,7 +542,7 @@ function TreeNode({
                           </div>
                           <div className="text-xs">
                             <BlockNotePreview
-                              content={contextMatch[1]
+                              content={contextText
                                 .replace(/^[\s-]*Known fact:\s*/gm, "")
                                 .replace(/^[\s-]*Learned concept:\s*/gm, "")
                                 .replace(/^[\s-]*Previous insight:\s*/gm, "")
@@ -672,7 +649,7 @@ function TreeNode({
           ${hasChildren && isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}
         `}
         style={{
-          borderLeft: hasChildren && isExpanded ? "2px solid rgba(0, 255, 255, 0.2)" : "none",
+          borderLeft: hasChildren && isExpanded ? "2px solid var(--theme-primary-bg)" : "none",
         }}
       >
         {subProblem.children?.map((child, index) => (
@@ -1135,7 +1112,9 @@ export function ProblemDecomposition({
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return (): void => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [canSubmit, handleSubmit]);
 
   return (
@@ -1219,47 +1198,17 @@ export function ProblemDecomposition({
       </div>
 
       {/* Floating Action Button - Bottom center */}
-      <button
+      <FloatingActionButton
+        label="Decompose"
         onClick={(): void => {
           void handleSubmit();
         }}
+        icon={<DecomposeIcon />}
         disabled={!canSubmit}
-        className={`fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50 w-48 h-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 group hover:scale-105 active:scale-95 ${
-          canSubmit
-            ? "bg-[#0a1628] hover:bg-[#0d1e38] text-[#00FFFF] border border-[#00FFFF]/40"
-            : "bg-[#0a1628]/50 text-[#00FFFF]/30 border border-[#00FFFF]/10 cursor-not-allowed"
-        }`}
-        aria-label="Decompose problem"
-        style={
-          canSubmit
-            ? {
-                boxShadow: "0 0 20px rgba(0, 255, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.4)",
-              }
-            : undefined
-        }
-      >
-        {isProcessing ? (
-          <>
-            <LoadingSpinner size={20} />
-            <span className="font-semibold text-sm">Decomposing...</span>
-          </>
-        ) : (
-          <>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"
-              />
-            </svg>
-            <span className="font-semibold text-sm">Decompose</span>
-            <kbd className="ml-1 px-2 py-1 text-xs font-medium bg-[#00FFFF]/20 text-[#00FFFF] rounded border border-[#00FFFF]/40">
-              ⌘↵
-            </kbd>
-          </>
-        )}
-      </button>
+        isLoading={isProcessing}
+        loadingText="Decomposing..."
+        ariaLabel="Decompose problem"
+      />
     </div>
   );
 }

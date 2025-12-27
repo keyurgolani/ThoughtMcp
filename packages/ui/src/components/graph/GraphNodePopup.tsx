@@ -13,6 +13,7 @@
 import { Eye, Pencil, X } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import type { GraphNode, MemorySectorType } from "../../types/api";
+import { formatPercentage } from "../../utils/formatUtils";
 import { getSectorColor } from "../../utils/visualization";
 
 // ============================================================================
@@ -60,13 +61,6 @@ const POPUP_PADDING = 16;
  */
 function formatSectorType(sector: MemorySectorType): string {
   return sector.charAt(0).toUpperCase() + sector.slice(1);
-}
-
-/**
- * Formats a number as a percentage string.
- */
-function formatPercentage(value: number): string {
-  return `${String(Math.round(value * 100))}%`;
 }
 
 /**

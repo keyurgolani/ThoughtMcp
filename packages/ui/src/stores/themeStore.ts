@@ -1,8 +1,8 @@
 /**
  * ThemeStore - Zustand store for theme management
  *
- * Manages theme options with persistent storage.
- * Consolidated to 5 distinct themes with meaningful visual differences.
+ * Manages 8 thoughtfully designed color schemes (4 dark, 4 light)
+ * for a cognitive memory/reasoning application.
  */
 
 import { create } from "zustand";
@@ -12,7 +12,15 @@ import { createJSONStorage, persist } from "zustand/middleware";
 // Theme Definitions
 // ============================================================================
 
-export type ThemeId = "cosmic" | "ember" | "monochrome" | "light" | "high-contrast";
+export type ThemeId =
+  | "cosmic"
+  | "ember"
+  | "forest"
+  | "midnight"
+  | "dawn"
+  | "arctic"
+  | "sage"
+  | "pearl";
 
 export interface ThemeColors {
   // Primary accent (main actions, highlights)
@@ -67,11 +75,15 @@ export interface Theme {
 }
 
 // ============================================================================
-// Theme Palette Definitions
+// Theme Palette Definitions - 4 Dark Themes
 // ============================================================================
 
 export const themes: Record<ThemeId, Theme> = {
-  // Cosmic - Neon cyberpunk with cyan accents (the original)
+  // ============================================================================
+  // DARK THEMES
+  // ============================================================================
+
+  // Cosmic - Neon cyberpunk with cyan/purple accents (default)
   cosmic: {
     id: "cosmic",
     name: "Cosmic",
@@ -115,7 +127,7 @@ export const themes: Record<ThemeId, Theme> = {
     },
   },
 
-  // Ember - Warm, cozy dark theme with orange/amber tones
+  // Ember - Warm orange/amber tones
   ember: {
     id: "ember",
     name: "Ember",
@@ -123,34 +135,34 @@ export const themes: Record<ThemeId, Theme> = {
     isLight: false,
     colors: {
       primary: "#FF6B35",
-      primaryMuted: "#CC5529",
+      primaryMuted: "#E55A2B",
       primaryGlow: "rgba(255, 107, 53, 0.3)",
       primarySubtle: "rgba(255, 107, 53, 0.15)",
       primaryBg: "rgba(255, 107, 53, 0.1)",
 
       secondary: "#FFB347",
-      secondaryMuted: "#CC8F39",
+      secondaryMuted: "#E5A03F",
       secondaryGlow: "rgba(255, 179, 71, 0.3)",
       secondarySubtle: "rgba(255, 179, 71, 0.15)",
       secondaryBg: "rgba(255, 179, 71, 0.1)",
 
       highlight: "#FF4757",
-      highlightMuted: "#CC3946",
+      highlightMuted: "#E53E4D",
       highlightGlow: "rgba(255, 71, 87, 0.3)",
       highlightSubtle: "rgba(255, 71, 87, 0.15)",
       highlightBg: "rgba(255, 71, 87, 0.1)",
 
-      background: "#0f0808",
-      backgroundSecondary: "#140c0c",
-      backgroundTertiary: "#1a1010",
+      background: "#0f0908",
+      backgroundSecondary: "#140d0b",
+      backgroundTertiary: "#1a1210",
 
-      surface: "rgba(25, 15, 15, 0.85)",
-      surfaceElevated: "rgba(35, 20, 20, 0.9)",
-      surfaceOverlay: "rgba(45, 25, 25, 0.95)",
-      surfaceSunken: "rgba(12, 8, 8, 0.9)",
+      surface: "rgba(25, 18, 15, 0.85)",
+      surfaceElevated: "rgba(35, 25, 20, 0.9)",
+      surfaceOverlay: "rgba(45, 32, 25, 0.95)",
+      surfaceSunken: "rgba(12, 8, 6, 0.9)",
 
-      border: "rgba(150, 80, 60, 0.3)",
-      borderHover: "rgba(150, 80, 60, 0.5)",
+      border: "rgba(150, 100, 80, 0.3)",
+      borderHover: "rgba(150, 100, 80, 0.5)",
       borderActive: "rgba(255, 107, 53, 0.5)",
 
       textPrimary: "#ffffff",
@@ -159,43 +171,43 @@ export const themes: Record<ThemeId, Theme> = {
     },
   },
 
-  // Monochrome - Clean grayscale with white accents
-  monochrome: {
-    id: "monochrome",
-    name: "Monochrome",
-    description: "Clean and minimal grayscale",
+  // Forest - Deep greens and earth tones
+  forest: {
+    id: "forest",
+    name: "Forest",
+    description: "Deep greens and natural earth tones",
     isLight: false,
     colors: {
-      primary: "#FFFFFF",
-      primaryMuted: "#CCCCCC",
-      primaryGlow: "rgba(255, 255, 255, 0.25)",
-      primarySubtle: "rgba(255, 255, 255, 0.12)",
-      primaryBg: "rgba(255, 255, 255, 0.08)",
+      primary: "#4ADE80",
+      primaryMuted: "#3CC96E",
+      primaryGlow: "rgba(74, 222, 128, 0.3)",
+      primarySubtle: "rgba(74, 222, 128, 0.15)",
+      primaryBg: "rgba(74, 222, 128, 0.1)",
 
-      secondary: "#A0A0A0",
-      secondaryMuted: "#808080",
-      secondaryGlow: "rgba(160, 160, 160, 0.25)",
-      secondarySubtle: "rgba(160, 160, 160, 0.12)",
-      secondaryBg: "rgba(160, 160, 160, 0.08)",
+      secondary: "#A3E635",
+      secondaryMuted: "#8FCC2E",
+      secondaryGlow: "rgba(163, 230, 53, 0.3)",
+      secondarySubtle: "rgba(163, 230, 53, 0.15)",
+      secondaryBg: "rgba(163, 230, 53, 0.1)",
 
-      highlight: "#E0E0E0",
-      highlightMuted: "#B0B0B0",
-      highlightGlow: "rgba(224, 224, 224, 0.25)",
-      highlightSubtle: "rgba(224, 224, 224, 0.12)",
-      highlightBg: "rgba(224, 224, 224, 0.08)",
+      highlight: "#34D399",
+      highlightMuted: "#2DBD87",
+      highlightGlow: "rgba(52, 211, 153, 0.3)",
+      highlightSubtle: "rgba(52, 211, 153, 0.15)",
+      highlightBg: "rgba(52, 211, 153, 0.1)",
 
-      background: "#0a0a0a",
-      backgroundSecondary: "#101010",
-      backgroundTertiary: "#161616",
+      background: "#080f0a",
+      backgroundSecondary: "#0b140d",
+      backgroundTertiary: "#101a12",
 
-      surface: "rgba(20, 20, 20, 0.85)",
-      surfaceElevated: "rgba(28, 28, 28, 0.9)",
-      surfaceOverlay: "rgba(36, 36, 36, 0.95)",
-      surfaceSunken: "rgba(10, 10, 10, 0.9)",
+      surface: "rgba(15, 25, 18, 0.85)",
+      surfaceElevated: "rgba(20, 35, 25, 0.9)",
+      surfaceOverlay: "rgba(25, 45, 32, 0.95)",
+      surfaceSunken: "rgba(6, 12, 8, 0.9)",
 
-      border: "rgba(100, 100, 100, 0.3)",
-      borderHover: "rgba(100, 100, 100, 0.5)",
-      borderActive: "rgba(255, 255, 255, 0.4)",
+      border: "rgba(80, 130, 100, 0.3)",
+      borderHover: "rgba(80, 130, 100, 0.5)",
+      borderActive: "rgba(74, 222, 128, 0.5)",
 
       textPrimary: "#ffffff",
       textSecondary: "rgba(255, 255, 255, 0.7)",
@@ -203,30 +215,122 @@ export const themes: Record<ThemeId, Theme> = {
     },
   },
 
-  // Light - Clean, professional light theme
-  light: {
-    id: "light",
-    name: "Light",
-    description: "Clean and professional light theme",
+  // Midnight - Deep blues and silver accents
+  midnight: {
+    id: "midnight",
+    name: "Midnight",
+    description: "Deep blues with elegant silver accents",
+    isLight: false,
+    colors: {
+      primary: "#60A5FA",
+      primaryMuted: "#4B91E5",
+      primaryGlow: "rgba(96, 165, 250, 0.3)",
+      primarySubtle: "rgba(96, 165, 250, 0.15)",
+      primaryBg: "rgba(96, 165, 250, 0.1)",
+
+      secondary: "#A78BFA",
+      secondaryMuted: "#9277E5",
+      secondaryGlow: "rgba(167, 139, 250, 0.3)",
+      secondarySubtle: "rgba(167, 139, 250, 0.15)",
+      secondaryBg: "rgba(167, 139, 250, 0.1)",
+
+      highlight: "#C0C0C0",
+      highlightMuted: "#A8A8A8",
+      highlightGlow: "rgba(192, 192, 192, 0.3)",
+      highlightSubtle: "rgba(192, 192, 192, 0.15)",
+      highlightBg: "rgba(192, 192, 192, 0.1)",
+
+      background: "#080a10",
+      backgroundSecondary: "#0b0e16",
+      backgroundTertiary: "#10141e",
+
+      surface: "rgba(15, 18, 30, 0.85)",
+      surfaceElevated: "rgba(20, 25, 42, 0.9)",
+      surfaceOverlay: "rgba(25, 32, 55, 0.95)",
+      surfaceSunken: "rgba(6, 8, 14, 0.9)",
+
+      border: "rgba(80, 100, 150, 0.3)",
+      borderHover: "rgba(80, 100, 150, 0.5)",
+      borderActive: "rgba(96, 165, 250, 0.5)",
+
+      textPrimary: "#ffffff",
+      textSecondary: "rgba(255, 255, 255, 0.7)",
+      textMuted: "rgba(255, 255, 255, 0.5)",
+    },
+  },
+
+  // ============================================================================
+  // LIGHT THEMES
+  // ============================================================================
+
+  // Dawn - Soft warm light theme with coral/peach accents
+  dawn: {
+    id: "dawn",
+    name: "Dawn",
+    description: "Soft warm light with coral and peach accents",
     isLight: true,
     colors: {
-      primary: "#0066CC",
-      primaryMuted: "#0052A3",
-      primaryGlow: "rgba(0, 102, 204, 0.3)",
-      primarySubtle: "rgba(0, 102, 204, 0.15)",
-      primaryBg: "rgba(0, 102, 204, 0.1)",
+      primary: "#E11D48",
+      primaryMuted: "#BE123C",
+      primaryGlow: "rgba(225, 29, 72, 0.25)",
+      primarySubtle: "rgba(225, 29, 72, 0.12)",
+      primaryBg: "rgba(225, 29, 72, 0.08)",
 
-      secondary: "#4B5563",
-      secondaryMuted: "#374151",
-      secondaryGlow: "rgba(75, 85, 99, 0.3)",
-      secondarySubtle: "rgba(75, 85, 99, 0.15)",
-      secondaryBg: "rgba(75, 85, 99, 0.1)",
+      secondary: "#F97316",
+      secondaryMuted: "#EA580C",
+      secondaryGlow: "rgba(249, 115, 22, 0.25)",
+      secondarySubtle: "rgba(249, 115, 22, 0.12)",
+      secondaryBg: "rgba(249, 115, 22, 0.08)",
 
-      highlight: "#B45309",
-      highlightMuted: "#92400E",
-      highlightGlow: "rgba(180, 83, 9, 0.3)",
-      highlightSubtle: "rgba(180, 83, 9, 0.15)",
-      highlightBg: "rgba(180, 83, 9, 0.1)",
+      highlight: "#DB2777",
+      highlightMuted: "#BE185D",
+      highlightGlow: "rgba(219, 39, 119, 0.25)",
+      highlightSubtle: "rgba(219, 39, 119, 0.12)",
+      highlightBg: "rgba(219, 39, 119, 0.08)",
+
+      background: "#FFFBF5",
+      backgroundSecondary: "#FFF7ED",
+      backgroundTertiary: "#FFEDD5",
+
+      surface: "rgba(255, 255, 255, 0.95)",
+      surfaceElevated: "rgba(255, 255, 255, 0.98)",
+      surfaceOverlay: "rgba(255, 255, 255, 1)",
+      surfaceSunken: "rgba(255, 237, 213, 0.6)",
+
+      border: "rgba(0, 0, 0, 0.12)",
+      borderHover: "rgba(0, 0, 0, 0.2)",
+      borderActive: "rgba(225, 29, 72, 0.5)",
+
+      textPrimary: "#1C1917",
+      textSecondary: "#44403C",
+      textMuted: "#78716C",
+    },
+  },
+
+  // Arctic - Cool crisp light theme with blue accents
+  arctic: {
+    id: "arctic",
+    name: "Arctic",
+    description: "Cool and crisp with blue accents",
+    isLight: true,
+    colors: {
+      primary: "#0284C7",
+      primaryMuted: "#0369A1",
+      primaryGlow: "rgba(2, 132, 199, 0.25)",
+      primarySubtle: "rgba(2, 132, 199, 0.12)",
+      primaryBg: "rgba(2, 132, 199, 0.08)",
+
+      secondary: "#0891B2",
+      secondaryMuted: "#0E7490",
+      secondaryGlow: "rgba(8, 145, 178, 0.25)",
+      secondarySubtle: "rgba(8, 145, 178, 0.12)",
+      secondaryBg: "rgba(8, 145, 178, 0.08)",
+
+      highlight: "#2563EB",
+      highlightMuted: "#1D4ED8",
+      highlightGlow: "rgba(37, 99, 235, 0.25)",
+      highlightSubtle: "rgba(37, 99, 235, 0.12)",
+      highlightBg: "rgba(37, 99, 235, 0.08)",
 
       background: "#F8FAFC",
       backgroundSecondary: "#F1F5F9",
@@ -235,59 +339,103 @@ export const themes: Record<ThemeId, Theme> = {
       surface: "rgba(255, 255, 255, 0.95)",
       surfaceElevated: "rgba(255, 255, 255, 0.98)",
       surfaceOverlay: "rgba(255, 255, 255, 1)",
-      surfaceSunken: "rgba(241, 245, 249, 1)",
+      surfaceSunken: "rgba(241, 245, 249, 0.8)",
 
-      border: "rgba(0, 0, 0, 0.15)",
-      borderHover: "rgba(0, 0, 0, 0.25)",
-      borderActive: "rgba(0, 102, 204, 0.6)",
+      border: "rgba(0, 0, 0, 0.1)",
+      borderHover: "rgba(0, 0, 0, 0.18)",
+      borderActive: "rgba(2, 132, 199, 0.5)",
 
       textPrimary: "#0F172A",
       textSecondary: "#334155",
-      textMuted: "#475569",
+      textMuted: "#64748B",
     },
   },
 
-  // High Contrast - Maximum contrast for accessibility
-  "high-contrast": {
-    id: "high-contrast",
-    name: "High Contrast",
-    description: "Maximum contrast for accessibility",
-    isLight: false,
+  // Sage - Natural light theme with green accents
+  sage: {
+    id: "sage",
+    name: "Sage",
+    description: "Natural and calming with green accents",
+    isLight: true,
     colors: {
-      primary: "#00FF00",
-      primaryMuted: "#00CC00",
-      primaryGlow: "rgba(0, 255, 0, 0.4)",
-      primarySubtle: "rgba(0, 255, 0, 0.2)",
-      primaryBg: "rgba(0, 255, 0, 0.15)",
+      primary: "#059669",
+      primaryMuted: "#047857",
+      primaryGlow: "rgba(5, 150, 105, 0.25)",
+      primarySubtle: "rgba(5, 150, 105, 0.12)",
+      primaryBg: "rgba(5, 150, 105, 0.08)",
 
-      secondary: "#FFFF00",
-      secondaryMuted: "#CCCC00",
-      secondaryGlow: "rgba(255, 255, 0, 0.4)",
-      secondarySubtle: "rgba(255, 255, 0, 0.2)",
-      secondaryBg: "rgba(255, 255, 0, 0.15)",
+      secondary: "#0D9488",
+      secondaryMuted: "#0F766E",
+      secondaryGlow: "rgba(13, 148, 136, 0.25)",
+      secondarySubtle: "rgba(13, 148, 136, 0.12)",
+      secondaryBg: "rgba(13, 148, 136, 0.08)",
 
-      highlight: "#FF00FF",
-      highlightMuted: "#CC00CC",
-      highlightGlow: "rgba(255, 0, 255, 0.4)",
-      highlightSubtle: "rgba(255, 0, 255, 0.2)",
-      highlightBg: "rgba(255, 0, 255, 0.15)",
+      highlight: "#16A34A",
+      highlightMuted: "#15803D",
+      highlightGlow: "rgba(22, 163, 74, 0.25)",
+      highlightSubtle: "rgba(22, 163, 74, 0.12)",
+      highlightBg: "rgba(22, 163, 74, 0.08)",
 
-      background: "#000000",
-      backgroundSecondary: "#0a0a0a",
-      backgroundTertiary: "#141414",
+      background: "#F7FDF9",
+      backgroundSecondary: "#ECFDF5",
+      backgroundTertiary: "#D1FAE5",
 
-      surface: "rgba(0, 0, 0, 0.95)",
-      surfaceElevated: "rgba(20, 20, 20, 0.95)",
-      surfaceOverlay: "rgba(30, 30, 30, 0.98)",
-      surfaceSunken: "rgba(0, 0, 0, 1)",
+      surface: "rgba(255, 255, 255, 0.95)",
+      surfaceElevated: "rgba(255, 255, 255, 0.98)",
+      surfaceOverlay: "rgba(255, 255, 255, 1)",
+      surfaceSunken: "rgba(209, 250, 229, 0.5)",
 
-      border: "rgba(255, 255, 255, 0.6)",
-      borderHover: "rgba(255, 255, 255, 0.8)",
-      borderActive: "rgba(0, 255, 0, 0.9)",
+      border: "rgba(0, 0, 0, 0.1)",
+      borderHover: "rgba(0, 0, 0, 0.18)",
+      borderActive: "rgba(5, 150, 105, 0.5)",
 
-      textPrimary: "#FFFFFF",
-      textSecondary: "#FFFFFF",
-      textMuted: "rgba(255, 255, 255, 0.9)",
+      textPrimary: "#14532D",
+      textSecondary: "#166534",
+      textMuted: "#4D7C5F",
+    },
+  },
+
+  // Pearl - Clean minimal light theme with purple accents
+  pearl: {
+    id: "pearl",
+    name: "Pearl",
+    description: "Clean and minimal with purple accents",
+    isLight: true,
+    colors: {
+      primary: "#7C3AED",
+      primaryMuted: "#6D28D9",
+      primaryGlow: "rgba(124, 58, 237, 0.25)",
+      primarySubtle: "rgba(124, 58, 237, 0.12)",
+      primaryBg: "rgba(124, 58, 237, 0.08)",
+
+      secondary: "#8B5CF6",
+      secondaryMuted: "#7C3AED",
+      secondaryGlow: "rgba(139, 92, 246, 0.25)",
+      secondarySubtle: "rgba(139, 92, 246, 0.12)",
+      secondaryBg: "rgba(139, 92, 246, 0.08)",
+
+      highlight: "#A855F7",
+      highlightMuted: "#9333EA",
+      highlightGlow: "rgba(168, 85, 247, 0.25)",
+      highlightSubtle: "rgba(168, 85, 247, 0.12)",
+      highlightBg: "rgba(168, 85, 247, 0.08)",
+
+      background: "#FAFAFF",
+      backgroundSecondary: "#F5F3FF",
+      backgroundTertiary: "#EDE9FE",
+
+      surface: "rgba(255, 255, 255, 0.95)",
+      surfaceElevated: "rgba(255, 255, 255, 0.98)",
+      surfaceOverlay: "rgba(255, 255, 255, 1)",
+      surfaceSunken: "rgba(237, 233, 254, 0.6)",
+
+      border: "rgba(0, 0, 0, 0.1)",
+      borderHover: "rgba(0, 0, 0, 0.18)",
+      borderActive: "rgba(124, 58, 237, 0.5)",
+
+      textPrimary: "#1E1B4B",
+      textSecondary: "#3730A3",
+      textMuted: "#6366F1",
     },
   },
 };
@@ -335,21 +483,27 @@ const initialState: ThemeState = {
 const THEME_MIGRATION_MAP: Record<string, ThemeId> = {
   // Old dark themes -> new equivalents
   "cosmic-cyan": "cosmic",
-  "midnight-ocean": "cosmic",
+  "midnight-ocean": "midnight",
   "sunset-ember": "ember",
-  "forest-glow": "cosmic",
+  "forest-glow": "forest",
   "aurora-violet": "cosmic",
-  // Old light themes -> light
-  "light-cloud": "light",
-  "light-mint": "light",
-  "light-rose": "light",
-  "light-sand": "light",
+  monochrome: "midnight",
+  "high-contrast": "cosmic",
+  // Old light themes -> new light equivalents
+  "light-cloud": "arctic",
+  "light-mint": "sage",
+  "light-rose": "dawn",
+  "light-sand": "dawn",
+  light: "arctic",
   // Already valid
   cosmic: "cosmic",
   ember: "ember",
-  monochrome: "monochrome",
-  light: "light",
-  "high-contrast": "high-contrast",
+  forest: "forest",
+  midnight: "midnight",
+  dawn: "dawn",
+  arctic: "arctic",
+  sage: "sage",
+  pearl: "pearl",
 };
 
 /**
@@ -479,13 +633,16 @@ function applyThemeToDocument(theme: Theme): void {
   // Set light/dark mode attribute for theme-specific styling
   root.setAttribute("data-theme-mode", theme.isLight ? "light" : "dark");
 
-  // High contrast theme automatically enables high contrast mode
-  if (theme.id === "high-contrast") {
-    root.setAttribute("data-high-contrast", "true");
-    root.classList.add("high-contrast");
+  // Update color-scheme for native elements
+  root.style.colorScheme = theme.isLight ? "light" : "dark";
+
+  // Update background color on html/body for light themes
+  if (theme.isLight) {
+    root.style.backgroundColor = theme.colors.background;
+    document.body.style.backgroundColor = theme.colors.background;
   } else {
-    root.removeAttribute("data-high-contrast");
-    root.classList.remove("high-contrast");
+    root.style.backgroundColor = theme.colors.background;
+    document.body.style.backgroundColor = theme.colors.background;
   }
 }
 

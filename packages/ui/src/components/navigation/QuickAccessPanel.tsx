@@ -7,9 +7,9 @@
  * Requirements: 23.3
  */
 
-import { useCallback, useMemo, useState } from 'react';
-import type { Bookmark, SavedPath } from '../../stores/sessionStore';
-import { BookOpen, Calendar, Cog, FileText, Heart, Sparkles, Star } from '../icons/Icons';
+import { useCallback, useMemo, useState } from "react";
+import type { Bookmark, SavedPath } from "../../stores/sessionStore";
+import { BookOpen, Calendar, Cog, FileText, Heart, Sparkles, Star } from "../icons/Icons";
 
 // ============================================================================
 // Types
@@ -49,7 +49,7 @@ export interface QuickAccessPanelProps {
   className?: string;
 }
 
-type TabId = 'recent' | 'bookmarks' | 'paths';
+type TabId = "recent" | "bookmarks" | "paths";
 
 // ============================================================================
 // Constants
@@ -57,12 +57,13 @@ type TabId = 'recent' | 'bookmarks' | 'paths';
 
 const DEFAULT_MAX_ITEMS = 5;
 
-const SECTOR_COLORS: Record<string, string> = {
-  episodic: 'text-sector-episodic',
-  semantic: 'text-sector-semantic',
-  procedural: 'text-sector-procedural',
-  emotional: 'text-sector-emotional',
-  reflective: 'text-sector-reflective',
+// CSS classes for sector badges - uses CSS variables that adapt to theme
+const SECTOR_BADGE_CLASSES: Record<string, string> = {
+  episodic: "sector-badge-episodic",
+  semantic: "sector-badge-semantic",
+  procedural: "sector-badge-procedural",
+  emotional: "sector-badge-emotional",
+  reflective: "sector-badge-reflective",
 };
 
 const SECTOR_ICONS: Record<string, React.ReactElement> = {
@@ -92,7 +93,7 @@ function formatRelativeTime(timestamp: number): string {
   if (days > 0) return `${String(days)}d ago`;
   if (hours > 0) return `${String(hours)}h ago`;
   if (minutes > 0) return `${String(minutes)}m ago`;
-  return 'Just now';
+  return "Just now";
 }
 
 /**
@@ -100,7 +101,7 @@ function formatRelativeTime(timestamp: number): string {
  */
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + '...';
+  return text.substring(0, maxLength - 3) + "...";
 }
 
 // ============================================================================
@@ -133,8 +134,8 @@ function TabButton({ id, label, count, isActive, onClick }: TabButtonProps): Rea
         transition-colors duration-200
         ${
           isActive
-            ? 'bg-ui-surface text-ui-accent-primary border-b-2 border-ui-accent-primary'
-            : 'text-ui-text-secondary hover:text-ui-text-primary hover:bg-ui-border/30'
+            ? "bg-ui-surface text-ui-accent-primary border-b-2 border-ui-accent-primary"
+            : "text-ui-text-secondary hover:text-ui-text-primary hover:bg-ui-border/30"
         }
       `}
     >
@@ -144,7 +145,7 @@ function TabButton({ id, label, count, isActive, onClick }: TabButtonProps): Rea
           className={`
             ml-1 px-1.5 py-0.5
             text-[10px] rounded-full
-            ${isActive ? 'bg-ui-accent-primary/20' : 'bg-ui-border'}
+            ${isActive ? "bg-ui-accent-primary/20" : "bg-ui-border"}
           `}
         >
           {count}
@@ -163,7 +164,7 @@ interface MemoryItemProps {
  * Recent memory list item
  */
 function MemoryItem({ memory, onClick }: MemoryItemProps): React.ReactElement {
-  const sectorColor = SECTOR_COLORS[memory.primarySector] ?? 'text-ui-text-secondary';
+  const sectorBadgeClass = SECTOR_BADGE_CLASSES[memory.primarySector] ?? "";
   const sectorIcon = SECTOR_ICONS[memory.primarySector] ?? <FileText size={14} />;
 
   return (
@@ -181,7 +182,7 @@ function MemoryItem({ memory, onClick }: MemoryItemProps): React.ReactElement {
       aria-label={`Navigate to memory: ${memory.contentPreview}`}
     >
       <div className="flex items-start gap-2">
-        <span className={`text-sm ${sectorColor}`} aria-hidden="true">
+        <span className={`text-sm ${sectorBadgeClass}`} aria-hidden="true">
           {sectorIcon}
         </span>
         <div className="flex-1 min-w-0">
@@ -317,9 +318,9 @@ export function QuickAccessPanel({
   isExpanded = true,
   onToggleExpand,
   maxItems = DEFAULT_MAX_ITEMS,
-  className = '',
+  className = "",
 }: QuickAccessPanelProps): React.ReactElement {
-  const [activeTab, setActiveTab] = useState<TabId>('recent');
+  const [activeTab, setActiveTab] = useState<TabId>("recent");
 
   // Limit items to maxItems
   const limitedMemories = useMemo(
@@ -356,7 +357,7 @@ export function QuickAccessPanel({
   // Render tab content
   const renderTabContent = (): React.ReactElement => {
     switch (activeTab) {
-      case 'recent':
+      case "recent":
         return limitedMemories.length > 0 ? (
           <div className="space-y-1">
             {limitedMemories.map((memory) => (
@@ -373,7 +374,7 @@ export function QuickAccessPanel({
           <EmptyState message="No recent memories" />
         );
 
-      case 'bookmarks':
+      case "bookmarks":
         return limitedBookmarks.length > 0 ? (
           <div className="space-y-1">
             {limitedBookmarks.map((bookmark) => (
@@ -390,7 +391,7 @@ export function QuickAccessPanel({
           <EmptyState message="No bookmarks yet" />
         );
 
-      case 'paths':
+      case "paths":
         return limitedPaths.length > 0 ? (
           <div className="space-y-1">
             {limitedPaths.map((path) => (
@@ -420,9 +421,9 @@ export function QuickAccessPanel({
         ${className}
       `}
       style={{
-        boxShadow: '0 0 15px rgba(0, 255, 255, 0.1)',
+        boxShadow: "0 0 15px rgba(0, 255, 255, 0.1)",
         zIndex: 25, // Z_INDEX.QUICK_ACCESS_PANEL - ensures panel is above 3D canvas and clickable (Requirement 48.1, 48.5)
-        position: 'relative',
+        position: "relative",
       }}
     >
       {/* Header */}
@@ -432,10 +433,10 @@ export function QuickAccessPanel({
           <button
             onClick={onToggleExpand}
             aria-expanded={isExpanded}
-            aria-label={isExpanded ? 'Collapse panel' : 'Expand panel'}
+            aria-label={isExpanded ? "Collapse panel" : "Expand panel"}
             className="text-ui-text-muted hover:text-ui-text-primary transition-colors"
           >
-            <span className="text-xs">{isExpanded ? '▼' : '▶'}</span>
+            <span className="text-xs">{isExpanded ? "▼" : "▶"}</span>
           </button>
         )}
       </div>
@@ -452,27 +453,27 @@ export function QuickAccessPanel({
               id="recent"
               label="Recent"
               count={recentMemories.length}
-              isActive={activeTab === 'recent'}
+              isActive={activeTab === "recent"}
               onClick={(): void => {
-                setActiveTab('recent');
+                setActiveTab("recent");
               }}
             />
             <TabButton
               id="bookmarks"
               label="Bookmarks"
               count={bookmarks.length}
-              isActive={activeTab === 'bookmarks'}
+              isActive={activeTab === "bookmarks"}
               onClick={(): void => {
-                setActiveTab('bookmarks');
+                setActiveTab("bookmarks");
               }}
             />
             <TabButton
               id="paths"
               label="Paths"
               count={savedPaths.length}
-              isActive={activeTab === 'paths'}
+              isActive={activeTab === "paths"}
               onClick={(): void => {
-                setActiveTab('paths');
+                setActiveTab("paths");
               }}
             />
           </div>

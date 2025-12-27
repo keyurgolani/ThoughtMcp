@@ -10,6 +10,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getDefaultClient } from "../api/client";
+import { FloatingActionButton, LightningIcon } from "../components/hud/FloatingActionButton";
+import { LoadingSpinner } from "../components/hud/LoadingIndicator";
 import {
   AlertCircle,
   AnalyticalModeIcon,
@@ -33,6 +35,8 @@ import type {
   StreamResult,
   ThinkResponse,
 } from "../types/api";
+import { getSeverityColorClass } from "../utils/dashboardUtils";
+import { formatPercentage } from "../utils/formatUtils";
 
 // ============================================================================
 // Types
@@ -108,66 +112,13 @@ function GlassPanel({ children, className = "" }: GlassPanelProps): React.ReactE
   return (
     <div
       className={`
-        bg-ui-surface
-        backdrop-blur-glass
-        border border-ui-border
-        rounded-lg
-        shadow-glow
+        glass-panel-glow
         ${className}
       `}
-      style={{
-        boxShadow: `
-          0 0 20px rgba(0, 255, 255, 0.15),
-          inset 0 0 30px rgba(0, 255, 255, 0.05)
-        `,
-      }}
     >
       {children}
     </div>
   );
-}
-
-interface LoadingSpinnerProps {
-  size?: number;
-}
-
-/**
- * Loading spinner component
- */
-function LoadingSpinner({ size = 24 }: LoadingSpinnerProps): React.ReactElement {
-  return (
-    <svg
-      className="animate-spin text-ui-accent-primary"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-      />
-    </svg>
-  );
-}
-
-/**
- * Format a number as percentage
- */
-function formatPercentage(value: number): string {
-  return `${String(Math.round(value * 100))}%`;
-}
-
-/**
- * Get severity color class for bias
- */
-function getSeverityColorClass(severity: number): string {
-  if (severity >= 0.7) return "text-red-400 bg-red-500/20 border-red-500/50";
-  if (severity >= 0.4) return "text-yellow-400 bg-yellow-500/20 border-yellow-500/50";
-  return "text-green-400 bg-green-500/20 border-green-500/50";
 }
 
 // ============================================================================
@@ -235,7 +186,7 @@ function ProblemInput({
             text-ui-text-primary placeholder-ui-text-muted
             resize-none font-sans text-base leading-relaxed
             transition-all duration-normal
-            focus:outline-none focus:border-ui-accent-primary focus:ring-2 focus:ring-ui-accent-primary/30
+            focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
             focus:shadow-glow-sm
             hover:border-ui-border-hover
             ${disabled ? "opacity-disabled cursor-not-allowed" : ""}
@@ -296,15 +247,15 @@ function getModeAccentClass(mode: ReasoningMode, isSelected: boolean): string {
   if (!isSelected) return "";
   switch (mode) {
     case "analytical":
-      return "border-[#00FFFF] bg-[rgba(0,255,255,0.15)] shadow-glow-sm";
+      return "reasoning-mode-card-selected-analytical";
     case "creative":
-      return "border-[#9B59B6] bg-[rgba(155,89,182,0.15)] shadow-glow-purple-sm";
+      return "reasoning-mode-card-selected-creative";
     case "critical":
-      return "border-[#E74C3C] bg-[rgba(231,76,60,0.15)] shadow-glow-error";
+      return "reasoning-mode-card-selected-critical";
     case "synthetic":
-      return "border-[#FFD700] bg-[rgba(255,215,0,0.15)] shadow-glow-gold-sm";
+      return "reasoning-mode-card-selected-synthetic";
     case "parallel":
-      return "border-[#00FFFF] bg-gradient-to-br from-[rgba(0,255,255,0.15)] to-[rgba(155,89,182,0.15)] shadow-glow";
+      return "reasoning-mode-card-selected-parallel";
     default:
       return "border-ui-accent-primary bg-ui-accent-primary/15";
   }
@@ -464,7 +415,10 @@ function ContextInput({
                 bg-ui-background/50 border border-ui-border rounded
                 text-sm text-ui-text-primary placeholder-ui-text-muted
                 resize-none
-                focus:outline-none focus:border-ui-accent-primary
+                transition-all duration-normal
+                focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
+                focus:shadow-glow-sm
+                hover:border-ui-border-hover
                 ${disabled ? "opacity-50 cursor-not-allowed" : ""}
               `}
             />
@@ -491,7 +445,10 @@ function ContextInput({
                 bg-ui-background/50 border border-ui-border rounded
                 text-sm text-ui-text-primary placeholder-ui-text-muted
                 resize-none
-                focus:outline-none focus:border-ui-accent-primary
+                transition-all duration-normal
+                focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
+                focus:shadow-glow-sm
+                hover:border-ui-border-hover
                 ${disabled ? "opacity-50 cursor-not-allowed" : ""}
               `}
             />
@@ -515,7 +472,10 @@ function ContextInput({
                 bg-ui-background/50 border border-ui-border rounded
                 text-sm text-ui-text-primary placeholder-ui-text-muted
                 resize-none
-                focus:outline-none focus:border-ui-accent-primary
+                transition-all duration-normal
+                focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
+                focus:shadow-glow-sm
+                hover:border-ui-border-hover
                 ${disabled ? "opacity-50 cursor-not-allowed" : ""}
               `}
             />
@@ -550,37 +510,37 @@ function getStreamModeStyles(mode: ReasoningMode): {
   switch (mode) {
     case "analytical":
       return {
-        borderColor: "border-[rgba(0,255,255,0.5)]",
-        bgGradient: "bg-gradient-to-b from-[rgba(0,255,255,0.1)] to-transparent",
-        glowColor: "shadow-[0_0_15px_rgba(0,255,255,0.2)]",
+        borderColor: "reasoning-mode-analytical-border",
+        bgGradient: "reasoning-mode-analytical-bg",
+        glowColor: "reasoning-mode-analytical-glow",
         getIcon: () => <AnalyticalModeIcon size="2xl" />,
       };
     case "creative":
       return {
-        borderColor: "border-[rgba(155,89,182,0.5)]",
-        bgGradient: "bg-gradient-to-b from-[rgba(155,89,182,0.1)] to-transparent",
-        glowColor: "shadow-[0_0_15px_rgba(155,89,182,0.2)]",
+        borderColor: "reasoning-mode-creative-border",
+        bgGradient: "reasoning-mode-creative-bg",
+        glowColor: "reasoning-mode-creative-glow",
         getIcon: () => <CreativeModeIcon size="2xl" />,
       };
     case "critical":
       return {
-        borderColor: "border-[rgba(231,76,60,0.5)]",
-        bgGradient: "bg-gradient-to-b from-[rgba(231,76,60,0.1)] to-transparent",
-        glowColor: "shadow-[0_0_15px_rgba(231,76,60,0.2)]",
+        borderColor: "reasoning-mode-critical-border",
+        bgGradient: "reasoning-mode-critical-bg",
+        glowColor: "reasoning-mode-critical-glow",
         getIcon: () => <CriticalModeIcon size="2xl" />,
       };
     case "synthetic":
       return {
-        borderColor: "border-[rgba(255,215,0,0.5)]",
-        bgGradient: "bg-gradient-to-b from-[rgba(255,215,0,0.1)] to-transparent",
-        glowColor: "shadow-[0_0_15px_rgba(255,215,0,0.2)]",
+        borderColor: "reasoning-mode-synthetic-border",
+        bgGradient: "reasoning-mode-synthetic-bg",
+        glowColor: "reasoning-mode-synthetic-glow",
         getIcon: () => <ConnectionsIcon size="2xl" />,
       };
     default:
       return {
-        borderColor: "border-[rgba(0,255,255,0.5)]",
-        bgGradient: "bg-gradient-to-b from-[rgba(0,255,255,0.1)] to-transparent",
-        glowColor: "shadow-[0_0_15px_rgba(0,255,255,0.2)]",
+        borderColor: "reasoning-mode-analytical-border",
+        bgGradient: "reasoning-mode-analytical-bg",
+        glowColor: "reasoning-mode-analytical-glow",
         getIcon: () => <ReasoningIcon size="2xl" />,
       };
   }
@@ -592,15 +552,15 @@ function getStreamModeStyles(mode: ReasoningMode): {
 function getStreamTextColor(mode: ReasoningMode): string {
   switch (mode) {
     case "analytical":
-      return "text-[#00FFFF]";
+      return "reasoning-mode-analytical-text";
     case "creative":
-      return "text-[#9B59B6]";
+      return "reasoning-mode-creative-text";
     case "critical":
-      return "text-[#E74C3C]";
+      return "reasoning-mode-critical-text";
     case "synthetic":
-      return "text-[#FFD700]";
+      return "reasoning-mode-synthetic-text";
     default:
-      return "text-[#00FFFF]";
+      return "reasoning-mode-analytical-text";
   }
 }
 
@@ -636,7 +596,7 @@ function ParallelStreamColumn({
             <span className={textColor}>{styles.getIcon()}</span>
             <h4 className={`text-sm font-semibold ${textColor}`}>{modeLabel}</h4>
           </div>
-          {isProcessing && <LoadingSpinner size={18} />}
+          {isProcessing && <LoadingSpinner size="sm" />}
           {result !== null && !isProcessing && <span className="text-green-400 text-sm">✓</span>}
         </div>
         {/* Progress bar with glow effect */}
@@ -1403,7 +1363,9 @@ Confidence: ${formatPercentage(data.confidence)}`;
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return (): void => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [canSubmit, handleSubmit]);
 
   return (
@@ -1498,47 +1460,17 @@ Confidence: ${formatPercentage(data.confidence)}`;
       </div>
 
       {/* Floating Action Button - Bottom center */}
-      <button
+      <FloatingActionButton
+        label="Reason"
         onClick={(): void => {
           void handleSubmit();
         }}
+        icon={<LightningIcon />}
         disabled={!canSubmit}
-        className={`fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50 w-48 h-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 group hover:scale-105 active:scale-95 ${
-          canSubmit
-            ? "bg-[#0a1628] hover:bg-[#0d1e38] text-[#00FFFF] border border-[#00FFFF]/40"
-            : "bg-[#0a1628]/50 text-[#00FFFF]/30 border border-[#00FFFF]/10 cursor-not-allowed"
-        }`}
-        aria-label="Start reasoning"
-        style={
-          canSubmit
-            ? {
-                boxShadow: "0 0 20px rgba(0, 255, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.4)",
-              }
-            : undefined
-        }
-      >
-        {isProcessing ? (
-          <>
-            <LoadingSpinner size={20} />
-            <span className="font-semibold text-sm">Processing...</span>
-          </>
-        ) : (
-          <>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
-            <span className="font-semibold text-sm">Reason</span>
-            <kbd className="ml-1 px-2 py-1 text-xs font-medium bg-[#00FFFF]/20 text-[#00FFFF] rounded border border-[#00FFFF]/40">
-              ⌘↵
-            </kbd>
-          </>
-        )}
-      </button>
+        isLoading={isProcessing}
+        loadingText="Processing..."
+        ariaLabel="Start reasoning"
+      />
 
       {/* Toast Notification for Save As Memory feedback */}
       {toast.visible && (

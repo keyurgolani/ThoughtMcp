@@ -827,8 +827,9 @@ export class ThoughtClient {
     for (const pattern of evidencePatterns) {
       const matches = reasoningText.matchAll(pattern);
       for (const match of matches) {
-        if (match[1]) {
-          evidence.push(match[1].trim());
+        const matchedText = match[1];
+        if (matchedText !== undefined && matchedText !== "") {
+          evidence.push(matchedText.trim());
         }
       }
     }

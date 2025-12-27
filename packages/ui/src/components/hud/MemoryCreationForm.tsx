@@ -7,10 +7,10 @@
  * Requirements: 15.5, 41.1, 41.2
  */
 
-import { useCallback, useState } from 'react';
-import { getDefaultClient } from '../../api/client';
-import type { LinkType, Memory, MemoryMetadata, MemorySectorType } from '../../types/api';
-import { WikiLinkInput } from './WikiLinkAutocomplete';
+import { useCallback, useState } from "react";
+import { getDefaultClient } from "../../api/client";
+import type { LinkType, Memory, MemoryMetadata, MemorySectorType } from "../../types/api";
+import { WikiLinkInput } from "./WikiLinkAutocomplete";
 
 // ============================================================================
 // Types
@@ -38,18 +38,18 @@ export interface MemoryCreationFormProps {
 // ============================================================================
 
 const SECTOR_OPTIONS: { value: MemorySectorType; label: string; color: string }[] = [
-  { value: 'episodic', label: 'Episodic', color: 'text-sector-episodic' },
-  { value: 'semantic', label: 'Semantic', color: 'text-sector-semantic' },
-  { value: 'procedural', label: 'Procedural', color: 'text-sector-procedural' },
-  { value: 'emotional', label: 'Emotional', color: 'text-sector-emotional' },
-  { value: 'reflective', label: 'Reflective', color: 'text-sector-reflective' },
+  { value: "episodic", label: "Episodic", color: "sector-badge-episodic" },
+  { value: "semantic", label: "Semantic", color: "sector-badge-semantic" },
+  { value: "procedural", label: "Procedural", color: "sector-badge-procedural" },
+  { value: "emotional", label: "Emotional", color: "sector-badge-emotional" },
+  { value: "reflective", label: "Reflective", color: "sector-badge-reflective" },
 ];
 
 const LINK_TYPE_OPTIONS: { value: LinkType; label: string }[] = [
-  { value: 'semantic', label: 'Semantic' },
-  { value: 'causal', label: 'Causal' },
-  { value: 'temporal', label: 'Temporal' },
-  { value: 'analogical', label: 'Analogical' },
+  { value: "semantic", label: "Semantic" },
+  { value: "causal", label: "Causal" },
+  { value: "temporal", label: "Temporal" },
+  { value: "analogical", label: "Analogical" },
 ];
 
 // ============================================================================
@@ -75,18 +75,18 @@ export function MemoryCreationForm({
   availableMemories = [],
   onCreated,
   onClose,
-  className = '',
+  className = "",
 }: MemoryCreationFormProps): React.ReactElement {
   // Form state
-  const [content, setContent] = useState('');
-  const [primarySector, setPrimarySector] = useState<MemorySectorType>('semantic');
-  const [keywords, setKeywords] = useState('');
-  const [tags, setTags] = useState('');
-  const [category, setCategory] = useState('');
+  const [content, setContent] = useState("");
+  const [primarySector, setPrimarySector] = useState<MemorySectorType>("semantic");
+  const [keywords, setKeywords] = useState("");
+  const [tags, setTags] = useState("");
+  const [category, setCategory] = useState("");
   const [linkToCurrentNode, setLinkToCurrentNode] = useState(
     currentNodeId !== undefined && currentNodeId !== null
   );
-  const [linkType, setLinkType] = useState<LinkType>('semantic');
+  const [linkType, setLinkType] = useState<LinkType>("semantic");
 
   // UI state
   const [isCreating, setIsCreating] = useState(false);
@@ -95,8 +95,8 @@ export function MemoryCreationForm({
 
   const handleCreate = useCallback(async () => {
     // Validate content
-    if (content.trim() === '') {
-      setError('Content is required');
+    if (content.trim() === "") {
+      setError("Content is required");
       return;
     }
 
@@ -110,13 +110,13 @@ export function MemoryCreationForm({
       const metadata: MemoryMetadata = {};
       if (keywords.trim()) {
         metadata.keywords = keywords
-          .split(',')
+          .split(",")
           .map((k) => k.trim())
           .filter((k) => k.length > 0);
       }
       if (tags.trim()) {
         metadata.tags = tags
-          .split(',')
+          .split(",")
           .map((t) => t.trim())
           .filter((t) => t.length > 0);
       }
@@ -141,7 +141,7 @@ export function MemoryCreationForm({
       onCreated(response.memoryId, shouldLink);
       onClose();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create memory';
+      const message = err instanceof Error ? err.message : "Failed to create memory";
       setError(message);
       setIsCreating(false);
     }
@@ -238,10 +238,10 @@ export function MemoryCreationForm({
               className="bg-ui-background"
             />
             <p className="text-xs text-ui-text-muted mt-1">
-              Tip: Type{' '}
+              Tip: Type{" "}
               <kbd className="px-1 py-0.5 bg-ui-background/50 rounded text-ui-text-secondary">
                 [[
-              </kbd>{' '}
+              </kbd>{" "}
               to link to existing memories
             </p>
           </div>
@@ -261,7 +261,7 @@ export function MemoryCreationForm({
                     ${
                       primarySector === option.value
                         ? `border-ui-accent-primary bg-ui-accent-primary/10 ${option.color}`
-                        : 'border-ui-border text-ui-text-secondary hover:border-ui-accent-primary/50'
+                        : "border-ui-border text-ui-text-secondary hover:border-ui-accent-primary/50"
                     }
                   `}
                 >
@@ -310,7 +310,10 @@ export function MemoryCreationForm({
                       text-ui-text-primary
                       text-sm
                       focus:outline-none
-                      focus:border-ui-accent-primary
+                      focus:border-ui-border-active
+                      focus:ring-2 focus:ring-ui-accent-primary/20
+                      hover:border-ui-border-hover
+                      transition-colors
                     "
                   >
                     {LINK_TYPE_OPTIONS.map((option) => (
@@ -338,7 +341,7 @@ export function MemoryCreationForm({
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              className={`transition-transform ${showAdvanced ? 'rotate-90' : ''}`}
+              className={`transition-transform ${showAdvanced ? "rotate-90" : ""}`}
             >
               <polyline points="9 18 15 12 9 6" />
             </svg>
@@ -367,7 +370,10 @@ export function MemoryCreationForm({
                     text-ui-text-primary
                     text-sm
                     focus:outline-none
-                    focus:border-ui-accent-primary
+                    focus:border-ui-border-active
+                    focus:ring-2 focus:ring-ui-accent-primary/20
+                    hover:border-ui-border-hover
+                    transition-colors
                   "
                 />
               </div>
@@ -391,7 +397,10 @@ export function MemoryCreationForm({
                     text-ui-text-primary
                     text-sm
                     focus:outline-none
-                    focus:border-ui-accent-primary
+                    focus:border-ui-border-active
+                    focus:ring-2 focus:ring-ui-accent-primary/20
+                    hover:border-ui-border-hover
+                    transition-colors
                   "
                 />
               </div>
@@ -413,7 +422,10 @@ export function MemoryCreationForm({
                     text-ui-text-primary
                     text-sm
                     focus:outline-none
-                    focus:border-ui-accent-primary
+                    focus:border-ui-border-active
+                    focus:ring-2 focus:ring-ui-accent-primary/20
+                    hover:border-ui-border-hover
+                    transition-colors
                   "
                 />
               </div>
@@ -421,7 +433,7 @@ export function MemoryCreationForm({
           )}
 
           {/* Error message */}
-          {error !== null && error !== '' && (
+          {error !== null && error !== "" && (
             <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg">
               <p className="text-sm text-red-400">{error}</p>
             </div>
@@ -472,7 +484,7 @@ export function MemoryCreationForm({
                 Creating...
               </>
             ) : (
-              'Create Memory'
+              "Create Memory"
             )}
           </button>
         </div>

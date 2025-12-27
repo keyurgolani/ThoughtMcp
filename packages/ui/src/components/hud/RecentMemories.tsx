@@ -42,20 +42,13 @@ export interface RecentMemoriesProps {
 
 const DEFAULT_MAX_ITEMS = 5;
 
-const SECTOR_COLORS: Record<MemorySectorType, string> = {
-  episodic: "bg-sector-episodic",
-  semantic: "bg-sector-semantic",
-  procedural: "bg-sector-procedural",
-  emotional: "bg-sector-emotional",
-  reflective: "bg-sector-reflective",
-};
-
-const SECTOR_TEXT_COLORS: Record<MemorySectorType, string> = {
-  episodic: "text-sector-episodic",
-  semantic: "text-sector-semantic",
-  procedural: "text-sector-procedural",
-  emotional: "text-sector-emotional",
-  reflective: "text-sector-reflective",
+// CSS classes for sector badges - uses CSS variables that adapt to theme
+const SECTOR_BADGE_CLASSES: Record<MemorySectorType, string> = {
+  episodic: "sector-badge-episodic",
+  semantic: "sector-badge-semantic",
+  procedural: "sector-badge-procedural",
+  emotional: "sector-badge-emotional",
+  reflective: "sector-badge-reflective",
 };
 
 const SECTOR_LABELS: Record<MemorySectorType, string> = {
@@ -103,8 +96,7 @@ interface MemoryListItemProps {
  */
 function MemoryListItem({ memory, showTimestamp, onClick }: MemoryListItemProps): ReactElement {
   const sector = memory.primarySector as MemorySectorType;
-  const sectorColor = SECTOR_COLORS[sector];
-  const sectorTextColor = SECTOR_TEXT_COLORS[sector];
+  const sectorBadgeClass = SECTOR_BADGE_CLASSES[sector];
   const sectorLabel = SECTOR_LABELS[sector];
 
   return (
@@ -129,13 +121,11 @@ function MemoryListItem({ memory, showTimestamp, onClick }: MemoryListItemProps)
         <div className="flex-shrink-0 mt-0.5">
           <div
             className={`
-              w-2 h-2 rounded-full ${sectorColor}
+              w-2 h-2 rounded-full
+              ${sectorBadgeClass}
               group-hover:scale-125
               transition-transform duration-fast
             `}
-            style={{
-              boxShadow: `0 0 6px currentColor`,
-            }}
             title={sectorLabel}
           />
         </div>
@@ -146,7 +136,7 @@ function MemoryListItem({ memory, showTimestamp, onClick }: MemoryListItemProps)
             <BlockNotePreview content={memory.contentPreview} maxLines={1} />
           </div>
           <div className="flex items-center gap-2 mt-1">
-            <span className={sectorTextColor} aria-hidden="true">
+            <span className={sectorBadgeClass} aria-hidden="true">
               {getSectorIcon(sector, "xs")}
             </span>
             <span className="text-xs text-ui-text-muted">{sectorLabel}</span>
@@ -180,7 +170,7 @@ interface CompactMemoryItemProps {
  */
 function CompactMemoryItem({ memory, onClick }: CompactMemoryItemProps): ReactElement {
   const sector = memory.primarySector as MemorySectorType;
-  const sectorColor = SECTOR_COLORS[sector];
+  const sectorBadgeClass = SECTOR_BADGE_CLASSES[sector];
 
   return (
     <button
@@ -198,11 +188,8 @@ function CompactMemoryItem({ memory, onClick }: CompactMemoryItemProps): ReactEl
       title={memory.contentPreview}
     >
       <div className="flex items-center gap-2">
-        <div
-          className={`w-1.5 h-1.5 rounded-full ${sectorColor} flex-shrink-0`}
-          style={{ boxShadow: `0 0 4px currentColor` }}
-        />
-        <span className="text-ui-text-muted" aria-hidden="true">
+        <div className={`w-1.5 h-1.5 rounded-full ${sectorBadgeClass} flex-shrink-0`} />
+        <span className={sectorBadgeClass} aria-hidden="true">
           {getSectorIcon(sector, "xs")}
         </span>
         <div className="text-xs text-ui-text-primary truncate group-hover:text-ui-accent-primary flex-1 min-w-0">
@@ -223,8 +210,7 @@ interface GridMemoryItemProps {
  */
 function GridMemoryItem({ memory, onClick }: GridMemoryItemProps): ReactElement {
   const sector = memory.primarySector as MemorySectorType;
-  const sectorColor = SECTOR_COLORS[sector];
-  const sectorTextColor = SECTOR_TEXT_COLORS[sector];
+  const sectorBadgeClass = SECTOR_BADGE_CLASSES[sector];
   const sectorLabel = SECTOR_LABELS[sector];
 
   return (
@@ -259,11 +245,8 @@ function GridMemoryItem({ memory, onClick }: GridMemoryItemProps): ReactElement 
     >
       {/* Header with sector indicator */}
       <div className="flex items-center gap-2 mb-2">
-        <div
-          className={`w-2.5 h-2.5 rounded-full ${sectorColor}`}
-          style={{ boxShadow: `0 0 8px currentColor` }}
-        />
-        <span className={`text-xs font-medium ${sectorTextColor} flex items-center gap-1`}>
+        <div className={`w-2.5 h-2.5 rounded-full ${sectorBadgeClass}`} />
+        <span className={`text-xs font-medium ${sectorBadgeClass} flex items-center gap-1`}>
           {getSectorIcon(sector, "xs")} {sectorLabel}
         </span>
       </div>

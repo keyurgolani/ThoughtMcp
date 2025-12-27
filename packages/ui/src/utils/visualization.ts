@@ -39,31 +39,42 @@ const HUB_SIZE_MULTIPLIER = 1.6;
 // Sector Colors (Requirements: 2.1, 2.2)
 // ============================================================================
 
-/** Standard sector colors - refined, professional palette */
+/**
+ * FIXED Sector Colors - Theme Agnostic Business Logic Colors
+ * These colors are consistent across all themes (light and dark).
+ * Memory types are business logic, not user preference.
+ * Must match CSS variables in index.css (--sector-*-color)
+ */
 const SECTOR_COLORS: Record<MemorySectorType, string> = {
-  episodic: "#E8B86D", // Muted gold/amber
-  semantic: "#6BA3BE", // Steel blue
-  procedural: "#8B7BB5", // Muted purple
-  emotional: "#C97B63", // Terracotta
-  reflective: "#9CA3AF", // Cool gray
+  episodic: "#d97706", // Amber - Events and experiences
+  semantic: "#0891b2", // Cyan - Facts and knowledge
+  procedural: "#7c3aed", // Purple - Skills and processes
+  emotional: "#e11d48", // Rose - Feelings and emotions
+  reflective: "#64748b", // Slate - Meta-insights and reflections
 };
 
-/** High contrast sector colors (Requirements: 13.3) */
+/**
+ * High contrast sector colors (Requirements: 13.3)
+ * Slightly brighter versions for accessibility, but still theme-agnostic
+ */
 const HIGH_CONTRAST_SECTOR_COLORS: Record<MemorySectorType, string> = {
-  episodic: "#F5D08A", // Soft gold
-  semantic: "#7EC8E3", // Light blue
-  procedural: "#A594C9", // Light purple
-  emotional: "#E09B84", // Soft coral
-  reflective: "#D1D5DB", // Light gray
+  episodic: "#f59e0b", // Brighter amber
+  semantic: "#06b6d4", // Brighter cyan
+  procedural: "#8b5cf6", // Brighter purple
+  emotional: "#f43f5e", // Brighter rose
+  reflective: "#94a3b8", // Brighter slate
 };
 
-/** Light mode sector colors - bold, saturated colors for visibility on light backgrounds */
+/**
+ * @deprecated Light mode colors are no longer used - sector colors are theme-agnostic
+ * Kept for backward compatibility but returns the same fixed colors
+ */
 const LIGHT_MODE_SECTOR_COLORS: Record<MemorySectorType, string> = {
-  episodic: "#D4880F", // Bold amber/gold
-  semantic: "#0077B6", // Bold blue
-  procedural: "#7B2CBF", // Bold purple
-  emotional: "#C44536", // Bold red-orange
-  reflective: "#495057", // Bold gray
+  episodic: "#d97706", // Same as standard - theme agnostic
+  semantic: "#0891b2", // Same as standard - theme agnostic
+  procedural: "#7c3aed", // Same as standard - theme agnostic
+  emotional: "#e11d48", // Same as standard - theme agnostic
+  reflective: "#64748b", // Same as standard - theme agnostic
 };
 
 // ============================================================================

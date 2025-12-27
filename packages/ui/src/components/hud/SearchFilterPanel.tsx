@@ -8,11 +8,11 @@
  * Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 27.1, 27.6
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GraphNode, MemorySectorType } from '../../types/api';
-import { VALID_SECTORS } from '../../types/api';
-import { filterNodes } from '../../utils/filters';
-import { getSectorColor } from '../../utils/visualization';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { GraphNode, MemorySectorType } from "../../types/api";
+import { VALID_SECTORS } from "../../types/api";
+import { filterNodes } from "../../utils/filters";
+import { getSectorColor } from "../../utils/visualization";
 
 // ============================================================================
 // Utility Functions
@@ -27,11 +27,11 @@ function isMacOS(): boolean {
     userAgentData?: { platform?: string };
   };
   const platform = nav.userAgentData?.platform;
-  if (typeof platform === 'string' && platform.length > 0) {
-    return platform.toLowerCase().includes('mac');
+  if (typeof platform === "string" && platform.length > 0) {
+    return platform.toLowerCase().includes("mac");
   }
   // Fallback to userAgent
-  return navigator.userAgent.toLowerCase().includes('mac');
+  return navigator.userAgent.toLowerCase().includes("mac");
 }
 
 // ============================================================================
@@ -75,11 +75,11 @@ export interface SearchFilterPanelProps {
 
 /** Sector display names */
 const SECTOR_NAMES: Record<MemorySectorType, string> = {
-  episodic: 'Episodic',
-  semantic: 'Semantic',
-  procedural: 'Procedural',
-  emotional: 'Emotional',
-  reflective: 'Reflective',
+  episodic: "Episodic",
+  semantic: "Semantic",
+  procedural: "Procedural",
+  emotional: "Emotional",
+  reflective: "Reflective",
 };
 
 /** Maximum number of search results to display */
@@ -99,21 +99,21 @@ interface GlassPanelProps {
  * blur effect, and glowing purple borders.
  * Requirements: 23.5
  */
-function GlassPanel({ children, className = '' }: GlassPanelProps): React.ReactElement {
+function GlassPanel({ children, className = "" }: GlassPanelProps): React.ReactElement {
   return (
     <div
       className={`floating-rounded-xl floating-glow ${className}`}
       style={{
-        background: 'var(--theme-surface)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        border: '1px solid var(--theme-secondary-glow)',
+        background: "var(--theme-surface)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        border: "1px solid var(--theme-secondary-glow)",
         boxShadow: `
           0 0 20px var(--theme-secondary-glow),
           0 0 40px var(--theme-secondary-bg),
           inset 0 0 30px var(--theme-secondary-bg)
         `,
-        borderRadius: '1rem',
+        borderRadius: "1rem",
       }}
     >
       {children}
@@ -174,16 +174,17 @@ function SearchInput({
           text-sm
           placeholder-ui-text-muted
           focus:outline-none
-          focus:border-ui-accent-primary
-          focus:ring-1
-          focus:ring-ui-accent-primary
+          focus:border-ui-border-active
+          focus:ring-2
+          focus:ring-ui-accent-primary/20
           transition-colors
+          hover:border-ui-border-hover
         "
         aria-label="Search memories"
       />
       <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
         <kbd className="px-1.5 py-0.5 text-xs bg-ui-border rounded text-ui-text-muted font-mono">
-          {isMacOS() ? '⌘K' : 'Ctrl+K'}
+          {isMacOS() ? "⌘K" : "Ctrl+K"}
         </kbd>
       </div>
     </div>
@@ -211,18 +212,18 @@ function SectorToggle({ sector, isSelected, onToggle }: SectorToggleProps): Reac
         transition-all duration-200
         ${
           isSelected
-            ? 'ring-1 ring-offset-1 ring-offset-ui-background'
-            : 'opacity-50 hover:opacity-75'
+            ? "ring-1 ring-offset-1 ring-offset-ui-background"
+            : "opacity-50 hover:opacity-75"
         }
       `}
       style={{
-        backgroundColor: isSelected ? `${color}30` : 'transparent',
+        backgroundColor: isSelected ? `${color}30` : "transparent",
         color: color,
         borderColor: color,
-        border: '1px solid',
+        border: "1px solid",
       }}
       aria-pressed={isSelected}
-      aria-label={`${isSelected ? 'Hide' : 'Show'} ${SECTOR_NAMES[sector]} memories`}
+      aria-label={`${isSelected ? "Hide" : "Show"} ${SECTOR_NAMES[sector]} memories`}
     >
       {SECTOR_NAMES[sector]}
     </button>
@@ -299,7 +300,7 @@ interface SearchResultItemProps {
 function SearchResultItem({ node, onClick }: SearchResultItemProps): React.ReactElement {
   const sectorColor = getSectorColor(node.primarySector);
   const contentPreview =
-    node.content.length > 80 ? node.content.substring(0, 80) + '...' : node.content;
+    node.content.length > 80 ? node.content.substring(0, 80) + "..." : node.content;
 
   return (
     <button
@@ -358,7 +359,7 @@ function SearchResultItem({ node, onClick }: SearchResultItemProps): React.React
  */
 export function SearchFilterPanel({
   nodes,
-  searchQuery = '',
+  searchQuery = "",
   selectedSectors = [...VALID_SECTORS],
   minStrength = 0,
   minSalience = 0,
@@ -370,7 +371,7 @@ export function SearchFilterPanel({
   isExpanded = true,
   onToggleExpand,
   compact = false,
-  className = '',
+  className = "",
 }: SearchFilterPanelProps): React.ReactElement {
   const inputElementRef = useRef<HTMLInputElement | null>(null);
   const [localQuery, setLocalQuery] = useState(searchQuery);
@@ -392,7 +393,7 @@ export function SearchFilterPanel({
     function handleKeyDown(event: KeyboardEvent): void {
       const modifier = isMacOS() ? event.metaKey : event.ctrlKey;
 
-      if (modifier && event.key === 'k') {
+      if (modifier && event.key === "k") {
         event.preventDefault();
         if (inputElementRef.current !== null) {
           inputElementRef.current.focus();
@@ -401,7 +402,7 @@ export function SearchFilterPanel({
       }
 
       // Close results on Escape
-      if (event.key === 'Escape' && showResults) {
+      if (event.key === "Escape" && showResults) {
         setShowResults(false);
         if (inputElementRef.current !== null) {
           inputElementRef.current.blur();
@@ -409,9 +410,9 @@ export function SearchFilterPanel({
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
     return (): void => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [showResults]);
 
@@ -457,9 +458,9 @@ export function SearchFilterPanel({
         onResultClick(nodeId);
       }
       setShowResults(false);
-      setLocalQuery('');
+      setLocalQuery("");
       if (onSearchChange) {
-        onSearchChange('');
+        onSearchChange("");
       }
     },
     [onResultClick, onSearchChange]
@@ -515,7 +516,7 @@ export function SearchFilterPanel({
           </svg>
           <span className="text-xs font-medium">Search</span>
           <kbd className="px-1 py-0.5 text-xs bg-ui-border rounded text-ui-text-muted font-mono">
-            {isMacOS() ? '⌘K' : 'Ctrl+K'}
+            {isMacOS() ? "⌘K" : "Ctrl+K"}
           </kbd>
         </button>
       </GlassPanel>
@@ -523,7 +524,7 @@ export function SearchFilterPanel({
   }
 
   // Panel width based on compact mode - matches RelatedMemoriesSidebar width (w-96)
-  const panelWidth = compact ? 'w-96' : 'w-96';
+  const panelWidth = compact ? "w-96" : "w-96";
 
   return (
     <GlassPanel className={`p-3 ${panelWidth} ${className}`}>

@@ -40,12 +40,13 @@ export interface MemoryReferenceProps {
 // Constants
 // ============================================================================
 
-const SECTOR_COLORS: Record<MemorySectorType, string> = {
-  episodic: "#FFD700",
-  semantic: "#00FFFF",
-  procedural: "#9B59B6",
-  emotional: "#F39C12",
-  reflective: "#C0C0C0",
+// CSS classes for sector badges - uses CSS variables that adapt to theme
+const SECTOR_BADGE_CLASSES: Record<MemorySectorType, string> = {
+  episodic: "sector-badge-episodic",
+  semantic: "sector-badge-semantic",
+  procedural: "sector-badge-procedural",
+  emotional: "sector-badge-emotional",
+  reflective: "sector-badge-reflective",
 };
 
 const SECTOR_ICONS: Record<MemorySectorType, React.ReactElement> = {
@@ -73,7 +74,7 @@ export function MemoryReference({
 }: MemoryReferenceProps): React.ReactElement {
   const [modalMode, setModalMode] = useState<MemoryModalMode | null>(null);
 
-  const sectorColor = SECTOR_COLORS[memory.primarySector];
+  const sectorBadgeClass = SECTOR_BADGE_CLASSES[memory.primarySector];
   const sectorIcon = SECTOR_ICONS[memory.primarySector];
 
   const truncatedContent =
@@ -124,14 +125,10 @@ export function MemoryReference({
           className={`
             inline-flex items-center gap-1.5 px-2 py-1 rounded-full
             text-xs font-medium transition-all duration-200
-            border hover:scale-105 active:scale-95
+            hover:scale-105 active:scale-95
+            ${sectorBadgeClass}
             ${className}
           `}
-          style={{
-            borderColor: `${sectorColor}50`,
-            backgroundColor: `${sectorColor}15`,
-            color: sectorColor,
-          }}
           title={memory.content}
         >
           {showIcon && <span aria-hidden="true">{sectorIcon}</span>}
@@ -161,18 +158,20 @@ export function MemoryReference({
         <button
           onClick={handleClick}
           className={`
-            w-full p-3 rounded-lg border text-left
+            w-full p-3 rounded-lg text-left
             transition-all duration-200
-            hover:border-ui-accent-primary/30 hover:bg-ui-surface-elevated/50
+            hover:scale-[1.01] active:scale-[0.99]
+            ${sectorBadgeClass}
             ${className}
           `}
-          style={{ borderColor: `${sectorColor}30`, backgroundColor: `${sectorColor}10` }}
         >
           <div className="flex items-start gap-2">
             {showIcon && (
               <div
-                className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center border"
-                style={{ borderColor: `${sectorColor}30`, backgroundColor: `${sectorColor}15` }}
+                className={`
+                  flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
+                  ${sectorBadgeClass}
+                `}
               >
                 <span className="text-sm" aria-hidden="true">
                   {sectorIcon}
@@ -181,7 +180,7 @@ export function MemoryReference({
             )}
             <div className="flex-1 min-w-0">
               <p className="text-sm text-ui-text-primary line-clamp-2">{truncatedContent}</p>
-              <p className="text-xs text-ui-text-muted mt-1 capitalize">{memory.primarySector}</p>
+              <p className="text-xs opacity-70 mt-1 capitalize">{memory.primarySector}</p>
             </div>
             <svg
               className="w-4 h-4 text-ui-text-muted flex-shrink-0"
@@ -219,10 +218,10 @@ export function MemoryReference({
         className={`
           inline-flex items-center gap-1 px-1.5 py-0.5 rounded
           text-sm transition-all duration-200
-          hover:bg-ui-accent-primary/10 hover:text-ui-accent-primary
+          hover:bg-ui-accent-primary/10
+          ${sectorBadgeClass}
           ${className}
         `}
-        style={{ color: sectorColor }}
         title={memory.content}
       >
         {showIcon && (

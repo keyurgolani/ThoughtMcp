@@ -271,7 +271,26 @@ export function MainNavigation({
             ))}
 
             {/* User Badge - shows current username with option to switch and theme selection */}
-            <div className="ml-2 pl-2 border-l border-ui-border/50">
+            <div className="ml-2 pl-2 border-l border-ui-border/50 flex items-center gap-2">
+              {/* Keyboard shortcuts hint */}
+              <button
+                onClick={() => {
+                  // Dispatch a custom event to trigger the keyboard shortcuts modal
+                  window.dispatchEvent(new KeyboardEvent("keydown", { key: "?" }));
+                }}
+                className="p-1.5 rounded-lg text-ui-text-muted hover:text-ui-accent-primary hover:bg-ui-border/30 transition-colors"
+                title="Keyboard shortcuts (press ?)"
+                aria-label="Show keyboard shortcuts"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"
+                  />
+                </svg>
+              </button>
               <UserBadge />
             </div>
           </div>

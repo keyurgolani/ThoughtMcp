@@ -10,10 +10,9 @@
 
 import { Link2, Link2Off, Search } from "lucide-react";
 import { useMemo, type ReactElement } from "react";
-import type { Memory, MemorySectorType } from "../../types/api";
-import { getSectorColor } from "../../utils/visualization";
-import { getSectorIcon, type IconSize } from "../icons";
+import type { Memory } from "../../types/api";
 import { MemoryContentPreview } from "./MemoryContentPreview";
+import { SectorBadge } from "./SectorBadge";
 
 // ============================================================================
 // Types
@@ -41,34 +40,6 @@ export interface MemoryLinksListProps {
 }
 
 // ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Helper to detect light mode from document attribute
- */
-function isLightModeActive(): boolean {
-  return (
-    typeof document !== "undefined" &&
-    document.documentElement.getAttribute("data-theme-mode") === "light"
-  );
-}
-
-function getSectorInfo(sector: MemorySectorType): {
-  getIcon: (size: IconSize) => ReactElement;
-  color: string;
-  label: string;
-} {
-  const lightMode = isLightModeActive();
-  const color = getSectorColor(sector, false, lightMode);
-  return {
-    getIcon: (size) => getSectorIcon(sector, size),
-    color,
-    label: sector.charAt(0).toUpperCase() + sector.slice(1),
-  };
-}
-
-// ============================================================================
 // Sub-Components
 // ============================================================================
 
@@ -85,21 +56,21 @@ function MemoryListItem({
   onToggle,
   disabled,
 }: MemoryListItemProps): ReactElement {
-  const sectorInfo = getSectorInfo(memory.primarySector);
-
   return (
     <div className="flex items-start gap-2 px-3 py-2 bg-ui-background/50 border border-ui-border/30 rounded-lg hover:border-ui-border/50 transition-colors">
-      <div
-        className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0"
-        style={{ backgroundColor: sectorInfo.color }}
-        title={sectorInfo.label}
-      />
+      {/* Icon indicator for memory type */}
+      <SectorBadge sector={memory.primarySector} variant="icon" size="sm" className="mt-0.5" />
       <div className="flex-1 min-w-0">
         <div className="line-clamp-2 text-sm text-ui-text-primary">
           <MemoryContentPreview content={memory.content} maxLines={2} />
         </div>
         <div className="flex items-center gap-2 mt-1">
-          <span className="text-xs text-ui-text-muted capitalize">{memory.primarySector}</span>
+          <span
+            className="text-xs font-medium capitalize"
+            style={{ color: `var(--sector-${memory.primarySector}-color)` }}
+          >
+            {memory.primarySector}
+          </span>
           <span className="text-xs text-ui-text-muted">•</span>
           <span className="text-xs text-ui-text-muted">
             {Math.round(memory.strength * 100)}% strength
@@ -191,7 +162,7 @@ export function MemoryLinksList({
               onSearchChange(e.target.value);
             }}
             placeholder="Search memories..."
-            className="w-full pl-9 pr-3 py-2 text-sm bg-ui-background/70 border border-ui-border/50 rounded-lg text-ui-text-primary placeholder:text-ui-text-muted focus:outline-none focus:border-ui-accent-primary/50 focus:ring-1 focus:ring-ui-accent-primary/30"
+            className="w-full pl-9 pr-3 py-2 text-sm bg-ui-background/70 border border-ui-border/50 rounded-lg text-ui-text-primary placeholder:text-ui-text-muted focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20 hover:border-ui-border-hover transition-colors"
             aria-label="Search memories to link"
           />
         </div>

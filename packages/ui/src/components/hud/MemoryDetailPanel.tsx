@@ -11,6 +11,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { getDefaultClient } from "../../api/client";
 import type { CompositeScore, Memory, MemoryMetadata } from "../../types/api";
+import { formatPercentage } from "../../utils/formatUtils";
 import type { MemoryPreview } from "../../utils/previewUtils";
 import { ContentRenderer } from "./ContentRenderer";
 import { type LinkedKeyword } from "./KeywordHighlighter";
@@ -92,22 +93,15 @@ function formatSectorType(sector: string): string {
 }
 
 /**
- * Format a number as percentage
- */
-function formatPercentage(value: number): string {
-  return `${String(Math.round(value * 100))}%`;
-}
-
-/**
  * Get sector color class
  */
 function getSectorColorClass(sector: string): string {
   const colorMap: Record<string, string> = {
-    episodic: "text-sector-episodic",
-    semantic: "text-sector-semantic",
-    procedural: "text-sector-procedural",
-    emotional: "text-sector-emotional",
-    reflective: "text-sector-reflective",
+    episodic: "sector-badge-episodic",
+    semantic: "sector-badge-semantic",
+    procedural: "sector-badge-procedural",
+    emotional: "sector-badge-emotional",
+    reflective: "sector-badge-reflective",
   };
   return colorMap[sector] ?? "text-ui-text-primary";
 }
@@ -257,9 +251,11 @@ function EditableContent({ content, onChange }: EditableContentProps): React.Rea
         text-sm
         resize-none
         focus:outline-none
-        focus:border-ui-accent-primary
-        focus:ring-1
-        focus:ring-ui-accent-primary
+        focus:border-ui-border-active
+        focus:ring-2
+        focus:ring-ui-accent-primary/20
+        hover:border-ui-border-hover
+        transition-colors
       "
       placeholder="Enter memory content..."
     />
@@ -329,7 +325,10 @@ function EditableMetadata({ metadata, onChange }: EditableMetadataProps): React.
             text-ui-text-primary
             text-sm
             focus:outline-none
-            focus:border-ui-accent-primary
+            focus:border-ui-border-active
+            focus:ring-2 focus:ring-ui-accent-primary/20
+            hover:border-ui-border-hover
+            transition-colors
           "
           placeholder="Enter category..."
         />
@@ -352,7 +351,10 @@ function EditableMetadata({ metadata, onChange }: EditableMetadataProps): React.
             text-ui-text-primary
             text-sm
             focus:outline-none
-            focus:border-ui-accent-primary
+            focus:border-ui-border-active
+            focus:ring-2 focus:ring-ui-accent-primary/20
+            hover:border-ui-border-hover
+            transition-colors
           "
           placeholder="keyword1, keyword2, ..."
         />
@@ -373,7 +375,10 @@ function EditableMetadata({ metadata, onChange }: EditableMetadataProps): React.
             text-ui-text-primary
             text-sm
             focus:outline-none
-            focus:border-ui-accent-primary
+            focus:border-ui-border-active
+            focus:ring-2 focus:ring-ui-accent-primary/20
+            hover:border-ui-border-hover
+            transition-colors
           "
           placeholder="tag1, tag2, ..."
         />

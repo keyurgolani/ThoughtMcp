@@ -9,9 +9,11 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getDefaultClient } from "../api/client";
+import { FloatingActionButton, HeartIcon } from "../components/hud/FloatingActionButton";
 import { BarChart3, Heart, Target } from "../components/icons/Icons";
 import { useCognitiveStore } from "../stores/cognitiveStore";
 import type { DetectEmotionResponse, DiscreteEmotionResult, EmotionalTrend } from "../types/api";
+import { formatPercentage } from "../utils/formatUtils";
 
 // ============================================================================
 // Types
@@ -70,57 +72,13 @@ function GlassPanel({ children, className = "" }: GlassPanelProps): React.ReactE
   return (
     <div
       className={`
-        bg-ui-surface
-        backdrop-blur-glass
-        border border-ui-border
-        rounded-lg
-        shadow-glow
+        glass-panel-glow
         ${className}
       `}
-      style={{
-        boxShadow: `
-          0 0 20px rgba(0, 255, 255, 0.15),
-          inset 0 0 30px rgba(0, 255, 255, 0.05)
-        `,
-      }}
     >
       {children}
     </div>
   );
-}
-
-interface LoadingSpinnerProps {
-  size?: number;
-}
-
-/**
- * Loading spinner component
- */
-function LoadingSpinner({ size = 24 }: LoadingSpinnerProps): React.ReactElement {
-  return (
-    <svg
-      className="animate-spin text-ui-accent-primary"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-      />
-    </svg>
-  );
-}
-
-/**
- * Format a number as percentage
- */
-function formatPercentage(value: number): string {
-  return `${String(Math.round(value * 100))}%`;
 }
 
 /**
@@ -200,7 +158,10 @@ function TextInput({
           bg-ui-background/50 border border-ui-border rounded-lg
           text-ui-text-primary placeholder-ui-text-muted
           resize-none
-          focus:outline-none focus:border-ui-accent-primary focus:ring-1 focus:ring-ui-accent-primary
+          transition-all duration-normal
+          focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
+          focus:shadow-glow-sm
+          hover:border-ui-border-hover
           ${disabled ? "opacity-50 cursor-not-allowed" : ""}
         `}
         aria-describedby="emotion-text-hint"
@@ -271,8 +232,8 @@ function CircumplexWheel({
         <defs>
           {/* Radial gradient for background */}
           <radialGradient id="wheelBgGradient" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="rgba(155, 89, 182, 0.15)" />
-            <stop offset="50%" stopColor="rgba(0, 255, 255, 0.1)" />
+            <stop offset="0%" style={{ stopColor: "var(--theme-secondary-bg)" }} />
+            <stop offset="50%" style={{ stopColor: "var(--theme-primary-bg)" }} />
             <stop offset="100%" stopColor="rgba(0, 0, 0, 0)" />
           </radialGradient>
           {/* Glow filter */}
@@ -283,22 +244,22 @@ function CircumplexWheel({
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          {/* Quadrant gradients */}
+          {/* Quadrant gradients - using theme-aware colors */}
           <linearGradient id="excitedGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="rgba(255, 215, 0, 0.1)" />
-            <stop offset="100%" stopColor="rgba(255, 100, 100, 0.1)" />
+            <stop offset="0%" style={{ stopColor: "var(--theme-highlight-bg)" }} />
+            <stop offset="100%" style={{ stopColor: "var(--status-error-bg)" }} />
           </linearGradient>
           <linearGradient id="happyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="rgba(100, 255, 100, 0.1)" />
-            <stop offset="100%" stopColor="rgba(255, 215, 0, 0.1)" />
+            <stop offset="0%" style={{ stopColor: "var(--status-success-bg)" }} />
+            <stop offset="100%" style={{ stopColor: "var(--theme-highlight-bg)" }} />
           </linearGradient>
           <linearGradient id="calmGrad" x1="100%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="rgba(100, 150, 255, 0.1)" />
-            <stop offset="100%" stopColor="rgba(100, 255, 200, 0.1)" />
+            <stop offset="0%" style={{ stopColor: "var(--status-info-bg)" }} />
+            <stop offset="100%" style={{ stopColor: "var(--status-success-bg)" }} />
           </linearGradient>
           <linearGradient id="sadGrad" x1="100%" y1="100%" x2="0%" y2="0%">
-            <stop offset="0%" stopColor="rgba(100, 100, 200, 0.1)" />
-            <stop offset="100%" stopColor="rgba(150, 100, 200, 0.1)" />
+            <stop offset="0%" style={{ stopColor: "var(--status-info-bg)" }} />
+            <stop offset="100%" style={{ stopColor: "var(--theme-secondary-bg)" }} />
           </linearGradient>
         </defs>
 
@@ -308,7 +269,7 @@ function CircumplexWheel({
           cy={center}
           r={radius}
           fill="url(#wheelBgGradient)"
-          stroke="rgba(0, 255, 255, 0.3)"
+          style={{ stroke: "var(--theme-primary-subtle)" }}
           strokeWidth="2"
         />
 
@@ -338,7 +299,7 @@ function CircumplexWheel({
             cy={center}
             r={radius * level}
             fill="none"
-            stroke="rgba(255, 255, 255, 0.15)"
+            style={{ stroke: "var(--theme-text-muted)" }}
             strokeWidth="1"
             strokeDasharray="6 4"
           />
@@ -350,7 +311,7 @@ function CircumplexWheel({
           y1={center}
           x2={center + radius}
           y2={center}
-          stroke="rgba(0, 255, 255, 0.4)"
+          style={{ stroke: "var(--theme-primary-subtle)" }}
           strokeWidth="1.5"
         />
         <line
@@ -358,7 +319,7 @@ function CircumplexWheel({
           y1={center - radius}
           x2={center}
           y2={center + radius}
-          stroke="rgba(0, 255, 255, 0.4)"
+          style={{ stroke: "var(--theme-primary-subtle)" }}
           strokeWidth="1.5"
         />
 
@@ -458,7 +419,7 @@ function CircumplexWheel({
         />
 
         {/* Center crosshair */}
-        <circle cx={center} cy={center} r="4" fill="rgba(0, 255, 255, 0.6)" />
+        <circle cx={center} cy={center} r="4" style={{ fill: "var(--theme-primary-subtle)" }} />
         <circle cx={center} cy={center} r="2" fill="white" />
       </svg>
 
@@ -674,15 +635,7 @@ function EmotionBar({ emotion, maxScore }: EmotionBarProps): React.ReactElement 
 
       {/* Intensity badge with glow */}
       <div
-        className={`w-20 text-center px-3 py-1.5 rounded-lg text-xs font-semibold border ${getIntensityColorClass(emotion.intensity)} transition-all`}
-        style={{
-          boxShadow:
-            emotion.intensity === "high"
-              ? "0 0 10px rgba(239, 68, 68, 0.3)"
-              : emotion.intensity === "medium"
-                ? "0 0 10px rgba(234, 179, 8, 0.3)"
-                : "0 0 10px rgba(34, 197, 94, 0.3)",
-        }}
+        className={`w-20 text-center px-3 py-1.5 rounded-lg text-xs font-semibold border ${getIntensityColorClass(emotion.intensity)} ${emotion.intensity === "high" ? "emotion-intensity-high" : emotion.intensity === "medium" ? "emotion-intensity-medium" : "emotion-intensity-low"} transition-all`}
       >
         {emotion.intensity}
       </div>
@@ -1126,7 +1079,9 @@ export function EmotionAnalysis({
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return (): void => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [canAnalyze, handleAnalyze]);
 
   return (
@@ -1235,47 +1190,17 @@ export function EmotionAnalysis({
       </div>
 
       {/* Floating Action Button - Bottom center */}
-      <button
+      <FloatingActionButton
+        label="Analyze"
         onClick={(): void => {
           void handleAnalyze();
         }}
+        icon={<HeartIcon />}
         disabled={!canAnalyze}
-        className={`fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50 w-48 h-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 group hover:scale-105 active:scale-95 ${
-          canAnalyze
-            ? "bg-[#0a1628] hover:bg-[#0d1e38] text-[#00FFFF] border border-[#00FFFF]/40"
-            : "bg-[#0a1628]/50 text-[#00FFFF]/30 border border-[#00FFFF]/10 cursor-not-allowed"
-        }`}
-        aria-label="Analyze emotions"
-        style={
-          canAnalyze
-            ? {
-                boxShadow: "0 0 20px rgba(0, 255, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.4)",
-              }
-            : undefined
-        }
-      >
-        {isProcessing ? (
-          <>
-            <LoadingSpinner size={20} />
-            <span className="font-semibold text-sm">Analyzing...</span>
-          </>
-        ) : (
-          <>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-              />
-            </svg>
-            <span className="font-semibold text-sm">Analyze</span>
-            <kbd className="ml-1 px-2 py-1 text-xs font-medium bg-[#00FFFF]/20 text-[#00FFFF] rounded border border-[#00FFFF]/40">
-              ⌘↵
-            </kbd>
-          </>
-        )}
-      </button>
+        isLoading={isProcessing}
+        loadingText="Analyzing..."
+        ariaLabel="Analyze emotions"
+      />
     </div>
   );
 }

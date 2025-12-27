@@ -123,11 +123,11 @@ export function UsernameModal({ onSubmit, error }: UsernameModalProps): React.Re
               className={`w-full px-4 py-3 rounded-xl bg-ui-bg-secondary/50 border ${
                 displayError !== null
                   ? "border-status-error focus:border-status-error"
-                  : "border-ui-border focus:border-ui-accent-primary"
+                  : "border-ui-border focus:border-ui-border-active hover:border-ui-border-hover"
               } text-ui-text-primary placeholder-ui-text-tertiary focus:outline-none focus:ring-2 ${
                 displayError !== null
                   ? "focus:ring-status-error/30"
-                  : "focus:ring-ui-accent-primary/30"
+                  : "focus:ring-ui-accent-primary/20"
               } transition-all duration-200`}
             />
             {displayError !== null && (

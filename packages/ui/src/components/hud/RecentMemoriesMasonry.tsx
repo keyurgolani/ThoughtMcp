@@ -180,7 +180,7 @@ export function RecentMemoriesMasonry({
     return (
       <div
         ref={setContainerRef}
-        className={`flex flex-col overflow-hidden ${className}`}
+        className={`flex flex-col overflow-visible ${className}`}
         style={{ height: "100%", minHeight: 0 }}
       >
         {/* Title */}
@@ -189,14 +189,17 @@ export function RecentMemoriesMasonry({
         )}
 
         {/* CSS Grid - 2 rows, columns based on container width */}
+        {/* Added padding to allow glow effects to be visible outside card boundaries */}
         <div
-          className="grid gap-4 overflow-hidden"
+          className="grid gap-4 overflow-visible"
           style={{
             flex: "1 1 0",
             minHeight: 0,
             maxHeight: "100%",
             gridTemplateColumns: `repeat(${String(columnsCount)}, minmax(${String(CARD_MIN_WIDTH)}px, 1fr))`,
             gridTemplateRows: "1fr 1fr",
+            padding: "8px",
+            margin: "-8px",
           }}
         >
           {recentMemories.map((memory) => (

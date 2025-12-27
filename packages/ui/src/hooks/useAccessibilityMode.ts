@@ -7,9 +7,8 @@
  * Requirements: 13.2, 13.3, 13.5
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { useThemeStore } from '../stores/themeStore';
-import { prefersReducedMotion, subscribeToReducedMotion } from '../utils/accessibility';
+import { useCallback, useEffect, useState } from "react";
+import { prefersReducedMotion, subscribeToReducedMotion } from "../utils/accessibility";
 
 // ============================================================================
 // Types
@@ -22,7 +21,7 @@ export interface AccessibilityModeState {
   webGLAvailable: boolean;
   /** Whether user prefers reduced motion */
   reducedMotion: boolean;
-  /** Whether high contrast mode is enabled (derived from theme) */
+  /** Whether high contrast mode is enabled (user preference, not theme-based) */
   highContrast: boolean;
   /** Whether keyboard navigation is enabled */
   keyboardNavigationEnabled: boolean;
@@ -33,7 +32,7 @@ export interface AccessibilityModeActions {
   toggle2DFallback: () => void;
   /** Set 2D fallback view explicitly */
   set2DFallback: (value: boolean) => void;
-  /** Toggle high contrast mode (switches to/from high-contrast theme) */
+  /** Toggle high contrast mode */
   toggleHighContrast: () => void;
   /** Set high contrast mode explicitly */
   setHighContrast: (value: boolean) => void;
@@ -54,13 +53,13 @@ export interface UseAccessibilityModeReturn
  * Checks if WebGL is available in the browser
  */
 function checkWebGLAvailability(): boolean {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return false;
   }
 
   try {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl');
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl") ?? canvas.getContext("experimental-webgl");
     return gl !== null;
   } catch {
     return false;
@@ -72,16 +71,17 @@ function checkWebGLAvailability(): boolean {
 // ============================================================================
 
 const STORAGE_KEYS = {
-  use2DFallback: 'memory-explorer-2d-fallback',
-  keyboardNavigation: 'memory-explorer-keyboard-nav',
-  previousTheme: 'memory-explorer-previous-theme',
+  use2DFallback: "memory-explorer-2d-fallback",
+  keyboardNavigation: "memory-explorer-keyboard-nav",
+  previousTheme: "memory-explorer-previous-theme",
+  highContrast: "memory-explorer-high-contrast",
 } as const;
 
 /**
  * Safely get a boolean value from localStorage
  */
 function getStoredBoolean(key: string, defaultValue: boolean): boolean {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return defaultValue;
   }
 
@@ -90,7 +90,7 @@ function getStoredBoolean(key: string, defaultValue: boolean): boolean {
     if (stored === null) {
       return defaultValue;
     }
-    return stored === 'true';
+    return stored === "true";
   } catch {
     return defaultValue;
   }
@@ -100,43 +100,12 @@ function getStoredBoolean(key: string, defaultValue: boolean): boolean {
  * Safely set a boolean value in localStorage
  */
 function setStoredBoolean(key: string, value: boolean): void {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return;
   }
 
   try {
     localStorage.setItem(key, String(value));
-  } catch {
-    // Ignore storage errors
-  }
-}
-
-/**
- * Safely get a string value from localStorage
- */
-function getStoredString(key: string, defaultValue: string): string {
-  if (typeof window === 'undefined') {
-    return defaultValue;
-  }
-
-  try {
-    const stored = localStorage.getItem(key);
-    return stored ?? defaultValue;
-  } catch {
-    return defaultValue;
-  }
-}
-
-/**
- * Safely set a string value in localStorage
- */
-function setStoredString(key: string, value: string): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    localStorage.setItem(key, value);
   } catch {
     // Ignore storage errors
   }
@@ -157,10 +126,10 @@ export function useAccessibilityMode(): UseAccessibilityModeReturn {
   // Check WebGL availability once on mount
   const [webGLAvailable] = useState(() => checkWebGLAvailability());
 
-  // Get theme state - high contrast is now derived from theme
-  const currentTheme = useThemeStore((state) => state.currentTheme);
-  const setTheme = useThemeStore((state) => state.setTheme);
-  const highContrast = currentTheme === 'high-contrast';
+  // High contrast is now a separate user preference (not theme-based)
+  const [highContrast, setHighContrastState] = useState(() =>
+    getStoredBoolean(STORAGE_KEYS.highContrast, false)
+  );
 
   // Initialize state from localStorage or defaults
   const [use2DFallback, setUse2DFallbackState] = useState(() => {
@@ -183,6 +152,17 @@ export function useAccessibilityMode(): UseAccessibilityModeReturn {
     return unsubscribe;
   }, []);
 
+  // Apply high contrast CSS class when enabled
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      if (highContrast) {
+        document.documentElement.classList.add("high-contrast");
+      } else {
+        document.documentElement.classList.remove("high-contrast");
+      }
+    }
+  }, [highContrast]);
+
   // Actions
   const toggle2DFallback = useCallback(() => {
     setUse2DFallbackState((prev) => {
@@ -198,29 +178,17 @@ export function useAccessibilityMode(): UseAccessibilityModeReturn {
   }, []);
 
   const toggleHighContrast = useCallback(() => {
-    if (currentTheme === 'high-contrast') {
-      // Switch back to previous theme
-      const previousTheme = getStoredString(STORAGE_KEYS.previousTheme, 'cosmic');
-      setTheme(previousTheme as 'cosmic' | 'ember' | 'monochrome' | 'light' | 'high-contrast');
-    } else {
-      // Save current theme and switch to high contrast
-      setStoredString(STORAGE_KEYS.previousTheme, currentTheme);
-      setTheme('high-contrast');
-    }
-  }, [currentTheme, setTheme]);
+    setHighContrastState((prev) => {
+      const newValue = !prev;
+      setStoredBoolean(STORAGE_KEYS.highContrast, newValue);
+      return newValue;
+    });
+  }, []);
 
-  const setHighContrast = useCallback(
-    (value: boolean) => {
-      if (value && currentTheme !== 'high-contrast') {
-        setStoredString(STORAGE_KEYS.previousTheme, currentTheme);
-        setTheme('high-contrast');
-      } else if (!value && currentTheme === 'high-contrast') {
-        const previousTheme = getStoredString(STORAGE_KEYS.previousTheme, 'cosmic');
-        setTheme(previousTheme as 'cosmic' | 'ember' | 'monochrome' | 'light' | 'high-contrast');
-      }
-    },
-    [currentTheme, setTheme]
-  );
+  const setHighContrast = useCallback((value: boolean) => {
+    setHighContrastState(value);
+    setStoredBoolean(STORAGE_KEYS.highContrast, value);
+  }, []);
 
   const toggleKeyboardNavigation = useCallback(() => {
     setKeyboardNavigationState((prev) => {

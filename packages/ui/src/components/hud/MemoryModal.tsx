@@ -18,13 +18,14 @@ import { Edit, Zap } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getDefaultClient, isDemoMemoryId } from "../../api/client";
 import type { Memory, MemorySectorType } from "../../types/api";
+import { formatPercentage } from "../../utils/formatUtils";
 import { getSectorIcon } from "../../utils/iconUtils";
-import { getSectorColor } from "../../utils/visualization";
 import { createWaypointLink, parseWikiLinks } from "../../utils/wikiLinkUtils";
 import { BlockNoteEditor } from "../editor/BlockNoteEditor";
 import { BlockNoteViewer } from "../editor/BlockNoteViewer";
 import { MemoriesIcon, type IconSize } from "../icons";
 import { MemoryLinksList } from "./MemoryLinksList";
+import { SectorBadge } from "./SectorBadge";
 
 export type MemoryModalMode = "create" | "view" | "edit";
 
@@ -78,13 +79,6 @@ const SECTOR_OPTIONS: SectorOption[] = [
   },
 ];
 
-function isLightModeActive(): boolean {
-  return (
-    typeof document !== "undefined" &&
-    document.documentElement.getAttribute("data-theme-mode") === "light"
-  );
-}
-
 const EMPTY_MEMORY_ARRAY: Memory[] = [];
 
 function formatDate(dateString: string): string {
@@ -98,46 +92,14 @@ function formatDate(dateString: string): string {
   });
 }
 
-function getSectorInfo(sector: MemorySectorType): {
-  getIcon: (size: IconSize) => React.ReactElement;
-  color: string;
-  label: string;
-} {
-  const info = SECTOR_OPTIONS.find((s) => s.value === sector);
-  const lightMode = isLightModeActive();
-  const color = getSectorColor(sector, false, lightMode);
-  return info
-    ? { getIcon: info.getIcon, color, label: info.label }
-    : {
-        getIcon: (size) => getSectorIcon("default", size),
-        color: lightMode ? "#495057" : "#888888",
-        label: "Unknown",
-      };
-}
-
-function formatPercentage(value: number): string {
-  return `${String(Math.round(value * 100))}%`;
-}
-
 interface CompactMetadataProps {
   memory: Memory;
-  sectorInfo: { getIcon: (size: IconSize) => React.ReactElement; color: string; label: string };
 }
 
-function CompactMetadata({ memory, sectorInfo }: CompactMetadataProps): React.ReactElement {
+function CompactMetadata({ memory }: CompactMetadataProps): React.ReactElement {
   return (
     <div className="flex flex-wrap gap-2 text-xs">
-      <span
-        className="px-2 py-0.5 rounded-full border flex items-center gap-1"
-        style={{
-          borderColor: sectorInfo.color,
-          color: sectorInfo.color,
-          backgroundColor: `${sectorInfo.color}20`,
-        }}
-      >
-        <span aria-hidden="true">{sectorInfo.getIcon("xs")}</span>
-        {sectorInfo.label}
-      </span>
+      <SectorBadge sector={memory.primarySector} size="sm" />
       <span className="px-2 py-0.5 rounded-full bg-ui-background/50 text-ui-text-secondary">
         Strength: {formatPercentage(memory.strength)}
       </span>
@@ -421,7 +383,6 @@ export function MemoryModal({
 
   if (!isOpen) return null;
 
-  const sectorInfo = memory ? getSectorInfo(memory.primarySector) : null;
   const isViewMode = mode === "view";
   const isEditMode = mode === "edit";
   const isCreateMode = mode === "create";
@@ -460,19 +421,7 @@ export function MemoryModal({
             <h2 id="memory-modal-title" className="text-base font-semibold text-ui-accent-primary">
               {modalTitle}
             </h2>
-            {memory && sectorInfo && (
-              <span
-                className="px-2 py-0.5 text-xs rounded-full border flex items-center gap-1"
-                style={{
-                  borderColor: sectorInfo.color,
-                  color: sectorInfo.color,
-                  backgroundColor: `${sectorInfo.color}20`,
-                }}
-              >
-                <span aria-hidden="true">{sectorInfo.getIcon("xs")}</span>
-                {sectorInfo.label}
-              </span>
-            )}
+            {memory && <SectorBadge sector={memory.primarySector} size="sm" />}
           </div>
           <div className="flex items-center gap-2">
             {/* View mode: Edit button */}
@@ -634,8 +583,8 @@ export function MemoryModal({
           <div className="md:w-[40%] min-h-0 flex flex-col p-4 overflow-hidden">
             {/* Compact Metadata Section */}
             <div className="flex-shrink-0 mb-3">
-              {isViewMode && memory && sectorInfo ? (
-                <CompactMetadata memory={memory} sectorInfo={sectorInfo} />
+              {isViewMode && memory ? (
+                <CompactMetadata memory={memory} />
               ) : (
                 <div className="space-y-2">
                   {currentMemoryContext && isCreateMode && (

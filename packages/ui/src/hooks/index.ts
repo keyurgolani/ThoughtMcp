@@ -145,3 +145,10 @@ export { useCleanMode, useCleanModeVisibility } from "./useCleanMode";
 
 export { useEdgeHover, useEdgePanelVisibility } from "./useEdgeHover";
 export type { EdgeZone, UseEdgeHoverOptions, UseEdgeHoverResult } from "./useEdgeHover";
+
+export { useKeyboardShortcuts } from "./useKeyboardShortcuts";
+export type {
+  KeyboardShortcut,
+  UseKeyboardShortcutsOptions,
+  UseKeyboardShortcutsReturn,
+} from "./useKeyboardShortcuts";

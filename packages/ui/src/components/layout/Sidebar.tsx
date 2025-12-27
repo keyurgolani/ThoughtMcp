@@ -134,12 +134,13 @@ const NAV_ITEMS: NavItemConfig[] = [
   },
 ];
 
-const SECTOR_COLORS: Record<string, string> = {
-  episodic: "text-sector-episodic",
-  semantic: "text-sector-semantic",
-  procedural: "text-sector-procedural",
-  emotional: "text-sector-emotional",
-  reflective: "text-sector-reflective",
+// CSS classes for sector badges - uses CSS variables that adapt to theme
+const SECTOR_BADGE_CLASSES: Record<string, string> = {
+  episodic: "sector-badge-episodic",
+  semantic: "sector-badge-semantic",
+  procedural: "sector-badge-procedural",
+  emotional: "sector-badge-emotional",
+  reflective: "sector-badge-reflective",
 };
 
 const DEFAULT_MAX_RECENT = 5;
@@ -297,7 +298,7 @@ function RecentMemoryListItem({
   isCollapsed,
   onClick,
 }: RecentMemoryItemProps): React.ReactElement {
-  const sectorColor = SECTOR_COLORS[memory.primarySector] ?? "text-ui-text-secondary";
+  const sectorBadgeClass = SECTOR_BADGE_CLASSES[memory.primarySector] ?? "";
 
   if (isCollapsed) {
     return (
@@ -313,7 +314,7 @@ function RecentMemoryListItem({
         "
         aria-label={`Navigate to memory: ${memory.contentPreview}`}
       >
-        <span className={sectorColor} aria-hidden="true">
+        <span className={sectorBadgeClass} aria-hidden="true">
           {getSectorIcon(memory.primarySector, "sm")}
         </span>
       </button>
@@ -335,7 +336,7 @@ function RecentMemoryListItem({
       aria-label={`Navigate to memory: ${memory.contentPreview}`}
     >
       <div className="flex items-start gap-2">
-        <span className={`${sectorColor} mt-0.5`} aria-hidden="true">
+        <span className={`${sectorBadgeClass} mt-0.5`} aria-hidden="true">
           {getSectorIcon(memory.primarySector, "sm")}
         </span>
         <div className="flex-1 min-w-0">

@@ -21,8 +21,8 @@ import type { Memory, MemorySectorType } from "../types/api";
 // Types
 // ============================================================================
 
-/** Number of memories to fetch per page */
-export const MEMORIES_PER_PAGE = 50;
+/** Number of memories to fetch per page (matches server MAX_MEMORY_RECALL_LIMIT) */
+export const MEMORIES_PER_PAGE = 100;
 
 export interface MemoryState {
   /** All memories for the current user (accumulated from pagination) */
@@ -99,9 +99,6 @@ const initialState: MemoryState = {
 /** Cache duration in milliseconds (5 minutes) */
 const CACHE_DURATION_MS = 5 * 60 * 1000;
 
-/** Delay between background page fetches (ms) */
-const BACKGROUND_FETCH_DELAY = 100;
-
 // ============================================================================
 // Store Implementation
 // ============================================================================
@@ -118,12 +115,9 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
       state.userId === userId &&
       state.lastFetchedAt !== null &&
       Date.now() - state.lastFetchedAt < CACHE_DURATION_MS &&
-      state.memories.length > 0
+      state.memories.length > 0 &&
+      state.isFullyLoaded
     ) {
-      // If not fully loaded, continue background loading
-      if (!state.isFullyLoaded && state.hasMore && !state.isLoadingMore) {
-        void get().loadMoreMemories();
-      }
       return;
     }
 
@@ -140,46 +134,59 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
 
     try {
       const client = getDefaultClient();
-      // Use forceRefresh when force=true to bypass server-side cache
-      const response = await client.recallMemories(
-        {
-          userId,
-          limit: MEMORIES_PER_PAGE,
-          offset: 0,
-        },
-        force
-      );
+      let allMemories: Memory[] = [];
+      let currentOffset = 0;
+      let hasMore = true;
+      let totalCount = 0;
 
-      const fetchedMemories = response.memories;
-      const totalCount = response.totalCount;
-      // hasMore is true if we received a full page AND there are more memories to load
-      const hasMore =
-        fetchedMemories.length === MEMORIES_PER_PAGE && fetchedMemories.length < totalCount;
+      // Load ALL pages immediately in a loop
+      while (hasMore) {
+        const response = await client.recallMemories(
+          {
+            userId,
+            limit: MEMORIES_PER_PAGE,
+            offset: currentOffset,
+          },
+          force && currentOffset === 0 // Only force refresh on first request
+        );
+
+        const fetchedMemories = response.memories;
+        totalCount = response.totalCount;
+
+        // Deduplicate memories by ID
+        const existingIds = new Set(allMemories.map((m) => m.id));
+        const newMemories = fetchedMemories.filter((m) => !existingIds.has(m.id));
+        allMemories = [...allMemories, ...newMemories];
+
+        currentOffset += fetchedMemories.length;
+        hasMore = fetchedMemories.length === MEMORIES_PER_PAGE && currentOffset < totalCount;
+
+        // Update state progressively so UI shows progress
+        set({
+          memories: allMemories,
+          offset: currentOffset,
+          totalCount,
+          hasMore,
+          isLoadingMore: hasMore,
+        });
+      }
 
       set({
-        memories: fetchedMemories,
         isLoading: false,
+        isLoadingMore: false,
         lastFetchedAt: Date.now(),
         isUsingDemoData: false,
         error: null,
-        hasMore,
-        offset: fetchedMemories.length,
-        totalCount,
-        isFullyLoaded: !hasMore,
+        hasMore: false,
+        isFullyLoaded: true,
       });
-
-      // Continue loading in background if there are more memories
-      if (hasMore) {
-        setTimeout(() => {
-          void get().loadMoreMemories();
-        }, BACKGROUND_FETCH_DELAY);
-      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to fetch memories";
       console.error("Failed to fetch memories:", message);
 
       set({
         isLoading: false,
+        isLoadingMore: false,
         error: message,
         isUsingDemoData: state.memories.length === 0,
       });
@@ -215,36 +222,44 @@ export const useMemoryStore = create<MemoryStore>((set, get) => ({
 
     try {
       const client = getDefaultClient();
-      const response = await client.recallMemories({
-        userId: state.userId,
-        limit: MEMORIES_PER_PAGE,
-        offset: state.offset,
-      });
+      let allMemories = [...state.memories];
+      let currentOffset = state.offset;
+      let hasMore: boolean = state.hasMore;
+      let totalCount = state.totalCount ?? 0;
 
-      const fetchedMemories = response.memories;
-      const totalCount = response.totalCount;
-      const currentTotal = state.offset + fetchedMemories.length;
-      const hasMore = fetchedMemories.length === MEMORIES_PER_PAGE && currentTotal < totalCount;
+      // Load ALL remaining pages immediately
+      while (hasMore) {
+        const response = await client.recallMemories({
+          userId: state.userId,
+          limit: MEMORIES_PER_PAGE,
+          offset: currentOffset,
+        });
 
-      // Deduplicate memories by ID
-      const existingIds = new Set(state.memories.map((m) => m.id));
-      const newMemories = fetchedMemories.filter((m) => !existingIds.has(m.id));
+        const fetchedMemories = response.memories;
+        totalCount = response.totalCount;
+        const newTotal = currentOffset + fetchedMemories.length;
+        hasMore = fetchedMemories.length === MEMORIES_PER_PAGE && newTotal < totalCount;
+
+        // Deduplicate memories by ID
+        const existingIds = new Set(allMemories.map((m) => m.id));
+        const newMemories = fetchedMemories.filter((m) => !existingIds.has(m.id));
+        allMemories = [...allMemories, ...newMemories];
+        currentOffset += fetchedMemories.length;
+
+        // Update state progressively
+        set({
+          memories: allMemories,
+          offset: currentOffset,
+          totalCount,
+          hasMore,
+        });
+      }
 
       set({
-        memories: [...state.memories, ...newMemories],
         isLoadingMore: false,
-        hasMore,
-        offset: state.offset + fetchedMemories.length,
-        totalCount,
-        isFullyLoaded: !hasMore,
+        hasMore: false,
+        isFullyLoaded: true,
       });
-
-      // Continue loading in background if there are more memories
-      if (hasMore) {
-        setTimeout(() => {
-          void get().loadMoreMemories();
-        }, BACKGROUND_FETCH_DELAY);
-      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load more memories";
       console.error("Failed to load more memories:", message);

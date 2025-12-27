@@ -17,7 +17,16 @@ export interface UserBadgeProps {
 }
 
 // All themes in display order
-const ALL_THEMES: ThemeId[] = ["cosmic", "ember", "monochrome", "light", "high-contrast"];
+const ALL_THEMES: ThemeId[] = [
+  "cosmic",
+  "ember",
+  "forest",
+  "midnight",
+  "dawn",
+  "arctic",
+  "sage",
+  "pearl",
+];
 
 /**
  * Theme option component for the dropdown

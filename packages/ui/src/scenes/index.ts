@@ -37,10 +37,3 @@ export type { default as MemoryExplorerDefault } from "./MemoryExplorer";
 
 export { MemoryGraph } from "./MemoryGraph";
 export type { MemoryGraphProps } from "./MemoryGraph";
-
-// Reference graph implementations for style comparison (isolated, will be removed after selection)
-export { MemoryGraph1 } from "./MemoryGraph1";
-export { MemoryGraph2 } from "./MemoryGraph2";
-export { MemoryGraph3 } from "./MemoryGraph3";
-export { MemoryGraph4 } from "./MemoryGraph4";
-export { MemoryGraph5 } from "./MemoryGraph5";

@@ -16,22 +16,22 @@
  * Requirements: 31.1, 31.3
  */
 export const spacing = {
-  0: '0px',
-  0.5: '2px',
-  1: '4px',
-  1.5: '6px',
-  2: '8px',
-  2.5: '10px',
-  3: '12px',
-  4: '16px',
-  5: '20px',
-  6: '24px',
-  8: '32px',
-  10: '40px',
-  12: '48px',
-  16: '64px',
-  20: '80px',
-  24: '96px',
+  0: "0px",
+  0.5: "2px",
+  1: "4px",
+  1.5: "6px",
+  2: "8px",
+  2.5: "10px",
+  3: "12px",
+  4: "16px",
+  5: "20px",
+  6: "24px",
+  8: "32px",
+  10: "40px",
+  12: "48px",
+  16: "64px",
+  20: "80px",
+  24: "96px",
 } as const;
 
 /**
@@ -39,15 +39,15 @@ export const spacing = {
  * Requirements: 31.1
  */
 export const borderRadius = {
-  none: '0px',
-  sm: '4px',
-  DEFAULT: '6px',
-  md: '8px',
-  lg: '12px',
-  xl: '16px',
-  '2xl': '20px',
-  '3xl': '24px',
-  full: '9999px',
+  none: "0px",
+  sm: "4px",
+  DEFAULT: "6px",
+  md: "8px",
+  lg: "12px",
+  xl: "16px",
+  "2xl": "20px",
+  "3xl": "24px",
+  full: "9999px",
 } as const;
 
 /**
@@ -56,18 +56,18 @@ export const borderRadius = {
  */
 export const typography = {
   fontFamily: {
-    sans: 'Inter, system-ui, sans-serif',
-    mono: 'JetBrains Mono, Menlo, Monaco, monospace',
+    sans: "Inter, system-ui, sans-serif",
+    mono: "JetBrains Mono, Menlo, Monaco, monospace",
   },
   fontSize: {
-    xs: '12px',
-    sm: '14px',
-    base: '16px',
-    lg: '18px',
-    xl: '20px',
-    '2xl': '24px',
-    '3xl': '32px',
-    '4xl': '40px',
+    xs: "12px",
+    sm: "14px",
+    base: "16px",
+    lg: "18px",
+    xl: "20px",
+    "2xl": "24px",
+    "3xl": "32px",
+    "4xl": "40px",
   },
   fontWeight: {
     normal: 400,
@@ -88,17 +88,17 @@ export const typography = {
  */
 export const transitions = {
   duration: {
-    fast: '100ms',
-    normal: '200ms',
-    slow: '300ms',
-    slower: '500ms',
+    fast: "100ms",
+    normal: "200ms",
+    slow: "300ms",
+    slower: "500ms",
   },
   easing: {
-    default: 'cubic-bezier(0.4, 0, 0.2, 1)',
-    easeOut: 'cubic-bezier(0.16, 1, 0.3, 1)',
-    easeIn: 'cubic-bezier(0.7, 0, 0.84, 0)',
-    easeInOut: 'cubic-bezier(0.87, 0, 0.13, 1)',
-    bounce: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+    default: "cubic-bezier(0.4, 0, 0.2, 1)",
+    easeOut: "cubic-bezier(0.16, 1, 0.3, 1)",
+    easeIn: "cubic-bezier(0.7, 0, 0.84, 0)",
+    easeInOut: "cubic-bezier(0.87, 0, 0.13, 1)",
+    bounce: "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
   },
 } as const;
 
@@ -114,17 +114,17 @@ export const transitions = {
 export const colors = {
   // Background colors
   background: {
-    primary: '#0a0a0f',
-    secondary: '#0d0d14',
-    tertiary: '#12121a',
+    primary: "#0a0a0f",
+    secondary: "#0d0d14",
+    tertiary: "#12121a",
   },
 
   // Surface colors (for panels)
   surface: {
-    base: 'rgba(15, 15, 25, 0.85)',
-    elevated: 'rgba(20, 20, 35, 0.9)',
-    overlay: 'rgba(25, 25, 40, 0.95)',
-    sunken: 'rgba(8, 8, 12, 0.9)',
+    base: "rgba(15, 15, 25, 0.85)",
+    elevated: "rgba(20, 20, 35, 0.9)",
+    overlay: "rgba(25, 25, 40, 0.95)",
+    sunken: "rgba(8, 8, 12, 0.9)",
   },
 
   // Neon accent colors - EXACT values per Requirements 38.1, 38.2, 38.3
@@ -133,184 +133,176 @@ export const colors = {
   // GOLD: Highlight accent for current/selected items
   accent: {
     // Cyan - Primary Accent (Requirements: 38.1)
-    cyan: '#00FFFF', // EXACT: Do not change
-    cyanMuted: '#00CCCC',
-    cyanGlow: 'rgba(0, 255, 255, 0.3)', // EXACT: Do not change
-    cyanSubtle: 'rgba(0, 255, 255, 0.15)',
-    cyanBg: 'rgba(0, 255, 255, 0.1)',
+    cyan: "#00FFFF", // EXACT: Do not change
+    cyanMuted: "#00CCCC",
+    cyanGlow: "rgba(0, 255, 255, 0.3)", // EXACT: Do not change
+    cyanSubtle: "rgba(0, 255, 255, 0.15)",
+    cyanBg: "rgba(0, 255, 255, 0.1)",
 
     // Purple - Secondary Accent (Requirements: 38.2)
-    purple: '#9B59B6', // EXACT: Do not change
-    purpleMuted: '#7D4A94',
-    purpleGlow: 'rgba(155, 89, 182, 0.3)', // EXACT: Do not change
-    purpleSubtle: 'rgba(155, 89, 182, 0.15)',
-    purpleBg: 'rgba(155, 89, 182, 0.1)',
+    purple: "#9B59B6", // EXACT: Do not change
+    purpleMuted: "#7D4A94",
+    purpleGlow: "rgba(155, 89, 182, 0.3)", // EXACT: Do not change
+    purpleSubtle: "rgba(155, 89, 182, 0.15)",
+    purpleBg: "rgba(155, 89, 182, 0.1)",
 
     // Gold - Highlight Accent (Requirements: 38.3)
-    gold: '#FFD700', // EXACT: Do not change
-    goldMuted: '#CCAC00',
-    goldGlow: 'rgba(255, 215, 0, 0.3)', // EXACT: Do not change
-    goldSubtle: 'rgba(255, 215, 0, 0.15)',
-    goldBg: 'rgba(255, 215, 0, 0.1)',
+    gold: "#FFD700", // EXACT: Do not change
+    goldMuted: "#CCAC00",
+    goldGlow: "rgba(255, 215, 0, 0.3)", // EXACT: Do not change
+    goldSubtle: "rgba(255, 215, 0, 0.15)",
+    goldBg: "rgba(255, 215, 0, 0.1)",
   },
 
   // Text colors with opacity levels (Requirements: 32.6)
   text: {
-    primary: '#ffffff', // 100%
-    secondary: 'rgba(255, 255, 255, 0.7)', // 70%
-    tertiary: 'rgba(255, 255, 255, 0.5)', // 50%
-    muted: 'rgba(255, 255, 255, 0.4)', // 40%
-    disabled: 'rgba(255, 255, 255, 0.3)', // 30%
+    primary: "#ffffff", // 100%
+    secondary: "rgba(255, 255, 255, 0.7)", // 70%
+    tertiary: "rgba(255, 255, 255, 0.5)", // 50%
+    muted: "rgba(255, 255, 255, 0.4)", // 40%
+    disabled: "rgba(255, 255, 255, 0.3)", // 30%
   },
 
   // Border colors
   border: {
-    default: 'rgba(100, 100, 150, 0.3)',
-    hover: 'rgba(100, 100, 150, 0.5)',
-    active: 'rgba(0, 255, 255, 0.5)',
-    glow: 'rgba(0, 255, 255, 0.3)',
+    default: "rgba(100, 100, 150, 0.3)",
+    hover: "rgba(100, 100, 150, 0.5)",
+    active: "rgba(0, 255, 255, 0.5)",
+    glow: "rgba(0, 255, 255, 0.3)",
   },
 
   // Memory sector colors
   sector: {
-    episodic: '#FFD700',
-    semantic: '#00FFFF',
-    procedural: '#9B59B6',
-    emotional: '#FFA500',
-    reflective: '#C0C0C0',
+    episodic: "#FFD700",
+    semantic: "#00FFFF",
+    procedural: "#9B59B6",
+    emotional: "#FFA500",
+    reflective: "#C0C0C0",
   },
 
   // Link type colors
   link: {
-    semantic: '#3498DB',
-    causal: '#E67E22',
-    temporal: '#27AE60',
-    analogical: '#9B59B6',
+    semantic: "#3498DB",
+    causal: "#E67E22",
+    temporal: "#27AE60",
+    analogical: "#9B59B6",
   },
 
   // Status colors
   status: {
-    success: '#27AE60',
-    successGlow: 'rgba(39, 174, 96, 0.3)',
-    successBg: 'rgba(39, 174, 96, 0.15)',
-    warning: '#F39C12',
-    warningGlow: 'rgba(243, 156, 18, 0.3)',
-    warningBg: 'rgba(243, 156, 18, 0.15)',
-    error: '#E74C3C',
-    errorGlow: 'rgba(231, 76, 60, 0.3)',
-    errorBg: 'rgba(231, 76, 60, 0.15)',
-    info: '#3498DB',
-    infoGlow: 'rgba(52, 152, 219, 0.3)',
-    infoBg: 'rgba(52, 152, 219, 0.15)',
+    success: "#27AE60",
+    successGlow: "rgba(39, 174, 96, 0.3)",
+    successBg: "rgba(39, 174, 96, 0.15)",
+    warning: "#F39C12",
+    warningGlow: "rgba(243, 156, 18, 0.3)",
+    warningBg: "rgba(243, 156, 18, 0.15)",
+    error: "#E74C3C",
+    errorGlow: "rgba(231, 76, 60, 0.3)",
+    errorBg: "rgba(231, 76, 60, 0.15)",
+    info: "#3498DB",
+    infoGlow: "rgba(52, 152, 219, 0.3)",
+    infoBg: "rgba(52, 152, 219, 0.15)",
   },
 } as const;
 
 // ============================================================================
 // Glassmorphism Styles
 // Requirements: 38.4, 38.5, 38.6
+// IMPORTANT: All glow effects use CSS variables for theme-aware colors
 // ============================================================================
 
 /**
  * Glassmorphism panel styles with different intensity levels
+ * Uses CSS variables for theme-aware glow colors
  */
 export const glassmorphism = {
   /** Light glassmorphism for subtle panels */
   light: {
-    background: 'rgba(15, 15, 25, 0.6)',
-    backdropFilter: 'blur(8px)',
-    border: '1px solid rgba(100, 100, 150, 0.2)',
-    boxShadow: `
-      0 0 15px rgba(0, 255, 255, 0.08),
-      inset 0 0 20px rgba(0, 255, 255, 0.02)
-    `,
+    background: "var(--theme-surface)",
+    backdropFilter: "blur(8px)",
+    border: "1px solid var(--theme-border)",
+    boxShadow: "var(--unified-glow-subtle)",
   },
 
   /** Standard glassmorphism for most panels */
   standard: {
-    background: 'rgba(15, 15, 25, 0.85)',
-    backdropFilter: 'blur(16px)',
-    border: '1px solid rgba(100, 100, 150, 0.3)',
-    boxShadow: `
-      0 0 20px rgba(0, 255, 255, 0.15),
-      0 0 40px rgba(0, 255, 255, 0.08),
-      inset 0 0 30px rgba(0, 255, 255, 0.04)
-    `,
+    background: "var(--theme-surface)",
+    backdropFilter: "blur(16px)",
+    border: "1px solid var(--theme-border)",
+    boxShadow: "var(--unified-panel-glow)",
   },
 
   /** Heavy glassmorphism for prominent panels */
   heavy: {
-    background: 'rgba(15, 15, 25, 0.9)',
-    backdropFilter: 'blur(20px)',
-    border: '1px solid rgba(100, 100, 150, 0.4)',
-    boxShadow: `
-      0 0 25px rgba(0, 255, 255, 0.15),
-      inset 0 0 40px rgba(0, 255, 255, 0.05)
-    `,
+    background: "var(--theme-surface)",
+    backdropFilter: "blur(20px)",
+    border: "1px solid var(--theme-border)",
+    boxShadow: "var(--unified-glow-primary-lg)",
   },
 
   /** Elevated panel with stronger shadow */
   elevated: {
-    background: 'rgba(20, 20, 35, 0.9)',
-    backdropFilter: 'blur(16px)',
-    border: '1px solid rgba(100, 100, 150, 0.3)',
+    background: "var(--theme-surface-elevated)",
+    backdropFilter: "blur(16px)",
+    border: "1px solid var(--theme-border)",
     boxShadow: `
       0 8px 32px rgba(0, 0, 0, 0.5),
-      0 0 20px rgba(0, 255, 255, 0.2)
+      var(--unified-glow-primary-sm)
     `,
   },
 
   /** Floating panel for tooltips/popovers */
   floating: {
-    background: 'rgba(25, 25, 40, 0.95)',
-    backdropFilter: 'blur(20px)',
-    border: '1px solid rgba(100, 100, 150, 0.4)',
+    background: "var(--theme-surface-overlay)",
+    backdropFilter: "blur(20px)",
+    border: "1px solid var(--theme-border)",
     boxShadow: `
       0 12px 48px rgba(0, 0, 0, 0.6),
-      0 0 30px rgba(0, 255, 255, 0.15)
+      var(--unified-glow-primary)
     `,
   },
 
   /** Sunken panel for input areas */
   sunken: {
-    background: 'rgba(8, 8, 12, 0.9)',
-    backdropFilter: 'blur(8px)',
-    border: '1px solid rgba(60, 60, 80, 0.3)',
-    boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.3)',
+    background: "var(--theme-surface-sunken)",
+    backdropFilter: "blur(8px)",
+    border: "1px solid var(--theme-border)",
+    boxShadow: "inset 0 2px 8px rgba(0, 0, 0, 0.3)",
   },
 
-  /** Glassmorphism with cyan glow border */
+  /** Glassmorphism with primary glow border (theme-aware) */
   glowCyan: {
-    background: 'rgba(15, 15, 25, 0.85)',
-    backdropFilter: 'blur(16px)',
-    border: '1px solid rgba(0, 255, 255, 0.3)',
+    background: "var(--theme-surface)",
+    backdropFilter: "blur(16px)",
+    border: "1px solid var(--theme-primary-subtle)",
     boxShadow: `
-      0 0 20px rgba(0, 255, 255, 0.2),
-      0 0 40px rgba(0, 255, 255, 0.1),
-      inset 0 0 30px rgba(0, 255, 255, 0.05)
+      0 0 20px var(--theme-primary-glow),
+      0 0 40px var(--theme-primary-bg),
+      inset 0 0 30px var(--theme-primary-bg)
     `,
   },
 
-  /** Glassmorphism with purple glow border */
+  /** Glassmorphism with secondary glow border (theme-aware) */
   glowPurple: {
-    background: 'rgba(15, 15, 25, 0.85)',
-    backdropFilter: 'blur(16px)',
-    border: '1px solid rgba(155, 89, 182, 0.3)',
+    background: "var(--theme-surface)",
+    backdropFilter: "blur(16px)",
+    border: "1px solid var(--theme-secondary-subtle)",
     boxShadow: `
-      0 0 20px rgba(155, 89, 182, 0.2),
-      0 0 40px rgba(155, 89, 182, 0.1),
-      inset 0 0 30px rgba(155, 89, 182, 0.05)
+      0 0 20px var(--theme-secondary-glow),
+      0 0 40px var(--theme-secondary-bg),
+      inset 0 0 30px var(--theme-secondary-bg)
     `,
   },
 
-  /** Glassmorphism with gold glow border (for current/highlighted items) */
+  /** Glassmorphism with highlight glow border (theme-aware) */
   glowGold: {
-    background: 'rgba(15, 15, 25, 0.85)',
-    backdropFilter: 'blur(16px)',
-    border: '1px solid rgba(255, 215, 0, 0.3)',
+    background: "var(--theme-surface)",
+    backdropFilter: "blur(16px)",
+    border: "1px solid var(--theme-highlight-subtle)",
     boxShadow: `
-      0 0 20px rgba(255, 215, 0, 0.2),
-      0 0 40px rgba(255, 215, 0, 0.1),
-      inset 0 0 30px rgba(255, 215, 0, 0.05)
+      0 0 20px var(--theme-highlight-glow),
+      0 0 40px var(--theme-highlight-bg),
+      inset 0 0 30px var(--theme-highlight-bg)
     `,
   },
 } as const;
@@ -371,95 +363,95 @@ export const buttonStyles = {
   /** Primary button with cyan accent */
   primary: {
     base: {
-      background: 'rgba(0, 255, 255, 0.15)',
-      border: '1px solid rgba(0, 255, 255, 0.3)',
+      background: "rgba(0, 255, 255, 0.15)",
+      border: "1px solid rgba(0, 255, 255, 0.3)",
       color: colors.accent.cyan,
       transition: `all ${transitions.duration.normal} ${transitions.easing.default}`,
     },
     hover: {
-      background: 'rgba(0, 255, 255, 0.25)',
-      border: '1px solid rgba(0, 255, 255, 0.5)',
-      boxShadow: '0 0 15px rgba(0, 255, 255, 0.3)',
+      background: "rgba(0, 255, 255, 0.25)",
+      border: "1px solid rgba(0, 255, 255, 0.5)",
+      boxShadow: "0 0 15px rgba(0, 255, 255, 0.3)",
     },
     active: {
-      background: 'rgba(0, 255, 255, 0.35)',
-      border: '1px solid rgba(0, 255, 255, 0.6)',
-      transform: 'scale(0.95)',
+      background: "rgba(0, 255, 255, 0.35)",
+      border: "1px solid rgba(0, 255, 255, 0.6)",
+      transform: "scale(0.95)",
     },
     disabled: {
       opacity: 0.5,
-      cursor: 'not-allowed',
+      cursor: "not-allowed",
     },
   },
 
   /** Secondary button with purple accent */
   secondary: {
     base: {
-      background: 'rgba(155, 89, 182, 0.15)',
-      border: '1px solid rgba(155, 89, 182, 0.3)',
+      background: "rgba(155, 89, 182, 0.15)",
+      border: "1px solid rgba(155, 89, 182, 0.3)",
       color: colors.accent.purple,
       transition: `all ${transitions.duration.normal} ${transitions.easing.default}`,
     },
     hover: {
-      background: 'rgba(155, 89, 182, 0.25)',
-      border: '1px solid rgba(155, 89, 182, 0.5)',
-      boxShadow: '0 0 15px rgba(155, 89, 182, 0.3)',
+      background: "rgba(155, 89, 182, 0.25)",
+      border: "1px solid rgba(155, 89, 182, 0.5)",
+      boxShadow: "0 0 15px rgba(155, 89, 182, 0.3)",
     },
     active: {
-      background: 'rgba(155, 89, 182, 0.35)',
-      border: '1px solid rgba(155, 89, 182, 0.6)',
-      transform: 'scale(0.95)',
+      background: "rgba(155, 89, 182, 0.35)",
+      border: "1px solid rgba(155, 89, 182, 0.6)",
+      transform: "scale(0.95)",
     },
     disabled: {
       opacity: 0.5,
-      cursor: 'not-allowed',
+      cursor: "not-allowed",
     },
   },
 
   /** Destructive button with red accent */
   destructive: {
     base: {
-      background: 'rgba(231, 76, 60, 0.15)',
-      border: '1px solid rgba(231, 76, 60, 0.3)',
+      background: "rgba(231, 76, 60, 0.15)",
+      border: "1px solid rgba(231, 76, 60, 0.3)",
       color: colors.status.error,
       transition: `all ${transitions.duration.normal} ${transitions.easing.default}`,
     },
     hover: {
-      background: 'rgba(231, 76, 60, 0.25)',
-      border: '1px solid rgba(231, 76, 60, 0.5)',
-      boxShadow: '0 0 15px rgba(231, 76, 60, 0.3)',
+      background: "rgba(231, 76, 60, 0.25)",
+      border: "1px solid rgba(231, 76, 60, 0.5)",
+      boxShadow: "0 0 15px rgba(231, 76, 60, 0.3)",
     },
     active: {
-      background: 'rgba(231, 76, 60, 0.35)',
-      border: '1px solid rgba(231, 76, 60, 0.6)',
-      transform: 'scale(0.95)',
+      background: "rgba(231, 76, 60, 0.35)",
+      border: "1px solid rgba(231, 76, 60, 0.6)",
+      transform: "scale(0.95)",
     },
     disabled: {
       opacity: 0.5,
-      cursor: 'not-allowed',
+      cursor: "not-allowed",
     },
   },
 
   /** Ghost button (minimal styling) */
   ghost: {
     base: {
-      background: 'transparent',
-      border: '1px solid rgba(100, 100, 150, 0.3)',
+      background: "transparent",
+      border: "1px solid rgba(100, 100, 150, 0.3)",
       color: colors.text.secondary,
       transition: `all ${transitions.duration.normal} ${transitions.easing.default}`,
     },
     hover: {
-      background: 'rgba(100, 100, 150, 0.15)',
-      border: '1px solid rgba(100, 100, 150, 0.5)',
+      background: "rgba(100, 100, 150, 0.15)",
+      border: "1px solid rgba(100, 100, 150, 0.5)",
       color: colors.text.primary,
     },
     active: {
-      background: 'rgba(100, 100, 150, 0.25)',
-      transform: 'scale(0.95)',
+      background: "rgba(100, 100, 150, 0.25)",
+      transform: "scale(0.95)",
     },
     disabled: {
       opacity: 0.5,
-      cursor: 'not-allowed',
+      cursor: "not-allowed",
     },
   },
 } as const;
@@ -472,7 +464,7 @@ export const buttonStyles = {
  * Generate inline styles for glassmorphism panels
  */
 export function getGlassPanelStyle(
-  variant: keyof typeof glassmorphism = 'standard'
+  variant: keyof typeof glassmorphism = "standard"
 ): React.CSSProperties {
   const style = glassmorphism[variant];
   return {
@@ -488,7 +480,7 @@ export function getGlassPanelStyle(
 /**
  * Generate inline styles for neon text
  */
-export function getNeonTextStyle(variant: keyof typeof neonText = 'cyan'): React.CSSProperties {
+export function getNeonTextStyle(variant: keyof typeof neonText = "cyan"): React.CSSProperties {
   return neonText[variant];
 }
 
@@ -522,28 +514,28 @@ export function getLinkThemeColor(linkType: string): string {
  * Common Tailwind classes for glassmorphism panels
  */
 export const twGlassPanel = {
-  base: 'bg-ui-surface backdrop-blur-glass border border-ui-border rounded-lg',
-  glow: 'bg-ui-surface backdrop-blur-glass-medium border border-ui-border rounded-lg shadow-panel',
+  base: "bg-ui-surface backdrop-blur-glass border border-ui-border rounded-lg",
+  glow: "bg-ui-surface backdrop-blur-glass-medium border border-ui-border rounded-lg shadow-panel",
   elevated:
-    'bg-ui-surface-elevated backdrop-blur-glass-medium border border-ui-border rounded-lg shadow-panel-elevated',
+    "bg-ui-surface-elevated backdrop-blur-glass-medium border border-ui-border rounded-lg shadow-panel-elevated",
   floating:
-    'bg-ui-surface-overlay backdrop-blur-glass-heavy border border-ui-border rounded-lg shadow-panel-floating',
-  sunken: 'bg-ui-surface-sunken backdrop-blur-glass-light border border-ui-border rounded-lg',
+    "bg-ui-surface-overlay backdrop-blur-glass-heavy border border-ui-border rounded-lg shadow-panel-floating",
+  sunken: "bg-ui-surface-sunken backdrop-blur-glass-light border border-ui-border rounded-lg",
   glowCyan:
-    'bg-ui-surface backdrop-blur-glass-medium border border-ui-accent-primary/30 rounded-lg shadow-glow',
+    "bg-ui-surface backdrop-blur-glass-medium border border-ui-accent-primary/30 rounded-lg shadow-glow",
   glowPurple:
-    'bg-ui-surface backdrop-blur-glass-medium border border-sector-procedural/30 rounded-lg shadow-glow-purple',
+    "bg-ui-surface backdrop-blur-glass-medium border border-sector-procedural/30 rounded-lg shadow-glow-purple",
   glowGold:
-    'bg-ui-surface backdrop-blur-glass-medium border border-sector-episodic/30 rounded-lg shadow-glow-gold',
+    "bg-ui-surface backdrop-blur-glass-medium border border-sector-episodic/30 rounded-lg shadow-glow-gold",
 } as const;
 
 /**
  * Common Tailwind classes for neon text
  */
 export const twNeonText = {
-  cyan: 'text-ui-accent-primary',
-  purple: 'text-sector-procedural',
-  gold: 'text-sector-episodic',
+  cyan: "text-ui-accent-primary",
+  purple: "text-sector-procedural",
+  gold: "text-sector-episodic",
 } as const;
 
 /**
@@ -551,7 +543,7 @@ export const twNeonText = {
  * Requirements: 32.1, 32.2, 32.3, 32.4, 33.1
  */
 export const twButton = {
-  base: 'px-4 py-2 rounded-md font-medium transition-all duration-normal disabled:opacity-disabled disabled:cursor-not-allowed active:scale-95',
+  base: "px-4 py-2 rounded-md font-medium transition-all duration-normal disabled:opacity-disabled disabled:cursor-not-allowed active:scale-95",
   primary: `
     bg-ui-accent-primary-bg border border-ui-accent-primary/30
     text-ui-accent-primary

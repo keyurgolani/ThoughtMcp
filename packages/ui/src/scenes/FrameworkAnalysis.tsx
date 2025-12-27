@@ -10,6 +10,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getDefaultClient } from "../api/client";
+import { AnalyzeIcon, FloatingActionButton } from "../components/hud/FloatingActionButton";
 import { GlassPanel } from "../components/hud/GlassPanel";
 import { BarChart3, CheckCircle2, Puzzle } from "../components/icons/Icons";
 import { useSaveAsMemory } from "../hooks/useSaveAsMemory";
@@ -34,33 +35,6 @@ interface AnalysisContext {
   background: string;
   constraints: string[];
   goals: string[];
-}
-
-// ============================================================================
-// Sub-Components
-// ============================================================================
-
-/**
- * Loading spinner component
- */
-function LoadingSpinner({ size = 24 }: { size?: number }): React.ReactElement {
-  return (
-    <svg
-      className="animate-spin text-ui-accent-primary"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-      />
-    </svg>
-  );
 }
 
 // ============================================================================
@@ -125,7 +99,10 @@ function ProblemInput({
           bg-ui-background/50 border border-ui-border rounded-lg
           text-ui-text-primary placeholder-ui-text-muted
           resize-none
-          focus:outline-none focus:border-ui-accent-primary focus:ring-1 focus:ring-ui-accent-primary
+          transition-all duration-normal
+          focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
+          focus:shadow-glow-sm
+          hover:border-ui-border-hover
           ${disabled ? "opacity-50 cursor-not-allowed" : ""}
         `}
         aria-describedby="framework-problem-hint"
@@ -151,46 +128,31 @@ interface FrameworkSelectionProps {
 }
 
 /**
- * Helper to detect light mode from document attribute
- */
-function isLightModeActive(): boolean {
-  return (
-    typeof document !== "undefined" &&
-    document.documentElement.getAttribute("data-theme-mode") === "light"
-  );
-}
-
-/**
  * Get framework-specific accent color with light mode support
+ * Returns CSS variable reference for theme-aware colors
  */
 function getFrameworkColor(framework: FrameworkType): string {
-  const isLightMode = isLightModeActive();
-
-  // Dark mode colors (original)
-  const darkColorMap: Record<FrameworkType, string> = {
-    "scientific-method": "#00FFFF",
-    "design-thinking": "#9B59B6",
-    "systems-thinking": "#27AE60",
-    "critical-thinking": "#E74C3C",
-    "creative-problem-solving": "#FFD700",
-    "root-cause-analysis": "#E67E22",
-    "first-principles": "#3498DB",
-    "scenario-planning": "#1ABC9C",
-  };
-
-  // Light mode colors (more saturated for visibility)
-  const lightColorMap: Record<FrameworkType, string> = {
-    "scientific-method": "#0077B6",
-    "design-thinking": "#7B2CBF",
-    "systems-thinking": "#2D6A4F",
-    "critical-thinking": "#C41E3A",
-    "creative-problem-solving": "#D4880F",
-    "root-cause-analysis": "#C65102",
-    "first-principles": "#1D4ED8",
-    "scenario-planning": "#0F766E",
-  };
-
-  return isLightMode ? lightColorMap[framework] : darkColorMap[framework];
+  // Use CSS variables for theme-aware colors
+  switch (framework) {
+    case "scientific-method":
+      return "var(--theme-primary)";
+    case "design-thinking":
+      return "var(--theme-secondary)";
+    case "systems-thinking":
+      return "var(--status-success)";
+    case "critical-thinking":
+      return "var(--status-error)";
+    case "creative-problem-solving":
+      return "var(--theme-highlight)";
+    case "root-cause-analysis":
+      return "var(--status-warning)";
+    case "first-principles":
+      return "var(--status-info)";
+    case "scenario-planning":
+      return "#14b8a6"; // Teal - consistent across themes
+    default:
+      return "var(--theme-primary)";
+  }
 }
 
 /**
@@ -391,7 +353,10 @@ function ContextInput({
                 bg-ui-background/50 border border-ui-border rounded
                 text-sm text-ui-text-primary placeholder-ui-text-muted
                 resize-none
-                focus:outline-none focus:border-ui-accent-primary
+                transition-all duration-normal
+                focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
+                focus:shadow-glow-sm
+                hover:border-ui-border-hover
                 ${disabled ? "opacity-50 cursor-not-allowed" : ""}
               `}
             />
@@ -418,8 +383,11 @@ function ContextInput({
                 bg-ui-background/50 border border-ui-border rounded
                 text-sm text-ui-text-primary placeholder-ui-text-muted
                 resize-none
-                focus:outline-none focus:border-ui-accent-p
-            ${disabled ? "opacity-50 cursor-not-allowed" : ""}
+                transition-all duration-normal
+                focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
+                focus:shadow-glow-sm
+                hover:border-ui-border-hover
+                ${disabled ? "opacity-50 cursor-not-allowed" : ""}
               `}
             />
           </div>
@@ -445,7 +413,10 @@ function ContextInput({
                 bg-ui-background/50 border border-ui-border rounded
                 text-sm text-ui-text-primary placeholder-ui-text-muted
                 resize-none
-                focus:outline-none focus:border-ui-accent-primary
+                transition-all duration-normal
+                focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20
+                focus:shadow-glow-sm
+                hover:border-ui-border-hover
                 ${disabled ? "opacity-50 cursor-not-allowed" : ""}
               `}
             />
@@ -660,18 +631,15 @@ function FlowchartVisualization({
 }: FlowchartVisualizationProps): React.ReactElement {
   const frameworkInfo = FRAMEWORKS.find((f) => f.value === framework);
   const frameworkColor = getFrameworkColor(framework);
-  const isLightMode = isLightModeActive();
 
-  // Theme-aware success color for START step
-  const successColor = isLightMode ? "var(--status-success)" : "#27AE60";
-  const successBgLight = isLightMode ? "var(--status-success-bg)" : "rgba(39, 174, 96, 0.15)";
-  const successBorderLight = isLightMode
-    ? "var(--status-success-border)"
-    : "rgba(39, 174, 96, 0.5)";
-  const successBgDark = isLightMode ? "var(--status-success-bg)" : "rgba(39, 174, 96, 0.3)";
-  const neutralTextColor = isLightMode ? "var(--theme-text-muted)" : "rgba(255, 255, 255, 0.7)";
-  const neutralLabelColor = isLightMode ? "var(--theme-text-muted)" : "rgba(255, 255, 255, 0.5)";
-  const neutralBgColor = isLightMode ? "var(--theme-surface-sunken)" : "rgba(100, 100, 150, 0.3)";
+  // Theme-aware colors using CSS variables - works in both light and dark modes
+  const successColor = "var(--status-success)";
+  const successBgLight = "var(--status-success-bg)";
+  const successBorderLight = "var(--status-success-border)";
+  const successBgDark = "var(--status-success-bg)";
+  const neutralTextColor = "var(--theme-text-secondary)";
+  const neutralLabelColor = "var(--theme-text-muted)";
+  const neutralBgColor = "var(--theme-surface-sunken)";
 
   return (
     <GlassPanel className="p-6">
@@ -1060,7 +1028,9 @@ export function FrameworkAnalysis({
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return (): void => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [canSubmit, handleSubmit]);
 
   return (
@@ -1148,47 +1118,17 @@ export function FrameworkAnalysis({
       </div>
 
       {/* Floating Action Button - Bottom center */}
-      <button
+      <FloatingActionButton
+        label="Analyze"
         onClick={(): void => {
           void handleSubmit();
         }}
+        icon={<AnalyzeIcon />}
         disabled={!canSubmit}
-        className={`fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50 w-48 h-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 group hover:scale-105 active:scale-95 ${
-          canSubmit
-            ? "bg-[#0a1628] hover:bg-[#0d1e38] text-[#00FFFF] border border-[#00FFFF]/40"
-            : "bg-[#0a1628]/50 text-[#00FFFF]/30 border border-[#00FFFF]/10 cursor-not-allowed"
-        }`}
-        aria-label="Analyze problem"
-        style={
-          canSubmit
-            ? {
-                boxShadow: "0 0 20px rgba(0, 255, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.4)",
-              }
-            : undefined
-        }
-      >
-        {isProcessing ? (
-          <>
-            <LoadingSpinner size={20} />
-            <span className="font-semibold text-sm">Analyzing...</span>
-          </>
-        ) : (
-          <>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              />
-            </svg>
-            <span className="font-semibold text-sm">Analyze</span>
-            <kbd className="ml-1 px-2 py-1 text-xs font-medium bg-[#00FFFF]/20 text-[#00FFFF] rounded border border-[#00FFFF]/40">
-              ⌘↵
-            </kbd>
-          </>
-        )}
-      </button>
+        isLoading={isProcessing}
+        loadingText="Analyzing..."
+        ariaLabel="Analyze problem"
+      />
     </div>
   );
 }

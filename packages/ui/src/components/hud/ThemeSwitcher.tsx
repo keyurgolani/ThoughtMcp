@@ -2,12 +2,12 @@
  * ThemeSwitcher Component
  *
  * A compact theme selection component that allows users to switch between
- * available themes. Displays as a dropdown with theme previews.
+ * 8 available themes (4 dark, 4 light). Displays as a dropdown with theme previews.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { themes, useThemeStore, type ThemeId } from '../../stores/themeStore';
-import { GlassPanel } from './GlassPanel';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { themes, useThemeStore, type ThemeId } from "../../stores/themeStore";
+import { GlassPanel } from "./GlassPanel";
 
 // ============================================================================
 // Types
@@ -15,17 +15,20 @@ import { GlassPanel } from './GlassPanel';
 
 export interface ThemeSwitcherProps {
   /** Position of the dropdown */
-  position?: 'top' | 'bottom';
+  position?: "top" | "bottom";
   /** Alignment of the dropdown */
-  align?: 'left' | 'right';
+  align?: "left" | "right";
   /** Additional CSS classes */
   className?: string;
   /** Compact mode - icon only */
   compact?: boolean;
 }
 
-// All themes in display order
-const ALL_THEMES: ThemeId[] = ['cosmic', 'ember', 'monochrome', 'light', 'high-contrast'];
+// Dark themes in display order
+const DARK_THEMES: ThemeId[] = ["cosmic", "ember", "forest", "midnight"];
+
+// Light themes in display order
+const LIGHT_THEMES: ThemeId[] = ["dawn", "arctic", "sage", "pearl"];
 
 // ============================================================================
 // Theme Preview Component
@@ -45,31 +48,31 @@ function ThemePreview({ themeId, isSelected, onClick }: ThemePreviewProps): Reac
     <button
       onClick={onClick}
       className={`
-        w-full p-3 rounded-lg
+        w-full p-2.5 rounded-lg
         flex items-center gap-3
         transition-all duration-200
-        ${isSelected ? 'ring-1' : 'hover:bg-black/5'}
+        ${isSelected ? "ring-1" : "hover:bg-black/5 dark:hover:bg-white/5"}
       `}
       style={{
-        backgroundColor: isSelected ? 'var(--theme-primary-bg)' : undefined,
-        borderColor: isSelected ? 'var(--theme-primary-glow)' : undefined,
+        backgroundColor: isSelected ? "var(--theme-primary-bg)" : undefined,
+        borderColor: isSelected ? "var(--theme-primary-glow)" : undefined,
       }}
       aria-pressed={isSelected}
     >
       {/* Color preview circles */}
-      <div className="flex gap-1.5 flex-shrink-0">
+      <div className="flex gap-1 flex-shrink-0">
         <div
-          className="w-4 h-4 rounded-full ring-1 ring-black/20"
+          className="w-3.5 h-3.5 rounded-full ring-1 ring-black/10 dark:ring-white/10"
           style={{ backgroundColor: colors.primary }}
           title="Primary"
         />
         <div
-          className="w-4 h-4 rounded-full ring-1 ring-black/20"
+          className="w-3.5 h-3.5 rounded-full ring-1 ring-black/10 dark:ring-white/10"
           style={{ backgroundColor: colors.secondary }}
           title="Secondary"
         />
         <div
-          className="w-4 h-4 rounded-full ring-1 ring-black/20"
+          className="w-3.5 h-3.5 rounded-full ring-1 ring-black/10 dark:ring-white/10"
           style={{ backgroundColor: colors.highlight }}
           title="Highlight"
         />
@@ -79,47 +82,17 @@ function ThemePreview({ themeId, isSelected, onClick }: ThemePreviewProps): Reac
       <div className="flex-1 text-left min-w-0">
         <div
           className="text-sm font-medium truncate"
-          style={{ color: 'var(--theme-text-primary)' }}
+          style={{ color: "var(--theme-text-primary)" }}
         >
           {theme.name}
         </div>
-        <div className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>
-          {theme.description}
-        </div>
-      </div>
-
-      {/* Light/Dark indicator */}
-      <div className="flex-shrink-0">
-        {theme.isLight ? (
-          <svg
-            className="w-4 h-4"
-            style={{ color: 'var(--theme-text-muted)' }}
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              fillRule="evenodd"
-              d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
-              clipRule="evenodd"
-            />
-          </svg>
-        ) : (
-          <svg
-            className="w-4 h-4"
-            style={{ color: 'var(--theme-text-muted)' }}
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-          </svg>
-        )}
       </div>
 
       {/* Selected indicator */}
       {isSelected && (
         <svg
           className="w-4 h-4 flex-shrink-0"
-          style={{ color: colors.primary }}
+          style={{ color: "var(--theme-primary)" }}
           fill="currentColor"
           viewBox="0 0 20 20"
         >
@@ -135,13 +108,34 @@ function ThemePreview({ themeId, isSelected, onClick }: ThemePreviewProps): Reac
 }
 
 // ============================================================================
+// Section Header Component
+// ============================================================================
+
+interface SectionHeaderProps {
+  icon: React.ReactNode;
+  label: string;
+}
+
+function SectionHeader({ icon, label }: SectionHeaderProps): React.ReactElement {
+  return (
+    <div
+      className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium uppercase tracking-wider"
+      style={{ color: "var(--theme-text-muted)" }}
+    >
+      {icon}
+      {label}
+    </div>
+  );
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
 export function ThemeSwitcher({
-  position = 'bottom',
-  align = 'right',
-  className = '',
+  position = "bottom",
+  align = "right",
+  className = "",
   compact = false,
 }: ThemeSwitcherProps): React.ReactElement {
   const [isOpen, setIsOpen] = useState(false);
@@ -165,28 +159,28 @@ export function ThemeSwitcher({
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return (): void => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
 
   // Close on escape key
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
+      document.addEventListener("keydown", handleEscape);
     }
 
     return (): void => {
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener("keydown", handleEscape);
     };
   }, [isOpen]);
 
@@ -203,8 +197,25 @@ export function ThemeSwitcher({
   }, []);
 
   // Position classes for dropdown
-  const positionClasses = position === 'top' ? 'bottom-full mb-2' : 'top-full mt-2';
-  const alignClasses = align === 'left' ? 'left-0' : 'right-0';
+  const positionClasses = position === "top" ? "bottom-full mb-2" : "top-full mt-2";
+  const alignClasses = align === "left" ? "left-0" : "right-0";
+
+  // Icons for section headers
+  const moonIcon = (
+    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+    </svg>
+  );
+
+  const sunIcon = (
+    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+      <path
+        fillRule="evenodd"
+        d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
 
   return (
     <div className={`relative ${className}`}>
@@ -215,12 +226,12 @@ export function ThemeSwitcher({
         className={`
           flex items-center gap-2 rounded-lg
           transition-all duration-200
-          ${compact ? 'p-2' : 'px-3 py-2'}
+          ${compact ? "p-2" : "px-3 py-2"}
           hover:opacity-90
         `}
         style={{
-          backgroundColor: 'var(--theme-surface)',
-          border: '1px solid var(--theme-border)',
+          backgroundColor: "var(--theme-surface)",
+          border: "1px solid var(--theme-border)",
         }}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
@@ -232,7 +243,7 @@ export function ThemeSwitcher({
           <div className="relative">
             <svg
               className="w-5 h-5"
-              style={{ color: 'var(--theme-text-secondary)' }}
+              style={{ color: "var(--theme-text-secondary)" }}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -270,12 +281,12 @@ export function ThemeSwitcher({
 
         {!compact && (
           <>
-            <span className="text-sm" style={{ color: 'var(--theme-text-secondary)' }}>
+            <span className="text-sm" style={{ color: "var(--theme-text-secondary)" }}>
               {theme.name}
             </span>
             <svg
-              className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-              style={{ color: 'var(--theme-text-muted)' }}
+              className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+              style={{ color: "var(--theme-text-muted)" }}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -297,13 +308,29 @@ export function ThemeSwitcher({
           ref={dropdownRef}
           className={`
             absolute z-50 ${positionClasses} ${alignClasses}
-            w-72 animate-scale-in
+            w-64 animate-scale-in
           `}
         >
           <GlassPanel variant="floating" className="p-2">
-            {/* Theme list */}
-            <div className="space-y-1" role="listbox" aria-label="Theme selection">
-              {ALL_THEMES.map((themeId) => (
+            {/* Dark themes section */}
+            <SectionHeader icon={moonIcon} label="Dark" />
+            <div className="space-y-0.5 mb-3" role="listbox" aria-label="Dark themes">
+              {DARK_THEMES.map((themeId) => (
+                <ThemePreview
+                  key={themeId}
+                  themeId={themeId}
+                  isSelected={themeId === currentTheme}
+                  onClick={(): void => {
+                    handleThemeSelect(themeId);
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Light themes section */}
+            <SectionHeader icon={sunIcon} label="Light" />
+            <div className="space-y-0.5" role="listbox" aria-label="Light themes">
+              {LIGHT_THEMES.map((themeId) => (
                 <ThemePreview
                   key={themeId}
                   themeId={themeId}
@@ -335,7 +362,7 @@ function ReduceMotionToggle(): React.ReactElement {
 
   return (
     <label className="flex items-center justify-between cursor-pointer group">
-      <span className="text-xs transition-colors" style={{ color: 'var(--theme-text-muted)' }}>
+      <span className="text-xs transition-colors" style={{ color: "var(--theme-text-muted)" }}>
         Reduce motion
       </span>
       <button
@@ -343,8 +370,8 @@ function ReduceMotionToggle(): React.ReactElement {
         className="relative w-9 h-5 rounded-full transition-colors duration-200"
         style={{
           backgroundColor: respectReducedMotion
-            ? 'var(--theme-primary-subtle)'
-            : 'var(--theme-surface-sunken)',
+            ? "var(--theme-primary-subtle)"
+            : "var(--theme-surface-sunken)",
         }}
         role="switch"
         aria-checked={respectReducedMotion}
@@ -353,9 +380,9 @@ function ReduceMotionToggle(): React.ReactElement {
           className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full transition-transform duration-200"
           style={{
             backgroundColor: respectReducedMotion
-              ? 'var(--theme-primary)'
-              : 'var(--theme-text-muted)',
-            transform: respectReducedMotion ? 'translateX(16px)' : 'translateX(0)',
+              ? "var(--theme-primary)"
+              : "var(--theme-text-muted)",
+            transform: respectReducedMotion ? "translateX(16px)" : "translateX(0)",
           }}
         />
       </button>

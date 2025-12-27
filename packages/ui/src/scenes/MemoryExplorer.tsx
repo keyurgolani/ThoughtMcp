@@ -10,11 +10,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import { useSearchParams } from "react-router-dom";
 import { getDefaultClient, isDemoMemoryId } from "../api/client";
 import { BlockNotePreview } from "../components/hud/BlockNotePreview";
+import { FloatingActionButton, PlusIcon } from "../components/hud/FloatingActionButton";
 import {
   MemoryModal,
   type MemoryModalMode,
   type MemoryModalSaveResult,
 } from "../components/hud/MemoryModal";
+import { SectorBadge } from "../components/hud/SectorBadge";
 import { AlertTriangle, ExplorerIcon, getSectorIcon, type IconSize } from "../components/icons";
 import { useMemoryStore } from "../stores/memoryStore";
 import { type Memory, type MemorySectorType } from "../types/api";
@@ -139,7 +141,7 @@ function CustomizationPopup({
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
-    return () => {
+    return (): void => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
@@ -152,7 +154,9 @@ function CustomizationPopup({
   return (
     <div className="relative" ref={popupRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          setIsOpen(!isOpen);
+        }}
         className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-200 ${
           isOpen || activeCount > 0
             ? "bg-ui-accent-primary/20 border-ui-accent-primary/50 text-ui-accent-primary"
@@ -193,7 +197,9 @@ function CustomizationPopup({
             </label>
             <div className="flex gap-2">
               <button
-                onClick={() => onViewModeChange("cards")}
+                onClick={() => {
+                  onViewModeChange("cards");
+                }}
                 className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
                   viewMode === "cards"
                     ? "bg-ui-accent-primary/20 text-ui-accent-primary border border-ui-accent-primary/50"
@@ -211,7 +217,9 @@ function CustomizationPopup({
                 <span className="text-sm">Cards</span>
               </button>
               <button
-                onClick={() => onViewModeChange("rows")}
+                onClick={() => {
+                  onViewModeChange("rows");
+                }}
                 className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
                   viewMode === "rows"
                     ? "bg-ui-accent-primary/20 text-ui-accent-primary border border-ui-accent-primary/50"
@@ -238,7 +246,9 @@ function CustomizationPopup({
             </label>
             <div className="flex flex-wrap gap-1.5">
               <button
-                onClick={() => onSectorFilterChange("all")}
+                onClick={() => {
+                  onSectorFilterChange("all");
+                }}
                 className={`px-2.5 py-1 text-xs rounded-full border transition-all ${
                   sectorFilter === "all"
                     ? "bg-ui-accent-primary/20 text-ui-accent-primary border-ui-accent-primary/50"
@@ -250,7 +260,9 @@ function CustomizationPopup({
               {SECTOR_OPTIONS.map((option) => (
                 <button
                   key={option.value}
-                  onClick={() => onSectorFilterChange(option.value)}
+                  onClick={() => {
+                    onSectorFilterChange(option.value);
+                  }}
                   className={`px-2.5 py-1 text-xs rounded-full border transition-all flex items-center gap-1 ${
                     sectorFilter === option.value
                       ? "ring-1 ring-offset-1 ring-offset-ui-background"
@@ -278,7 +290,9 @@ function CustomizationPopup({
             <div className="flex gap-2">
               <select
                 value={sortField}
-                onChange={(e) => onSortChange(e.target.value as SortField, sortDirection)}
+                onChange={(e) => {
+                  onSortChange(e.target.value as SortField, sortDirection);
+                }}
                 className="flex-1 px-3 py-2 bg-ui-surface/50 border border-ui-border/50 rounded-lg text-sm text-ui-text-primary cursor-pointer"
               >
                 <option value="createdAt">Date Created</option>
@@ -287,7 +301,9 @@ function CustomizationPopup({
                 <option value="primarySector">Type</option>
               </select>
               <button
-                onClick={() => onSortChange(sortField, sortDirection === "asc" ? "desc" : "asc")}
+                onClick={() => {
+                  onSortChange(sortField, sortDirection === "asc" ? "desc" : "asc");
+                }}
                 className="px-3 py-2 bg-ui-surface/50 border border-ui-border/50 rounded-lg text-ui-text-secondary hover:text-ui-text-primary transition-colors"
                 title={sortDirection === "asc" ? "Ascending" : "Descending"}
               >
@@ -355,37 +371,19 @@ function MemoryCard({
   isSelected,
   onSelect,
 }: MemoryCardProps): ReactElement {
-  const sectorInfo = getSectorInfo(memory.primarySector);
-
   return (
     <div
       className={`
         p-4 rounded-lg border transition-all duration-200 cursor-pointer
-        break-inside-avoid mb-4
-        ${isSelected ? "border-ui-accent-primary/50 bg-ui-accent-primary/10" : "border-ui-border/50 bg-ui-surface/80"}
+        break-inside-avoid mb-4 unified-card-glow
+        ${isSelected ? "border-ui-accent-primary/50 bg-ui-accent-primary/10 selected" : "border-ui-border/50 bg-ui-surface/80"}
         hover:border-ui-accent-primary/50 hover:bg-ui-surface-elevated/50
         hover:scale-[1.02] hover:-translate-y-0.5
       `}
       style={{
         backdropFilter: "blur(12px)",
-        boxShadow: isSelected
-          ? "0 0 25px var(--theme-primary-glow), 0 0 50px var(--theme-primary-bg), inset 0 0 30px var(--theme-primary-bg)"
-          : "0 0 15px var(--theme-primary-glow), inset 0 0 20px var(--theme-primary-bg)",
         minHeight: "120px", // Fits metadata + ~1 line
         maxHeight: "300px", // Fits metadata + ~8 lines
-        transition: "all 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
-      }}
-      onMouseEnter={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.boxShadow =
-            "0 0 25px var(--theme-primary-glow), 0 0 50px var(--theme-primary-bg), inset 0 0 30px var(--theme-primary-bg)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.boxShadow =
-            "0 0 15px var(--theme-primary-glow), inset 0 0 20px var(--theme-primary-bg)";
-        }
       }}
       onClick={onView}
       role="button"
@@ -435,18 +433,8 @@ function MemoryCard({
               </svg>
             )}
           </div>
-          {/* Sector chip - matches modal style */}
-          <span
-            className="px-2 py-0.5 text-xs rounded-full border flex items-center gap-1"
-            style={{
-              borderColor: sectorInfo.color,
-              color: sectorInfo.color,
-              backgroundColor: `${sectorInfo.color}20`,
-            }}
-          >
-            <span aria-hidden="true">{sectorInfo.getIcon("xs")}</span>
-            <span className="capitalize">{memory.primarySector}</span>
-          </span>
+          {/* Full pill badge for memory type */}
+          <SectorBadge sector={memory.primarySector} variant="pill" size="sm" />
         </div>
         <div
           className="flex items-center gap-1 flex-shrink-0"
@@ -534,31 +522,15 @@ function MemoryRow({
   return (
     <div
       className={`
-        p-4 rounded-lg border transition-all duration-200 cursor-pointer w-full
-        ${isSelected ? "border-ui-accent-primary/50 bg-ui-accent-primary/10" : "border-ui-border/50 bg-ui-surface/80"}
+        p-4 rounded-lg border transition-all duration-200 cursor-pointer w-full unified-card-glow
+        ${isSelected ? "border-ui-accent-primary/50 bg-ui-accent-primary/10 selected" : "border-ui-border/50 bg-ui-surface/80"}
         hover:border-ui-accent-primary/50 hover:bg-ui-surface-elevated/50
         hover:scale-[1.01] hover:-translate-y-0.5
       `}
       style={{
         backdropFilter: "blur(12px)",
-        boxShadow: isSelected
-          ? "0 0 25px var(--theme-primary-glow), 0 0 50px var(--theme-primary-bg), inset 0 0 30px var(--theme-primary-bg)"
-          : "0 0 15px var(--theme-primary-glow), inset 0 0 20px var(--theme-primary-bg)",
         minHeight: "80px", // Fits metadata + ~1 line
         maxHeight: "160px", // Fits metadata + ~3 lines
-        transition: "all 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
-      }}
-      onMouseEnter={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.boxShadow =
-            "0 0 25px var(--theme-primary-glow), 0 0 50px var(--theme-primary-bg), inset 0 0 30px var(--theme-primary-bg)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.boxShadow =
-            "0 0 15px var(--theme-primary-glow), inset 0 0 20px var(--theme-primary-bg)";
-        }
       }}
       onClick={onView}
       role="button"
@@ -804,7 +776,7 @@ export function MemoryExplorer({
 
   // Filter and search memories (applied to whatever is loaded so far)
   const filteredMemories = useMemo(() => {
-    let result = memories.filter((memory) => {
+    const result = memories.filter((memory) => {
       const lowerQuery = searchQuery.toLowerCase();
       const contentMatches = memory.content.toLowerCase().includes(lowerQuery);
       const tagsMatch =
@@ -884,7 +856,9 @@ export function MemoryExplorer({
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return (): void => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [modalMode, handleOpenCreate]);
 
   const handleOpenView = useCallback((memory: Memory) => {
@@ -1006,11 +980,14 @@ export function MemoryExplorer({
             </h1>
             <p className="text-sm text-ui-text-secondary mt-1 flex items-center gap-2">
               <span>
-                {filteredMemories.length}
-                {totalCount !== null && totalCount > 0 && !isFullyLoaded
-                  ? ` of ${String(totalCount)}`
+                {totalCount !== null && totalCount > 0 ? totalCount : filteredMemories.length}
+                {totalCount !== null &&
+                totalCount > 0 &&
+                !isFullyLoaded &&
+                filteredMemories.length < totalCount
+                  ? ` (${String(filteredMemories.length)} loaded)`
                   : ""}{" "}
-                {filteredMemories.length === 1 ? "memory" : "memories"}
+                {(totalCount ?? filteredMemories.length) === 1 ? "memory" : "memories"}
                 {searchQuery !== "" || sectorFilter !== "all" ? " (filtered)" : ""}
                 {sortField !== "createdAt" || sortDirection !== "desc" ? " (sorted)" : ""}
               </span>
@@ -1070,7 +1047,7 @@ export function MemoryExplorer({
                 }}
                 placeholder="Search memories..."
                 aria-label="Search memories"
-                className="w-full pl-10 pr-4 py-2 bg-ui-background/70 border border-ui-border/50 rounded-lg text-ui-text-primary placeholder:text-ui-text-muted"
+                className="w-full pl-10 pr-4 py-2 bg-ui-background/70 border border-ui-border/50 rounded-lg text-ui-text-primary placeholder:text-ui-text-muted focus:outline-none focus:border-ui-border-active focus:ring-2 focus:ring-ui-accent-primary/20 hover:border-ui-border-hover transition-colors"
               />
             </div>
           </div>
@@ -1253,25 +1230,12 @@ export function MemoryExplorer({
       </div>
 
       {/* Floating Action Button */}
-      <button
+      <FloatingActionButton
+        label="New Memory"
         onClick={handleOpenCreate}
-        className="fixed bottom-[5vh] left-1/2 -translate-x-1/2 z-50 w-48 h-12 rounded-xl bg-[#0a1628] hover:bg-[#0d1e38] text-[#00FFFF] border border-[#00FFFF]/40 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 group hover:scale-105 active:scale-95"
-        aria-label="Create new memory"
-        style={{ boxShadow: "0 0 20px rgba(0, 255, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.4)" }}
-      >
-        <svg
-          className="w-5 h-5 transition-transform group-hover:rotate-90 duration-200"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-        </svg>
-        <span className="font-semibold text-sm">New Memory</span>
-        <kbd className="ml-1 px-2 py-1 text-xs font-medium bg-[#00FFFF]/20 text-[#00FFFF] rounded border border-[#00FFFF]/40">
-          ⌘↵
-        </kbd>
-      </button>
+        icon={<PlusIcon />}
+        ariaLabel="Create new memory"
+      />
 
       {/* Unified Memory Modal */}
       {modalMode && (

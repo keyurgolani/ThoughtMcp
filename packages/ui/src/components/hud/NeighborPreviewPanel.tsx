@@ -9,12 +9,14 @@
  * Requirements: 6.1, 6.2, 6.3, 6.4, 6.5
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import type { GraphEdge, GraphNode, LinkType, Memory, MemorySectorType } from '../../types/api';
-import { truncateContent } from '../../utils/accessibility';
-import { getRelationshipDescription } from '../../utils/preview';
-import { getLinkTypeColor, getSectorColor } from '../../utils/visualization';
-import { MemoryModal, type MemoryModalMode, type MemoryModalSaveResult } from './MemoryModal';
+import { useCallback, useEffect, useState } from "react";
+import type { GraphEdge, GraphNode, LinkType, Memory } from "../../types/api";
+import { truncateContent } from "../../utils/accessibility";
+import { formatPercentage } from "../../utils/formatUtils";
+import { getRelationshipDescription } from "../../utils/preview";
+import { getLinkTypeColor } from "../../utils/visualization";
+import { MemoryModal, type MemoryModalMode, type MemoryModalSaveResult } from "./MemoryModal";
+import { SectorBadge } from "./SectorBadge";
 
 // ============================================================================
 // Types
@@ -45,23 +47,11 @@ export interface NeighborPreviewPanelProps {
 const FADE_DURATION = 200;
 
 const LINK_TYPE_NAMES: Record<LinkType, string> = {
-  semantic: 'Semantic',
-  causal: 'Causal',
-  temporal: 'Temporal',
-  analogical: 'Analogical',
+  semantic: "Semantic",
+  causal: "Causal",
+  temporal: "Temporal",
+  analogical: "Analogical",
 };
-
-const SECTOR_NAMES: Record<MemorySectorType, string> = {
-  episodic: 'Episodic',
-  semantic: 'Semantic',
-  procedural: 'Procedural',
-  emotional: 'Emotional',
-  reflective: 'Reflective',
-};
-
-function formatPercentage(value: number): string {
-  return `${String(Math.round(value * 100))}%`;
-}
 
 // ============================================================================
 // Sub-Components
@@ -73,23 +63,23 @@ interface GlassPanelProps {
   style?: React.CSSProperties;
 }
 
-function GlassPanel({ children, className = '', style }: GlassPanelProps): React.ReactElement {
+function GlassPanel({ children, className = "", style }: GlassPanelProps): React.ReactElement {
   const isLightMode =
-    typeof document !== 'undefined' &&
-    document.documentElement.getAttribute('data-theme-mode') === 'light';
+    typeof document !== "undefined" &&
+    document.documentElement.getAttribute("data-theme-mode") === "light";
 
   return (
     <div
       className={`rounded-xl neighbor-preview-panel ${className}`}
       style={{
-        background: isLightMode ? 'rgba(255, 255, 255, 0.98)' : 'var(--theme-surface-overlay)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        border: isLightMode ? '1px solid rgba(0, 0, 0, 0.15)' : '1px solid var(--theme-border)',
+        background: isLightMode ? "rgba(255, 255, 255, 0.98)" : "var(--theme-surface-overlay)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        border: isLightMode ? "1px solid rgba(0, 0, 0, 0.15)" : "1px solid var(--theme-border)",
         boxShadow: isLightMode
-          ? '0 8px 32px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.08)'
-          : '0 8px 32px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--theme-border)',
-        color: isLightMode ? 'var(--theme-text-primary)' : undefined,
+          ? "0 8px 32px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.08)"
+          : "0 8px 32px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--theme-border)",
+        color: isLightMode ? "var(--theme-text-primary)" : undefined,
         ...style,
       }}
     >
@@ -115,8 +105,8 @@ function MetadataRow({
     <div className="flex justify-between items-center py-0.5">
       <span className="text-ui-text-secondary text-xs">{label}</span>
       <span
-        className={`text-xs font-medium ${colorClass !== undefined && colorClass !== '' ? colorClass : 'text-ui-text-primary'}`}
-        style={colorStyle !== undefined && colorStyle !== '' ? { color: colorStyle } : undefined}
+        className={`text-xs font-medium ${colorClass !== undefined && colorClass !== "" ? colorClass : "text-ui-text-primary"}`}
+        style={colorStyle !== undefined && colorStyle !== "" ? { color: colorStyle } : undefined}
       >
         {value}
       </span>
@@ -139,7 +129,7 @@ export function NeighborPreviewPanel({
   onLinkedMemoryClick,
   userId,
   sessionId,
-  className = '',
+  className = "",
 }: NeighborPreviewPanelProps): React.ReactElement | null {
   const [opacity, setOpacity] = useState(0);
   const [shouldRender, setShouldRender] = useState(false);
@@ -165,16 +155,16 @@ export function NeighborPreviewPanel({
 
   const calculatePosition = useCallback((): React.CSSProperties => {
     if (!positionHint) {
-      return { position: 'absolute', top: '50%', right: '20px', transform: 'translateY(-50%)' };
+      return { position: "absolute", top: "50%", right: "20px", transform: "translateY(-50%)" };
     }
     const offsetX = 20;
     const offsetY = -10;
-    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
+    const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1920;
     const panelWidth = 280;
     const isRightSide = positionHint.x > viewportWidth / 2;
 
     return {
-      position: 'fixed',
+      position: "fixed",
       top: `${String(Math.max(10, positionHint.y + offsetY))}px`,
       left: isRightSide ? undefined : `${String(positionHint.x + offsetX)}px`,
       right: isRightSide ? `${String(viewportWidth - positionHint.x + offsetX)}px` : undefined,
@@ -183,7 +173,7 @@ export function NeighborPreviewPanel({
   }, [positionHint]);
 
   const handleViewDetails = useCallback(() => {
-    setModalMode('view');
+    setModalMode("view");
   }, []);
 
   const handleCloseModal = useCallback(() => {
@@ -191,7 +181,7 @@ export function NeighborPreviewPanel({
   }, []);
 
   const handleSwitchToEdit = useCallback(() => {
-    setModalMode('edit');
+    setModalMode("edit");
   }, []);
 
   const handleSave = useCallback(
@@ -254,11 +244,7 @@ export function NeighborPreviewPanel({
 
   if (!shouldRender || !neighbor) return null;
 
-  const isLightMode =
-    typeof document !== 'undefined' &&
-    document.documentElement.getAttribute('data-theme-mode') === 'light';
-  const sectorColor = getSectorColor(neighbor.primarySector, false, isLightMode);
-  const linkTypeColor = edge ? getLinkTypeColor(edge.linkType, isLightMode) : undefined;
+  const linkTypeColor = edge ? getLinkTypeColor(edge.linkType, false) : undefined;
 
   // Convert GraphNode to Memory for the modal
   const memoryForModal: Memory = {
@@ -284,22 +270,12 @@ export function NeighborPreviewPanel({
           opacity,
           transition: `opacity ${String(FADE_DURATION)}ms ease-in-out`,
           zIndex: 1000,
-          pointerEvents: 'auto',
+          pointerEvents: "auto",
         }}
       >
-        {/* Sector Type Header */}
+        {/* Sector Type Header - Using SectorBadge for consistency */}
         <div className="flex items-center gap-2 mb-2">
-          <div
-            className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: sectorColor }}
-            aria-hidden="true"
-          />
-          <span
-            className="text-xs font-medium uppercase tracking-wider"
-            style={{ color: sectorColor }}
-          >
-            {SECTOR_NAMES[neighbor.primarySector]}
-          </span>
+          <SectorBadge sector={neighbor.primarySector} variant="icon" size="xs" />
         </div>
 
         {/* Content Summary */}

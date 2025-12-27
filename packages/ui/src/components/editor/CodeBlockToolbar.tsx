@@ -164,7 +164,7 @@ export function CodeBlockToolbar({
   return createPortal(
     <div
       ref={toolbarRef}
-      className="code-block-toolbar" // Add class for potential global styling
+      className="code-block-toolbar" // Uses CSS class from index.css for themed styling
       style={{
         position: "absolute",
         top: position.top + 8, // 8px from top
@@ -173,10 +173,10 @@ export function CodeBlockToolbar({
         display: "flex",
         gap: "0.25rem",
         padding: "0.25rem",
-        backgroundColor: "rgba(30, 41, 59, 0.8)", // Slate-800 with opacity
+        backgroundColor: "var(--theme-surface)",
         backdropFilter: "blur(4px)",
         borderRadius: "0.375rem",
-        border: "1px solid rgba(148, 163, 184, 0.1)", // Slate-400 with low opacity
+        border: "1px solid var(--theme-border)",
         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
         alignItems: "center",
         transform: "translateX(-100%)", // Anchor to right edge
@@ -189,9 +189,10 @@ export function CodeBlockToolbar({
     >
       {/* Language Badge */}
       <div
+        className="code-block-language"
         style={{
           fontSize: "0.75rem",
-          color: "#94a3b8", // Slate-400
+          color: "var(--theme-text-secondary)",
           fontWeight: 600,
           padding: "0 0.5rem",
           textTransform: "uppercase",
@@ -201,33 +202,36 @@ export function CodeBlockToolbar({
         {language}
       </div>
 
-      <div style={{ width: "1px", height: "12px", backgroundColor: "rgba(148, 163, 184, 0.2)" }} />
+      <div style={{ width: "1px", height: "12px", backgroundColor: "var(--theme-border)" }} />
 
       {/* Word Wrap Toggle */}
       <button
         onClick={handleWordWrap}
         title={wordWrap ? "Disable wrap" : "Enable wrap"}
+        className={`code-block-wrap-btn ${wordWrap ? "active" : ""}`}
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           padding: "0.25rem",
           borderRadius: "0.25rem",
-          backgroundColor: wordWrap ? "rgba(59, 130, 246, 0.2)" : "transparent",
-          color: wordWrap ? "#60a5fa" : "#94a3b8",
+          backgroundColor: wordWrap ? "var(--theme-primary-subtle)" : "transparent",
+          color: wordWrap ? "var(--theme-primary)" : "var(--theme-text-secondary)",
           border: "none",
           cursor: "pointer",
           transition: "all 0.2s",
         }}
         onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
-          e.currentTarget.style.backgroundColor = "rgba(148, 163, 184, 0.1)";
-          e.currentTarget.style.color = "#e2e8f0";
+          e.currentTarget.style.backgroundColor = "var(--theme-primary-bg)";
+          e.currentTarget.style.color = "var(--theme-primary)";
         }}
         onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
           e.currentTarget.style.backgroundColor = wordWrap
-            ? "rgba(59, 130, 246, 0.2)"
+            ? "var(--theme-primary-subtle)"
             : "transparent";
-          e.currentTarget.style.color = wordWrap ? "#60a5fa" : "#94a3b8";
+          e.currentTarget.style.color = wordWrap
+            ? "var(--theme-primary)"
+            : "var(--theme-text-secondary)";
         }}
       >
         <WrapText size={14} />
@@ -239,6 +243,7 @@ export function CodeBlockToolbar({
           void handleCopy();
         }}
         title="Copy code"
+        className={`code-block-copy-btn ${copied ? "copied" : ""}`}
         style={{
           display: "flex",
           alignItems: "center",
@@ -246,18 +251,22 @@ export function CodeBlockToolbar({
           padding: "0.25rem",
           borderRadius: "0.25rem",
           backgroundColor: "transparent",
-          color: copied ? "#4ade80" : "#94a3b8",
+          color: copied ? "var(--status-success, #4ade80)" : "var(--theme-text-secondary)",
           border: "none",
           cursor: "pointer",
           transition: "all 0.2s",
         }}
         onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
-          e.currentTarget.style.backgroundColor = "rgba(148, 163, 184, 0.1)";
-          e.currentTarget.style.color = copied ? "#4ade80" : "#e2e8f0";
+          e.currentTarget.style.backgroundColor = "var(--theme-primary-bg)";
+          e.currentTarget.style.color = copied
+            ? "var(--status-success, #4ade80)"
+            : "var(--theme-primary)";
         }}
         onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
           e.currentTarget.style.backgroundColor = "transparent";
-          e.currentTarget.style.color = copied ? "#4ade80" : "#94a3b8";
+          e.currentTarget.style.color = copied
+            ? "var(--status-success, #4ade80)"
+            : "var(--theme-text-secondary)";
         }}
       >
         {copied ? <Check size={14} /> : <Copy size={14} />}

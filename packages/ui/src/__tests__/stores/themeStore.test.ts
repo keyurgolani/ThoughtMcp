@@ -4,10 +4,10 @@
  * Tests for the theme management store.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { themes, useThemeStore, type ThemeId } from '../../stores/themeStore';
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { themes, useThemeStore, type ThemeId } from "../../stores/themeStore";
 
-describe('ThemeStore', () => {
+describe("ThemeStore", () => {
   // Store original documentElement
   let originalDocumentElement: HTMLElement;
 
@@ -16,8 +16,8 @@ describe('ThemeStore', () => {
     originalDocumentElement = document.documentElement;
 
     // Create a mock element with all required methods
-    const mockElement = document.createElement('html');
-    Object.defineProperty(document, 'documentElement', {
+    const mockElement = document.createElement("html");
+    Object.defineProperty(document, "documentElement", {
       value: mockElement,
       writable: true,
       configurable: true,
@@ -25,23 +25,32 @@ describe('ThemeStore', () => {
 
     // Reset store state before each test
     useThemeStore.setState({
-      currentTheme: 'cosmic',
+      currentTheme: "cosmic",
       respectReducedMotion: true,
     });
   });
 
   afterEach(() => {
     // Restore original documentElement
-    Object.defineProperty(document, 'documentElement', {
+    Object.defineProperty(document, "documentElement", {
       value: originalDocumentElement,
       writable: true,
       configurable: true,
     });
   });
 
-  describe('themes', () => {
-    it('should have all expected themes defined', () => {
-      const expectedThemes: ThemeId[] = ['cosmic', 'ember', 'monochrome', 'light', 'high-contrast'];
+  describe("themes", () => {
+    it("should have all expected themes defined", () => {
+      const expectedThemes: ThemeId[] = [
+        "cosmic",
+        "ember",
+        "forest",
+        "midnight",
+        "dawn",
+        "arctic",
+        "sage",
+        "pearl",
+      ];
 
       for (const themeId of expectedThemes) {
         expect(themes[themeId]).toBeDefined();
@@ -52,33 +61,33 @@ describe('ThemeStore', () => {
       }
     });
 
-    it('should have all required color properties for each theme', () => {
+    it("should have all required color properties for each theme", () => {
       const requiredColorKeys = [
-        'primary',
-        'primaryMuted',
-        'primaryGlow',
-        'primarySubtle',
-        'primaryBg',
-        'secondary',
-        'secondaryMuted',
-        'secondaryGlow',
-        'secondarySubtle',
-        'secondaryBg',
-        'highlight',
-        'highlightMuted',
-        'highlightGlow',
-        'highlightSubtle',
-        'highlightBg',
-        'background',
-        'backgroundSecondary',
-        'backgroundTertiary',
-        'surface',
-        'surfaceElevated',
-        'surfaceOverlay',
-        'surfaceSunken',
-        'border',
-        'borderHover',
-        'borderActive',
+        "primary",
+        "primaryMuted",
+        "primaryGlow",
+        "primarySubtle",
+        "primaryBg",
+        "secondary",
+        "secondaryMuted",
+        "secondaryGlow",
+        "secondarySubtle",
+        "secondaryBg",
+        "highlight",
+        "highlightMuted",
+        "highlightGlow",
+        "highlightSubtle",
+        "highlightBg",
+        "background",
+        "backgroundSecondary",
+        "backgroundTertiary",
+        "surface",
+        "surfaceElevated",
+        "surfaceOverlay",
+        "surfaceSunken",
+        "border",
+        "borderHover",
+        "borderActive",
       ];
 
       for (const themeId of Object.keys(themes) as ThemeId[]) {
@@ -89,36 +98,41 @@ describe('ThemeStore', () => {
       }
     });
 
-    it('should have isLight property for each theme', () => {
+    it("should have isLight property for each theme", () => {
       for (const themeId of Object.keys(themes) as ThemeId[]) {
-        expect(typeof themes[themeId].isLight).toBe('boolean');
+        expect(typeof themes[themeId].isLight).toBe("boolean");
       }
     });
 
-    it('should correctly identify light vs dark themes', () => {
-      expect(themes['cosmic'].isLight).toBe(false);
-      expect(themes['ember'].isLight).toBe(false);
-      expect(themes['monochrome'].isLight).toBe(false);
-      expect(themes['light'].isLight).toBe(true);
-      expect(themes['high-contrast'].isLight).toBe(false);
+    it("should correctly identify light vs dark themes", () => {
+      // Dark themes
+      expect(themes["cosmic"].isLight).toBe(false);
+      expect(themes["ember"].isLight).toBe(false);
+      expect(themes["forest"].isLight).toBe(false);
+      expect(themes["midnight"].isLight).toBe(false);
+      // Light themes
+      expect(themes["dawn"].isLight).toBe(true);
+      expect(themes["arctic"].isLight).toBe(true);
+      expect(themes["sage"].isLight).toBe(true);
+      expect(themes["pearl"].isLight).toBe(true);
     });
   });
 
-  describe('setTheme', () => {
-    it('should update the current theme', () => {
+  describe("setTheme", () => {
+    it("should update the current theme", () => {
       const { setTheme } = useThemeStore.getState();
 
-      setTheme('ember');
+      setTheme("ember");
 
-      expect(useThemeStore.getState().currentTheme).toBe('ember');
+      expect(useThemeStore.getState().currentTheme).toBe("ember");
     });
 
-    it('should apply theme CSS variables to document', () => {
+    it("should apply theme CSS variables to document", () => {
       // Mock document.documentElement
       const mockSetProperty = vi.fn();
       const mockSetAttribute = vi.fn();
       const mockClassList = { add: vi.fn(), remove: vi.fn() };
-      vi.spyOn(document, 'documentElement', 'get').mockReturnValue({
+      vi.spyOn(document, "documentElement", "get").mockReturnValue({
         style: { setProperty: mockSetProperty },
         setAttribute: mockSetAttribute,
         removeAttribute: vi.fn(),
@@ -126,49 +140,49 @@ describe('ThemeStore', () => {
       } as unknown as HTMLElement);
 
       const { setTheme } = useThemeStore.getState();
-      setTheme('ember');
+      setTheme("ember");
 
       // Verify CSS variables were set
       expect(mockSetProperty).toHaveBeenCalled();
-      expect(mockSetAttribute).toHaveBeenCalledWith('data-theme', 'ember');
+      expect(mockSetAttribute).toHaveBeenCalledWith("data-theme", "ember");
     });
   });
 
-  describe('getTheme', () => {
-    it('should return the current theme object', () => {
+  describe("getTheme", () => {
+    it("should return the current theme object", () => {
       const { getTheme } = useThemeStore.getState();
 
       const theme = getTheme();
 
-      expect(theme.id).toBe('cosmic');
-      expect(theme.name).toBe('Cosmic');
+      expect(theme.id).toBe("cosmic");
+      expect(theme.name).toBe("Cosmic");
     });
 
-    it('should return updated theme after setTheme', () => {
+    it("should return updated theme after setTheme", () => {
       const { setTheme, getTheme } = useThemeStore.getState();
 
-      setTheme('light');
+      setTheme("dawn");
       const theme = getTheme();
 
-      expect(theme.id).toBe('light');
-      expect(theme.name).toBe('Light');
+      expect(theme.id).toBe("dawn");
+      expect(theme.name).toBe("Dawn");
     });
   });
 
-  describe('getCSSVariables', () => {
-    it('should return CSS variables for current theme', () => {
+  describe("getCSSVariables", () => {
+    it("should return CSS variables for current theme", () => {
       const { getCSSVariables } = useThemeStore.getState();
 
       const variables = getCSSVariables();
 
-      expect(variables['--theme-primary']).toBe('#00FFFF');
-      expect(variables['--theme-secondary']).toBe('#9B59B6');
-      expect(variables['--theme-highlight']).toBe('#FFD700');
+      expect(variables["--theme-primary"]).toBe("#00FFFF");
+      expect(variables["--theme-secondary"]).toBe("#9B59B6");
+      expect(variables["--theme-highlight"]).toBe("#FFD700");
     });
   });
 
-  describe('toggleReducedMotion', () => {
-    it('should toggle reduced motion preference', () => {
+  describe("toggleReducedMotion", () => {
+    it("should toggle reduced motion preference", () => {
       const { toggleReducedMotion } = useThemeStore.getState();
 
       expect(useThemeStore.getState().respectReducedMotion).toBe(true);
@@ -181,43 +195,75 @@ describe('ThemeStore', () => {
     });
   });
 
-  describe('theme color values', () => {
-    it('cosmic should have cyan primary color', () => {
-      expect(themes['cosmic'].colors.primary).toBe('#00FFFF');
+  describe("theme color values", () => {
+    it("cosmic should have cyan primary color", () => {
+      expect(themes["cosmic"].colors.primary).toBe("#00FFFF");
     });
 
-    it('ember should have warm orange colors', () => {
-      expect(themes['ember'].colors.primary).toBe('#FF6B35');
+    it("ember should have warm orange colors", () => {
+      expect(themes["ember"].colors.primary).toBe("#FF6B35");
     });
 
-    it('monochrome should have white/gray colors', () => {
-      expect(themes['monochrome'].colors.primary).toBe('#FFFFFF');
+    it("forest should have green primary color", () => {
+      expect(themes["forest"].colors.primary).toBe("#4ADE80");
     });
 
-    it('light should have blue primary color', () => {
-      expect(themes['light'].colors.primary).toBe('#0066CC');
+    it("midnight should have blue primary color", () => {
+      expect(themes["midnight"].colors.primary).toBe("#60A5FA");
     });
 
-    it('high-contrast should have green primary color', () => {
-      expect(themes['high-contrast'].colors.primary).toBe('#00FF00');
+    it("dawn should have rose/coral primary color", () => {
+      expect(themes["dawn"].colors.primary).toBe("#E11D48");
+    });
+
+    it("arctic should have sky blue primary color", () => {
+      expect(themes["arctic"].colors.primary).toBe("#0284C7");
+    });
+
+    it("sage should have emerald primary color", () => {
+      expect(themes["sage"].colors.primary).toBe("#059669");
+    });
+
+    it("pearl should have violet primary color", () => {
+      expect(themes["pearl"].colors.primary).toBe("#7C3AED");
     });
   });
 
-  describe('high-contrast theme', () => {
-    it('should have maximum contrast text colors', () => {
-      const hc = themes['high-contrast'].colors;
-      expect(hc.textPrimary).toBe('#FFFFFF');
-      expect(hc.textSecondary).toBe('#FFFFFF');
+  describe("dark themes", () => {
+    it("should have dark backgrounds", () => {
+      const darkThemes: ThemeId[] = ["cosmic", "ember", "forest", "midnight"];
+      for (const themeId of darkThemes) {
+        const bg = themes[themeId].colors.background;
+        // Dark backgrounds should start with low hex values
+        expect(bg.startsWith("#0") || bg.startsWith("#1")).toBe(true);
+      }
     });
 
-    it('should have strong border colors', () => {
-      const hc = themes['high-contrast'].colors;
-      expect(hc.border).toBe('rgba(255, 255, 255, 0.6)');
+    it("should have light text colors", () => {
+      const darkThemes: ThemeId[] = ["cosmic", "ember", "forest", "midnight"];
+      for (const themeId of darkThemes) {
+        expect(themes[themeId].colors.textPrimary).toBe("#ffffff");
+      }
+    });
+  });
+
+  describe("light themes", () => {
+    it("should have light backgrounds", () => {
+      const lightThemes: ThemeId[] = ["dawn", "arctic", "sage", "pearl"];
+      for (const themeId of lightThemes) {
+        const bg = themes[themeId].colors.background;
+        // Light backgrounds should start with high hex values
+        expect(bg.startsWith("#f") || bg.startsWith("#e")).toBe(true);
+      }
     });
 
-    it('should have pure black background', () => {
-      const hc = themes['high-contrast'].colors;
-      expect(hc.background).toBe('#000000');
+    it("should have dark text colors", () => {
+      const lightThemes: ThemeId[] = ["dawn", "arctic", "sage", "pearl"];
+      for (const themeId of lightThemes) {
+        const textPrimary = themes[themeId].colors.textPrimary;
+        // Dark text should start with low hex values
+        expect(textPrimary.startsWith("#1") || textPrimary.startsWith("#0")).toBe(true);
+      }
     });
   });
 });

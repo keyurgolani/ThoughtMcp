@@ -8,8 +8,10 @@
  * Requirements: 16.7, 16.8
  */
 
-import { useCallback, useState } from 'react';
-import type { BiasDetection, DiscreteEmotionResult, SubProblem } from '../../types/api';
+import { useCallback, useState } from "react";
+import type { BiasDetection, DiscreteEmotionResult, SubProblem } from "../../types/api";
+import { getSeverityColorClass } from "../../utils/dashboardUtils";
+import { formatPercentage } from "../../utils/formatUtils";
 import type {
   AnalyzeReasoningResult,
   AssessConfidenceResult,
@@ -17,7 +19,7 @@ import type {
   DecomposeResult,
   DetectBiasResult,
   DetectEmotionResult,
-} from './MemoryCognitivePanel';
+} from "./MemoryCognitivePanel";
 
 // ============================================================================
 // Types
@@ -41,60 +43,44 @@ export interface CognitiveResultPanelProps {
 // ============================================================================
 
 /**
- * Format a number as percentage
- */
-function formatPercentage(value: number): string {
-  return `${String(Math.round(value * 100))}%`;
-}
-
-/**
- * Get severity color class for bias
- */
-function getSeverityColorClass(severity: number): string {
-  if (severity >= 0.7) return 'text-red-400 bg-red-500/20 border-red-500/50';
-  if (severity >= 0.4) return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/50';
-  return 'text-green-400 bg-green-500/20 border-green-500/50';
-}
-
-/**
  * Get risk level color class
  */
-function getRiskColorClass(risk: 'low' | 'medium' | 'high'): string {
+function getRiskColorClass(risk: "low" | "medium" | "high"): string {
   switch (risk) {
-    case 'high':
-      return 'text-red-400';
-    case 'medium':
-      return 'text-yellow-400';
-    case 'low':
-      return 'text-green-400';
+    case "high":
+      return "text-red-400";
+    case "medium":
+      return "text-yellow-400";
+    case "low":
+      return "text-green-400";
   }
 }
 
 /**
  * Get complexity color class
  */
-function getComplexityColorClass(complexity: 'low' | 'medium' | 'high'): string {
+function getComplexityColorClass(complexity: "low" | "medium" | "high"): string {
   switch (complexity) {
-    case 'high':
-      return 'text-red-400';
-    case 'medium':
-      return 'text-yellow-400';
-    case 'low':
-      return 'text-green-400';
+    case "high":
+      return "text-red-400";
+    case "medium":
+      return "text-yellow-400";
+    case "low":
+      return "text-green-400";
   }
 }
 
 /**
  * Get emotion intensity color class
  */
-function getIntensityColorClass(intensity: 'low' | 'medium' | 'high'): string {
+function getIntensityColorClass(intensity: "low" | "medium" | "high"): string {
   switch (intensity) {
-    case 'high':
-      return 'text-purple-400';
-    case 'medium':
-      return 'text-blue-400';
-    case 'low':
-      return 'text-gray-400';
+    case "high":
+      return "text-purple-400";
+    case "medium":
+      return "text-blue-400";
+    case "low":
+      return "text-gray-400";
   }
 }
 
@@ -182,13 +168,13 @@ function ModalContent({
                 px-3 py-1 text-sm rounded transition-colors
                 ${
                   isSaving === true
-                    ? 'bg-ui-border text-ui-text-muted cursor-not-allowed'
-                    : 'bg-ui-accent-primary/30 hover:bg-ui-accent-primary/50 text-ui-accent-primary'
+                    ? "bg-ui-border text-ui-text-muted cursor-not-allowed"
+                    : "bg-ui-accent-primary/30 hover:bg-ui-accent-primary/50 text-ui-accent-primary"
                 }
               `}
               aria-label="Save as memory"
             >
-              {isSaving === true ? 'Saving...' : 'Save as Memory'}
+              {isSaving === true ? "Saving..." : "Save as Memory"}
             </button>
           )}
           <button
@@ -350,7 +336,7 @@ function DetectBiasDisplay({ result }: DetectBiasDisplayProps): React.ReactEleme
               >
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-sm font-medium capitalize">
-                    {bias.type.replace('_', ' ')} Bias
+                    {bias.type.replace("_", " ")} Bias
                   </span>
                   <span className="text-xs">Severity: {formatPercentage(bias.severity)}</span>
                 </div>
@@ -422,10 +408,10 @@ function AssessConfidenceDisplay({ result }: AssessConfidenceDisplayProps): Reac
         <span
           className={`text-3xl font-bold ${
             data.overall >= 0.7
-              ? 'text-green-400'
+              ? "text-green-400"
               : data.overall >= 0.4
-                ? 'text-yellow-400'
-                : 'text-red-400'
+                ? "text-yellow-400"
+                : "text-red-400"
           }`}
         >
           {formatPercentage(data.overall)}
@@ -439,12 +425,12 @@ function AssessConfidenceDisplay({ result }: AssessConfidenceDisplayProps): Reac
           {Object.entries(data.dimensions).map(([key, value]: [string, number]) => (
             <div key={key} className="flex items-center gap-3">
               <span className="text-sm text-ui-text-secondary w-40 capitalize">
-                {key.replace(/([A-Z])/g, ' $1').trim()}
+                {key.replace(/([A-Z])/g, " $1").trim()}
               </span>
               <div className="flex-1 h-2 bg-ui-border rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full ${
-                    value >= 0.7 ? 'bg-green-400' : value >= 0.4 ? 'bg-yellow-400' : 'bg-red-400'
+                    value >= 0.7 ? "bg-green-400" : value >= 0.4 ? "bg-yellow-400" : "bg-red-400"
                   }`}
                   style={{ width: `${String(value * 100)}%` }}
                 />
@@ -526,40 +512,40 @@ function DetectEmotionDisplay({ result }: DetectEmotionDisplayProps): React.Reac
             <span className="text-xs text-ui-text-secondary block mb-1">Valence</span>
             <span
               className={`text-lg font-semibold ${
-                data.circumplex.valence >= 0 ? 'text-green-400' : 'text-red-400'
+                data.circumplex.valence >= 0 ? "text-green-400" : "text-red-400"
               }`}
             >
-              {data.circumplex.valence >= 0 ? '+' : ''}
+              {data.circumplex.valence >= 0 ? "+" : ""}
               {data.circumplex.valence.toFixed(2)}
             </span>
             <span className="text-xs text-ui-text-muted block">
-              {data.circumplex.valence >= 0 ? 'Positive' : 'Negative'}
+              {data.circumplex.valence >= 0 ? "Positive" : "Negative"}
             </span>
           </div>
           <div className="p-3 bg-ui-background/50 rounded-lg text-center">
             <span className="text-xs text-ui-text-secondary block mb-1">Arousal</span>
             <span
               className={`text-lg font-semibold ${
-                data.circumplex.arousal >= 0.5 ? 'text-orange-400' : 'text-blue-400'
+                data.circumplex.arousal >= 0.5 ? "text-orange-400" : "text-blue-400"
               }`}
             >
               {data.circumplex.arousal.toFixed(2)}
             </span>
             <span className="text-xs text-ui-text-muted block">
-              {data.circumplex.arousal >= 0.5 ? 'High Energy' : 'Low Energy'}
+              {data.circumplex.arousal >= 0.5 ? "High Energy" : "Low Energy"}
             </span>
           </div>
           <div className="p-3 bg-ui-background/50 rounded-lg text-center">
             <span className="text-xs text-ui-text-secondary block mb-1">Dominance</span>
             <span
               className={`text-lg font-semibold ${
-                data.circumplex.dominance >= 0.5 ? 'text-purple-400' : 'text-gray-400'
+                data.circumplex.dominance >= 0.5 ? "text-purple-400" : "text-gray-400"
               }`}
             >
               {data.circumplex.dominance.toFixed(2)}
             </span>
             <span className="text-xs text-ui-text-muted block">
-              {data.circumplex.dominance >= 0.5 ? 'In Control' : 'Submissive'}
+              {data.circumplex.dominance >= 0.5 ? "In Control" : "Submissive"}
             </span>
           </div>
         </div>
@@ -649,20 +635,20 @@ function SubProblemNode({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent): void => {
-    if (hasChildren && (e.key === 'Enter' || e.key === ' ')) {
+    if (hasChildren && (e.key === "Enter" || e.key === " ")) {
       setIsExpanded(!isExpanded);
     }
   };
 
   return (
-    <div className={depth > 0 ? 'ml-4 border-l border-ui-border pl-3' : ''}>
+    <div className={depth > 0 ? "ml-4 border-l border-ui-border pl-3" : ""}>
       <div
         className={`
           p-3 rounded-lg bg-ui-background/50 border border-ui-border
-          ${hasChildren ? 'cursor-pointer hover:border-ui-accent-primary/50' : ''}
+          ${hasChildren ? "cursor-pointer hover:border-ui-accent-primary/50" : ""}
         `}
         onClick={handleClick}
-        role={hasChildren ? 'button' : undefined}
+        role={hasChildren ? "button" : undefined}
         tabIndex={hasChildren ? 0 : undefined}
         onKeyDown={handleKeyDown}
       >
@@ -670,7 +656,7 @@ function SubProblemNode({
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               {hasChildren && (
-                <span className="text-ui-accent-primary text-xs">{isExpanded ? '▼' : '▶'}</span>
+                <span className="text-ui-accent-primary text-xs">{isExpanded ? "▼" : "▶"}</span>
               )}
               <span className="text-sm font-medium text-ui-text-primary">
                 {subProblem.description}
@@ -683,7 +669,7 @@ function SubProblemNode({
               <span className="text-ui-text-muted">Order: {subProblem.executionOrder}</span>
               {subProblem.dependencies.length > 0 && (
                 <span className="text-ui-text-muted">
-                  Deps: {subProblem.dependencies.join(', ')}
+                  Deps: {subProblem.dependencies.join(", ")}
                 </span>
               )}
             </div>
@@ -771,16 +757,16 @@ function DecomposeDisplay({ result }: DecomposeDisplayProps): React.ReactElement
  */
 function getModalTitle(result: CognitiveResultData): string {
   switch (result.type) {
-    case 'analyze-reasoning':
-      return 'Reasoning Analysis';
-    case 'detect-bias':
-      return 'Bias Detection';
-    case 'assess-confidence':
-      return 'Confidence Assessment';
-    case 'detect-emotion':
-      return 'Emotion Analysis';
-    case 'decompose':
-      return 'Problem Decomposition';
+    case "analyze-reasoning":
+      return "Reasoning Analysis";
+    case "detect-bias":
+      return "Bias Detection";
+    case "assess-confidence":
+      return "Confidence Assessment";
+    case "detect-emotion":
+      return "Emotion Analysis";
+    case "decompose":
+      return "Problem Decomposition";
   }
 }
 
@@ -789,7 +775,7 @@ function getModalTitle(result: CognitiveResultData): string {
  */
 function generateSaveContent(result: CognitiveResultData): string {
   switch (result.type) {
-    case 'analyze-reasoning': {
+    case "analyze-reasoning": {
       const { data } = result;
       return `Reasoning Analysis Results:
 Quality Scores:
@@ -798,24 +784,24 @@ Quality Scores:
 - Logical Validity: ${formatPercentage(data.quality.logicalValidity)}
 - Evidence Support: ${formatPercentage(data.quality.evidenceSupport)}
 
-Strengths: ${data.strengths.join('; ')}
-Weaknesses: ${data.weaknesses.join('; ')}
-Recommendations: ${data.recommendations.join('; ')}`;
+Strengths: ${data.strengths.join("; ")}
+Weaknesses: ${data.weaknesses.join("; ")}
+Recommendations: ${data.recommendations.join("; ")}`;
     }
-    case 'detect-bias': {
+    case "detect-bias": {
       const { data } = result;
       const biasesText = data.biases
         .map((b) => `${b.type} (${formatPercentage(b.severity)}): ${b.correctionStrategy}`)
-        .join('\n');
+        .join("\n");
       return `Bias Detection Results:
 Overall Risk: ${data.overallRisk}
 
 Detected Biases:
-${biasesText || 'No significant biases detected'}
+${biasesText || "No significant biases detected"}
 
-Recommendations: ${data.recommendations.join('; ')}`;
+Recommendations: ${data.recommendations.join("; ")}`;
     }
-    case 'assess-confidence': {
+    case "assess-confidence": {
       const { data } = result;
       return `Confidence Assessment Results:
 Overall Confidence: ${formatPercentage(data.overall)}
@@ -828,33 +814,33 @@ Dimensions:
 - Bias Freedom: ${formatPercentage(data.dimensions.biasFreedom)}
 
 Interpretation: ${data.interpretation}
-Warnings: ${data.warnings.join('; ')}
-Recommendations: ${data.recommendations.join('; ')}`;
+Warnings: ${data.warnings.join("; ")}
+Recommendations: ${data.recommendations.join("; ")}`;
     }
-    case 'detect-emotion': {
+    case "detect-emotion": {
       const { data } = result;
       const emotionsText = data.discreteEmotions
         .map((e) => `${e.emotion}: ${formatPercentage(e.score)} (${e.intensity})`)
-        .join(', ');
+        .join(", ");
       return `Emotion Analysis Results:
 Circumplex Model:
 - Valence: ${data.circumplex.valence.toFixed(2)}
 - Arousal: ${data.circumplex.arousal.toFixed(2)}
 - Dominance: ${data.circumplex.dominance.toFixed(2)}
 
-Dominant Emotion: ${data.dominantEmotion ?? 'None detected'}
+Dominant Emotion: ${data.dominantEmotion ?? "None detected"}
 Discrete Emotions: ${emotionsText}
 
 Interpretation: ${data.interpretation}`;
     }
-    case 'decompose': {
+    case "decompose": {
       const { data } = result;
       const subProblemsText = data.subProblems
         .map(
           (sp) =>
             `- ${sp.description} (${sp.complexity} complexity, order: ${String(sp.executionOrder)})`
         )
-        .join('\n');
+        .join("\n");
       return `Problem Decomposition Results:
 Root Problem: ${data.rootProblem}
 Total Sub-problems: ${String(data.totalSubProblems)}
@@ -863,7 +849,7 @@ Max Depth: ${String(data.maxDepth)}
 Sub-problems:
 ${subProblemsText}
 
-Suggested Order: ${data.suggestedOrder.join(' → ')}`;
+Suggested Order: ${data.suggestedOrder.join(" → ")}`;
     }
   }
 }
@@ -883,7 +869,7 @@ export function CognitiveResultPanel({
   onClose,
   onSaveAsMemory,
   sourceMemoryId,
-  className = '',
+  className = "",
 }: CognitiveResultPanelProps): React.ReactElement {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -904,7 +890,7 @@ export function CognitiveResultPanel({
       const content = generateSaveContent(result);
       onSaveAsMemory(content, sourceMemoryId);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save as memory';
+      const message = err instanceof Error ? err.message : "Failed to save as memory";
       setSaveError(message);
     } finally {
       setIsSaving(false);
@@ -928,11 +914,11 @@ export function CognitiveResultPanel({
           )}
 
           {/* Result display based on type */}
-          {result.type === 'analyze-reasoning' && <AnalyzeReasoningDisplay result={result} />}
-          {result.type === 'detect-bias' && <DetectBiasDisplay result={result} />}
-          {result.type === 'assess-confidence' && <AssessConfidenceDisplay result={result} />}
-          {result.type === 'detect-emotion' && <DetectEmotionDisplay result={result} />}
-          {result.type === 'decompose' && <DecomposeDisplay result={result} />}
+          {result.type === "analyze-reasoning" && <AnalyzeReasoningDisplay result={result} />}
+          {result.type === "detect-bias" && <DetectBiasDisplay result={result} />}
+          {result.type === "assess-confidence" && <AssessConfidenceDisplay result={result} />}
+          {result.type === "detect-emotion" && <DetectEmotionDisplay result={result} />}
+          {result.type === "decompose" && <DecomposeDisplay result={result} />}
         </div>
       </ModalContent>
     </ModalOverlay>

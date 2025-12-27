@@ -7,11 +7,11 @@
  * Requirements: 22.1, 22.2, 22.3, 22.4, 22.5
  */
 
-import { useCallback } from 'react';
-import type { ContextMemory } from '../../stores/cognitiveStore';
-import { useCognitiveStore } from '../../stores/cognitiveStore';
-import { getSectorColor } from '../../utils/visualization';
-import { MarkdownPreview } from './MarkdownPreview';
+import { useCallback } from "react";
+import type { ContextMemory } from "../../stores/cognitiveStore";
+import { useCognitiveStore } from "../../stores/cognitiveStore";
+import { MarkdownPreview } from "./MarkdownPreview";
+import { SectorBadge } from "./SectorBadge";
 
 // ============================================================================
 // Types
@@ -36,7 +36,7 @@ interface GlassPanelProps {
 /**
  * Glassmorphism panel wrapper
  */
-function GlassPanel({ children, className = '' }: GlassPanelProps): React.ReactElement {
+function GlassPanel({ children, className = "" }: GlassPanelProps): React.ReactElement {
   return (
     <div
       className={`
@@ -69,7 +69,7 @@ interface RelevanceBarProps {
  */
 function RelevanceBar({ score }: RelevanceBarProps): React.ReactElement {
   const percentage = Math.round(score * 100);
-  const barColor = score >= 0.7 ? 'bg-green-500' : score >= 0.4 ? 'bg-yellow-500' : 'bg-orange-500';
+  const barColor = score >= 0.7 ? "bg-green-500" : score >= 0.4 ? "bg-yellow-500" : "bg-orange-500";
 
   return (
     <div className="flex items-center gap-2">
@@ -100,26 +100,20 @@ function ContextMemoryItem({
   onNavigate,
 }: ContextMemoryItemProps): React.ReactElement {
   const { memory, relevanceScore, isIncluded, influencedResult } = contextMemory;
-  const sectorColor = getSectorColor(memory.primarySector);
 
   return (
     <div
       className={`
         p-3 rounded-lg border transition-all duration-200
-        ${isIncluded ? 'border-ui-accent-primary/50 bg-ui-accent-primary/10' : 'border-ui-border bg-ui-surface/50'}
-        ${influencedResult === true ? 'ring-1 ring-green-500/50' : ''}
+        ${isIncluded ? "border-ui-accent-primary/50 bg-ui-accent-primary/10" : "border-ui-border bg-ui-surface/50"}
+        ${influencedResult === true ? "ring-1 ring-green-500/50" : ""}
       `}
     >
       {/* Header with sector indicator and toggle */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          {/* Sector color indicator */}
-          <div
-            className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: sectorColor }}
-            title={memory.primarySector}
-          />
-          <span className="text-xs text-ui-text-secondary capitalize">{memory.primarySector}</span>
+          {/* Sector indicator using SectorBadge for consistency */}
+          <SectorBadge sector={memory.primarySector} variant="icon" size="xs" />
           {/* Influence indicator */}
           {influencedResult === true && (
             <span className="text-xs text-green-400 flex items-center gap-1">
@@ -135,11 +129,11 @@ function ContextMemoryItem({
           }}
           className={`
             px-2 py-0.5 rounded text-xs font-medium transition-colors
-            ${isIncluded ? 'bg-ui-accent-primary/20 text-ui-accent-primary' : 'bg-ui-border text-ui-text-muted hover:text-ui-text-primary'}
+            ${isIncluded ? "bg-ui-accent-primary/20 text-ui-accent-primary" : "bg-ui-border text-ui-text-muted hover:text-ui-text-primary"}
           `}
-          aria-label={isIncluded ? 'Exclude from reasoning' : 'Include in reasoning'}
+          aria-label={isIncluded ? "Exclude from reasoning" : "Include in reasoning"}
         >
-          {isIncluded ? 'Included' : 'Excluded'}
+          {isIncluded ? "Included" : "Excluded"}
         </button>
       </div>
 
@@ -241,7 +235,7 @@ function ContextIcon(): React.ReactElement {
  */
 export function ContextMemoryPanel({
   onNavigateToMemory,
-  className = '',
+  className = "",
 }: ContextMemoryPanelProps): React.ReactElement {
   // Get context memories from cognitive store
   const contextMemories = useCognitiveStore((state) => state.contextMemories);

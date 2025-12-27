@@ -9,10 +9,9 @@
  */
 
 import { useMemo, type ReactElement } from "react";
-import type { Memory, MemorySectorType } from "../../types/api";
-import { getSectorIcon } from "../../utils/iconUtils";
-import { getSectorColor } from "../../utils/visualization";
+import type { Memory } from "../../types/api";
 import { BlockNotePreview } from "./BlockNotePreview";
+import { SectorBadge } from "./SectorBadge";
 
 // ============================================================================
 // Types
@@ -38,31 +37,11 @@ export interface MasonryMemoryCardProps {
 const DEFAULT_MIN_HEIGHT = 150;
 const DEFAULT_MAX_HEIGHT = 300;
 
-const SECTOR_LABELS: Record<MemorySectorType, string> = {
-  episodic: "Episodic",
-  semantic: "Semantic",
-  procedural: "Procedural",
-  emotional: "Emotional",
-  reflective: "Reflective",
-};
-
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
 import { formatRelativeTime } from "../../utils/timeUtils";
-
-// ============================================================================
-// Main Component
-// ============================================================================
-
-/**
- * Check if light mode is active
- */
-function isLightModeActive(): boolean {
-  if (typeof document === "undefined") return false;
-  return document.documentElement.getAttribute("data-theme-mode") === "light";
-}
 
 // ============================================================================
 // Main Component
@@ -87,10 +66,6 @@ export function MasonryMemoryCard({
   maxHeight,
   className = "",
 }: MasonryMemoryCardProps): ReactElement {
-  const lightMode = isLightModeActive();
-  const sectorColor = getSectorColor(memory.primarySector, false, lightMode);
-  const sectorLabel = SECTOR_LABELS[memory.primarySector];
-
   // Format the creation timestamp
   const relativeTime = useMemo(() => {
     return formatRelativeTime(memory.createdAt);
@@ -151,19 +126,7 @@ export function MasonryMemoryCard({
       {/* Header: Sector badge and timestamp */}
       <div className="flex items-center justify-between gap-2 mb-3 flex-shrink-0">
         {/* Sector badge - small and minimal (Requirements: 4.4) */}
-        <span
-          className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border"
-          style={{
-            borderColor: sectorColor,
-            color: sectorColor,
-            backgroundColor: `${sectorColor}20`,
-          }}
-        >
-          <span aria-hidden="true" className="flex-shrink-0">
-            {getSectorIcon(memory.primarySector, "xs")}
-          </span>
-          <span className="capitalize truncate">{sectorLabel}</span>
-        </span>
+        <SectorBadge sector={memory.primarySector} size="sm" />
 
         {/* Relative timestamp - minimal footprint (Requirements: 4.3) */}
         <span

@@ -17,6 +17,7 @@ import { getSectorColor } from "../../utils/visualization";
 import { GlassPanel } from "./GlassPanel";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { MemoryModal, type MemoryModalMode, type MemoryModalSaveResult } from "./MemoryModal";
+import { SectorBadge } from "./SectorBadge";
 import { Skeleton } from "./Skeleton";
 
 // ============================================================================
@@ -206,7 +207,6 @@ function RelatedMemoryItem({
   onPreview,
 }: RelatedMemoryItemProps): React.ReactElement {
   const { memory, relevanceScore, sharedKeywords, connectionType } = relatedMemory;
-  const sectorColor = getSectorColor(memory.primarySector);
 
   // Get first line of content for BlockNote preview
   const firstLine = memory.content.split("\n")[0]?.trim() ?? memory.content.substring(0, 100);
@@ -230,15 +230,8 @@ function RelatedMemoryItem({
     >
       {/* Header with sector indicator and connection type */}
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          {/* Sector color indicator */}
-          <div
-            className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ backgroundColor: sectorColor }}
-            title={memory.primarySector}
-          />
-          <span className="text-xs text-ui-text-secondary capitalize">{memory.primarySector}</span>
-        </div>
+        <SectorBadge sector={memory.primarySector} variant="dot" size="sm" />
+        <span className="text-xs text-ui-text-secondary capitalize">{memory.primarySector}</span>
         <ConnectionTypeBadge type={connectionType} />
       </div>
 
@@ -433,8 +426,6 @@ function FocusedMemorySummary({
   memory,
   onPreview,
 }: FocusedMemorySummaryProps): React.ReactElement {
-  const sectorColor = getSectorColor(memory.primarySector);
-
   // Format date
   const formatDate = (dateStr: string): string => {
     const date = new Date(dateStr);
@@ -505,16 +496,7 @@ function FocusedMemorySummary({
       {/* Memory details */}
       <div className="flex flex-wrap items-center gap-2 text-[10px] text-ui-text-secondary">
         {/* Sector badge */}
-        <span
-          className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-ui-border/50"
-          style={{ borderColor: `${sectorColor}40` }}
-        >
-          <span
-            className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ backgroundColor: sectorColor }}
-          />
-          <span className="capitalize">{memory.primarySector}</span>
-        </span>
+        <SectorBadge sector={memory.primarySector} size="xs" />
 
         {/* Salience indicator */}
         <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-ui-surface/50">
@@ -795,7 +777,6 @@ function SuggestedMemoryItem({
   onLink,
 }: SuggestedMemoryItemProps): React.ReactElement {
   const { memory, reason } = suggestion;
-  const sectorColor = getSectorColor(memory.primarySector);
 
   return (
     <div
@@ -815,10 +796,7 @@ function SuggestedMemoryItem({
     >
       {/* Header with sector indicator */}
       <div className="flex items-center gap-2 mb-1.5">
-        <div
-          className="w-2 h-2 rounded-full flex-shrink-0"
-          style={{ backgroundColor: sectorColor }}
-        />
+        <SectorBadge sector={memory.primarySector} variant="dot" size="xs" />
         <span className="text-[10px] text-ui-text-muted capitalize">{memory.primarySector}</span>
         <span className="text-[10px] text-ui-accent-secondary ml-auto">{reason}</span>
       </div>

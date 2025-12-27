@@ -7,14 +7,16 @@
  * Requirements: 9.2, 9.3, 9.4, 9.5
  */
 
-import { useCallback } from 'react';
+import { useCallback } from "react";
+import { getSeverityColorClass } from "../../utils/dashboardUtils";
+import { formatPercentage } from "../../utils/formatUtils";
 import type {
   AnalyzeResult,
   CognitiveToolResult,
   FindSimilarResult,
   SummarizeResult,
   TransformResult,
-} from './CognitiveToolsPanel';
+} from "./CognitiveToolsPanel";
 
 // ============================================================================
 // Types
@@ -36,32 +38,16 @@ export interface CognitiveResultModalProps {
 // ============================================================================
 
 /**
- * Format a number as percentage
- */
-function formatPercentage(value: number): string {
-  return `${String(Math.round(value * 100))}%`;
-}
-
-/**
- * Get severity color class for bias
- */
-function getSeverityColorClass(severity: number): string {
-  if (severity >= 0.7) return 'text-red-400 bg-red-500/20 border-red-500/50';
-  if (severity >= 0.4) return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/50';
-  return 'text-green-400 bg-green-500/20 border-green-500/50';
-}
-
-/**
  * Get risk level color class
  */
-function getRiskColorClass(risk: 'low' | 'medium' | 'high'): string {
+function getRiskColorClass(risk: "low" | "medium" | "high"): string {
   switch (risk) {
-    case 'high':
-      return 'text-red-400';
-    case 'medium':
-      return 'text-yellow-400';
-    case 'low':
-      return 'text-green-400';
+    case "high":
+      return "text-red-400";
+    case "medium":
+      return "text-yellow-400";
+    case "low":
+      return "text-green-400";
   }
 }
 
@@ -199,10 +185,10 @@ function SummarizeResultDisplay({ result }: SummarizeResultDisplayProps): React.
         <span
           className={
             result.confidence >= 0.7
-              ? 'text-green-400'
+              ? "text-green-400"
               : result.confidence >= 0.4
-                ? 'text-yellow-400'
-                : 'text-red-400'
+                ? "text-yellow-400"
+                : "text-red-400"
           }
         >
           {formatPercentage(result.confidence)}
@@ -257,12 +243,12 @@ function FindSimilarResultDisplay({
       {/* Stats */}
       <div className="flex items-center gap-4 text-sm">
         <span className="text-ui-text-secondary">
-          Found <span className="text-ui-accent-primary">{result.similarMemories.length}</span>{' '}
+          Found <span className="text-ui-accent-primary">{result.similarMemories.length}</span>{" "}
           similar memories
         </span>
         {result.highlightedNodeIds.length > 0 && (
           <span className="text-ui-text-secondary">
-            <span className="text-ui-accent-secondary">{result.highlightedNodeIds.length}</span>{' '}
+            <span className="text-ui-accent-secondary">{result.highlightedNodeIds.length}</span>{" "}
             visible in 3D view
           </span>
         )}
@@ -281,7 +267,7 @@ function FindSimilarResultDisplay({
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
+                  if (e.key === "Enter" || e.key === " ") {
                     onNavigateToMemory?.(memory.id);
                   }
                 }}
@@ -327,7 +313,7 @@ function AnalyzeResultDisplay({ result }: AnalyzeResultDisplayProps): React.Reac
         <div className="flex items-center gap-2 mb-3">
           <span className="text-ui-text-secondary text-sm">Overall:</span>
           <span
-            className={`text-lg font-semibold ${confidence.overall >= 0.7 ? 'text-green-400' : confidence.overall >= 0.4 ? 'text-yellow-400' : 'text-red-400'}`}
+            className={`text-lg font-semibold ${confidence.overall >= 0.7 ? "text-green-400" : confidence.overall >= 0.4 ? "text-yellow-400" : "text-red-400"}`}
           >
             {formatPercentage(confidence.overall)}
           </span>
@@ -413,13 +399,13 @@ function AnalyzeResultDisplay({ result }: AnalyzeResultDisplayProps): React.Reac
               >
                 <div className="flex justify-between items-start mb-1">
                   <span className="text-sm font-medium capitalize">
-                    {biasItem.type.replace('_', ' ')} Bias
+                    {biasItem.type.replace("_", " ")} Bias
                   </span>
                   <span className="text-xs">Severity: {formatPercentage(biasItem.severity)}</span>
                 </div>
                 {biasItem.evidence.length > 0 && (
                   <p className="text-xs opacity-80 mb-2">
-                    Evidence: {biasItem.evidence.join(', ')}
+                    Evidence: {biasItem.evidence.join(", ")}
                   </p>
                 )}
                 <p className="text-xs">
@@ -460,14 +446,14 @@ function AnalyzeResultDisplay({ result }: AnalyzeResultDisplayProps): React.Reac
  */
 function getModalTitle(result: CognitiveToolResult): string {
   switch (result.type) {
-    case 'summarize':
-      return 'Memory Summary';
-    case 'transform':
-      return 'Transformed Content';
-    case 'find-similar':
-      return 'Similar Memories';
-    case 'analyze':
-      return 'Analysis Results';
+    case "summarize":
+      return "Memory Summary";
+    case "transform":
+      return "Transformed Content";
+    case "find-similar":
+      return "Similar Memories";
+    case "analyze":
+      return "Analysis Results";
   }
 }
 
@@ -480,7 +466,7 @@ export function CognitiveResultModal({
   result,
   onClose,
   onNavigateToMemory,
-  className = '',
+  className = "",
 }: CognitiveResultModalProps): React.ReactElement {
   const title = getModalTitle(result);
 
@@ -488,15 +474,15 @@ export function CognitiveResultModal({
     <ModalOverlay onClose={onClose}>
       <ModalContent title={title} onClose={onClose}>
         <div className={className}>
-          {result.type === 'summarize' && <SummarizeResultDisplay result={result} />}
-          {result.type === 'transform' && <TransformResultDisplay result={result} />}
-          {result.type === 'find-similar' && (
+          {result.type === "summarize" && <SummarizeResultDisplay result={result} />}
+          {result.type === "transform" && <TransformResultDisplay result={result} />}
+          {result.type === "find-similar" && (
             <FindSimilarResultDisplay
               result={result}
               {...(onNavigateToMemory !== undefined ? { onNavigateToMemory } : {})}
             />
           )}
-          {result.type === 'analyze' && <AnalyzeResultDisplay result={result} />}
+          {result.type === "analyze" && <AnalyzeResultDisplay result={result} />}
         </div>
       </ModalContent>
     </ModalOverlay>

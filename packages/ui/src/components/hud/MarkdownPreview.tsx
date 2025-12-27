@@ -198,7 +198,7 @@ export function MarkdownPreview({
           },
           // Code blocks - compact preview style with preserved whitespace
           pre: ({ children }: { children?: ReactNode }) => (
-            <pre className="not-prose block bg-[#1a1b26] rounded px-2 py-1 my-1 text-xs font-mono overflow-x-auto border border-ui-border/30 whitespace-pre">
+            <pre className="not-prose block bg-[var(--theme-surface)] rounded px-2 py-1 my-1 text-xs font-mono overflow-x-auto border border-[var(--theme-border)] whitespace-pre">
               {children}
             </pre>
           ),
