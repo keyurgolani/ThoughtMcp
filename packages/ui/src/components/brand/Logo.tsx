@@ -50,163 +50,27 @@ export function Logo({
 }: LogoProps): ReactElement {
   const pixelSize = SIZE_MAP[size];
   const isGlow = variant === "glow" || variant === "default";
+  // Monochome is not really supported by the PNG, but we can grayscale it
   const isMonochrome = variant === "monochrome";
 
   return (
-    <svg
+    <img
+      src="/logo.png"
       width={pixelSize}
       height={pixelSize}
-      viewBox="0 0 100 100"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      alt={ariaLabel}
       className={`${animated ? "animate-pulse" : ""} ${className}`}
-      aria-label={ariaLabel}
-      role="img"
-      style={
-        isGlow
-          ? { filter: `drop-shadow(0 0 ${String(pixelSize / 8)}px rgba(99, 102, 241, 0.5))` }
-          : undefined
-      }
-    >
-      <defs>
-        {!isMonochrome && (
-          <>
-            <linearGradient id="brainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#6366f1" />
-              <stop offset="100%" stopColor="#8b5cf6" />
-            </linearGradient>
-            <linearGradient id="neuralGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#06b6d4" />
-              <stop offset="100%" stopColor="#8b5cf6" />
-            </linearGradient>
-            <linearGradient id="circuitGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#8b5cf6" />
-              <stop offset="100%" stopColor="#a855f7" />
-            </linearGradient>
-          </>
-        )}
-      </defs>
-
-      {/* Brain outline - stylized cloud-like shape */}
-      <path
-        d="M 50 12
-           C 62 12, 72 18, 76 28
-           C 88 30, 92 42, 88 52
-           C 92 62, 88 74, 76 78
-           C 72 86, 62 90, 50 90
-           C 38 90, 28 86, 24 78
-           C 12 74, 8 62, 12 52
-           C 8 42, 12 30, 24 28
-           C 28 18, 38 12, 50 12 Z"
-        fill={isMonochrome ? "currentColor" : "url(#brainGradient)"}
-        opacity="0.15"
-        stroke={isMonochrome ? "currentColor" : "url(#brainGradient)"}
-        strokeWidth="2.5"
-      />
-
-      {/* Brain folds/lobes - curved lines inside */}
-      <g
-        stroke={isMonochrome ? "currentColor" : "url(#brainGradient)"}
-        strokeWidth="2"
-        fill="none"
-        opacity="0.5"
-      >
-        {/* Left hemisphere curves */}
-        <path d="M 24 40 Q 32 38, 38 44" />
-        <path d="M 20 55 Q 30 52, 38 56" />
-        <path d="M 26 70 Q 34 66, 40 68" />
-
-        {/* Right hemisphere curves */}
-        <path d="M 76 40 Q 68 38, 62 44" />
-        <path d="M 80 55 Q 70 52, 62 56" />
-        <path d="M 74 70 Q 66 66, 60 68" />
-
-        {/* Top curves */}
-        <path d="M 38 22 Q 44 26, 50 24 Q 56 26, 62 22" />
-      </g>
-
-      {/* Neural pathways - connected through center */}
-      <g
-        stroke={isMonochrome ? "currentColor" : "url(#circuitGradient)"}
-        strokeWidth="2"
-        fill="none"
-        strokeLinecap="round"
-      >
-        {/* Vertical pathway through center */}
-        <path d="M 50 26 L 50 74">
-          {animated && (
-            <animate
-              attributeName="stroke-opacity"
-              values="0.5;1;0.5"
-              dur="2s"
-              repeatCount="indefinite"
-            />
-          )}
-        </path>
-
-        {/* Horizontal pathway through center */}
-        <path d="M 24 50 L 76 50">
-          {animated && (
-            <animate
-              attributeName="stroke-opacity"
-              values="0.5;1;0.5"
-              dur="2s"
-              begin="0.5s"
-              repeatCount="indefinite"
-            />
-          )}
-        </path>
-
-        {/* Diagonal pathways through center */}
-        <path d="M 34 32 L 50 50 L 66 68">
-          {animated && (
-            <animate
-              attributeName="stroke-opacity"
-              values="0.5;1;0.5"
-              dur="2s"
-              begin="1s"
-              repeatCount="indefinite"
-            />
-          )}
-        </path>
-        <path d="M 66 32 L 50 50 L 34 68">
-          {animated && (
-            <animate
-              attributeName="stroke-opacity"
-              values="0.5;1;0.5"
-              dur="2s"
-              begin="1.5s"
-              repeatCount="indefinite"
-            />
-          )}
-        </path>
-      </g>
-
-      {/* Central neural hub */}
-      <circle
-        cx="50"
-        cy="50"
-        r="6"
-        fill={isMonochrome ? "currentColor" : "url(#neuralGradient)"}
-        opacity={isMonochrome ? 0.9 : 1}
-      >
-        {animated && <animate attributeName="r" values="5;7;5" dur="2s" repeatCount="indefinite" />}
-      </circle>
-
-      {/* Neural endpoint nodes */}
-      <g fill={isMonochrome ? "currentColor" : "url(#circuitGradient)"}>
-        {/* Cardinal points */}
-        <circle cx="50" cy="26" r="3" />
-        <circle cx="50" cy="74" r="3" />
-        <circle cx="24" cy="50" r="3" />
-        <circle cx="76" cy="50" r="3" />
-        {/* Diagonal points */}
-        <circle cx="34" cy="32" r="2.5" />
-        <circle cx="66" cy="32" r="2.5" />
-        <circle cx="34" cy="68" r="2.5" />
-        <circle cx="66" cy="68" r="2.5" />
-      </g>
-    </svg>
+      style={{
+        filter: isGlow
+          ? `drop-shadow(0 0 ${String(pixelSize / 8)}px rgba(99, 102, 241, 0.5))`
+          : isMonochrome
+            ? "grayscale(100%)"
+            : undefined,
+        // Ensure consistent sizing
+        width: pixelSize,
+        height: pixelSize,
+      }}
+    />
   );
 }
 

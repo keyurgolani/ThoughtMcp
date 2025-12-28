@@ -247,12 +247,6 @@ export function MainNavigation({
             ) : (
               <AnimatedLogo size="md" />
             )}
-            <span
-              className="font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent text-lg hidden sm:block"
-              style={{ filter: "drop-shadow(0 0 8px rgba(99, 102, 241, 0.3))" }}
-            >
-              Thought
-            </span>
           </button>
 
           {/* Navigation Items - flex-1 to take remaining space, no overflow scroll (Requirement 47.2) */}
