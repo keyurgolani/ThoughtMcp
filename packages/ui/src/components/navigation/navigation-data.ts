@@ -54,7 +54,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     id: "memory-explorer",
     label: "Memory Explorer",
-    shortLabel: "Explorer",
+    shortLabel: "Memory",
     getIcon: (size) =>
       React.createElement(Layers, { size: size === "sm" ? 14 : size === "lg" ? 20 : 16 }),
     description: "Search and manage memories",
@@ -62,21 +62,21 @@ export const NAV_ITEMS: NavItem[] = [
   {
     id: "reasoning-console",
     label: "Reasoning Console",
-    shortLabel: "Reasoning",
+    shortLabel: "Reason",
     getIcon: (size) => React.createElement(ReasoningIcon, { size: size }),
     description: "Perform systematic reasoning analysis",
   },
   {
     id: "framework-analysis",
     label: "Framework Analysis",
-    shortLabel: "Framework",
+    shortLabel: "Frame",
     getIcon: (size) => React.createElement(FrameworkIcon, { size: size }),
     description: "Analyze problems using thinking frameworks",
   },
   {
     id: "problem-decomposition",
     label: "Problem Decomposition",
-    shortLabel: "Decompose",
+    shortLabel: "Split",
     getIcon: (size) => React.createElement(DecomposeIcon, { size: size }),
     description: "Break down complex problems",
   },
@@ -90,7 +90,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     id: "emotion-analysis",
     label: "Emotion Analysis",
-    shortLabel: "Emotion",
+    shortLabel: "Feel",
     getIcon: (size) => React.createElement(EmotionIcon, { size: size }),
     description: "Analyze emotional content",
   },

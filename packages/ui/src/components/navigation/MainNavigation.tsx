@@ -163,13 +163,11 @@ function NavButton({
           {item.getIcon("lg")}
         </span>
 
-        {/* Full label on extra-large screens (>1440px) - Requirement 47.5 */}
-        <span className="hidden 2xl:inline">{item.label}</span>
-        {/* Short label on large screens (1024-1440px) */}
-        <span className="hidden xl:inline 2xl:hidden">{item.shortLabel}</span>
-        {/* Short label on medium screens (768-1024px) */}
-        <span className="hidden md:inline xl:hidden">{item.shortLabel}</span>
-        {/* Icons only on small screens (<768px) - Requirement 47.4 */}
+        {/* Full label on very large screens (>1700px) */}
+        <span className="hidden 3xl:inline">{item.label}</span>
+        {/* Short label on large screens (1280-1700px) */}
+        <span className="hidden xl:inline 3xl:hidden">{item.shortLabel}</span>
+        {/* Icons only on smaller screens (<1280px) */}
       </button>
 
       {/* Subtle separator between nav items - hidden on small screens */}
@@ -238,7 +236,7 @@ export function MainNavigation({
             onClick={() => {
               onNavigate("dashboard");
             }}
-            className="flex items-center gap-3 flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity duration-normal"
+            className="flex items-center gap-3 flex-shrink-0 mr-6 cursor-pointer hover:opacity-90 transition-opacity duration-normal"
             aria-label="Go to Dashboard"
           >
             {/* Use AnimatedLogo (orbiting) unless reduced motion is preferred */}
