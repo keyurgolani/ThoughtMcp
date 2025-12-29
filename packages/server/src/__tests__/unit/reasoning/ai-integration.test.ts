@@ -64,10 +64,10 @@ describe("AnalyticalStreamProcessor Class (AI Integration)", () => {
     const messages = callArgs[0];
     const systemMsg = messages.find((m: any) => m.role === "system");
 
-    // Verify Schema-Prompt Binding
-    expect(systemMsg.content).toContain("!!! CRITICAL INSTRUCTION !!!");
-    expect(systemMsg.content).toContain("You must output valid JSON");
-    expect(systemMsg.content).toContain('"type": "object"'); // JSON Schema signature
+    // Verify Schema-Prompt Binding - now uses natural language format
+    expect(systemMsg.content).toContain("OUTPUT FORMAT:");
+    expect(systemMsg.content).toContain("Your response must be a JSON object");
+    expect(systemMsg.content).toContain("IMPORTANT: Output ONLY the JSON object");
 
     // Verify Result Structure
     expect(result.streamType).toBe(StreamType.ANALYTICAL);

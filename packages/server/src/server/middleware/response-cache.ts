@@ -2,13 +2,18 @@
  * Response Cache Middleware
  *
  * HTTP-level caching for read-heavy endpoints to improve performance.
- * Uses in-memory LRU cache with configurable TTL per endpoint.
+ * Uses CacheManager with pluggable backends (in-memory or Redis).
  *
- * Requirements: 17.1 - Memory retrieval response within 200ms at p95
+ * Requirements:
+ * - 17.1: Memory retrieval response within 200ms at p95
+ * - 2.1: Cache invalidation when memory is created
+ * - 2.2: Cache invalidation when memory is updated
+ * - 2.3: Cache invalidation when memory is deleted
  */
 
 import type { NextFunction, Request, Response } from "express";
 import { createHash } from "node:crypto";
+import { CacheManager, generateCacheKey } from "../../cache/cache-manager.js";
 
 /**
  * Cache entry structure
@@ -18,7 +23,6 @@ interface CacheEntry {
   statusCode: number;
   headers: Record<string, string>;
   timestamp: number;
-  ttl: number;
 }
 
 /**
@@ -86,141 +90,141 @@ export const DEFAULT_RESPONSE_CACHE_CONFIG: ResponseCacheConfig = {
   includeBody: true,
 };
 
+/** Cache key prefix for response cache */
+const RESPONSE_CACHE_PREFIX = "response";
+
+/** Resource type for memory-related endpoints */
+const MEMORY_RESOURCE = "memory";
+
+/** Resource type for general endpoints */
+const GENERAL_RESOURCE = "general";
+
 /**
- * In-memory LRU cache for responses
+ * Global CacheManager instance for response caching
  */
-class ResponseLRUCache {
-  private cache: Map<string, CacheEntry>;
-  private readonly maxSize: number;
-  private hits: number = 0;
-  private misses: number = 0;
+let globalCacheManager: CacheManager | null = null;
 
-  constructor(maxSize: number) {
-    this.cache = new Map();
-    this.maxSize = maxSize;
-  }
-
-  /**
-   * Generate cache key from request
-   * Includes method, path, query params, userId, and body hash for POST requests
-   */
-  generateKey(req: Request, config: ResponseCacheConfig): string {
-    const parts: string[] = [req.method, req.path];
-
-    if (config.includeQuery && Object.keys(req.query).length > 0) {
-      const sortedQuery = Object.keys(req.query)
-        .sort()
-        .map((k) => `${k}=${req.query[k]}`)
-        .join("&");
-      parts.push(sortedQuery);
-    }
-
-    if (config.includeUserId) {
-      const userId =
-        (req.query.userId as string) ||
-        (req.body?.userId as string) ||
-        (req.headers["x-user-id"] as string);
-      if (userId) {
-        parts.push(`user:${userId}`);
-      }
-    }
-
-    // Include body hash for POST requests (for read-only POST endpoints)
-    if (config.includeBody && req.method === "POST" && req.body) {
-      const bodyStr = JSON.stringify(req.body);
-      const bodyHash = createHash("sha256").update(bodyStr).digest("hex").substring(0, 16);
-      parts.push(`body:${bodyHash}`);
-    }
-
-    const keyStr = parts.join("|");
-    return createHash("sha256").update(keyStr).digest("hex").substring(0, 32);
-  }
-
-  /**
-   * Get cached response
-   */
-  get(key: string): CacheEntry | null {
-    const entry = this.cache.get(key);
-
-    if (!entry) {
-      this.misses++;
-      return null;
-    }
-
-    const now = Date.now();
-    if (now - entry.timestamp > entry.ttl) {
-      this.cache.delete(key);
-      this.misses++;
-      return null;
-    }
-
-    // Move to end (most recently used)
-    this.cache.delete(key);
-    this.cache.set(key, entry);
-    this.hits++;
-
-    return entry;
-  }
-
-  /**
-   * Store response in cache
-   */
-  set(key: string, entry: CacheEntry): void {
-    // Evict oldest if at capacity
-    if (this.cache.size >= this.maxSize && !this.cache.has(key)) {
-      const firstKey = this.cache.keys().next().value;
-      if (firstKey) {
-        this.cache.delete(firstKey);
-      }
-    }
-
-    this.cache.delete(key);
-    this.cache.set(key, entry);
-  }
-
-  /**
-   * Clear all entries
-   */
-  clear(): void {
-    this.cache.clear();
-    this.hits = 0;
-    this.misses = 0;
-  }
-
-  /**
-   * Get cache metrics
-   */
-  getMetrics(): { hits: number; misses: number; hitRate: number; size: number } {
-    const total = this.hits + this.misses;
-    return {
-      hits: this.hits,
-      misses: this.misses,
-      hitRate: total > 0 ? this.hits / total : 0,
-      size: this.cache.size,
-    };
-  }
+/**
+ * Get or create the global CacheManager
+ */
+function getCacheManager(maxSize: number, defaultTTL: number): CacheManager {
+  globalCacheManager ??= new CacheManager({
+    maxSize,
+    defaultTTL,
+    prefix: RESPONSE_CACHE_PREFIX,
+  });
+  return globalCacheManager;
 }
 
 /**
- * Global response cache instance
+ * Extract userId from request
  */
-let globalCache: ResponseLRUCache | null = null;
+function extractUserId(req: Request): string {
+  return (
+    (req.query.userId as string) ||
+    (req.body?.userId as string) ||
+    (req.headers["x-user-id"] as string) ||
+    "anonymous"
+  );
+}
 
 /**
- * Get or create the global response cache
+ * Determine resource type from path
  */
-function getCache(maxSize: number): ResponseLRUCache {
-  globalCache ??= new ResponseLRUCache(maxSize);
-  return globalCache;
+function getResourceType(path: string): string {
+  if (path.includes("/memory")) {
+    return MEMORY_RESOURCE;
+  }
+  return GENERAL_RESOURCE;
+}
+
+/**
+ * Generate cache key from request using user-scoped namespacing
+ *
+ * Format: {prefix}:{userId}:{resource}:{hash}
+ *
+ * Requirements: 2.5 - Pattern-based invalidation for user-scoped cache entries
+ */
+function generateResponseCacheKey(req: Request, config: ResponseCacheConfig): string {
+  const userId = config.includeUserId ? extractUserId(req) : "global";
+  const resource = getResourceType(req.path);
+
+  // Build params object for hashing
+  const params: Record<string, unknown> = {
+    method: req.method,
+    path: req.path,
+  };
+
+  if (config.includeQuery && Object.keys(req.query).length > 0) {
+    params.query = req.query;
+  }
+
+  // Include body hash for POST requests (for read-only POST endpoints)
+  if (config.includeBody && req.method === "POST" && req.body) {
+    const bodyStr = JSON.stringify(req.body);
+    params.bodyHash = createHash("sha256").update(bodyStr).digest("hex").substring(0, 16);
+  }
+
+  return generateCacheKey(RESPONSE_CACHE_PREFIX, userId, resource, params);
 }
 
 /**
  * Clear the global response cache
  */
 export function clearResponseCache(): void {
-  if (globalCache) {
-    globalCache.clear();
+  if (globalCacheManager) {
+    // Use void to handle the promise without awaiting
+    void globalCacheManager.clear();
   }
+}
+
+/**
+ * Invalidate all cache entries for a specific user
+ *
+ * Requirements:
+ * - 2.1: Cache invalidation when memory is created
+ * - 2.2: Cache invalidation when memory is updated
+ * - 2.3: Cache invalidation when memory is deleted
+ *
+ * @param userId - User ID to invalidate cache for
+ * @returns Number of invalidated entries
+ */
+export async function invalidateUserCache(userId: string): Promise<number> {
+  if (!globalCacheManager) {
+    return 0;
+  }
+  return globalCacheManager.invalidateUser(userId);
+}
+
+/**
+ * Invalidate memory-related cache entries for a specific user
+ *
+ * More targeted invalidation that only clears memory-related cache entries.
+ *
+ * @param userId - User ID to invalidate cache for
+ * @returns Number of invalidated entries
+ */
+export async function invalidateMemoryCache(userId: string): Promise<number> {
+  if (!globalCacheManager) {
+    return 0;
+  }
+  const pattern = `${RESPONSE_CACHE_PREFIX}:${userId}:${MEMORY_RESOURCE}:*`;
+  return globalCacheManager.invalidatePattern(pattern);
+}
+
+/**
+ * Invalidate all memory-related cache entries (for batch operations)
+ *
+ * Requirements: 2.6 - Bulk invalidation for batch operations
+ *
+ * @returns Number of invalidated entries
+ */
+export async function invalidateAllMemoryCache(): Promise<number> {
+  if (!globalCacheManager) {
+    return 0;
+  }
+  const pattern = `${RESPONSE_CACHE_PREFIX}:*:${MEMORY_RESOURCE}:*`;
+  return globalCacheManager.invalidatePattern(pattern);
 }
 
 /**
@@ -232,10 +236,17 @@ export function getResponseCacheMetrics(): {
   hitRate: number;
   size: number;
 } {
-  if (!globalCache) {
+  if (!globalCacheManager) {
     return { hits: 0, misses: 0, hitRate: 0, size: 0 };
   }
-  return globalCache.getMetrics();
+
+  const metrics = globalCacheManager.getMetrics();
+  return {
+    hits: metrics.hits,
+    misses: metrics.misses,
+    hitRate: metrics.hitRate,
+    size: metrics.size,
+  };
 }
 
 /**
@@ -295,6 +306,9 @@ function shouldExclude(path: string, method: string, config: ResponseCacheConfig
 /**
  * Create response cache middleware
  *
+ * Uses CacheManager for caching with user-scoped key namespacing.
+ * Supports both synchronous cache hits and async cache storage.
+ *
  * @param config - Cache configuration
  * @returns Express middleware function
  */
@@ -302,7 +316,7 @@ export function createResponseCacheMiddleware(
   config: Partial<ResponseCacheConfig> = {}
 ): (req: Request, res: Response, next: NextFunction) => void {
   const finalConfig = { ...DEFAULT_RESPONSE_CACHE_CONFIG, ...config };
-  const cache = getCache(finalConfig.maxSize);
+  const cacheManager = getCacheManager(finalConfig.maxSize, finalConfig.defaultTTL);
 
   return (req: Request, res: Response, next: NextFunction): void => {
     // Skip caching for excluded paths/methods
@@ -311,58 +325,68 @@ export function createResponseCacheMiddleware(
       return;
     }
 
-    const cacheKey = cache.generateKey(req, finalConfig);
-    const cached = cache.get(cacheKey);
+    const cacheKey = generateResponseCacheKey(req, finalConfig);
 
-    // Return cached response if available
-    if (cached) {
-      res.setHeader("X-Cache", "HIT");
-      res.setHeader("X-Cache-Key", cacheKey.substring(0, 8));
+    // Try to get cached response (async operation)
+    cacheManager
+      .get<CacheEntry>(cacheKey)
+      .then((cached) => {
+        if (cached) {
+          // Cache hit - return cached response
+          res.setHeader("X-Cache", "HIT");
+          res.setHeader("X-Cache-Key", cacheKey.substring(0, 8));
 
-      // Restore cached headers
-      for (const [key, value] of Object.entries(cached.headers)) {
-        if (!["content-length", "transfer-encoding"].includes(key.toLowerCase())) {
-          res.setHeader(key, value);
-        }
-      }
-
-      res.status(cached.statusCode).json(cached.body);
-      return;
-    }
-
-    // Intercept response to cache it
-    const originalJson = res.json.bind(res);
-    res.json = (body: unknown): Response => {
-      // Only cache successful responses
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        const ttl = getTTLForPath(req.path, finalConfig);
-        const headers: Record<string, string> = {};
-
-        // Capture relevant headers
-        const headersToCache = ["content-type", "x-request-id"];
-        for (const header of headersToCache) {
-          const value = res.getHeader(header);
-          if (value) {
-            headers[header] = String(value);
+          // Restore cached headers
+          for (const [key, value] of Object.entries(cached.headers)) {
+            if (!["content-length", "transfer-encoding"].includes(key.toLowerCase())) {
+              res.setHeader(key, value);
+            }
           }
+
+          res.status(cached.statusCode).json(cached.body);
+          return;
         }
 
-        cache.set(cacheKey, {
-          body,
-          statusCode: res.statusCode,
-          headers,
-          timestamp: Date.now(),
-          ttl,
-        });
-      }
+        // Cache miss - intercept response to cache it
+        const originalJson = res.json.bind(res);
+        res.json = (body: unknown): Response => {
+          // Only cache successful responses
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            const ttl = getTTLForPath(req.path, finalConfig);
+            const headers: Record<string, string> = {};
 
-      res.setHeader("X-Cache", "MISS");
-      res.setHeader("X-Cache-Key", cacheKey.substring(0, 8));
+            // Capture relevant headers
+            const headersToCache = ["content-type", "x-request-id"];
+            for (const header of headersToCache) {
+              const value = res.getHeader(header);
+              if (value) {
+                headers[header] = String(value);
+              }
+            }
 
-      return originalJson(body);
-    };
+            const entry: CacheEntry = {
+              body,
+              statusCode: res.statusCode,
+              headers,
+              timestamp: Date.now(),
+            };
 
-    next();
+            // Store in cache (async, don't await)
+            void cacheManager.set(cacheKey, entry, ttl);
+          }
+
+          res.setHeader("X-Cache", "MISS");
+          res.setHeader("X-Cache-Key", cacheKey.substring(0, 8));
+
+          return originalJson(body);
+        };
+
+        next();
+      })
+      .catch(() => {
+        // On cache error, proceed without caching
+        next();
+      });
   };
 }
 

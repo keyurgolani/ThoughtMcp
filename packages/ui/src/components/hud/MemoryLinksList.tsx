@@ -61,8 +61,8 @@ function MemoryListItem({
       {/* Icon indicator for memory type */}
       <SectorBadge sector={memory.primarySector} variant="icon" size="sm" className="mt-0.5" />
       <div className="flex-1 min-w-0">
-        <div className="line-clamp-2 text-sm text-ui-text-primary">
-          <MemoryContentPreview content={memory.content} maxLines={2} />
+        <div className="text-sm text-ui-text-primary overflow-hidden" style={{ maxHeight: "48px" }}>
+          <MemoryContentPreview content={memory.content} />
         </div>
         <div className="flex items-center gap-2 mt-1">
           <span

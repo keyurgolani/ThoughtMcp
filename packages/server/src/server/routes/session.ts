@@ -223,8 +223,8 @@ function createSessionCreateHandler(
     const requestId = getRequestId(req);
     const startTime = Date.now();
 
-    // Validate request body
-    const parseResult = sessionCreateRequestSchema.safeParse(req.body);
+    // Validate request body (default to empty object if body is undefined/null)
+    const parseResult = sessionCreateRequestSchema.safeParse(req.body ?? {});
     if (!parseResult.success) {
       throw new ValidationApiError(parseZodErrors(parseResult.error));
     }

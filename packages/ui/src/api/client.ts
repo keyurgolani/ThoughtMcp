@@ -2,9 +2,9 @@
  * Thought REST API Client
  *
  * Provides typed methods for all Thought REST API endpoints.
- * Includes error handling, retry logic, and request/response type definitions.
+ * Includes error handling, retry logic, request deduplication, and request/response type definitions.
  *
- * Requirements: 5.5, 16.2-16.6
+ * Requirements: 5.1, 5.5, 5.6, 16.2-16.6
  */
 
 import type {
@@ -47,6 +47,11 @@ import type {
   UpdateMemoryResponse,
 } from "../types/api";
 import { ApiError, MAX_MEMORY_RECALL_LIMIT, NetworkError, TimeoutError } from "../types/api";
+import {
+  generateRequestKey,
+  getDefaultDeduplicator,
+  type RequestDeduplicator,
+} from "./request-deduplicator";
 
 // ============================================================================
 // Demo ID Detection
@@ -101,9 +106,15 @@ export interface ThoughtClientConfig {
   retryDelay?: number;
   /** Custom headers to include in all requests */
   headers?: Record<string, string>;
+  /** Request deduplicator instance (default: uses global default) */
+  deduplicator?: RequestDeduplicator;
+  /** Enable request deduplication for read operations (default: true) */
+  enableDeduplication?: boolean;
 }
 
-const DEFAULT_CONFIG: Required<Omit<ThoughtClientConfig, "baseUrl" | "headers">> = {
+const DEFAULT_CONFIG: Required<
+  Omit<ThoughtClientConfig, "baseUrl" | "headers" | "deduplicator" | "enableDeduplication">
+> = {
   timeout: 30000,
   maxRetries: 3,
   retryDelay: 1000,
@@ -256,7 +267,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
  * Thought REST API Client
  *
  * Provides typed methods for all Thought REST API endpoints.
- * Requirements: 5.5, 16.2-16.6
+ * Requirements: 5.1, 5.5, 5.6, 16.2-16.6
  */
 export class ThoughtClient {
   private readonly baseUrl: string;
@@ -264,6 +275,8 @@ export class ThoughtClient {
   private readonly maxRetries: number;
   private readonly retryDelay: number;
   private readonly headers: Record<string, string>;
+  private readonly deduplicator: RequestDeduplicator;
+  private readonly enableDeduplication: boolean;
 
   constructor(config: ThoughtClientConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, ""); // Remove trailing slash
@@ -274,6 +287,8 @@ export class ThoughtClient {
       "Content-Type": "application/json",
       ...config.headers,
     };
+    this.deduplicator = config.deduplicator ?? getDefaultDeduplicator();
+    this.enableDeduplication = config.enableDeduplication ?? true;
   }
 
   /**
@@ -328,8 +343,47 @@ export class ThoughtClient {
     );
   }
 
+  /**
+   * Make a deduplicated HTTP request.
+   *
+   * For read operations (GET and idempotent POST requests), this method
+   * deduplicates concurrent requests with the same parameters. Multiple
+   * callers requesting the same data simultaneously will share a single
+   * network request.
+   *
+   * @param options - Request options
+   * @param forceRefresh - If true, bypasses deduplication and makes a new request
+   * @returns Promise that resolves with the response data
+   *
+   * Requirements: 5.1, 5.6
+   */
+  private async deduplicatedRequest<T>(
+    options: RequestOptions,
+    forceRefresh: boolean = false
+  ): Promise<T> {
+    // If deduplication is disabled or force refresh is requested, make direct request
+    if (!this.enableDeduplication || forceRefresh) {
+      return this.request<T>(options);
+    }
+
+    // Generate deduplication key from endpoint and parameters
+    const params: Record<string, unknown> = {
+      method: options.method,
+      ...(options.body as Record<string, unknown> | undefined),
+      ...(options.query as Record<string, unknown> | undefined),
+    };
+    const key = generateRequestKey(options.path, params);
+
+    // Use deduplicator to share concurrent requests
+    if (forceRefresh) {
+      return this.deduplicator.forceNew(key, () => this.request<T>(options));
+    }
+
+    return this.deduplicator.getOrCreate(key, () => this.request<T>(options));
+  }
+
   // ==========================================================================
-  // Memory Operations (Requirements: 5.5)
+  // Memory Operations (Requirements: 5.1, 5.5, 5.6)
   // ==========================================================================
 
   /**
@@ -348,8 +402,13 @@ export class ThoughtClient {
    * Note: The server enforces a maximum limit of 100 memories per request.
    * Any limit value exceeding MAX_MEMORY_RECALL_LIMIT (100) will be capped.
    *
+   * Uses request deduplication to prevent duplicate API calls when multiple
+   * components request the same data simultaneously.
+   *
    * @param request - The recall request parameters
-   * @param forceRefresh - If true, bypasses server-side cache for fresh results
+   * @param forceRefresh - If true, bypasses both client-side deduplication and server-side cache
+   *
+   * Requirements: 5.1, 5.6
    */
   async recallMemories(
     request: RecallMemoryRequest,
@@ -371,7 +430,8 @@ export class ThoughtClient {
       requestOptions.query = { forceRefresh: "true" };
     }
 
-    return this.request<RecallMemoryResponse>(requestOptions);
+    // Use deduplicated request for read operations
+    return this.deduplicatedRequest<RecallMemoryResponse>(requestOptions, forceRefresh);
   }
 
   /**
@@ -422,18 +482,39 @@ export class ThoughtClient {
   }
 
   /**
-   * Get memory statistics for a user
+   * Get memory statistics for a user.
+   *
+   * Uses request deduplication to prevent duplicate API calls.
+   *
+   * @param userId - The user ID to get stats for
+   * @param forceRefresh - If true, bypasses client-side deduplication
+   *
+   * Requirements: 5.1, 5.6
    */
-  async getMemoryStats(userId: string): Promise<MemoryStatsResponse> {
-    return this.request<MemoryStatsResponse>({
-      method: "GET",
-      path: "/api/v1/memory/stats",
-      query: { userId },
-    });
+  async getMemoryStats(
+    userId: string,
+    forceRefresh: boolean = false
+  ): Promise<MemoryStatsResponse> {
+    return this.deduplicatedRequest<MemoryStatsResponse>(
+      {
+        method: "GET",
+        path: "/api/v1/memory/stats",
+        query: { userId },
+      },
+      forceRefresh
+    );
   }
 
   /**
-   * Get memory graph data
+   * Get memory graph data.
+   *
+   * Uses request deduplication to prevent duplicate API calls.
+   *
+   * @param userId - The user ID
+   * @param options - Graph options (centerMemoryId, depth, typeFilter)
+   * @param forceRefresh - If true, bypasses client-side deduplication
+   *
+   * Requirements: 5.1, 5.6
    */
   async getMemoryGraph(
     userId: string,
@@ -441,22 +522,34 @@ export class ThoughtClient {
       centerMemoryId?: string;
       depth?: number;
       typeFilter?: MemorySectorType;
-    }
+    },
+    forceRefresh: boolean = false
   ): Promise<GraphResponse> {
-    return this.request<GraphResponse>({
-      method: "GET",
-      path: "/api/v1/memory/graph",
-      query: {
-        userId,
-        center_memory_id: options?.centerMemoryId,
-        depth: options?.depth,
-        type: options?.typeFilter,
+    return this.deduplicatedRequest<GraphResponse>(
+      {
+        method: "GET",
+        path: "/api/v1/memory/graph",
+        query: {
+          userId,
+          center_memory_id: options?.centerMemoryId,
+          depth: options?.depth,
+          type: options?.typeFilter,
+        },
       },
-    });
+      forceRefresh
+    );
   }
 
   /**
-   * Get memory timeline
+   * Get memory timeline.
+   *
+   * Uses request deduplication to prevent duplicate API calls.
+   *
+   * @param userId - The user ID
+   * @param options - Timeline options (date range, valence/arousal filters, pagination)
+   * @param forceRefresh - If true, bypasses client-side deduplication
+   *
+   * Requirements: 5.1, 5.6
    */
   async getMemoryTimeline(
     userId: string,
@@ -469,23 +562,27 @@ export class ThoughtClient {
       maxArousal?: number;
       limit?: number;
       offset?: number;
-    }
+    },
+    forceRefresh: boolean = false
   ): Promise<TimelineResponse> {
-    return this.request<TimelineResponse>({
-      method: "GET",
-      path: "/api/v1/memory/timeline",
-      query: {
-        userId,
-        start_date: options?.startDate,
-        end_date: options?.endDate,
-        min_valence: options?.minValence,
-        max_valence: options?.maxValence,
-        min_arousal: options?.minArousal,
-        max_arousal: options?.maxArousal,
-        limit: options?.limit,
-        offset: options?.offset,
+    return this.deduplicatedRequest<TimelineResponse>(
+      {
+        method: "GET",
+        path: "/api/v1/memory/timeline",
+        query: {
+          userId,
+          start_date: options?.startDate,
+          end_date: options?.endDate,
+          min_valence: options?.minValence,
+          max_valence: options?.maxValence,
+          min_arousal: options?.minArousal,
+          max_arousal: options?.maxArousal,
+          limit: options?.limit,
+          offset: options?.offset,
+        },
       },
-    });
+      forceRefresh
+    );
   }
 
   // ==========================================================================
@@ -504,14 +601,27 @@ export class ThoughtClient {
   }
 
   /**
-   * Recall multiple memories by ID
+   * Recall multiple memories by ID.
+   *
+   * Uses request deduplication to prevent duplicate API calls.
+   *
+   * @param request - The batch recall request
+   * @param forceRefresh - If true, bypasses client-side deduplication
+   *
+   * Requirements: 5.1, 5.6
    */
-  async batchRecallMemories(request: BatchRecallRequest): Promise<BatchRecallResponse> {
-    return this.request<BatchRecallResponse>({
-      method: "POST",
-      path: "/api/v1/memory/batch/recall",
-      body: request,
-    });
+  async batchRecallMemories(
+    request: BatchRecallRequest,
+    forceRefresh: boolean = false
+  ): Promise<BatchRecallResponse> {
+    return this.deduplicatedRequest<BatchRecallResponse>(
+      {
+        method: "POST",
+        path: "/api/v1/memory/batch/recall",
+        body: request,
+      },
+      forceRefresh
+    );
   }
 
   /**
@@ -526,18 +636,31 @@ export class ThoughtClient {
   }
 
   // ==========================================================================
-  // Search Operations
+  // Search Operations (Requirements: 5.1, 5.6)
   // ==========================================================================
 
   /**
-   * Advanced search with boolean operators
+   * Advanced search with boolean operators.
+   *
+   * Uses request deduplication to prevent duplicate API calls.
+   *
+   * @param request - The search request
+   * @param forceRefresh - If true, bypasses client-side deduplication
+   *
+   * Requirements: 5.1, 5.6
    */
-  async searchMemories(request: SearchRequest): Promise<SearchResponse> {
-    return this.request<SearchResponse>({
-      method: "POST",
-      path: "/api/v1/memory/search",
-      body: request,
-    });
+  async searchMemories(
+    request: SearchRequest,
+    forceRefresh: boolean = false
+  ): Promise<SearchResponse> {
+    return this.deduplicatedRequest<SearchResponse>(
+      {
+        method: "POST",
+        path: "/api/v1/memory/search",
+        body: request,
+      },
+      forceRefresh
+    );
   }
 
   // ==========================================================================

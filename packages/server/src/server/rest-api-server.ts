@@ -10,6 +10,7 @@ import { createServer, type Server } from "http";
 import type { Socket } from "net";
 import { Logger } from "../utils/logger.js";
 import type { CognitiveCore } from "./cognitive-core.js";
+import { createCompressionMiddleware } from "./middleware/compression.js";
 import { createCorsMiddleware } from "./middleware/cors.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import {
@@ -33,6 +34,7 @@ import { createProblemRoutes } from "./routes/problem.js";
 import { createReasoningRoutes } from "./routes/reasoning.js";
 import { createSessionRoutes } from "./routes/session.js";
 import { createUserRoutes } from "./routes/user.js";
+import { setSharedWebSocketHandler } from "./shared-websocket.js";
 import { ActivityWebSocketHandler, type WebSocketHandlerConfig } from "./websocket-handler.js";
 
 /** REST API Server Configuration */
@@ -56,6 +58,10 @@ export interface RestApiServerConfig {
   enablePerformanceMonitoring: boolean;
   /** Slow request threshold in milliseconds */
   slowRequestThresholdMs: number;
+  /** Enable response compression (gzip/brotli) - Requirements: 10.1 */
+  enableCompression: boolean;
+  /** Minimum response size in bytes to trigger compression - Requirements: 10.3 */
+  compressionThreshold: number;
 }
 
 /** Default REST API server configuration */
@@ -73,6 +79,8 @@ export const DEFAULT_REST_API_CONFIG: RestApiServerConfig = {
   responseCacheTTL: 30000, // 30 seconds default
   enablePerformanceMonitoring: true,
   slowRequestThresholdMs: 200, // 200ms per requirement 17.1
+  enableCompression: true, // Requirements: 10.1
+  compressionThreshold: 1024, // 1KB per requirement 10.3
 };
 
 /**
@@ -151,6 +159,16 @@ export class RestApiServer {
       this.app.use(
         createResponseCacheMiddleware({
           defaultTTL: this.config.responseCacheTTL,
+        })
+      );
+    }
+
+    // Compression middleware - Requirements: 10.1, 10.2, 10.3, 10.4
+    // NOTE: Must come AFTER body parsing and caching, BEFORE routes
+    if (this.config.enableCompression) {
+      this.app.use(
+        createCompressionMiddleware({
+          threshold: this.config.compressionThreshold,
         })
       );
     }
@@ -325,10 +343,12 @@ export class RestApiServer {
           this.isRunning = true;
           this.startTime = new Date();
 
-          // Attach WebSocket handler if enabled - Requirements: 7.1
+          // Attach WebSocket handler if enabled - Requirements: 7.1, 3.1, 3.2, 3.3
           if (this.config.enableWebSocket && this.server) {
             this.webSocketHandler = new ActivityWebSocketHandler(this.config.webSocketConfig);
             this.webSocketHandler.attach(this.server);
+            // Set shared handler for memory repository to broadcast events
+            setSharedWebSocketHandler(this.webSocketHandler);
             Logger.info("WebSocket handler attached for live activity");
           }
 
@@ -348,10 +368,12 @@ export class RestApiServer {
     this.isShuttingDown = true;
     Logger.info("Initiating REST API server shutdown...");
 
-    // Close WebSocket handler first - Requirements: 7.1
+    // Close WebSocket handler first - Requirements: 7.1, 3.1, 3.2, 3.3
     if (this.webSocketHandler) {
       this.webSocketHandler.close();
       this.webSocketHandler = null;
+      // Clear shared handler reference
+      setSharedWebSocketHandler(null);
       Logger.info("WebSocket handler closed");
     }
 

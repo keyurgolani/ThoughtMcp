@@ -14,6 +14,17 @@ export { EmbeddingStorage } from "./embedding-storage";
 // Cache
 export { EmbeddingCache, GenericLRUCache, generateCacheKey } from "./cache";
 
+// Queue
+export {
+  DEFAULT_QUEUE_CONFIG,
+  EmbeddingQueue,
+  type EmbeddingCompleteCallback,
+  type EmbeddingGenerator,
+  type EmbeddingJob,
+  type EmbeddingJobStatus,
+  type EmbeddingQueueConfig,
+} from "./embedding-queue";
+
 // Models
 export { BaseEmbeddingModel } from "./models/base-model";
 export { OllamaEmbeddingModel } from "./models/ollama-model";

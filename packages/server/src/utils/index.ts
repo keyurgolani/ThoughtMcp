@@ -42,3 +42,7 @@ export type {
   PerformanceMetric,
   PerformanceReport,
 } from "./performance-monitor.js";
+
+// Cursor utilities for pagination
+export { CursorDecodeError, decodeCursor, encodeCursor, isValidCursor } from "./cursor.js";
+export type { Cursor } from "./cursor.js";

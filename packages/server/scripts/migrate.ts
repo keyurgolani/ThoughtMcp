@@ -235,6 +235,12 @@ async function validateMigrations(): Promise<void> {
       upFile: "004_full_text_search.sql",
       downFile: "004_full_text_search_down.sql",
     },
+    {
+      version: 5,
+      name: "embedding_status",
+      upFile: "005_embedding_status.sql",
+      downFile: "005_embedding_status_down.sql",
+    },
   ];
 
   const report = validator.validateAll(migrations);
@@ -311,6 +317,12 @@ async function dryRun(): Promise<void> {
         name: "full_text_search",
         upFile: "004_full_text_search.sql",
         downFile: "004_full_text_search_down.sql",
+      },
+      {
+        version: 5,
+        name: "embedding_status",
+        upFile: "005_embedding_status.sql",
+        downFile: "005_embedding_status_down.sql",
       },
     ];
 

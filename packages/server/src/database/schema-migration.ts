@@ -66,6 +66,12 @@ export class SchemaMigrationSystem {
         upFile: "004_full_text_search.sql",
         downFile: "004_full_text_search_down.sql",
       },
+      {
+        version: 5,
+        name: "embedding_status",
+        upFile: "005_embedding_status.sql",
+        downFile: "005_embedding_status_down.sql",
+      },
     ];
   }
 

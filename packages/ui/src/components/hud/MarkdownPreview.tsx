@@ -93,21 +93,22 @@ function sanitizeContent(content: string): string {
  *
  * Features:
  * - Renders markdown with proper line breaks preserved
- * - Works with line-clamp for truncation
+ * - Works with line-clamp for truncation (when maxLines is specified)
  * - Preserves paragraph structure for readability
  * - Preserves basic formatting (bold, italic, code, links)
  * - Supports GFM tables and code blocks
  */
 export function MarkdownPreview({
   content,
-  maxLines = 2,
+  maxLines,
   className = "",
 }: MarkdownPreviewProps): ReactElement {
   // Sanitize content to fix common markdown issues
   const sanitizedContent = useMemo(() => sanitizeContent(content), [content]);
 
-  // Line clamp class based on maxLines
+  // Line clamp class based on maxLines - only apply if maxLines is specified
   const lineClampClass = useMemo(() => {
+    if (maxLines === undefined) return "";
     const clampMap: Record<number, string> = {
       1: "line-clamp-1",
       2: "line-clamp-2",

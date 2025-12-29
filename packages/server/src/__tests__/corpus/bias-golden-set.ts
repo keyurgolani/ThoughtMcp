@@ -31,16 +31,31 @@ export const GOLDEN_QUESTIONS: GoldenTestCase[] = [
     expectedBiases: [BiasType.FRAMING],
   },
 
-  // --- Bandwagon / Representativeness Bias ---
+  // --- Bandwagon / Social Proof Bias ---
   {
-    name: "Representativeness - Bandwagon - Industry Standard",
+    name: "Bandwagon - Industry Standard",
     text: "Everyone uses this library, so it must be the industry standard.",
-    expectedBiases: [BiasType.REPRESENTATIVENESS],
+    expectedBiases: [BiasType.BANDWAGON],
   },
   {
-    name: "Representativeness - Bandwagon - Popular Choice",
+    name: "Bandwagon - Popular Choice",
     text: "It is the most popular choice among developers right now.",
-    expectedBiases: [BiasType.REPRESENTATIVENESS],
+    expectedBiases: [BiasType.BANDWAGON],
+  },
+  {
+    name: "Bandwagon - Big Tech Companies",
+    text: "All the big tech companies are doing microservices, so we should too.",
+    expectedBiases: [BiasType.BANDWAGON],
+  },
+  {
+    name: "Bandwagon - Everyone Else",
+    text: "Everyone else is using this framework, we don't want to be left behind.",
+    expectedBiases: [BiasType.BANDWAGON],
+  },
+  {
+    name: "Bandwagon - The Trend",
+    text: "This is the trend right now, all the leading companies are adopting it.",
+    expectedBiases: [BiasType.BANDWAGON],
   },
 
   // --- Anchoring Bias ---

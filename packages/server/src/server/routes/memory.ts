@@ -2,7 +2,7 @@
  * Memory Routes
  *
  * REST API endpoints for memory CRUD operations.
- * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 11.1, 11.2, 11.3
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 6.1, 6.2, 6.5, 6.6, 11.1, 11.2, 11.3
  */
 
 import { Router, type Request, type Response } from "express";
@@ -32,6 +32,7 @@ import {
   type UpdateMemoryInput,
 } from "../../memory/types.js";
 import { QueryParser } from "../../search/query-parser.js";
+import { encodeCursor, isValidCursor } from "../../utils/cursor.js";
 import type { CognitiveCore } from "../cognitive-core.js";
 import {
   asyncHandler,
@@ -82,7 +83,7 @@ interface MemoryStoreResponse {
 
 /**
  * Zod schema for memory recall request validation
- * Requirements: 1.2
+ * Requirements: 1.2, 6.1, 6.2, 6.5, 6.6
  */
 const memoryRecallRequestSchema = z.object({
   userId: z.string().min(1, "userId is required"),
@@ -111,6 +112,13 @@ const memoryRecallRequestSchema = z.object({
     .optional(),
   limit: z.number().int().min(1).max(100).optional(),
   offset: z.number().int().min(0).optional(),
+  /**
+   * Cursor for cursor-based pagination
+   * Requirements: 6.1, 6.2, 6.3
+   * When provided, returns items created before the cursor timestamp
+   * Takes precedence over offset when both are provided
+   */
+  cursor: z.string().optional(),
 });
 
 /**
@@ -151,13 +159,24 @@ interface MemoryScore {
 
 /**
  * Response type for memory recall endpoint
- * Requirements: 1.2
+ * Requirements: 1.2, 6.6
  */
 interface MemoryRecallResponse {
   memories: MemoryItem[];
   totalCount: number;
   scores: Record<string, MemoryScore>;
   rankingMethod: RankingMethod;
+  /**
+   * Cursor for the next page of results
+   * Requirements: 6.6
+   * null if there are no more results
+   */
+  nextCursor: string | null;
+  /**
+   * Whether there are more results available
+   * Requirements: 6.6
+   */
+  hasMore: boolean;
 }
 
 /**
@@ -534,10 +553,99 @@ function createStoreHandler(
 
 /**
  * Handler for POST /api/v1/memory/recall
- * Requirements: 1.2
+ * Requirements: 1.2, 6.1, 6.2, 6.5, 6.6
  *
- * Supports optional forceRefresh query parameter to bypass cache
+ * Supports:
+ * - Optional forceRefresh query parameter to bypass cache
+ * - Cursor-based pagination (cursor parameter)
+ * - Offset-based pagination for backward compatibility (offset parameter)
+ * - When cursor is provided, it takes precedence over offset
  */
+
+/**
+ * Build search query from validated request data
+ * Requirements: 6.1, 6.2
+ */
+function buildSearchQuery(data: z.infer<typeof memoryRecallRequestSchema>): SearchQuery {
+  const {
+    userId,
+    text,
+    sectors,
+    primarySector,
+    minStrength,
+    minSalience,
+    minSimilarity,
+    dateRange,
+    metadata,
+    limit,
+    offset,
+    cursor,
+  } = data;
+
+  return {
+    userId,
+    text,
+    sectors: sectors as MemorySectorType[] | undefined,
+    primarySector: primarySector as MemorySectorType | undefined,
+    minStrength,
+    minSalience,
+    minSimilarity,
+    dateRange: dateRange
+      ? {
+          start: dateRange.start ? new Date(dateRange.start) : undefined,
+          end: dateRange.end ? new Date(dateRange.end) : undefined,
+        }
+      : undefined,
+    metadata,
+    limit: limit ?? 10,
+    offset: offset ?? 0,
+    // Requirements: 6.1, 6.2 - cursor takes precedence over offset
+    cursor: cursor ?? undefined,
+  };
+}
+
+/**
+ * Convert Memory to MemoryItem for API response
+ */
+function memoryToItem(memory: Memory): MemoryItem {
+  return {
+    id: memory.id,
+    content: memory.content,
+    createdAt: memory.createdAt.toISOString(),
+    lastAccessed: memory.lastAccessed.toISOString(),
+    accessCount: memory.accessCount,
+    salience: memory.salience,
+    strength: memory.strength,
+    userId: memory.userId,
+    sessionId: memory.sessionId,
+    primarySector: memory.primarySector,
+    metadata: {
+      keywords: memory.metadata.keywords,
+      tags: memory.metadata.tags,
+      category: memory.metadata.category,
+      context: memory.metadata.context,
+      importance: memory.metadata.importance,
+    },
+  };
+}
+
+/**
+ * Convert CompositeScore map to record for API response
+ */
+function scoresToRecord(scores: Map<string, CompositeScore>): Record<string, MemoryScore> {
+  const record: Record<string, MemoryScore> = {};
+  scores.forEach((score: CompositeScore, memoryId: string) => {
+    record[memoryId] = {
+      total: score.total,
+      similarity: score.similarity,
+      salience: score.salience,
+      recency: score.recency,
+      linkWeight: score.linkWeight,
+    };
+  });
+  return record;
+}
+
 function createRecallHandler(
   cognitiveCore: CognitiveCore
 ): (req: Request, res: Response, next: import("express").NextFunction) => void {
@@ -551,82 +659,42 @@ function createRecallHandler(
     }
 
     // Check for forceRefresh query parameter
-    const forceRefresh = req.query.forceRefresh === "true";
-    if (forceRefresh) {
+    if (req.query.forceRefresh === "true") {
       cognitiveCore.memoryRepository.clearSearchCache();
     }
 
-    const {
-      userId,
-      text,
-      sectors,
-      primarySector,
-      minStrength,
-      minSalience,
-      minSimilarity,
-      dateRange,
-      metadata,
-      limit,
-      offset,
-    } = parseResult.data;
+    const { cursor, limit } = parseResult.data;
 
-    const searchQuery: SearchQuery = {
-      userId,
-      text,
-      sectors: sectors as MemorySectorType[] | undefined,
-      primarySector: primarySector as MemorySectorType | undefined,
-      minStrength,
-      minSalience,
-      minSimilarity,
-      dateRange: dateRange
-        ? {
-            start: dateRange.start ? new Date(dateRange.start) : undefined,
-            end: dateRange.end ? new Date(dateRange.end) : undefined,
-          }
-        : undefined,
-      metadata,
-      limit: limit ?? 10,
-      offset: offset ?? 0,
-    };
+    // Validate cursor if provided - Requirements: 6.3
+    if (cursor && !isValidCursor(cursor)) {
+      throw new ValidationApiError({ cursor: "Invalid cursor format" });
+    }
 
+    const searchQuery = buildSearchQuery(parseResult.data);
     const searchResult = await cognitiveCore.memoryRepository.search(searchQuery);
 
-    const memoryItems: MemoryItem[] = searchResult.memories.map((memory: Memory) => ({
-      id: memory.id,
-      content: memory.content,
-      createdAt: memory.createdAt.toISOString(),
-      lastAccessed: memory.lastAccessed.toISOString(),
-      accessCount: memory.accessCount,
-      salience: memory.salience,
-      strength: memory.strength,
-      userId: memory.userId,
-      sessionId: memory.sessionId,
-      primarySector: memory.primarySector,
-      metadata: {
-        keywords: memory.metadata.keywords,
-        tags: memory.metadata.tags,
-        category: memory.metadata.category,
-        context: memory.metadata.context,
-        importance: memory.metadata.importance,
-      },
-    }));
+    const memoryItems = searchResult.memories.map(memoryToItem);
+    const scoresRecord = scoresToRecord(searchResult.scores);
 
-    const scoresRecord: Record<string, MemoryScore> = {};
-    searchResult.scores.forEach((score: CompositeScore, memoryId: string) => {
-      scoresRecord[memoryId] = {
-        total: score.total,
-        similarity: score.similarity,
-        salience: score.salience,
-        recency: score.recency,
-        linkWeight: score.linkWeight,
-      };
-    });
+    // Requirements: 6.6 - Generate nextCursor and hasMore for response
+    const requestedLimit = limit ?? 10;
+    const hasMore = searchResult.hasMore ?? memoryItems.length >= requestedLimit;
+    let nextCursor: string | null = null;
+
+    if (memoryItems.length > 0 && hasMore) {
+      const lastMemory = searchResult.memories[searchResult.memories.length - 1];
+      if (lastMemory) {
+        nextCursor = encodeCursor({ timestamp: lastMemory.createdAt, id: lastMemory.id });
+      }
+    }
 
     const responseData: MemoryRecallResponse = {
       memories: memoryItems,
       totalCount: searchResult.totalCount,
       scores: scoresRecord,
       rankingMethod: searchResult.rankingMethod,
+      nextCursor,
+      hasMore,
     };
 
     res.status(200).json(buildSuccessResponse(responseData, { requestId, startTime }));

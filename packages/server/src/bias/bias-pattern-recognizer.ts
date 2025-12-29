@@ -117,9 +117,9 @@ const TEXT_BIAS_PATTERNS: BiasIndicatorPattern[] = [
     severity: 0.6,
     explanation: "Reasoning shows status quo bias by preferring the current state over change",
   },
-  // Bandwagon effect indicators (Requirements 10.3)
+  // Bandwagon effect / social proof indicators (Requirements 10.3)
   {
-    biasType: BiasTypeEnum.REPRESENTATIVENESS, // Using REPRESENTATIVENESS as closest match for bandwagon
+    biasType: BiasTypeEnum.BANDWAGON,
     phrases: [
       "everyone uses",
       "industry standard",
@@ -140,18 +140,61 @@ const TEXT_BIAS_PATTERNS: BiasIndicatorPattern[] = [
       "everyone does it",
       "others are doing",
       "they all do",
+      "all the big companies",
+      "all the big tech companies",
+      "big tech companies are doing",
+      "everyone else",
+      "the trend",
+      "jumping on the bandwagon",
+      "get on board",
+      "don't want to be left behind",
+      "left behind",
+      "keeping up with",
+      "all my competitors",
+      "competitors are doing",
+      "market leaders",
+      "top companies",
+      "successful companies do",
+      "best companies",
+      "leading companies",
+      "fortune 500",
+      "faang",
+      "tech giants",
+      "social proof",
+      "proven by adoption",
+      "widely used",
+      "millions of users",
+      "thousands of companies",
+      "everybody's doing it",
+      "no one uses",
+      "nobody uses",
     ],
     keywordSets: [
       ["everyone", "uses"],
       ["everyone", "does"],
+      ["everyone", "doing"],
       ["most", "people"],
       ["popular", "choice"],
       ["widely", "adopted"],
       ["industry", "standard"],
+      ["all", "big", "companies"],
+      ["big", "tech", "companies"],
+      ["all", "companies", "doing"],
+      ["competitors", "doing"],
+      ["market", "leaders"],
+      ["top", "companies"],
+      ["leading", "companies"],
+      ["successful", "companies"],
+      ["left", "behind"],
+      ["keeping", "up"],
+      ["millions", "users"],
+      ["thousands", "companies"],
+      ["widely", "used"],
     ],
-    confidence: 0.7,
-    severity: 0.6,
-    explanation: "Reasoning shows bandwagon effect by relying on popularity rather than merit",
+    confidence: 0.75,
+    severity: 0.65,
+    explanation:
+      "Reasoning shows bandwagon bias (social proof fallacy) by relying on popularity or what others are doing rather than evaluating merit independently",
   },
   // Anchoring bias indicators (Requirements 10.4)
   {
@@ -323,6 +366,9 @@ export class BiasPatternRecognizer {
 
     const bias8 = this.detectAttributionBias(reasoning);
     if (bias8) biases.push(bias8);
+
+    const bias9 = this.detectBandwagonBias(reasoning);
+    if (bias9) biases.push(bias9);
 
     return biases;
   }
@@ -980,6 +1026,187 @@ export class BiasPatternRecognizer {
     }
 
     return null;
+  }
+
+  /** Bandwagon indicators - phrases that suggest appeal to popularity */
+  private static readonly BANDWAGON_PHRASES = [
+    "everyone",
+    "everybody",
+    "all the big companies",
+    "all the big tech companies",
+    "industry standard",
+    "most people",
+    "popular choice",
+    "widely adopted",
+    "common practice",
+    "mainstream",
+    "trending",
+    "what others are doing",
+    "following the crowd",
+    "majority",
+    "consensus",
+    "competitors are doing",
+    "market leaders",
+    "top companies",
+    "leading companies",
+    "successful companies",
+    "fortune 500",
+    "faang",
+    "tech giants",
+    "millions of users",
+    "thousands of companies",
+    "widely used",
+    "left behind",
+    "keeping up with",
+    "get on board",
+    "bandwagon",
+    "social proof",
+    "nobody uses",
+    "no one uses",
+  ];
+
+  /**
+   * Detect bandwagon bias (social proof fallacy)
+   *
+   * Identifies when reasoning relies on popularity, what others are doing,
+   * or social proof rather than evaluating merit independently.
+   *
+   * @param reasoning - The reasoning chain to analyze
+   * @returns Detected bias or null if not found
+   */
+  detectBandwagonBias(reasoning: ReasoningChain): DetectedBias | null {
+    const steps = reasoning.steps ?? [];
+    const conclusion = reasoning.conclusion ?? "";
+
+    const hasBandwagonInSteps = this.checkBandwagonInSteps(steps);
+    const hasBandwagonInConclusion = this.checkBandwagonInText(conclusion);
+    const hasMeritEvaluation = this.checkMeritEvaluation(steps);
+
+    if ((hasBandwagonInSteps || hasBandwagonInConclusion) && !hasMeritEvaluation) {
+      return this.createBandwagonBias(
+        this.buildBandwagonEvidence(hasBandwagonInSteps, hasBandwagonInConclusion, true),
+        steps[0]?.content || conclusion.substring(0, 200) || "Bandwagon reasoning",
+        0.65,
+        0.75,
+        "Reasoning relies on popularity or what others are doing rather than independent merit evaluation"
+      );
+    }
+
+    if (hasBandwagonInSteps || hasBandwagonInConclusion) {
+      const counts = this.countBandwagonVsMeritReferences(steps);
+      if (counts.bandwagonCount > counts.meritCount * 2) {
+        return this.createBandwagonBias(
+          ["Popularity-based reasoning outweighs merit-based evaluation"],
+          steps[0]?.content || "Bandwagon-heavy reasoning",
+          0.55,
+          0.65,
+          "Reasoning emphasizes popularity over independent evaluation of merit"
+        );
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Helper: Check if any reasoning steps contain bandwagon phrases
+   */
+  private checkBandwagonInSteps(steps: ReasoningStep[]): boolean {
+    return steps.some((step) => this.checkBandwagonInText(step.content));
+  }
+
+  /**
+   * Helper: Check if text contains any bandwagon phrases
+   */
+  private checkBandwagonInText(text: string): boolean {
+    const lower = text.toLowerCase();
+    return BiasPatternRecognizer.BANDWAGON_PHRASES.some((phrase) => lower.includes(phrase));
+  }
+
+  /**
+   * Helper: Check if steps contain merit-based evaluation
+   */
+  private checkMeritEvaluation(steps: ReasoningStep[]): boolean {
+    const meritIndicators = [
+      "evaluated",
+      "analyzed",
+      "compared features",
+      "requirements",
+      "our specific needs",
+      "technical merit",
+      "cost-benefit",
+      "pros and cons",
+    ];
+    return steps.some((step) => {
+      const lower = step.content.toLowerCase();
+      return meritIndicators.some((indicator) => lower.includes(indicator));
+    });
+  }
+
+  /**
+   * Helper: Build evidence list for bandwagon bias
+   */
+  private buildBandwagonEvidence(
+    inSteps: boolean,
+    inConclusion: boolean,
+    noMerit: boolean
+  ): string[] {
+    const evidence: string[] = [];
+    if (inSteps) evidence.push("Appeal to popularity in reasoning steps");
+    if (inConclusion) evidence.push("Appeal to popularity in conclusion");
+    if (noMerit) evidence.push("No merit-based evaluation found");
+    return evidence;
+  }
+
+  /**
+   * Helper: Count bandwagon vs merit references in steps
+   */
+  private countBandwagonVsMeritReferences(steps: ReasoningStep[]): {
+    bandwagonCount: number;
+    meritCount: number;
+  } {
+    let bandwagonCount = 0;
+    let meritCount = 0;
+
+    for (const step of steps) {
+      const lower = step.content.toLowerCase();
+      for (const phrase of BiasPatternRecognizer.BANDWAGON_PHRASES) {
+        if (lower.includes(phrase)) bandwagonCount++;
+      }
+      if (
+        lower.includes("evaluated") ||
+        lower.includes("analyzed") ||
+        lower.includes("requirements")
+      ) {
+        meritCount++;
+      }
+    }
+
+    return { bandwagonCount, meritCount };
+  }
+
+  /**
+   * Helper: Create a bandwagon bias detection result
+   */
+  private createBandwagonBias(
+    evidence: string[],
+    reasoning: string,
+    severity: number,
+    confidence: number,
+    explanation: string
+  ): DetectedBias {
+    return {
+      type: BiasTypeEnum.BANDWAGON,
+      severity,
+      confidence,
+      evidence,
+      location: {
+        stepIndex: 0,
+        reasoning,
+      },
+      explanation,
+      detectedAt: new Date(),
+    };
   }
 
   /**

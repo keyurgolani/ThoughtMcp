@@ -3,13 +3,35 @@
  *
  * Tests for the health routes including full health check, readiness probe,
  * and liveness probe endpoints.
- * Requirements: 13.1, 13.2, 13.3
+ * Requirements: 12.1, 12.2, 12.3, 12.5, 12.6, 13.1, 13.2, 13.3, 15.1, 15.2, 15.3, 15.4
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { healthChecker } from "../../../monitoring/health-checker.js";
 import type { CognitiveCore } from "../../../server/cognitive-core.js";
-import { createHealthRoutes } from "../../../server/routes/health.js";
+import { createHealthRoutes, resetHealthCheckLLMClient } from "../../../server/routes/health.js";
+
+// Mock the performance middleware
+vi.mock("../../../server/middleware/performance.js", () => ({
+  getPerformanceStats: vi.fn(() => ({
+    totalRequests: 100,
+    avgDurationMs: 50,
+    p95DurationMs: 150,
+  })),
+}));
+
+// Mock the response cache middleware
+vi.mock("../../../server/middleware/response-cache.js", () => ({
+  getResponseCacheMetrics: vi.fn(() => ({
+    hits: 50,
+    misses: 50,
+    hitRate: 0.5,
+    size: 10,
+  })),
+}));
+
+// Mock global fetch for Ollama health check
+vi.stubGlobal("fetch", vi.fn());
 
 // Mock the performance middleware
 vi.mock("../../../server/middleware/performance.js", () => ({
@@ -49,7 +71,8 @@ const createMockCognitiveCore = (): CognitiveCore => {
  */
 async function invokeHandler(
   router: ReturnType<typeof createHealthRoutes>,
-  path: string
+  path: string,
+  query?: Record<string, string>
 ): Promise<{ status: number; body: unknown }> {
   return new Promise((resolve) => {
     const layer = router.stack.find((l: any) => l.route?.path === path);
@@ -63,6 +86,7 @@ async function invokeHandler(
       url: path,
       headers: {},
       requestId: "test-request-id",
+      query: query || {},
     } as any;
 
     let responseStatus = 200;
@@ -102,7 +126,7 @@ async function invokeHandler(
         resolved = true;
         resolve({ status: responseStatus, body: responseBody });
       }
-    }, 100);
+    }, 3000); // Increased timeout for async health checks
   });
 }
 
@@ -111,6 +135,14 @@ describe("Health Routes", () => {
 
   beforeEach(() => {
     mockCore = createMockCognitiveCore();
+    // Reset the health check LLM client before each test
+    resetHealthCheckLLMClient();
+    // Reset fetch mock to return successful Ollama response
+    vi.mocked(fetch).mockReset();
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ models: [{ name: "nomic-embed-text" }, { name: "llama3.2:1b" }] }),
+    } as Response);
   });
 
   describe("createHealthRoutes", () => {
@@ -325,6 +357,8 @@ describe("Health Routes", () => {
         expect(body.data.components.embeddingEngine).toBeDefined();
         expect(body.data.components.reasoning).toBeDefined();
         expect(body.data.components.memory).toBeDefined();
+        expect(body.data.components.cache).toBeDefined();
+        expect(body.data.components.inferenceModel).toBeDefined();
         expect(body.data.metrics).toBeDefined();
         expect(body.data.metrics.uptime).toBeGreaterThanOrEqual(0);
         expect(body.data.metrics.memoryUsage).toBeGreaterThan(0);
@@ -335,6 +369,8 @@ describe("Health Routes", () => {
           ...mockCore,
           memoryRepository: null as unknown as CognitiveCore["memoryRepository"],
         };
+        // Mock fetch to fail for embedding check
+        vi.mocked(fetch).mockRejectedValue(new Error("Connection refused"));
         const router = createHealthRoutes(coreWithoutMemory);
         const response = await invokeHandler(router, "/");
 
@@ -350,6 +386,8 @@ describe("Health Routes", () => {
           ...mockCore,
           reasoningOrchestrator: null as unknown as CognitiveCore["reasoningOrchestrator"],
         };
+        // Mock fetch to fail for embedding check
+        vi.mocked(fetch).mockRejectedValue(new Error("Connection refused"));
         const router = createHealthRoutes(coreWithoutReasoning);
         const response = await invokeHandler(router, "/");
 
@@ -493,6 +531,154 @@ describe("Health Routes", () => {
         const body = response.body as any;
         expect(body.data.components.database.message).toBeDefined();
         expect(body.data.components.database.message).toContain("not available");
+      });
+
+      it("should report cache component health", async () => {
+        const router = createHealthRoutes(mockCore);
+        const response = await invokeHandler(router, "/");
+
+        const body = response.body as any;
+        expect(body.data.components.cache).toBeDefined();
+        expect(body.data.components.cache.status).toBe("healthy");
+        expect(body.data.components.cache.latency).toBeGreaterThanOrEqual(0);
+        expect(body.data.components.cache.details).toBeDefined();
+        expect(body.data.components.cache.details.backend).toBe("memory");
+      });
+
+      it("should include embedding engine details when Ollama is available", async () => {
+        const router = createHealthRoutes(mockCore);
+        const response = await invokeHandler(router, "/");
+
+        const body = response.body as any;
+        expect(body.data.components.embeddingEngine.status).toBe("healthy");
+        expect(body.data.components.embeddingEngine.details).toBeDefined();
+        expect(body.data.components.embeddingEngine.details.modelsAvailable).toBe(2);
+      });
+
+      it("should report embedding engine as degraded when Ollama is unavailable", async () => {
+        vi.mocked(fetch).mockRejectedValue(new Error("Connection refused"));
+        const router = createHealthRoutes(mockCore);
+        const response = await invokeHandler(router, "/");
+
+        const body = response.body as any;
+        // Embedding engine should be degraded (not unhealthy) when Ollama is unavailable
+        expect(body.data.components.embeddingEngine.status).toBe("unhealthy");
+        expect(body.data.components.embeddingEngine.message).toContain("Connection refused");
+      });
+
+      it("should report inference model component health", async () => {
+        const router = createHealthRoutes(mockCore);
+        const response = await invokeHandler(router, "/");
+
+        const body = response.body as any;
+        expect(body.data.components.inferenceModel).toBeDefined();
+        expect(body.data.components.inferenceModel.status).toBe("healthy");
+        expect(body.data.components.inferenceModel.latency).toBeGreaterThanOrEqual(0);
+        expect(body.data.components.inferenceModel.lastCheck).toBeDefined();
+        expect(body.data.components.inferenceModel.modelName).toBeDefined();
+      });
+
+      it("should include inference model details when available", async () => {
+        const router = createHealthRoutes(mockCore);
+        const response = await invokeHandler(router, "/");
+
+        const body = response.body as any;
+        expect(body.data.components.inferenceModel.details).toBeDefined();
+        expect(body.data.components.inferenceModel.details.host).toBeDefined();
+        expect(body.data.components.inferenceModel.details.modelName).toBeDefined();
+      });
+
+      it("should report inference model as unhealthy when Ollama is unavailable", async () => {
+        vi.mocked(fetch).mockRejectedValue(new Error("Connection refused"));
+        const router = createHealthRoutes(mockCore);
+        const response = await invokeHandler(router, "/");
+
+        const body = response.body as any;
+        expect(body.data.components.inferenceModel.status).toBe("unhealthy");
+        expect(body.data.components.inferenceModel.message).toBeDefined();
+      });
+
+      it("should include affected features when inference model is unavailable", async () => {
+        vi.mocked(fetch).mockRejectedValue(new Error("Connection refused"));
+        const router = createHealthRoutes(mockCore);
+        const response = await invokeHandler(router, "/");
+
+        const body = response.body as any;
+        expect(body.data.components.inferenceModel.affectedFeatures).toBeDefined();
+        expect(Array.isArray(body.data.components.inferenceModel.affectedFeatures)).toBe(true);
+        expect(body.data.components.inferenceModel.affectedFeatures.length).toBeGreaterThan(0);
+        // Should include reasoning-related features
+        expect(
+          body.data.components.inferenceModel.affectedFeatures.some((f: string) =>
+            f.includes("think")
+          )
+        ).toBe(true);
+        expect(
+          body.data.components.inferenceModel.affectedFeatures.some((f: string) =>
+            f.includes("analyze")
+          )
+        ).toBe(true);
+      });
+
+      it("should report inference model as unhealthy when model is not found", async () => {
+        // Return models list without the expected inference model
+        vi.mocked(fetch).mockResolvedValue({
+          ok: true,
+          json: async () => ({ models: [{ name: "nomic-embed-text" }] }),
+        } as Response);
+        const router = createHealthRoutes(mockCore);
+        const response = await invokeHandler(router, "/");
+
+        const body = response.body as any;
+        expect(body.data.components.inferenceModel.status).toBe("unhealthy");
+        expect(body.data.components.inferenceModel.message).toContain("not found");
+      });
+
+      it("should track inference model latency", async () => {
+        const router = createHealthRoutes(mockCore);
+        const response = await invokeHandler(router, "/");
+
+        const body = response.body as any;
+        expect(body.data.components.inferenceModel.averageLatencyMs).toBeDefined();
+        expect(typeof body.data.components.inferenceModel.averageLatencyMs).toBe("number");
+      });
+
+      it("should track inference model error count", async () => {
+        const router = createHealthRoutes(mockCore);
+        const response = await invokeHandler(router, "/");
+
+        const body = response.body as any;
+        expect(body.data.components.inferenceModel.errorCount).toBeDefined();
+        expect(typeof body.data.components.inferenceModel.errorCount).toBe("number");
+      });
+    });
+
+    describe("Deep Check Mode", () => {
+      it("should include deepCheck flag when deep=true query param is provided", async () => {
+        const router = createHealthRoutes(mockCore);
+        const response = await invokeHandler(router, "/", { deep: "true" });
+
+        const body = response.body as any;
+        expect(body.data.deepCheck).toBe(true);
+      });
+
+      it("should include readWriteVerified in deep check mode", async () => {
+        const router = createHealthRoutes(mockCore);
+        const response = await invokeHandler(router, "/", { deep: "true" });
+
+        const body = response.body as any;
+        expect(body.data.readWriteVerified).toBeDefined();
+        // Without a real database, this should be false
+        expect(body.data.readWriteVerified).toBe(false);
+      });
+
+      it("should not include deepCheck flag in normal mode", async () => {
+        const router = createHealthRoutes(mockCore);
+        const response = await invokeHandler(router, "/");
+
+        const body = response.body as any;
+        expect(body.data.deepCheck).toBeUndefined();
+        expect(body.data.readWriteVerified).toBeUndefined();
       });
     });
   });

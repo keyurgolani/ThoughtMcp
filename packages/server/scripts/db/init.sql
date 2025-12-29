@@ -17,10 +17,12 @@ CREATE TABLE IF NOT EXISTS memories (
     user_id TEXT NOT NULL,
     session_id TEXT,
     primary_sector TEXT NOT NULL,
+    embedding_status TEXT DEFAULT 'pending',
     CONSTRAINT valid_salience CHECK (salience >= 0 AND salience <= 1),
     CONSTRAINT valid_strength CHECK (strength >= 0 AND strength <= 1),
     CONSTRAINT valid_decay_rate CHECK (decay_rate >= 0),
-    CONSTRAINT valid_primary_sector CHECK (primary_sector IN ('episodic', 'semantic', 'procedural', 'emotional', 'reflective'))
+    CONSTRAINT valid_primary_sector CHECK (primary_sector IN ('episodic', 'semantic', 'procedural', 'emotional', 'reflective')),
+    CONSTRAINT valid_embedding_status CHECK (embedding_status IN ('pending', 'processing', 'complete', 'failed'))
 );
 
 -- Indexes for efficient querying

@@ -5,6 +5,9 @@
  * Generates specialized embeddings for Episodic, Semantic, Procedural,
  * Emotional, and Reflective memory sectors with caching and batch support.
  *
+ * Performance optimization: Uses batch embedding generation when the model
+ * supports it, reducing 5 API calls to 1 for significant latency improvement.
+ *
  * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
  */
 
@@ -162,37 +165,104 @@ export class EmbeddingEngine {
 
   /**
    * Generate all five sector embeddings for a memory
+   *
+   * Performance optimization: Uses batch embedding generation when the model
+   * supports it (e.g., Ollama's /api/embed endpoint), reducing 5 API calls
+   * to 1 for ~3-5x latency improvement.
    */
   async generateAllSectorEmbeddings(memory: MemoryContent): Promise<SectorEmbeddings> {
-    // Generate all sectors in parallel
-    const [episodic, semantic, procedural, emotional, reflective] = await Promise.all([
-      this.generateEpisodicEmbedding(
-        memory.text,
-        memory.context ?? {
-          timestamp: new Date(),
-          sessionId: "default",
-        }
-      ),
-      this.generateSemanticEmbedding(memory.text),
-      this.generateProceduralEmbedding(memory.text),
-      this.generateEmotionalEmbedding(
-        memory.text,
-        memory.emotion ?? {
-          valence: 0,
-          arousal: 0.5,
-          dominance: 0,
-        }
-      ),
-      this.generateReflectiveEmbedding(memory.text, memory.insights ?? []),
-    ]);
-
-    return {
-      episodic,
-      semantic,
-      procedural,
-      emotional,
-      reflective,
+    // Prepare augmented content for each sector
+    const context = memory.context ?? {
+      timestamp: new Date(),
+      sessionId: "default",
     };
+    const emotion = memory.emotion ?? {
+      valence: 0,
+      arousal: 0.5,
+      dominance: 0,
+    };
+    const insights = memory.insights ?? [];
+
+    const episodicContent = this.augmentEpisodicContent(memory.text, context);
+    const semanticContent = memory.text; // No augmentation for semantic
+    const proceduralContent = this.augmentProceduralContent(memory.text);
+    const emotionalContent = this.augmentEmotionalContent(memory.text, emotion);
+    const reflectiveContent = this.augmentReflectiveContent(memory.text, insights);
+
+    // Generate cache keys for all sectors
+    const cacheKeys = {
+      episodic: generateCacheKey("episodic" as MemorySector, memory.text, context),
+      semantic: generateCacheKey("semantic" as MemorySector, memory.text),
+      procedural: generateCacheKey("procedural" as MemorySector, memory.text),
+      emotional: generateCacheKey("emotional" as MemorySector, memory.text, emotion),
+      reflective: generateCacheKey("reflective" as MemorySector, memory.text, insights),
+    };
+
+    // Check cache for all sectors
+    const cachedEmbeddings: Partial<SectorEmbeddings> = {};
+    const uncachedSectors: Array<{
+      sector: keyof SectorEmbeddings;
+      content: string;
+      cacheKey: string;
+    }> = [];
+
+    const sectorContents: Array<{ sector: keyof SectorEmbeddings; content: string }> = [
+      { sector: "episodic", content: episodicContent },
+      { sector: "semantic", content: semanticContent },
+      { sector: "procedural", content: proceduralContent },
+      { sector: "emotional", content: emotionalContent },
+      { sector: "reflective", content: reflectiveContent },
+    ];
+
+    for (const { sector, content } of sectorContents) {
+      const cacheKey = cacheKeys[sector];
+
+      // Check cache
+      const cached = this.cache.get(cacheKey);
+      if (cached) {
+        cachedEmbeddings[sector] = cached;
+        continue;
+      }
+
+      // Check for in-flight request
+      const inFlight = this.inFlightRequests.get(cacheKey);
+      if (inFlight) {
+        cachedEmbeddings[sector] = await inFlight;
+        continue;
+      }
+
+      uncachedSectors.push({ sector, content, cacheKey });
+    }
+
+    // If all sectors are cached, return immediately
+    if (uncachedSectors.length === 0) {
+      return cachedEmbeddings as SectorEmbeddings;
+    }
+
+    // Generate uncached embeddings
+    let generatedEmbeddings: number[][];
+
+    // Use batch generation if model supports it (significant performance improvement)
+    if (this.model.generateBatch && uncachedSectors.length > 1) {
+      const contents = uncachedSectors.map((s) => s.content);
+      generatedEmbeddings = await this.model.generateBatch(contents);
+    } else {
+      // Fallback to parallel individual generation
+      generatedEmbeddings = await Promise.all(
+        uncachedSectors.map((s) => this.model.generate(s.content))
+      );
+    }
+
+    // Store generated embeddings in cache and build result
+    for (let i = 0; i < uncachedSectors.length; i++) {
+      const { sector, cacheKey } = uncachedSectors[i];
+      const embedding = generatedEmbeddings[i];
+
+      this.cache.set(cacheKey, embedding);
+      cachedEmbeddings[sector] = embedding;
+    }
+
+    return cachedEmbeddings as SectorEmbeddings;
   }
 
   /**

@@ -129,6 +129,10 @@ export interface MemoryGraph3DProps {
   } | null>;
   /** Callback when the background is clicked */
   onBackgroundClick?: (event: MouseEvent) => void;
+  /** Enable level-of-detail rendering for large graphs - Requirements: 11.6 */
+  enableLOD?: boolean;
+  /** Threshold for enabling LOD rendering (default: 500) - Requirements: 11.6 */
+  lodThreshold?: number;
 }
 
 // ============================================================================
@@ -244,6 +248,8 @@ export function MemoryGraph3D({
   fitDelay = 500,
   graphRef: externalGraphRef,
   onBackgroundClick,
+  enableLOD = true,
+  lodThreshold = 500,
 }: MemoryGraph3DProps): React.ReactElement {
   const graphRef = useRef<ForceGraphMethods<GraphNodeInternal, GraphLinkInternal> | undefined>(
     undefined
@@ -260,8 +266,10 @@ export function MemoryGraph3D({
     height: height ?? 600,
   });
 
-  // Auto-detect large graph mode
+  // Auto-detect large graph mode and LOD mode
+  // Requirements: 11.6 - Enable LOD rendering for >500 visible nodes
   const isLargeGraph = largeGraphMode ?? nodes.length > LARGE_GRAPH_THRESHOLD;
+  const isLODEnabled = enableLOD && nodes.length > lodThreshold;
   const graphConfig = isLargeGraph ? LARGE_GRAPH_CONFIG : SMALL_GRAPH_CONFIG;
 
   // Build node neighbors and links maps for highlight feature
@@ -494,6 +502,7 @@ export function MemoryGraph3D({
   const nodesMapRef = useRef<Map<string, THREE.Group>>(new Map());
 
   // Update visual state of nodes without re-creating geometries
+  // Requirements: 11.6 - LOD rendering support
   useEffect(() => {
     if (!graphRef.current) return;
 
@@ -505,33 +514,61 @@ export function MemoryGraph3D({
       const isHovered = nodeId === hoveredNodeId;
       const isHighlighted = highlightNodes.has(nodeId);
       const dimmed = highlightNodes.size > 0 && !isHighlighted;
+      const nodeLODEnabled = group.userData.isLODEnabled === true;
 
       const color = getSectorColor(node.primarySector, highContrast, lightMode);
 
-      // Update Main Sphere
-      const mainSphere = group.getObjectByName("main-sphere");
-      if (
-        mainSphere instanceof THREE.Mesh &&
-        mainSphere.material instanceof THREE.MeshPhongMaterial
-      ) {
-        mainSphere.material.color.set(color);
-        mainSphere.material.emissive.set(
-          isSelected || isHovered || isHighlighted ? color : "#000000"
-        );
-        mainSphere.material.emissiveIntensity = isSelected
-          ? 0.6
-          : isHovered
-            ? 0.4
-            : isHighlighted
-              ? 0.3
-              : 0;
-        mainSphere.material.opacity = dimmed ? 0.3 : 0.9;
+      // Update Main Sphere (handle both LOD and non-LOD structures)
+      const mainLOD = group.getObjectByName("main-lod");
+      if (mainLOD instanceof THREE.LOD) {
+        // Update all LOD levels
+        mainLOD.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            if (child.material instanceof THREE.MeshPhongMaterial) {
+              child.material.color.set(color);
+              child.material.emissive.set(
+                isSelected || isHovered || isHighlighted ? color : "#000000"
+              );
+              child.material.emissiveIntensity = isSelected
+                ? 0.6
+                : isHovered
+                  ? 0.4
+                  : isHighlighted
+                    ? 0.3
+                    : 0;
+              child.material.opacity = dimmed ? 0.3 : 0.9;
+            } else if (child.material instanceof THREE.MeshBasicMaterial) {
+              child.material.color.set(color);
+              child.material.opacity = dimmed ? 0.3 : isHighlighted ? 0.8 : 0.7;
+            }
+          }
+        });
+      } else {
+        // Fallback for non-LOD structure (legacy)
+        const mainSphere = group.getObjectByName("main-sphere");
+        if (
+          mainSphere instanceof THREE.Mesh &&
+          mainSphere.material instanceof THREE.MeshPhongMaterial
+        ) {
+          mainSphere.material.color.set(color);
+          mainSphere.material.emissive.set(
+            isSelected || isHovered || isHighlighted ? color : "#000000"
+          );
+          mainSphere.material.emissiveIntensity = isSelected
+            ? 0.6
+            : isHovered
+              ? 0.4
+              : isHighlighted
+                ? 0.3
+                : 0;
+          mainSphere.material.opacity = dimmed ? 0.3 : 0.9;
+        }
       }
 
-      // Update Glow
+      // Update Glow (only exists when LOD is disabled)
       const glow = group.getObjectByName("glow-sphere");
       if (glow instanceof THREE.Mesh) {
-        glow.visible = isHighlighted && !dimmed;
+        glow.visible = isHighlighted && !dimmed && !nodeLODEnabled;
         if (glow.material instanceof THREE.MeshBasicMaterial) {
           glow.material.color.set(color);
         }
@@ -545,6 +582,7 @@ export function MemoryGraph3D({
 
       // Update Label Visibility
       // Semantic Zoom: Use LOD logic or simple visibility
+      // In LOD mode, labels are not created, so this only applies to non-LOD mode
       const showLabelAlways = isSelected || isHovered || (isHighlighted && !isLargeGraph);
       const labelGroup = group.getObjectByName("label-group");
 
@@ -577,6 +615,7 @@ export function MemoryGraph3D({
   ]);
 
   // Custom 3D node object with text labels (stable callback)
+  // Requirements: 11.6 - LOD rendering for >500 visible nodes
   const nodeThreeObject = useCallback(
     (node: GraphNodeInternal) => {
       // NOTE: usage of current prop values here like 'lightMode' will capture the value
@@ -589,7 +628,13 @@ export function MemoryGraph3D({
       const color = getSectorColor(node.primarySector, highContrast, lightMode);
 
       const group = new THREE.Group();
-      group.userData = { nodeId: node.id }; // Store ID for lookup
+      group.userData = { nodeId: node.id, isLODEnabled: isLODEnabled }; // Store ID and LOD state for lookup
+
+      // LOD-aware geometry segments - use fewer segments for large graphs
+      // Requirements: 11.6 - Enable level-of-detail rendering
+      const sphereSegments = isLODEnabled ? 8 : 16;
+      const glowSegments = isLODEnabled ? 8 : 16;
+      const ringSegments = isLODEnabled ? 16 : 32;
 
       // 1. Invisible Hit Sphere (Larger target)
       const hitGeometry = new THREE.SphereGeometry(size * 2.5, 8, 8);
@@ -602,32 +647,65 @@ export function MemoryGraph3D({
       hitMesh.name = "hit-sphere";
       group.add(hitMesh);
 
-      // 2. Main Sphere
-      const geometry = new THREE.SphereGeometry(size, 16, 16);
-      const material = new THREE.MeshPhongMaterial({
+      // 2. Main Sphere with LOD
+      // Requirements: 11.6 - Level-of-detail rendering
+      const mainLOD = new THREE.LOD();
+      mainLOD.name = "main-lod";
+
+      // High detail sphere (close up)
+      const highDetailGeometry = new THREE.SphereGeometry(size, sphereSegments, sphereSegments);
+      const highDetailMaterial = new THREE.MeshPhongMaterial({
         color: color,
         shininess: 80,
         transparent: true,
         opacity: 0.9,
       });
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.name = "main-sphere";
-      group.add(mesh);
+      const highDetailMesh = new THREE.Mesh(highDetailGeometry, highDetailMaterial);
+      highDetailMesh.name = "main-sphere";
+      mainLOD.addLevel(highDetailMesh, 0);
 
-      // 3. Glow Sphere (Initially hidden)
-      const glowGeometry = new THREE.SphereGeometry(size * 1.3, 16, 16);
-      const glowMaterial = new THREE.MeshBasicMaterial({
-        color: color,
-        transparent: true,
-        opacity: 0.2,
-      });
-      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-      glow.name = "glow-sphere";
-      glow.visible = false;
-      group.add(glow);
+      // Low detail sphere (far away) - only for LOD mode
+      if (isLODEnabled) {
+        const lowDetailGeometry = new THREE.SphereGeometry(size, 4, 4);
+        const lowDetailMaterial = new THREE.MeshBasicMaterial({
+          color: color,
+          transparent: true,
+          opacity: 0.7,
+        });
+        const lowDetailMesh = new THREE.Mesh(lowDetailGeometry, lowDetailMaterial);
+        lowDetailMesh.name = "main-sphere-low";
+        mainLOD.addLevel(lowDetailMesh, 200);
+
+        // Point representation for very far nodes
+        const pointGeometry = new THREE.SphereGeometry(size * 0.5, 3, 3);
+        const pointMaterial = new THREE.MeshBasicMaterial({
+          color: color,
+          transparent: true,
+          opacity: 0.5,
+        });
+        const pointMesh = new THREE.Mesh(pointGeometry, pointMaterial);
+        pointMesh.name = "main-sphere-point";
+        mainLOD.addLevel(pointMesh, 400);
+      }
+
+      group.add(mainLOD);
+
+      // 3. Glow Sphere (Initially hidden) - skip in LOD mode for performance
+      if (!isLODEnabled) {
+        const glowGeometry = new THREE.SphereGeometry(size * 1.3, glowSegments, glowSegments);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: color,
+          transparent: true,
+          opacity: 0.2,
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        glow.name = "glow-sphere";
+        glow.visible = false;
+        group.add(glow);
+      }
 
       // 4. Selection Ring (Initially hidden)
-      const ringGeometry = new THREE.RingGeometry(size + 2, size + 4, 32);
+      const ringGeometry = new THREE.RingGeometry(size + 2, size + 4, ringSegments);
       const ringMaterial = new THREE.MeshBasicMaterial({
         color: "#ffffff",
         side: THREE.DoubleSide,
@@ -639,44 +717,47 @@ export function MemoryGraph3D({
       ring.visible = false;
       group.add(ring);
 
-      // 5. Label
-      // We always create structure, visibility controlled by effect
-      const label = truncateContent(node.content, 25);
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      if (context) {
-        canvas.width = 256;
-        canvas.height = 64;
-        context.fillStyle = "rgba(0, 0, 0, 0.8)";
-        context.roundRect(0, 0, canvas.width, canvas.height, 8);
-        context.fill();
-        context.fillStyle = color;
-        context.fillRect(8, 8, 4, canvas.height - 16);
-        context.font = "bold 18px Inter, system-ui, sans-serif";
-        context.fillStyle = "#ffffff";
-        context.textAlign = "left";
-        context.textBaseline = "middle";
-        context.fillText(label, 20, canvas.height / 2);
+      // 5. Label - skip creating labels in LOD mode for performance
+      // Labels will only be shown for selected/hovered nodes
+      // Requirements: 11.6 - LOD rendering optimization
+      if (!isLODEnabled) {
+        const label = truncateContent(node.content, 25);
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        if (context) {
+          canvas.width = 256;
+          canvas.height = 64;
+          context.fillStyle = "rgba(0, 0, 0, 0.8)";
+          context.roundRect(0, 0, canvas.width, canvas.height, 8);
+          context.fill();
+          context.fillStyle = color;
+          context.fillRect(8, 8, 4, canvas.height - 16);
+          context.font = "bold 18px Inter, system-ui, sans-serif";
+          context.fillStyle = "#ffffff";
+          context.textAlign = "left";
+          context.textBaseline = "middle";
+          context.fillText(label, 20, canvas.height / 2);
 
-        const texture = new THREE.CanvasTexture(canvas);
-        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
-        const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set(40, 10, 1);
-        sprite.position.set(0, size + 12, 0);
-        sprite.name = "label-sprite";
+          const texture = new THREE.CanvasTexture(canvas);
+          const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+          const sprite = new THREE.Sprite(spriteMaterial);
+          sprite.scale.set(40, 10, 1);
+          sprite.position.set(0, size + 12, 0);
+          sprite.name = "label-sprite";
 
-        // LOD Logic wrapped in Group
-        const lod = new THREE.LOD();
-        lod.name = "label-group";
+          // LOD Logic wrapped in Group
+          const lod = new THREE.LOD();
+          lod.name = "label-group";
 
-        const visibleGroup = new THREE.Group();
-        visibleGroup.add(sprite);
-        lod.addLevel(visibleGroup, 0);
+          const visibleGroup = new THREE.Group();
+          visibleGroup.add(sprite);
+          lod.addLevel(visibleGroup, 0);
 
-        const hiddenGroup = new THREE.Group();
-        lod.addLevel(hiddenGroup, 250);
+          const hiddenGroup = new THREE.Group();
+          lod.addLevel(hiddenGroup, 250);
 
-        group.add(lod);
+          group.add(lod);
+        }
       }
 
       // Store in ref map
@@ -684,7 +765,7 @@ export function MemoryGraph3D({
 
       return group;
     },
-    [highContrast, lightMode] // Re-create nodes only on config/theme changes
+    [highContrast, lightMode, isLODEnabled] // Re-create nodes only on config/theme/LOD changes
   );
 
   // Link color based on type and highlight state (auto-colored + highlight examples)

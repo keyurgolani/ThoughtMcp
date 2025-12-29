@@ -4,7 +4,7 @@
  * Manages memory creation, storage, and retrieval with transaction support.
  * Integrates embedding generation, waypoint graph building, and metadata extraction.
  *
- * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
+ * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 6.1, 6.2, 6.4, 6.6, 8.1, 8.2, 8.3, 8.4
  */
 
 import { randomUUID } from "crypto";
@@ -13,14 +13,24 @@ import type { PoolClient } from "pg";
 import { DatabaseConnectionManager } from "../database/connection-manager";
 import { GenericLRUCache } from "../embeddings/cache";
 import { EmbeddingEngine } from "../embeddings/embedding-engine";
+import { EmbeddingQueue } from "../embeddings/embedding-queue";
 import { EmbeddingStorage } from "../embeddings/embedding-storage";
 import { Link, LinkType } from "../graph/types";
 import { WaypointGraphBuilder } from "../graph/waypoint-builder";
 import { FullTextSearchEngine } from "../search/full-text-search-engine";
 import type { FullTextSearchQuery, FullTextSearchResponse } from "../search/types";
+import { getSharedWebSocketHandler } from "../server/shared-websocket.js";
+import {
+  createMemoryCreatedEvent,
+  createMemoryDeletedEvent,
+  createMemoryUpdatedEvent,
+} from "../server/websocket-handler.js";
+import { CursorDecodeError, decodeCursor } from "../utils/cursor.js";
 import { Logger } from "../utils/logger.js";
 import { MetadataMerger, type MetadataUpdate } from "./metadata-merger.js";
 import {
+  CreateMemoryOptions,
+  EmbeddingStatus,
   Memory,
   MemoryContent,
   MemoryCreationError,
@@ -40,6 +50,7 @@ export class MemoryRepository {
   private fullTextSearchEngine: FullTextSearchEngine;
   private searchCache: GenericLRUCache<import("./types").SearchResult>;
   private metadataMerger: MetadataMerger;
+  private embeddingQueue: EmbeddingQueue;
 
   constructor(
     private db: DatabaseConnectionManager,
@@ -50,6 +61,178 @@ export class MemoryRepository {
     this.fullTextSearchEngine = new FullTextSearchEngine(db);
     this.searchCache = new GenericLRUCache(10000, 300000); // 10k entries, 5 min TTL
     this.metadataMerger = new MetadataMerger();
+    this.embeddingQueue = new EmbeddingQueue();
+    this.setupEmbeddingQueue();
+  }
+
+  /**
+   * Set up the embedding queue with generator and completion callback
+   * Requirements: 8.2, 8.4
+   */
+  private setupEmbeddingQueue(): void {
+    // Set the generator function that actually creates embeddings
+    this.embeddingQueue.setGenerator(async (memoryId, content, sector) => {
+      const embeddings = await this.embeddingEngine.generateAllSectorEmbeddings({
+        text: content,
+        sector: sector as unknown as import("../embeddings/types").MemorySector,
+      });
+
+      // Store embeddings in database
+      await this.embeddingStorage.storeEmbeddings(memoryId, embeddings, "default");
+
+      // Update embedding status to complete
+      await this.updateEmbeddingStatus(memoryId, "complete");
+    });
+
+    // Set the completion callback
+    this.embeddingQueue.setOnComplete(async (memoryId, userId, success, error) => {
+      if (!success) {
+        // Update status to failed
+        await this.updateEmbeddingStatus(memoryId, "failed");
+        Logger.error(`Background embedding generation failed for memory ${memoryId}: ${error}`);
+      }
+
+      // Broadcast memory_updated event
+      this.broadcastEmbeddingComplete(memoryId, userId, success);
+    });
+  }
+
+  /**
+   * Update embedding status in database
+   * Requirements: 8.3
+   */
+  private async updateEmbeddingStatus(memoryId: string, status: EmbeddingStatus): Promise<void> {
+    let client: PoolClient | null = null;
+    try {
+      client = await this.db.getConnection();
+      await client.query(`UPDATE memories SET embedding_status = $1 WHERE id = $2`, [
+        status,
+        memoryId,
+      ]);
+    } catch (error) {
+      Logger.error(`Failed to update embedding status for memory ${memoryId}:`, error);
+    } finally {
+      if (client) {
+        this.db.releaseConnection(client);
+      }
+    }
+  }
+
+  /**
+   * Broadcast embedding completion event via WebSocket
+   * Requirements: 8.4
+   */
+  private broadcastEmbeddingComplete(memoryId: string, userId: string, success: boolean): void {
+    const handler = getSharedWebSocketHandler();
+    if (!handler?.getIsRunning()) {
+      return;
+    }
+
+    const event = createMemoryUpdatedEvent({
+      memoryId,
+      userId,
+      updates: {
+        embeddingStatus: success ? "complete" : "failed",
+      },
+      reason: success ? "embedding_complete" : "embedding_failed",
+    });
+
+    handler.broadcastToUser(event, userId);
+    Logger.debug(
+      `Broadcast embedding ${success ? "complete" : "failed"} event for memory ${memoryId}`
+    );
+  }
+
+  /**
+   * Broadcast memory_created event via WebSocket
+   * Requirements: 3.1, 8.1, 8.2, 8.4
+   *
+   * @param memory - The created memory
+   * @param tempId - Optional temporary ID for optimistic update matching
+   */
+  private broadcastMemoryCreated(memory: Memory, tempId?: string): void {
+    const handler = getSharedWebSocketHandler();
+    if (!handler?.getIsRunning()) {
+      return;
+    }
+
+    const event = createMemoryCreatedEvent({
+      memory: {
+        id: memory.id,
+        content: memory.content,
+        primarySector: memory.primarySector,
+        createdAt: memory.createdAt.toISOString(),
+        embeddingStatus: memory.embeddingStatus ?? "complete",
+        salience: memory.salience,
+        strength: memory.strength,
+        userId: memory.userId,
+        sessionId: memory.sessionId,
+        metadata: memory.metadata,
+      },
+      userId: memory.userId,
+      tempId,
+    });
+
+    handler.broadcastToUser(event, memory.userId, tempId);
+    Logger.debug(
+      `Broadcast memory_created event for memory ${memory.id} (embeddingStatus: ${memory.embeddingStatus ?? "complete"})`
+    );
+  }
+
+  /**
+   * Broadcast memory_updated event via WebSocket
+   * Requirements: 3.2
+   *
+   * @param memory - The updated memory
+   * @param updates - The fields that were updated
+   * @param reason - Reason for the update (e.g., 'user_edit', 'embedding_complete')
+   */
+  private broadcastMemoryUpdated(
+    memory: Memory,
+    updates: import("./types").UpdateMemoryInput,
+    reason: string
+  ): void {
+    const handler = getSharedWebSocketHandler();
+    if (!handler?.getIsRunning()) {
+      return;
+    }
+
+    const event = createMemoryUpdatedEvent({
+      memoryId: memory.id,
+      userId: memory.userId,
+      updates: {
+        content: updates.content,
+        strength: updates.strength,
+        salience: updates.salience,
+        metadata: updates.metadata,
+      },
+      reason,
+    });
+
+    handler.broadcastToUser(event, memory.userId);
+    Logger.debug(`Broadcast memory_updated event for memory ${memory.id} (reason: ${reason})`);
+  }
+
+  /**
+   * Broadcast memory_deleted event via WebSocket
+   * Requirements: 3.3
+   *
+   * @param memoryId - The ID of the deleted memory
+   * @param userId - The user ID who owned the memory
+   */
+  private broadcastMemoryDeleted(memoryId: string, userId: string): void {
+    const handler = getSharedWebSocketHandler();
+    if (!handler?.getIsRunning()) {
+      return;
+    }
+
+    const event = createMemoryDeletedEvent({
+      memoryId,
+      userId,
+    });
+
+    handler.broadcastToUser(event, userId);
+    Logger.debug(`Broadcast memory_deleted event for memory ${memoryId}`);
   }
 
   /**
@@ -61,18 +244,27 @@ export class MemoryRepository {
    * - 2.3: Waypoint connection creation
    * - 2.4: Metadata extraction and storage
    * - 2.5: Initial strength, salience, importance values
+   * - 8.1: Background embedding generation (optional)
+   * - 8.2: Queue-based embedding processing
+   * - 8.4: Broadcast memory_updated when embeddings complete
    *
    * @param content - Memory content and user context
    * @param metadata - Optional metadata (auto-extracted if not provided)
+   * @param options - Optional creation options (background embeddings, etc.)
    * @returns Complete memory object with embeddings and links
    */
-  async create(content: MemoryContent, metadata?: MemoryMetadata): Promise<Memory> {
+  async create(
+    content: MemoryContent,
+    metadata?: MemoryMetadata,
+    options?: CreateMemoryOptions
+  ): Promise<Memory> {
     // Validate input
     this.validateContent(content);
     if (metadata) {
       this.validateMetadata(metadata);
     }
 
+    const useBackgroundEmbeddings = options?.backgroundEmbeddings ?? false;
     let client: PoolClient | undefined;
 
     try {
@@ -84,7 +276,7 @@ export class MemoryRepository {
       const now = new Date();
 
       // Calculate initial values
-      const salience = this.calculateSalience(content.content, metadata);
+      const salience = options?.customSalience ?? this.calculateSalience(content.content, metadata);
       const decayRate = SECTOR_DECAY_RATES[content.primarySector];
       const strength = 1.0; // Initial strength always 1.0
       const accessCount = 0; // Initial access count always 0
@@ -106,42 +298,66 @@ export class MemoryRepository {
         sessionId: content.sessionId,
         primarySector: content.primarySector,
         metadata: finalMetadata,
+        embeddingStatus: useBackgroundEmbeddings ? "pending" : "complete",
       };
 
       // Insert into memories table
       await this.insertMemoryRecord(client, memory);
 
-      // Generate and store embeddings
-      try {
-        const embeddings = await this.embeddingEngine.generateAllSectorEmbeddings({
-          text: content.content,
-          sector: content.primarySector as unknown as import("../embeddings/types").MemorySector,
-        });
-        memory.embeddings = embeddings;
+      // Handle embeddings based on options
+      if (options?.skipEmbeddings) {
+        // Skip embeddings entirely (for testing)
+        memory.embeddingStatus = "complete";
+      } else if (useBackgroundEmbeddings) {
+        // Queue embedding generation for background processing
+        // Requirements: 8.1, 8.2
+        this.embeddingQueue.enqueue(
+          memoryId,
+          content.content,
+          content.primarySector,
+          content.userId
+        );
+        Logger.debug(`Queued background embedding generation for memory ${memoryId}`);
+      } else {
+        // Generate embeddings synchronously (default behavior)
+        try {
+          const embeddings = await this.embeddingEngine.generateAllSectorEmbeddings({
+            text: content.content,
+            sector: content.primarySector as unknown as import("../embeddings/types").MemorySector,
+          });
+          memory.embeddings = embeddings;
 
-        // Store embeddings in memory_embeddings table (using transaction client)
-        await this.embeddingStorage.storeEmbeddings(memoryId, embeddings, "default", client);
-      } catch (error) {
-        throw new MemoryCreationError("Embedding generation failed", error as Error);
+          // Store embeddings in memory_embeddings table (using transaction client)
+          await this.embeddingStorage.storeEmbeddings(memoryId, embeddings, "default", client);
+        } catch (error) {
+          throw new MemoryCreationError("Embedding generation failed", error as Error);
+        }
       }
 
       // Store metadata in memory_metadata table
       await this.insertMetadataRecord(client, memoryId, finalMetadata);
 
-      // Create waypoint connections
-      const links = await this.createWaypointConnections(client, memory);
+      // Create waypoint connections (skip if using background embeddings - will be created later)
+      if (!useBackgroundEmbeddings && !options?.skipLinks) {
+        const links = await this.createWaypointConnections(client, memory);
 
-      // Store waypoint connections in database
-      if (links.length > 0) {
-        await this.storeWaypointLinks(client, links);
+        // Store waypoint connections in database
+        if (links.length > 0) {
+          await this.storeWaypointLinks(client, links);
+        }
+        memory.links = links;
+      } else {
+        memory.links = [];
       }
-      memory.links = links;
 
       // Commit transaction
       await this.db.commitTransaction(client);
 
       // Invalidate search cache after successful creation
       this.invalidateSearchCache();
+
+      // Broadcast memory_created event via WebSocket - Requirements: 3.1
+      this.broadcastMemoryCreated(memory);
 
       return memory;
     } catch (error) {
@@ -313,8 +529,8 @@ export class MemoryRepository {
     const query = `
       INSERT INTO memories (
         id, content, created_at, last_accessed, access_count,
-        salience, decay_rate, strength, user_id, session_id, primary_sector
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        salience, decay_rate, strength, user_id, session_id, primary_sector, embedding_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     `;
 
     const values = [
@@ -329,6 +545,7 @@ export class MemoryRepository {
       memory.userId,
       memory.sessionId,
       memory.primarySector,
+      memory.embeddingStatus ?? "complete",
     ];
 
     await client.query(query, values);
@@ -662,6 +879,10 @@ export class MemoryRepository {
    * - 5.1: Use salience-weighted ranking when no text query provided
    * - 5.2: Use (0.4×salience + 0.3×recency + 0.3×linkWeight) for non-text queries
    * - 5.3: Include ranking method indicator in response
+   * - 6.1: Support cursor-based pagination using timestamp and ID
+   * - 6.2: Return items created before the cursor timestamp
+   * - 6.4: Maintain consistency without duplicates
+   * - 6.6: Include nextCursor and hasMore in response
    *
    * @param query - Search query with filters and pagination
    * @returns Search results with ranked memories and scores
@@ -707,7 +928,11 @@ export class MemoryRepository {
         hasTextQuery
       );
 
-      const paginatedMemories = this.applyPagination(memories, scores, query);
+      const { paginatedMemories, hasMore } = this.applyPaginationWithCursor(
+        memories,
+        scores,
+        query
+      );
 
       const processingTime = Math.max(1, Date.now() - startTime);
 
@@ -717,6 +942,7 @@ export class MemoryRepository {
         scores,
         processingTime,
         rankingMethod,
+        hasMore,
       };
 
       // Cache the result
@@ -778,22 +1004,85 @@ export class MemoryRepository {
   }
 
   /**
-   * Apply pagination to sorted memories
+   * Apply pagination to sorted memories with cursor support
+   *
+   * Requirements:
+   * - 6.1: Support cursor-based pagination using timestamp and ID
+   * - 6.2: Return items created before the cursor timestamp
+   * - 6.4: Maintain consistency without duplicates
+   * - 6.5: Continue to support offset-based pagination for backward compatibility
+   *
+   * @param memories - All memories matching the query filters
+   * @param scores - Composite scores for each memory
+   * @param query - Search query with pagination parameters
+   * @returns Paginated memories and hasMore flag
    */
-  private applyPagination(
+  private applyPaginationWithCursor(
     memories: Memory[],
     scores: Map<string, import("./types").CompositeScore>,
     query: import("./types").SearchQuery
-  ): Memory[] {
+  ): { paginatedMemories: Memory[]; hasMore: boolean } {
+    // Sort by score (descending), then by createdAt (descending) for tie-breaking
     memories.sort((a, b) => {
       const scoreA = scores.get(a.id)?.total ?? 0;
       const scoreB = scores.get(b.id)?.total ?? 0;
-      return scoreB - scoreA;
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA;
+      }
+      // Tie-break by createdAt (descending - newer first)
+      const timeA = a.createdAt.getTime();
+      const timeB = b.createdAt.getTime();
+      if (timeB !== timeA) {
+        return timeB - timeA;
+      }
+      // Final tie-break by ID for deterministic ordering
+      return b.id.localeCompare(a.id);
     });
 
     const limit = Math.min(query.limit ?? 10, 100);
+
+    // Requirements: 6.1, 6.2 - cursor takes precedence over offset
+    if (query.cursor) {
+      try {
+        const cursor = decodeCursor(query.cursor);
+        const cursorTimestamp = cursor.timestamp.getTime();
+        const cursorId = cursor.id;
+
+        // Filter memories to those created before the cursor
+        // Requirements: 6.2 - return items created before the cursor timestamp
+        // Requirements: 6.4 - use ID for tie-breaking to prevent duplicates
+        const filteredMemories = memories.filter((memory) => {
+          const memoryTimestamp = memory.createdAt.getTime();
+          if (memoryTimestamp < cursorTimestamp) {
+            return true;
+          }
+          if (memoryTimestamp === cursorTimestamp) {
+            // For same timestamp, use ID comparison for tie-breaking
+            return memory.id < cursorId;
+          }
+          return false;
+        });
+
+        const paginatedMemories = filteredMemories.slice(0, limit);
+        const hasMore = filteredMemories.length > limit;
+
+        return { paginatedMemories, hasMore };
+      } catch (error) {
+        // If cursor decoding fails, fall back to offset pagination
+        if (error instanceof CursorDecodeError) {
+          Logger.warn("Invalid cursor, falling back to offset pagination:", error.message);
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    // Requirements: 6.5 - backward compatibility with offset pagination
     const offset = query.offset ?? 0;
-    return memories.slice(offset, offset + limit);
+    const paginatedMemories = memories.slice(offset, offset + limit);
+    const hasMore = memories.length > offset + limit;
+
+    return { paginatedMemories, hasMore };
   }
 
   /**
@@ -878,6 +1167,10 @@ export class MemoryRepository {
   /**
    * Build dynamic filter query
    * Properly combines similarity search results with other filters using AND logic
+   *
+   * Requirements: 8.6, 8.7
+   * - Include pending memories in recall/list queries (no similarity filter)
+   * - Exclude pending memories from similarity search (has similarity filter)
    */
   private buildFilterQuery(
     query: import("./types").SearchQuery,
@@ -895,7 +1188,11 @@ export class MemoryRepository {
     // This is combined with other filters using AND logic
     if (similarityScores.size > 0) {
       paramIndex = this.addSimilarityFilter(conditions, params, paramIndex, similarityScores);
+      // Exclude pending memories from similarity search - Requirements: 8.7
+      paramIndex = this.addEmbeddingStatusFilter(conditions, params, paramIndex, true);
     }
+    // Note: For non-similarity queries, we include all memories regardless of embedding status
+    // This satisfies Requirement 8.6: Query regardless of embedding status
 
     // Add all other filters - these will be combined with AND logic
     paramIndex = this.addSectorFilter(conditions, params, paramIndex, query);
@@ -952,6 +1249,28 @@ export class MemoryRepository {
       const memoryIds = Array.from(similarityScores.keys());
       conditions.push(`m.id = ANY($${paramIndex})`);
       params.push(memoryIds);
+      return paramIndex + 1;
+    }
+    return paramIndex;
+  }
+
+  /**
+   * Add embedding status filter
+   * Requirements: 8.7 - Exclude pending memories from similarity search
+   *
+   * @param excludePending - If true, exclude memories with pending embedding status
+   */
+  private addEmbeddingStatusFilter(
+    conditions: string[],
+    params: unknown[],
+    paramIndex: number,
+    excludePending: boolean
+  ): number {
+    if (excludePending) {
+      // Exclude pending memories from similarity search
+      // Include 'complete' and NULL (for backward compatibility with existing memories)
+      conditions.push(`(m.embedding_status = $${paramIndex} OR m.embedding_status IS NULL)`);
+      params.push("complete");
       return paramIndex + 1;
     }
     return paramIndex;
@@ -1267,6 +1586,7 @@ export class MemoryRepository {
 
   /**
    * Convert database row to Memory object with metadata
+   * Requirements: 8.3 - Include embeddingStatus from database
    */
   private rowToMemoryWithMetadata(row: Record<string, unknown>): Memory {
     return {
@@ -1281,6 +1601,7 @@ export class MemoryRepository {
       userId: row.user_id as string,
       sessionId: row.session_id as string,
       primarySector: row.primary_sector as MemorySectorType,
+      embeddingStatus: (row.embedding_status as EmbeddingStatus) ?? "complete",
       metadata: {
         keywords: (row.keywords as string[]) ?? [],
         tags: (row.tags as string[]) ?? [],
@@ -1464,6 +1785,9 @@ export class MemoryRepository {
 
       // Invalidate search cache after successful update
       this.invalidateSearchCache();
+
+      // Broadcast memory_updated event via WebSocket - Requirements: 3.2
+      this.broadcastMemoryUpdated(updatedMemory, updates, "user_edit");
 
       const processingTime = Math.max(1, Date.now() - startTime); // Ensure at least 1ms
 
@@ -1972,10 +2296,19 @@ export class MemoryRepository {
     }
 
     let client: PoolClient | undefined;
+    let userId: string | null = null;
 
     try {
       // Begin transaction for atomic deletion
       client = await this.db.beginTransaction();
+
+      // Get userId before deletion for WebSocket broadcast - Requirements: 3.3
+      const userQuery = await client.query(`SELECT user_id FROM memories WHERE id = $1`, [
+        memoryId,
+      ]);
+      if (userQuery.rows.length > 0) {
+        userId = userQuery.rows[0].user_id as string;
+      }
 
       if (soft) {
         // Soft delete: Set strength to 0 but keep all data
@@ -2030,6 +2363,11 @@ export class MemoryRepository {
 
       // Invalidate search cache after successful deletion
       this.invalidateSearchCache();
+
+      // Broadcast memory_deleted event via WebSocket - Requirements: 3.3
+      if (userId) {
+        this.broadcastMemoryDeleted(memoryId, userId);
+      }
     } catch (error) {
       // Rollback transaction on error
       if (client) {

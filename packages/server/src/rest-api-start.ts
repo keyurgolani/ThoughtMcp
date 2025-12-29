@@ -82,12 +82,13 @@ async function initializeCognitiveCore(): Promise<CognitiveCore> {
   // Initialize embedding engine
   const embeddingModel = process.env.EMBEDDING_MODEL ?? "nomic-embed-text";
   const embeddingDimension = parseInt(process.env.EMBEDDING_DIMENSION ?? "768");
+  const embeddingTimeout = parseInt(process.env.EMBEDDING_TIMEOUT ?? "60000");
 
   const model = new OllamaEmbeddingModel({
     host: process.env.OLLAMA_HOST ?? "http://localhost:11434",
     modelName: embeddingModel,
     dimension: embeddingDimension,
-    timeout: 30000,
+    timeout: embeddingTimeout,
     maxRetries: 3,
   });
 

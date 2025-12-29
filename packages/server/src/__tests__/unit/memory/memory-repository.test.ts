@@ -372,4 +372,90 @@ describe("MemoryRepository", () => {
       expect(mockDb.rollbackTransaction).toHaveBeenCalled();
     });
   });
+
+  describe("Background Embedding Generation", () => {
+    it("should create memory with pending status when backgroundEmbeddings is true", async () => {
+      const content: MemoryContent = {
+        content: "Test memory for background embeddings",
+        userId,
+        sessionId: "session-456",
+        primarySector: "semantic",
+      };
+
+      const memory = await repository.create(content, undefined, { backgroundEmbeddings: true });
+
+      // Memory should be created with pending status
+      expect(memory.id).toBeDefined();
+      expect(memory.embeddingStatus).toBe("pending");
+      // Embeddings should not be attached to the returned memory (they're generated in background)
+      expect(memory.embeddings).toBeUndefined();
+    });
+
+    it("should create memory with complete status when backgroundEmbeddings is false", async () => {
+      const content: MemoryContent = {
+        content: "Test memory for synchronous embeddings",
+        userId,
+        sessionId: "session-456",
+        primarySector: "semantic",
+      };
+
+      const memory = await repository.create(content, undefined, { backgroundEmbeddings: false });
+
+      // Memory should be created with complete status
+      expect(memory.id).toBeDefined();
+      expect(memory.embeddingStatus).toBe("complete");
+      // Embeddings should be generated synchronously and attached
+      expect(memory.embeddings).toBeDefined();
+    });
+
+    it("should skip waypoint connections when using background embeddings", async () => {
+      const content: MemoryContent = {
+        content: "Test memory for background embeddings",
+        userId,
+        sessionId: "session-456",
+        primarySector: "semantic",
+      };
+
+      const memory = await repository.create(content, undefined, { backgroundEmbeddings: true });
+
+      // Links should be empty when using background embeddings
+      expect(memory.links).toEqual([]);
+      // Graph builder should NOT be called
+      expect(mockGraphBuilder.createWaypointLinks).not.toHaveBeenCalled();
+    });
+
+    it("should store memory immediately with pending status in database", async () => {
+      const content: MemoryContent = {
+        content: "Test memory for background embeddings",
+        userId,
+        sessionId: "session-456",
+        primarySector: "semantic",
+      };
+
+      await repository.create(content, undefined, { backgroundEmbeddings: true });
+
+      // Verify INSERT was called with pending status
+      expect(mockClient.query).toHaveBeenCalledWith(
+        expect.stringContaining("INSERT INTO memories"),
+        expect.arrayContaining(["pending"])
+      );
+    });
+
+    it("should return memory ID immediately before embeddings complete", async () => {
+      const content: MemoryContent = {
+        content: "Test memory for background embeddings",
+        userId,
+        sessionId: "session-456",
+        primarySector: "semantic",
+      };
+
+      const startTime = Date.now();
+      const memory = await repository.create(content, undefined, { backgroundEmbeddings: true });
+      const endTime = Date.now();
+
+      // Memory should be returned quickly (before embedding generation would complete)
+      expect(memory.id).toBeDefined();
+      expect(endTime - startTime).toBeLessThan(1000); // Should return in less than 1 second
+    });
+  });
 });

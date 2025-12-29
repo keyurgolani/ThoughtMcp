@@ -275,6 +275,150 @@ function createStreams(streamTypes: StreamType[]): ReasoningStream[] {
 }
 
 /**
+ * LLM timeout in milliseconds (from environment or default 60s)
+ */
+const LLM_TIMEOUT_MS = parseInt(process.env.LLM_TIMEOUT ?? "60000", 10);
+
+/**
+ * Mode-specific thought content for fallback responses
+ */
+const MODE_THOUGHTS: Record<ThinkMode, string> = {
+  analytical:
+    "Consider breaking down the problem into smaller components and analyzing each systematically.",
+  creative: "Explore unconventional approaches and consider analogies from different domains.",
+  deliberative: "Take time to carefully weigh all options and consider long-term implications.",
+  intuitive: "Trust initial instincts while remaining open to quick pattern recognition.",
+  balanced: "Combine analytical rigor with creative exploration for a comprehensive approach.",
+};
+
+/**
+ * Generate basic metacognitive assessment for fallback response
+ */
+function generateFallbackMetacognitiveAssessment(): MetacognitiveAssessmentResponse {
+  return {
+    overallConfidence: 0.3,
+    evidenceQuality: 0.2,
+    reasoningCoherence: 0.4,
+    completeness: 0.2,
+    uncertaintyLevel: 0.8,
+    uncertaintyType: "epistemic",
+    factors: [
+      {
+        dimension: "evidence",
+        score: 0.2,
+        weight: 0.3,
+        explanation: "Limited evidence available due to timeout - using rule-based fallback",
+      },
+      {
+        dimension: "coherence",
+        score: 0.4,
+        weight: 0.3,
+        explanation: "Basic logical structure maintained in fallback response",
+      },
+      {
+        dimension: "completeness",
+        score: 0.2,
+        weight: 0.2,
+        explanation: "Incomplete analysis due to LLM timeout",
+      },
+      {
+        dimension: "bias",
+        score: 0.5,
+        weight: 0.2,
+        explanation: "Rule-based analysis has limited bias detection",
+      },
+    ],
+  };
+}
+
+/**
+ * Generate fallback thoughts based on problem and mode
+ */
+function generateFallbackThoughts(problem: Problem, mode: ThinkMode): ThoughtItem[] {
+  const thoughts: ThoughtItem[] = [];
+  const truncatedProblem = problem.description.substring(0, 100);
+  const problemSuffix = problem.description.length > 100 ? "..." : "";
+
+  thoughts.push({
+    content: `The problem "${truncatedProblem}${problemSuffix}" requires ${mode} reasoning.`,
+    sources: ["rule-based-analysis"],
+    confidence: 0.3,
+    importance: 0.7,
+  });
+
+  thoughts.push({
+    content: MODE_THOUGHTS[mode],
+    sources: ["rule-based-analysis"],
+    confidence: 0.4,
+    importance: 0.6,
+  });
+
+  if (problem.context) {
+    const truncatedContext = problem.context.substring(0, 100);
+    const contextSuffix = problem.context.length > 100 ? "..." : "";
+    thoughts.push({
+      content: `Consider the provided context: "${truncatedContext}${contextSuffix}"`,
+      sources: ["rule-based-analysis"],
+      confidence: 0.3,
+      importance: 0.5,
+    });
+  }
+
+  return thoughts;
+}
+
+/**
+ * Generate a rule-based fallback response when LLM times out
+ */
+function generateRuleBasedFallbackResponse(
+  problem: Problem,
+  mode: ThinkMode,
+  processingTimeMs: number,
+  memoriesUsed?: MemoryUsedResponse[]
+): ThinkResponse {
+  const keyTerms = problem.description
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length > 4)
+    .slice(0, 10);
+
+  const altMode = mode === "deliberative" ? "intuitive" : "deliberative";
+  const altModeDesc = mode === "deliberative" ? "faster" : "more thorough";
+
+  const response: ThinkResponse = {
+    thoughts: generateFallbackThoughts(problem, mode),
+    confidence: 0.3,
+    modeUsed: mode,
+    processingTimeMs,
+    metacognitiveAssessment: generateFallbackMetacognitiveAssessment(),
+    conclusion: `Due to processing constraints, a complete ${mode} analysis could not be performed. The problem involves: ${keyTerms.join(", ")}. Consider retrying with a simpler query or using a different reasoning mode.`,
+    recommendations: [
+      {
+        description: "Retry with a more specific or simpler problem statement",
+        priority: 1,
+        confidence: 0.6,
+      },
+      {
+        description: `Try using "${altMode}" mode for ${altModeDesc} analysis`,
+        priority: 2,
+        confidence: 0.5,
+      },
+      {
+        description: "Break down the problem into smaller sub-problems",
+        priority: 3,
+        confidence: 0.5,
+      },
+    ],
+  };
+
+  if (memoriesUsed && memoriesUsed.length > 0) {
+    response.memoriesUsed = memoriesUsed;
+  }
+
+  return response;
+}
+
+/**
  * Convert synthesized result to think response format
  */
 function convertToThinkResponse(
@@ -334,11 +478,111 @@ function convertToThinkResponse(
 }
 
 /**
+ * Build problem context from user input and memory augmentation
+ */
+async function buildProblemContextForThink(
+  cognitiveCore: CognitiveCore,
+  problemInput: string,
+  context: string | undefined,
+  userId: string | undefined
+): Promise<{
+  problemDescription: string;
+  problemContext: string;
+  memoriesUsed: MemoryUsedResponse[];
+}> {
+  let problemDescription = problemInput;
+  let problemContext = "";
+  let memoriesUsed: MemoryUsedResponse[] = [];
+
+  if (userId && context) {
+    problemContext = context;
+  } else if (userId) {
+    const augmentedContext = await cognitiveCore.memoryAugmentedReasoning.augmentProblemContext(
+      problemInput,
+      userId
+    );
+    if (augmentedContext.hasMemoryContext) {
+      problemDescription = augmentedContext.augmentedProblem;
+      problemContext = augmentedContext.memoryBackground;
+      memoriesUsed = augmentedContext.memoriesUsed.map((mem) => ({
+        id: mem.id,
+        content: mem.content,
+        primarySector: mem.primarySector,
+        relevance: mem.relevanceScore,
+      }));
+    }
+  } else if (context) {
+    problemContext = context;
+  }
+
+  return { problemDescription, problemContext, memoriesUsed };
+}
+
+/**
+ * Options for creating fallback response with metadata
+ */
+interface FallbackResponseOptions {
+  problem: Problem;
+  mode: ThinkMode;
+  processingTimeMs: number;
+  memoriesUsed: MemoryUsedResponse[];
+  reason: string;
+  suggestion: string;
+}
+
+/**
+ * Create fallback response with metadata
+ */
+function createFallbackResponseWithMeta(options: FallbackResponseOptions): ThinkResponse & {
+  _meta: { fallbackUsed: boolean; reason: string; suggestion: string; timeoutMs?: number };
+} {
+  const { problem, mode, processingTimeMs, memoriesUsed, reason, suggestion } = options;
+  const fallbackResponse = generateRuleBasedFallbackResponse(
+    problem,
+    mode,
+    processingTimeMs,
+    memoriesUsed.length > 0 ? memoriesUsed : undefined
+  );
+
+  return {
+    ...fallbackResponse,
+    _meta: {
+      fallbackUsed: true,
+      reason,
+      suggestion,
+      ...(reason === "LLM timeout" ? { timeoutMs: LLM_TIMEOUT_MS } : {}),
+    },
+  };
+}
+
+/**
+ * Execute reasoning with timeout protection
+ */
+async function executeReasoningWithTimeout(
+  cognitiveCore: CognitiveCore,
+  problem: Problem,
+  streams: ReasoningStream[],
+  effectiveTimeout: number
+): Promise<SynthesizedResult> {
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`LLM timeout after ${LLM_TIMEOUT_MS}ms`));
+    }, LLM_TIMEOUT_MS);
+  });
+
+  return Promise.race([
+    cognitiveCore.reasoningOrchestrator.executeStreams(problem, streams, effectiveTimeout),
+    timeoutPromise,
+  ]);
+}
+
+/**
  * Handler for POST /api/v1/think
  * Requirements: 3.1, 3.3
  *
  * Initiates reasoning with the specified mode and returns thoughts,
  * confidence, mode used, processing time, and metacognitive assessment.
+ * Includes timeout handling with fallback to rule-based analysis.
  */
 function createThinkHandler(
   cognitiveCore: CognitiveCore
@@ -347,7 +591,6 @@ function createThinkHandler(
     const startTime = Date.now();
     const requestId = getRequestId(req);
 
-    // Validate request body
     const parseResult = thinkRequestSchema.safeParse(req.body);
     if (!parseResult.success) {
       throw new ValidationApiError(parseZodErrors(parseResult.error));
@@ -355,38 +598,13 @@ function createThinkHandler(
 
     const { problem: problemInput, mode, context, userId } = parseResult.data;
 
-    // Build problem description with optional context
-    let problemDescription = problemInput;
-    let problemContext = "";
-    let memoriesUsed: MemoryUsedResponse[] = [];
+    const { problemDescription, problemContext, memoriesUsed } = await buildProblemContextForThink(
+      cognitiveCore,
+      problemInput,
+      context,
+      userId
+    );
 
-    // If userId provided, augment with memory context
-    if (userId && context) {
-      // Use provided context directly
-      problemContext = context;
-    } else if (userId) {
-      // Retrieve memory context for the user
-      const augmentedContext = await cognitiveCore.memoryAugmentedReasoning.augmentProblemContext(
-        problemInput,
-        userId
-      );
-      if (augmentedContext.hasMemoryContext) {
-        problemDescription = augmentedContext.augmentedProblem;
-        problemContext = augmentedContext.memoryBackground;
-        // Capture memories used for the response
-        memoriesUsed = augmentedContext.memoriesUsed.map((mem) => ({
-          id: mem.id,
-          content: mem.content,
-          primarySector: mem.primarySector,
-          relevance: mem.relevanceScore,
-        }));
-      }
-    } else if (context) {
-      // Use provided context without memory augmentation
-      problemContext = context;
-    }
-
-    // Create problem object
     const problemObj: Problem = {
       id: `think-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       description: problemDescription,
@@ -395,18 +613,60 @@ function createThinkHandler(
         mode === "deliberative" ? "complex" : mode === "intuitive" ? "simple" : "moderate",
     };
 
-    // Get streams for the selected mode
     const streamTypes = getStreamsForMode(mode);
     const streams = createStreams(streamTypes);
+    const streamTimeout = mode === "intuitive" ? 10000 : 30000;
+    const effectiveTimeout = Math.min(streamTimeout, LLM_TIMEOUT_MS);
 
-    // Execute parallel reasoning
-    const synthesizedResult = await cognitiveCore.reasoningOrchestrator.executeStreams(
-      problemObj,
-      streams,
-      mode === "intuitive" ? 10000 : 30000 // Shorter timeout for intuitive mode
-    );
+    let synthesizedResult: SynthesizedResult;
 
-    // Build reasoning context for metacognitive assessment
+    try {
+      synthesizedResult = await executeReasoningWithTimeout(
+        cognitiveCore,
+        problemObj,
+        streams,
+        effectiveTimeout
+      );
+    } catch (error) {
+      const isTimeout =
+        error instanceof Error &&
+        (error.message.includes("timeout") || error.message.includes("timed out"));
+
+      if (isTimeout) {
+        const processingTimeMs = Date.now() - startTime;
+        const responseWithTimeout = createFallbackResponseWithMeta({
+          problem: problemObj,
+          mode,
+          processingTimeMs,
+          memoriesUsed,
+          reason: "LLM timeout",
+          suggestion:
+            "The reasoning service took too long to respond. A rule-based fallback analysis was provided instead.",
+        });
+        res.status(200).json(buildSuccessResponse(responseWithTimeout, { requestId, startTime }));
+        return;
+      }
+      throw error;
+    }
+
+    const allStreamsFailed =
+      synthesizedResult.insights.length === 0 && synthesizedResult.confidence === 0;
+
+    if (allStreamsFailed) {
+      const processingTimeMs = Date.now() - startTime;
+      const responseWithTimeout = createFallbackResponseWithMeta({
+        problem: problemObj,
+        mode,
+        processingTimeMs,
+        memoriesUsed,
+        reason: "All reasoning streams failed or timed out",
+        suggestion:
+          "The reasoning streams could not produce results. A rule-based fallback analysis was provided instead.",
+      });
+      res.status(200).json(buildSuccessResponse(responseWithTimeout, { requestId, startTime }));
+      return;
+    }
+
     const reasoningContext: ReasoningContext = {
       problem: problemObj,
       evidence: synthesizedResult.insights.map((i) => i.content),
@@ -415,13 +675,10 @@ function createThinkHandler(
       framework: mode,
     };
 
-    // Perform metacognitive assessment
     const metacognitiveAssessment =
       await cognitiveCore.confidenceAssessor.assessConfidence(reasoningContext);
-
     const processingTimeMs = Date.now() - startTime;
 
-    // Convert to response format (include memoriesUsed if available)
     const responseData = convertToThinkResponse(
       synthesizedResult,
       mode,

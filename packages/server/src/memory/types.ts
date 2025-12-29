@@ -4,7 +4,7 @@
  * Core types and interfaces for memory creation, storage, and retrieval.
  * Supports Hierarchical Memory Decomposition (HMD) with five-sector embeddings.
  *
- * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
+ * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 8.3
  */
 
 import { SectorEmbeddings } from "../embeddings/types";
@@ -14,6 +14,12 @@ import { Link } from "../graph/types";
  * Memory sector types
  */
 export type MemorySectorType = "episodic" | "semantic" | "procedural" | "emotional" | "reflective";
+
+/**
+ * Embedding status for background embedding generation
+ * Requirements: 8.3
+ */
+export type EmbeddingStatus = "pending" | "complete" | "failed";
 
 /**
  * Valid memory sectors for validation
@@ -79,6 +85,14 @@ export interface Memory {
   metadata: MemoryMetadata;
   embeddings?: SectorEmbeddings;
   links?: Link[];
+  /**
+   * Status of embedding generation
+   * Requirements: 8.3
+   * - 'pending': Embeddings are being generated in background
+   * - 'complete': Embeddings have been successfully generated
+   * - 'failed': Embedding generation failed after all retries
+   */
+  embeddingStatus?: EmbeddingStatus;
 }
 
 /**
@@ -88,6 +102,15 @@ export interface CreateMemoryOptions {
   skipEmbeddings?: boolean; // For testing
   skipLinks?: boolean; // For testing
   customSalience?: number; // Override calculated salience
+  /**
+   * Generate embeddings in background instead of synchronously
+   * Requirements: 8.1, 8.2
+   * When true:
+   * - Memory is stored immediately with embeddingStatus='pending'
+   * - Embeddings are generated asynchronously
+   * - memory_updated event is broadcast when embeddings complete
+   */
+  backgroundEmbeddings?: boolean;
 }
 
 /**
@@ -122,7 +145,14 @@ export interface SearchQuery {
     category?: string;
   };
   limit?: number; // Result limit (default 10)
-  offset?: number; // Pagination offset (default 0)
+  offset?: number; // Pagination offset (default 0) - for backward compatibility
+  /**
+   * Cursor for cursor-based pagination
+   * Requirements: 6.1, 6.2, 6.3
+   * When provided, returns items created before the cursor timestamp
+   * Takes precedence over offset when both are provided
+   */
+  cursor?: string;
 }
 
 /**
@@ -157,6 +187,17 @@ export interface SearchResult {
    * - 'salience': No text query, uses salience-weighted scoring
    */
   rankingMethod: RankingMethod;
+  /**
+   * Cursor for the next page of results
+   * Requirements: 6.6
+   * null if there are no more results
+   */
+  nextCursor?: string | null;
+  /**
+   * Whether there are more results available
+   * Requirements: 6.6
+   */
+  hasMore?: boolean;
 }
 
 /**

@@ -122,6 +122,8 @@ export function AnimatedLogo({ size = "xl", className = "" }: AnimatedLogoProps)
   const pixelSize = SIZE_MAP[size];
   // Orbit radius as percentage of container - closer to logo
   const orbitRadius = 42; // percentage from center
+  // Logo scale factor - makes logo larger without affecting orbit
+  const logoScale = 1.25;
 
   return (
     <div
@@ -130,7 +132,9 @@ export function AnimatedLogo({ size = "xl", className = "" }: AnimatedLogoProps)
     >
       {/* Logo container - larger crux */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <Logo size={size} variant="glow" />
+        <div style={{ transform: `scale(${String(logoScale)})` }}>
+          <Logo size={size} variant="glow" />
+        </div>
       </div>
       {/* Orbiting beacon - smaller, closer, with pulsing glow */}
       <div

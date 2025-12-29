@@ -10,6 +10,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { getDefaultClient } from "../../api/client";
+import { useMemoryStore } from "../../stores/memoryStore";
 import type { CompositeScore, Memory, MemoryMetadata } from "../../types/api";
 import { formatPercentage } from "../../utils/formatUtils";
 import type { MemoryPreview } from "../../utils/previewUtils";
@@ -432,14 +433,22 @@ export function MemoryDetailPanel({
     setSaveError(null);
   }, [memory.content, memory.metadata]);
 
+  // Get isMemoryPending from store for checking pending state (Requirements: 1.5)
+  const isMemoryPending = useMemoryStore((state) => state.isMemoryPending);
+
   // Handle entering edit mode
   const handleEditClick = useCallback(() => {
+    // Disable edit for pending memories (Requirements: 1.5)
+    if (isMemoryPending(memory.id)) {
+      setSaveError("Cannot edit pending memories. Please wait for the memory to be saved.");
+      return;
+    }
     setEditedContent(memory.content);
     setEditedMetadata(memory.metadata);
     setSaveError(null);
     onEditModeChange?.(true);
     onEdit?.();
-  }, [memory.content, memory.metadata, onEditModeChange, onEdit]);
+  }, [memory.content, memory.metadata, memory.id, onEditModeChange, onEdit, isMemoryPending]);
 
   // Handle canceling edit mode
   const handleCancelEdit = useCallback(() => {

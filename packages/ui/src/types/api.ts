@@ -1555,6 +1555,9 @@ export class TimeoutError extends Error {
 
 export type ActivityEventType =
   | "memory_operation"
+  | "memory_created"
+  | "memory_updated"
+  | "memory_deleted"
   | "reasoning_update"
   | "load_change"
   | "session_event"
@@ -1569,6 +1572,45 @@ export interface MemoryOperationData {
   sector?: string;
   success: boolean;
   duration?: number;
+}
+
+/**
+ * Memory created event data
+ * Requirements: 3.4
+ */
+export interface MemoryCreatedEventData {
+  /** The created memory object */
+  memory: Memory;
+  /** User ID for scoped broadcasting */
+  userId: string;
+  /** Temporary ID for matching optimistic updates */
+  tempId?: string;
+}
+
+/**
+ * Memory updated event data
+ * Requirements: 3.5
+ */
+export interface MemoryUpdatedEventData {
+  /** Memory ID that was updated */
+  memoryId: string;
+  /** User ID for scoped broadcasting */
+  userId: string;
+  /** Updated fields */
+  updates: Partial<Memory>;
+  /** Reason for update (e.g., 'embedding_complete', 'user_edit') */
+  reason: string;
+}
+
+/**
+ * Memory deleted event data
+ * Requirements: 3.6
+ */
+export interface MemoryDeletedEventData {
+  /** Memory ID that was deleted */
+  memoryId: string;
+  /** User ID for scoped broadcasting */
+  userId: string;
 }
 
 export interface ReasoningUpdateData {
@@ -1609,6 +1651,9 @@ export interface ConnectionEstablishedData {
 
 export type ActivityEventData =
   | MemoryOperationData
+  | MemoryCreatedEventData
+  | MemoryUpdatedEventData
+  | MemoryDeletedEventData
   | ReasoningUpdateData
   | LoadChangeData
   | SessionEventData

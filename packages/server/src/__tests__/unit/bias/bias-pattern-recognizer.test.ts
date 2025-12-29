@@ -1,8 +1,8 @@
 /**
  * BiasPatternRecognizer - Essential Unit Tests
  *
- * Tests core bias detection for all 8 bias types.
- * Reduced from 112 tests to ~15 essential tests covering:
+ * Tests core bias detection for all 9 bias types.
+ * Reduced from 112 tests to ~18 essential tests covering:
  * - One detection test per bias type
  * - One non-detection test per bias type (where applicable)
  *
@@ -255,6 +255,70 @@ describe("BiasPatternRecognizer", () => {
 
       expect(bias).not.toBeNull();
       expect(bias?.type).toBe("attribution");
+    });
+  });
+
+  describe("Bandwagon Bias Detection", () => {
+    it("should detect bandwagon bias when reasoning relies on popularity", () => {
+      const chain = createReasoningChain({
+        steps: [
+          createReasoningStep({
+            content: "All the big tech companies are doing microservices",
+            type: "evidence",
+          }),
+          createReasoningStep({
+            content: "We should follow what everyone else is doing",
+            type: "inference",
+          }),
+        ],
+        conclusion: "We should adopt microservices because everyone is using them",
+      });
+
+      const bias = recognizer.detectBandwagonBias(chain);
+
+      expect(bias).not.toBeNull();
+      expect(bias?.type).toBe("bandwagon");
+      expect(bias?.severity).toBeGreaterThan(0.5);
+    });
+
+    it("should detect bandwagon bias with industry standard phrases", () => {
+      const chain = createReasoningChain({
+        steps: [
+          createReasoningStep({
+            content: "This is the industry standard approach",
+            type: "evidence",
+          }),
+          createReasoningStep({
+            content: "Most people use this framework",
+            type: "inference",
+          }),
+        ],
+        conclusion: "We should use it because it is widely adopted",
+      });
+
+      const bias = recognizer.detectBandwagonBias(chain);
+
+      expect(bias).not.toBeNull();
+      expect(bias?.type).toBe("bandwagon");
+    });
+
+    it("should not detect bandwagon bias when merit-based evaluation is present", () => {
+      const chain = createReasoningChain({
+        steps: [
+          createReasoningStep({
+            content: "We evaluated the framework against our specific requirements",
+            type: "evidence",
+          }),
+          createReasoningStep({
+            content: "After analyzing the pros and cons, it meets our needs",
+            type: "inference",
+          }),
+        ],
+        conclusion: "We should adopt this based on our technical evaluation",
+      });
+
+      const bias = recognizer.detectBandwagonBias(chain);
+      expect(bias).toBeNull();
     });
   });
 

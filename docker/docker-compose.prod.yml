@@ -11,45 +11,119 @@
 #   1. Copy .env.production.example to .env.production and configure
 #   2. (Optional) Build Docker image: docker build -f packages/server/Dockerfile -t thought-server .
 #
-# Usage:
-#   Start all services:     docker compose -f docker/docker-compose.prod.yml up -d
-#   View logs:              docker compose -f docker/docker-compose.prod.yml logs -f
-#   Stop services:          docker compose -f docker/docker-compose.prod.yml down
-#   Stop and remove data:   docker compose -f docker/docker-compose.prod.yml down -v
+# ============================================================================
+# PROFILES REFERENCE
+# ============================================================================
 #
-# MCP Client Connection:
-#   By default, the thought container runs in MCP_STANDBY_MODE. This means:
-#   - The container stays alive without starting the MCP server process
-#   - MCP clients connect via: docker exec -i thought-server node dist/index.js
-#   - Each client connection spawns a dedicated MCP server process
-#   - All environment variables are pre-configured inside the container
+# QUICK START PROFILES (recommended):
+#   - all             : Everything with local Ollama (postgres + redis + ollama + server + ui)
+#   - all-remote      : Everything with remote Ollama (postgres + redis + server + ui)
 #
-#   Configure your MCP client (e.g., .kiro/settings/mcp.json):
-#   {
-#     "mcpServers": {
-#       "thought": {
-#         "command": "docker",
-#         "args": ["exec", "-i", "thought-server", "node", "dist/index.js"],
-#         "env": {},
-#         "disabled": false
-#       }
+# INFRASTRUCTURE PROFILES:
+#   - infra           : PostgreSQL + Redis only (for external server connections)
+#   - infra-ollama    : PostgreSQL + Redis + local Ollama (for local dev server)
+#
+# SERVER PROFILES (choose ONE):
+#   - mcp-local       : MCP server only with local Ollama
+#   - mcp-remote      : MCP server only with remote Ollama
+#   - rest-local      : REST API server only with local Ollama
+#   - rest-remote     : REST API server only with remote Ollama
+#   - server-local    : Full server (MCP + REST) with local Ollama
+#   - server-remote   : Full server (MCP + REST) with remote Ollama
+#
+# UI PROFILE:
+#   - ui              : Mind Palace UI (can combine with any server profile)
+#
+# ============================================================================
+# USAGE EXAMPLES
+# ============================================================================
+#
+# Start all services (local Ollama):
+#   docker compose -f docker/docker-compose.prod.yml --profile all up -d
+#
+# Start all services (remote Ollama):
+#   docker compose -f docker/docker-compose.prod.yml --profile all-remote up -d
+#
+# Start MCP server only (local Ollama):
+#   docker compose -f docker/docker-compose.prod.yml --profile mcp-local up -d
+#
+# Start MCP server only (remote Ollama):
+#   docker compose -f docker/docker-compose.prod.yml --profile mcp-remote up -d
+#
+# Start REST API server only (local Ollama):
+#   docker compose -f docker/docker-compose.prod.yml --profile rest-local up -d
+#
+# Start REST API server only (remote Ollama):
+#   docker compose -f docker/docker-compose.prod.yml --profile rest-remote up -d
+#
+# Start full server (local Ollama):
+#   docker compose -f docker/docker-compose.prod.yml --profile server-local up -d
+#
+# Start full server (remote Ollama):
+#   docker compose -f docker/docker-compose.prod.yml --profile server-remote up -d
+#
+# Start infrastructure only (for external server):
+#   docker compose -f docker/docker-compose.prod.yml --profile infra up -d
+#
+# Start infrastructure + local Ollama:
+#   docker compose -f docker/docker-compose.prod.yml --profile infra-ollama up -d
+#
+# Start UI only (assumes server is running elsewhere):
+#   docker compose -f docker/docker-compose.prod.yml --profile ui up -d
+#
+# Start full server + UI (local Ollama):
+#   docker compose -f docker/docker-compose.prod.yml --profile server-local --profile ui up -d
+#
+# ============================================================================
+# MCP CLIENT CONNECTION
+# ============================================================================
+#
+# By default, the thought container runs in MCP_STANDBY_MODE. This means:
+# - The container stays alive without starting the MCP server process
+# - MCP clients connect via: docker exec -i thought-server node dist/index.js
+# - Each client connection spawns a dedicated MCP server process
+# - All environment variables are pre-configured inside the container
+#
+# Configure your MCP client (e.g., .kiro/settings/mcp.json):
+# {
+#   "mcpServers": {
+#     "thought": {
+#       "command": "docker",
+#       "args": ["exec", "-i", "thought-server", "node", "dist/index.js"],
+#       "env": {},
+#       "disabled": false
 #     }
 #   }
+# }
 #
-#   To disable standby mode and run the MCP server directly (legacy behavior):
-#   Set MCP_STANDBY_MODE=false in .env.production
+# To disable standby mode and run the MCP server directly (legacy behavior):
+# Set MCP_STANDBY_MODE=false in .env.production
 #
-# REST API Access:
-#   By default, the REST API is enabled and accessible at:
-#   http://localhost:${REST_API_PORT:-3000}/api/v1/
+# ============================================================================
+# REST API ACCESS
+# ============================================================================
 #
-#   Configure CORS_ORIGINS in .env.production to allow your Mind Palace UI origin.
-#   To disable REST API: Set REST_API_ENABLED=false in .env.production
+# By default, the REST API is enabled and accessible at:
+# http://localhost:${REST_API_PORT:-3000}/api/v1/
 #
-# The thought service waits for postgres and ollama to be healthy before starting.
-# Ollama will automatically pull the embedding model on first startup.
+# Configure CORS_ORIGINS in .env.production to allow your Mind Palace UI origin.
+# To disable REST API: Set REST_API_ENABLED=false in .env.production
+#
+# ============================================================================
+# MODEL AUTO-PULL
+# ============================================================================
+#
+# The Ollama container automatically pulls required models on startup:
+# - EMBEDDING_MODEL (default: nomic-embed-text) - Required for memory embeddings
+# - LLM_MODEL (default: llama3.2:1b) - Required for AI-augmented reasoning
+# Models are pulled before the container is marked healthy, ensuring dependent
+# services wait until models are ready. Set SKIP_MODEL_PULL=true to disable.
 
 services:
+  # ============================================================================
+  # INFRASTRUCTURE SERVICES
+  # ============================================================================
+
   # PostgreSQL with pgvector extension for production
   postgres:
     image: pgvector/pgvector:pg16
@@ -63,11 +137,8 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      # Persist database data
       - postgres_data:/var/lib/postgresql/data
-      # Initialize database with schema
       - ../packages/server/scripts/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-      # Create pgvector extension
       - ../packages/server/scripts/db/enable-pgvector.sql:/docker-entrypoint-initdb.d/02-enable-pgvector.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-thought} -d ${POSTGRES_DB:-thought}"]
@@ -77,29 +148,88 @@ services:
       start_period: 10s
     networks:
       - thought-network
+    profiles:
+      - infra
+      - infra-ollama
+      - mcp-local
+      - mcp-remote
+      - rest-local
+      - rest-remote
+      - server-local
+      - server-remote
+      - all
+      - all-remote
 
-  # Ollama for embedding generation
+  # Redis for distributed caching and pub/sub
+  redis:
+    image: redis:alpine
+    container_name: thought-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - thought-network
+    profiles:
+      - infra
+      - infra-ollama
+      - mcp-local
+      - mcp-remote
+      - rest-local
+      - rest-remote
+      - server-local
+      - server-remote
+      - all
+      - all-remote
+
+  # ============================================================================
+  # OLLAMA SERVICE (LOCAL)
+  # ============================================================================
+
+  # Ollama for embedding generation (local instance)
   ollama:
     image: ollama/ollama:latest
     container_name: thought-ollama
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "/ollama-entrypoint.sh"]
+    environment:
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+      LLM_MODEL: ${LLM_MODEL:-llama3.2:1b}
+      OLLAMA_WAIT_TIMEOUT: ${OLLAMA_WAIT_TIMEOUT:-60}
+      SKIP_MODEL_PULL: ${SKIP_MODEL_PULL:-false}
     ports:
       - "${OLLAMA_PORT:-11434}:11434"
     volumes:
-      # Persist downloaded models to avoid re-downloading on restart
       - ollama_models:/root/.ollama
+      - ./ollama-entrypoint.sh:/ollama-entrypoint.sh:ro
     healthcheck:
-      # Use ollama list instead of curl since curl is not available in the ollama image
-      test: ["CMD", "ollama", "list"]
+      test: ["CMD-SHELL", "ollama list | grep -q '${EMBEDDING_MODEL:-nomic-embed-text}'"]
       interval: 10s
       timeout: 10s
-      retries: 10
-      start_period: 15s
+      retries: 30
+      start_period: 120s
     networks:
       - thought-network
+    profiles:
+      - infra-ollama
+      - mcp-local
+      - rest-local
+      - server-local
+      - all
 
-  # Thought MCP Server
-  thought:
+  # ============================================================================
+  # THOUGHT SERVER SERVICES
+  # ============================================================================
+
+  # MCP Server only (local Ollama) - stdio mode, no REST API
+  thought-mcp-local:
     build:
       context: ..
       dockerfile: packages/server/Dockerfile
@@ -108,10 +238,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       ollama:
         condition: service_healthy
     environment:
-      # Database configuration (uses internal Docker network)
       DATABASE_URL: postgresql://${POSTGRES_USER:-thought}:${POSTGRES_PASSWORD:-thought_secret}@postgres:5432/${POSTGRES_DB:-thought}
       DB_HOST: postgres
       DB_PORT: 5432
@@ -119,40 +250,315 @@ services:
       DB_USER: ${POSTGRES_USER:-thought}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-thought_secret}
       DB_POOL_SIZE: ${DB_POOL_SIZE:-20}
-      # Ollama configuration (uses internal Docker network)
       OLLAMA_HOST: http://ollama:11434
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
-      # Application configuration
+      EMBEDDING_TIMEOUT: ${EMBEDDING_TIMEOUT:-60000}
+      LLM_MODEL: ${LLM_MODEL:-llama3.2:1b}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-60000}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.7}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
       NODE_ENV: production
       LOG_LEVEL: ${LOG_LEVEL:-WARN}
       LOG_FORMAT: ${LOG_FORMAT:-json}
-      # Performance configuration
       CACHE_TTL: ${CACHE_TTL:-300}
       MAX_PROCESSING_TIME: ${MAX_PROCESSING_TIME:-30000}
       ENABLE_CACHE: ${ENABLE_CACHE:-true}
       ENABLE_MONITORING: ${ENABLE_MONITORING:-true}
-      # Feature flags
       ENABLE_BIAS_DETECTION: ${ENABLE_BIAS_DETECTION:-true}
       ENABLE_EMOTION_DETECTION: ${ENABLE_EMOTION_DETECTION:-true}
       ENABLE_METACOGNITION: ${ENABLE_METACOGNITION:-true}
-      # Standby mode - container stays alive, MCP clients connect via docker exec
       MCP_STANDBY_MODE: ${MCP_STANDBY_MODE:-true}
-      # REST API configuration (Requirements: 16.1)
-      REST_API_ENABLED: ${REST_API_ENABLED:-true}
-      REST_API_PORT: ${REST_API_PORT:-3000}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
-    # MCP servers communicate via stdio
+      REST_API_ENABLED: "false"
     stdin_open: true
     tty: true
-    # Expose REST API port (Requirements: 16.1)
+    networks:
+      - thought-network
+    profiles:
+      - mcp-local
+
+  # MCP Server only (remote Ollama) - stdio mode, no REST API
+  thought-mcp-remote:
+    build:
+      context: ..
+      dockerfile: packages/server/Dockerfile
+    container_name: thought-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-thought}:${POSTGRES_PASSWORD:-thought_secret}@postgres:5432/${POSTGRES_DB:-thought}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-thought}
+      DB_USER: ${POSTGRES_USER:-thought}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-thought_secret}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-20}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://localhost:11434}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
+      EMBEDDING_TIMEOUT: ${EMBEDDING_TIMEOUT:-60000}
+      LLM_MODEL: ${LLM_MODEL:-llama3.2:1b}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-60000}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.7}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-WARN}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      CACHE_TTL: ${CACHE_TTL:-300}
+      MAX_PROCESSING_TIME: ${MAX_PROCESSING_TIME:-30000}
+      ENABLE_CACHE: ${ENABLE_CACHE:-true}
+      ENABLE_MONITORING: ${ENABLE_MONITORING:-true}
+      ENABLE_BIAS_DETECTION: ${ENABLE_BIAS_DETECTION:-true}
+      ENABLE_EMOTION_DETECTION: ${ENABLE_EMOTION_DETECTION:-true}
+      ENABLE_METACOGNITION: ${ENABLE_METACOGNITION:-true}
+      MCP_STANDBY_MODE: ${MCP_STANDBY_MODE:-true}
+      REST_API_ENABLED: "false"
+    stdin_open: true
+    tty: true
+    networks:
+      - thought-network
+    profiles:
+      - mcp-remote
+
+  # REST API Server only (local Ollama) - HTTP API, no MCP
+  thought-rest-local:
+    build:
+      context: ..
+      dockerfile: packages/server/Dockerfile
+    container_name: thought-rest-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-thought}:${POSTGRES_PASSWORD:-thought_secret}@postgres:5432/${POSTGRES_DB:-thought}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-thought}
+      DB_USER: ${POSTGRES_USER:-thought}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-thought_secret}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-20}
+      OLLAMA_HOST: http://ollama:11434
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
+      EMBEDDING_TIMEOUT: ${EMBEDDING_TIMEOUT:-60000}
+      LLM_MODEL: ${LLM_MODEL:-llama3.2:1b}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-60000}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.7}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-WARN}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      CACHE_TTL: ${CACHE_TTL:-300}
+      MAX_PROCESSING_TIME: ${MAX_PROCESSING_TIME:-30000}
+      ENABLE_CACHE: ${ENABLE_CACHE:-true}
+      ENABLE_MONITORING: ${ENABLE_MONITORING:-true}
+      ENABLE_BIAS_DETECTION: ${ENABLE_BIAS_DETECTION:-true}
+      ENABLE_EMOTION_DETECTION: ${ENABLE_EMOTION_DETECTION:-true}
+      ENABLE_METACOGNITION: ${ENABLE_METACOGNITION:-true}
+      MCP_STANDBY_MODE: "false"
+      REST_API_ENABLED: "true"
+      REST_API_PORT: ${REST_API_PORT:-3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
     ports:
       - "${REST_API_PORT:-3000}:3000"
     networks:
       - thought-network
+    profiles:
+      - rest-local
 
-  # Thought UI (optional)
-  # Start with: docker compose -f docker/docker-compose.prod.yml --profile ui up -d
+  # REST API Server only (remote Ollama) - HTTP API, no MCP
+  thought-rest-remote:
+    build:
+      context: ..
+      dockerfile: packages/server/Dockerfile
+    container_name: thought-rest-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-thought}:${POSTGRES_PASSWORD:-thought_secret}@postgres:5432/${POSTGRES_DB:-thought}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-thought}
+      DB_USER: ${POSTGRES_USER:-thought}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-thought_secret}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-20}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://localhost:11434}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
+      EMBEDDING_TIMEOUT: ${EMBEDDING_TIMEOUT:-60000}
+      LLM_MODEL: ${LLM_MODEL:-llama3.2:1b}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-60000}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.7}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-WARN}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      CACHE_TTL: ${CACHE_TTL:-300}
+      MAX_PROCESSING_TIME: ${MAX_PROCESSING_TIME:-30000}
+      ENABLE_CACHE: ${ENABLE_CACHE:-true}
+      ENABLE_MONITORING: ${ENABLE_MONITORING:-true}
+      ENABLE_BIAS_DETECTION: ${ENABLE_BIAS_DETECTION:-true}
+      ENABLE_EMOTION_DETECTION: ${ENABLE_EMOTION_DETECTION:-true}
+      ENABLE_METACOGNITION: ${ENABLE_METACOGNITION:-true}
+      MCP_STANDBY_MODE: "false"
+      REST_API_ENABLED: "true"
+      REST_API_PORT: ${REST_API_PORT:-3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+    ports:
+      - "${REST_API_PORT:-3000}:3000"
+    networks:
+      - thought-network
+    profiles:
+      - rest-remote
+
+  # Full Server (MCP + REST API) with local Ollama
+  thought-server-local:
+    build:
+      context: ..
+      dockerfile: packages/server/Dockerfile
+    container_name: thought-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-thought}:${POSTGRES_PASSWORD:-thought_secret}@postgres:5432/${POSTGRES_DB:-thought}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-thought}
+      DB_USER: ${POSTGRES_USER:-thought}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-thought_secret}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-20}
+      OLLAMA_HOST: http://ollama:11434
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
+      EMBEDDING_TIMEOUT: ${EMBEDDING_TIMEOUT:-60000}
+      LLM_MODEL: ${LLM_MODEL:-llama3.2:1b}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-60000}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.7}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-WARN}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      CACHE_TTL: ${CACHE_TTL:-300}
+      MAX_PROCESSING_TIME: ${MAX_PROCESSING_TIME:-30000}
+      ENABLE_CACHE: ${ENABLE_CACHE:-true}
+      ENABLE_MONITORING: ${ENABLE_MONITORING:-true}
+      ENABLE_BIAS_DETECTION: ${ENABLE_BIAS_DETECTION:-true}
+      ENABLE_EMOTION_DETECTION: ${ENABLE_EMOTION_DETECTION:-true}
+      ENABLE_METACOGNITION: ${ENABLE_METACOGNITION:-true}
+      MCP_STANDBY_MODE: ${MCP_STANDBY_MODE:-true}
+      REST_API_ENABLED: ${REST_API_ENABLED:-true}
+      REST_API_PORT: ${REST_API_PORT:-3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+    stdin_open: true
+    tty: true
+    ports:
+      - "${REST_API_PORT:-3000}:3000"
+    networks:
+      - thought-network
+    profiles:
+      - server-local
+      - all
+
+  # Full Server (MCP + REST API) with remote Ollama
+  thought-server-remote:
+    build:
+      context: ..
+      dockerfile: packages/server/Dockerfile
+    container_name: thought-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-thought}:${POSTGRES_PASSWORD:-thought_secret}@postgres:5432/${POSTGRES_DB:-thought}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-thought}
+      DB_USER: ${POSTGRES_USER:-thought}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-thought_secret}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-20}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://localhost:11434}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
+      EMBEDDING_TIMEOUT: ${EMBEDDING_TIMEOUT:-60000}
+      LLM_MODEL: ${LLM_MODEL:-llama3.2:1b}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-60000}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.7}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-WARN}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      CACHE_TTL: ${CACHE_TTL:-300}
+      MAX_PROCESSING_TIME: ${MAX_PROCESSING_TIME:-30000}
+      ENABLE_CACHE: ${ENABLE_CACHE:-true}
+      ENABLE_MONITORING: ${ENABLE_MONITORING:-true}
+      ENABLE_BIAS_DETECTION: ${ENABLE_BIAS_DETECTION:-true}
+      ENABLE_EMOTION_DETECTION: ${ENABLE_EMOTION_DETECTION:-true}
+      ENABLE_METACOGNITION: ${ENABLE_METACOGNITION:-true}
+      MCP_STANDBY_MODE: ${MCP_STANDBY_MODE:-true}
+      REST_API_ENABLED: ${REST_API_ENABLED:-true}
+      REST_API_PORT: ${REST_API_PORT:-3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+    stdin_open: true
+    tty: true
+    ports:
+      - "${REST_API_PORT:-3000}:3000"
+    networks:
+      - thought-network
+    profiles:
+      - server-remote
+      - all-remote
+
+  # ============================================================================
+  # UI SERVICE
+  # ============================================================================
+
+  # Mind Palace UI
   ui:
     build:
       context: ..
@@ -169,9 +575,13 @@ services:
       - thought-network
     profiles:
       - ui
+      - all
+      - all-remote
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
   ollama_models:
     driver: local

@@ -4,6 +4,7 @@
  * Page for managing memories with CRUD operations.
  * Supports two views: Cards (masonry grid) and Rows (stack view).
  * Uses the unified MemoryModal for all memory operations.
+ * Uses virtualized rendering for large lists (>100 items) per Requirement 4.1.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
@@ -18,6 +19,13 @@ import {
 } from "../components/hud/MemoryModal";
 import { SectorBadge } from "../components/hud/SectorBadge";
 import { AlertTriangle, ExplorerIcon, getSectorIcon, type IconSize } from "../components/icons";
+import {
+  VirtualizedMemoryList,
+  scrollToMemory,
+  shouldUseVirtualization,
+  type ListImperativeAPI,
+  type MemoryItemRenderProps,
+} from "../components/VirtualizedMemoryList";
 import { useMemoryStore } from "../stores/memoryStore";
 import { type Memory, type MemorySectorType } from "../types/api";
 
@@ -476,7 +484,7 @@ function MemoryCard({
       {/* Content - variable height, overflow hidden */}
       <div className="overflow-hidden" style={{ maxHeight: "160px" }}>
         <div className="text-sm text-ui-text-primary leading-relaxed">
-          <BlockNotePreview content={memory.content} maxLines={6} />
+          <BlockNotePreview content={memory.content} />
         </div>
       </div>
 
@@ -595,10 +603,10 @@ function MemoryRow({
 
         {/* Content area */}
         <div className="flex-1 min-w-0 overflow-hidden">
-          {/* Content text - max 3 lines */}
+          {/* Content text - truncated by container height */}
           <div className="overflow-hidden" style={{ maxHeight: "60px" }}>
             <div className="text-sm text-ui-text-primary leading-relaxed">
-              <BlockNotePreview content={memory.content} maxLines={3} />
+              <BlockNotePreview content={memory.content} />
             </div>
           </div>
 
@@ -741,6 +749,7 @@ export function MemoryExplorer({
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const virtualizedListRef = useRef<ListImperativeAPI>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
@@ -761,6 +770,7 @@ export function MemoryExplorer({
   }, [userId, storeFetchMemories]);
 
   // Handle openMemory query parameter (from Dashboard click)
+  // Also scrolls to the memory in virtualized list (Requirement 4.6)
   useEffect(() => {
     const openMemoryId = searchParams.get("openMemory");
     if (openMemoryId !== null && openMemoryId !== "" && memories.length > 0) {
@@ -768,11 +778,18 @@ export function MemoryExplorer({
       if (memoryToOpen !== undefined) {
         setSelectedMemory(memoryToOpen);
         setModalMode("view");
+        // Scroll to the memory in virtualized list if applicable
+        if (viewMode === "rows" && shouldUseVirtualization(memories.length)) {
+          // Use setTimeout to ensure the list is rendered before scrolling
+          setTimeout(() => {
+            scrollToMemory(virtualizedListRef, memories, openMemoryId, "center");
+          }, 100);
+        }
         // Clear the query parameter
         setSearchParams({}, { replace: true });
       }
     }
-  }, [searchParams, memories, setSearchParams]);
+  }, [searchParams, memories, setSearchParams, viewMode]);
 
   // Filter and search memories (applied to whatever is loaded so far)
   const filteredMemories = useMemo(() => {
@@ -831,14 +848,23 @@ export function MemoryExplorer({
     }
   }, [filteredMemories, selectedIds.size]);
 
-  const handleSelect = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  const handleSelect = useCallback(
+    (id: string) => {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else {
+          next.add(id);
+          // Scroll to the selected memory in virtualized list (Requirement 4.6)
+          if (viewMode === "rows" && shouldUseVirtualization(filteredMemories.length)) {
+            scrollToMemory(virtualizedListRef, filteredMemories, id, "smart");
+          }
+        }
+        return next;
+      });
+    },
+    [viewMode, filteredMemories]
+  );
 
   // Modal handlers
   const handleOpenCreate = useCallback(() => {
@@ -944,14 +970,26 @@ export function MemoryExplorer({
     [storeRemoveMemory, handleCloseModal]
   );
 
+  // Get isMemoryPending from store for checking pending state (Requirements: 1.5)
+  const isMemoryPending = useMemoryStore((state) => state.isMemoryPending);
+
   // Bulk delete handler
   const handleBulkDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
+
+    // Filter out pending memories (Requirements: 1.5)
+    const deletableIds = Array.from(selectedIds).filter((id) => !isMemoryPending(id));
+    if (deletableIds.length === 0) {
+      console.warn("Cannot delete pending memories. Please wait for them to be saved.");
+      setIsDeleteModalOpen(false);
+      return;
+    }
+
     setIsDeleting(true);
     try {
       const client = getDefaultClient();
-      await Promise.all(Array.from(selectedIds).map((id) => client.deleteMemory(id, userId)));
-      for (const id of selectedIds) storeRemoveMemory(id);
+      await Promise.all(deletableIds.map((id) => client.deleteMemory(id, userId)));
+      for (const id of deletableIds) storeRemoveMemory(id);
     } catch (err) {
       console.error("Failed to delete memories:", err);
     } finally {
@@ -959,12 +997,41 @@ export function MemoryExplorer({
       setSelectedIds(new Set());
       setIsDeleteModalOpen(false);
     }
-  }, [selectedIds, userId, storeRemoveMemory]);
+  }, [selectedIds, userId, storeRemoveMemory, isMemoryPending]);
 
   const handleDeleteSingle = useCallback((memory: Memory) => {
     setSelectedIds(new Set([memory.id]));
     setIsDeleteModalOpen(true);
   }, []);
+
+  // Render function for virtualized list items (Requirement 4.1, 4.5)
+  const renderVirtualizedRow = useCallback(
+    ({ memory, isSelected, onSelectionChange }: MemoryItemRenderProps): ReactElement => {
+      return (
+        <MemoryRow
+          memory={memory}
+          isSelected={isSelected}
+          onSelect={onSelectionChange}
+          onView={() => {
+            handleOpenView(memory);
+          }}
+          onEdit={() => {
+            handleOpenEdit(memory);
+          }}
+          onDelete={() => {
+            handleDeleteSingle(memory);
+          }}
+        />
+      );
+    },
+    [handleOpenView, handleOpenEdit, handleDeleteSingle]
+  );
+
+  // Check if virtualization should be used for rows view (Requirement 4.1: >100 items)
+  const useVirtualizedRows = useMemo(
+    () => viewMode === "rows" && shouldUseVirtualization(filteredMemories.length),
+    [viewMode, filteredMemories.length]
+  );
 
   return (
     <div className={`h-full flex flex-col ${className}`}>
@@ -1201,8 +1268,25 @@ export function MemoryExplorer({
                   />
                 ))}
               </div>
+            ) : /* Rows View - Stack (virtualized for >100 items per Requirement 4.1) */
+            useVirtualizedRows ? (
+              <div className="h-[calc(100vh-300px)] min-h-[400px]">
+                <VirtualizedMemoryList
+                  memories={filteredMemories}
+                  onSelect={(memoryId) => {
+                    const memory = filteredMemories.find((m) => m.id === memoryId);
+                    if (memory) handleOpenView(memory);
+                  }}
+                  renderItem={renderVirtualizedRow}
+                  selectedIds={selectedIds}
+                  onSelectionChange={handleSelect}
+                  listRef={virtualizedListRef}
+                  overscanCount={5}
+                  estimatedItemHeight={120}
+                  className="virtualized-rows-view"
+                />
+              </div>
             ) : (
-              /* Rows View - Stack */
               <div className="flex flex-col gap-3">
                 {filteredMemories.map((memory) => (
                   <MemoryRow

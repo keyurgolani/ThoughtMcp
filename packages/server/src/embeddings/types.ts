@@ -74,6 +74,14 @@ export interface EmbeddingModel {
   generate(text: string): Promise<number[]>;
 
   /**
+   * Generate embeddings for multiple texts in a single batch request (optional)
+   *
+   * Models that support batch operations can implement this for better performance.
+   * Falls back to sequential generate() calls if not implemented.
+   */
+  generateBatch?(texts: string[]): Promise<number[][]>;
+
+  /**
    * Get embedding dimension for this model
    */
   getDimension(): number;

@@ -138,8 +138,11 @@ function ContextMemoryItem({
       </div>
 
       {/* Content preview */}
-      <div className="text-sm text-ui-text-primary mb-2">
-        <MarkdownPreview content={memory.content} maxLines={2} />
+      <div
+        className="text-sm text-ui-text-primary mb-2 overflow-hidden"
+        style={{ maxHeight: "48px" }}
+      >
+        <MarkdownPreview content={memory.content} />
       </div>
 
       {/* Relevance score - Requirements: 22.2 */}

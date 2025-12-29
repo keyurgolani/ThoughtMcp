@@ -13,7 +13,7 @@ import { MultiDimensionalConfidenceAssessor } from "../confidence/multi-dimensio
 import { DatabaseConnectionManager } from "../database/connection-manager.js";
 import { EmbeddingEngine } from "../embeddings/embedding-engine.js";
 import { CircumplexEmotionAnalyzer } from "../emotion/circumplex-analyzer.js";
-import type { EmotionModel } from "../emotion/types.js";
+import type { EmotionClassification, EmotionModel, EmotionType } from "../emotion/types.js";
 import { FrameworkRegistry } from "../framework/framework-registry.js";
 import { FrameworkSelector } from "../framework/framework-selector.js";
 import { ProblemClassifier } from "../framework/problem-classifier.js";
@@ -180,6 +180,8 @@ export class CognitiveMCPServer {
     // Get embedding configuration from environment
     const embeddingModel = process.env.EMBEDDING_MODEL ?? "nomic-embed-text";
     const embeddingDimension = parseInt(process.env.EMBEDDING_DIMENSION ?? "768");
+    // Timeout should account for cold starts (model loading) which can take 15-30s
+    const embeddingTimeout = parseInt(process.env.EMBEDDING_TIMEOUT ?? "60000");
 
     // Create Ollama embedding model
     // Note: For testing, use the test utilities directly in test files
@@ -188,7 +190,7 @@ export class CognitiveMCPServer {
       host: process.env.OLLAMA_HOST ?? "http://localhost:11434",
       modelName: embeddingModel,
       dimension: embeddingDimension,
-      timeout: 30000,
+      timeout: embeddingTimeout,
       maxRetries: 3,
     });
 
@@ -346,7 +348,28 @@ export class CognitiveMCPServer {
         properties: {
           content: {
             type: "string",
-            description: "Memory content to store (required, 10-100,000 characters)",
+            description:
+              "Memory content to store (required, 10-100,000 characters).\n\n" +
+              "**Recommended Format: Markdown**\n\n" +
+              "Memories should be stored in markdown format for optimal organization and retrieval:\n\n" +
+              "- Use **headers** (# ## ###) to structure sections\n" +
+              "- Use **lists** (- or 1.) for enumerated items\n" +
+              "- Use **code blocks** (```) for code snippets\n" +
+              "- Use **bold** and *italic* for emphasis\n" +
+              "- Use **links** [text](url) for references\n\n" +
+              "**Example:**\n" +
+              "```markdown\n" +
+              "# User Preference: Dark Mode\n\n" +
+              "## Context\n" +
+              "User explicitly stated preference during onboarding.\n\n" +
+              "## Details\n" +
+              "- Applies to all applications\n" +
+              "- Includes code editors\n" +
+              "- Preference strength: Strong\n\n" +
+              "## Related\n" +
+              "- See also: Theme preferences\n" +
+              "- Last updated: 2025-01-15\n" +
+              "```",
           },
           userId: {
             type: "string",
@@ -2598,6 +2621,49 @@ export class CognitiveMCPServer {
       return;
     }
 
+    /**
+     * All 11 supported emotion types for consistent response format
+     * Requirements: 8.2
+     */
+    const ALL_EMOTION_TYPES: EmotionType[] = [
+      "joy",
+      "sadness",
+      "anger",
+      "fear",
+      "disgust",
+      "surprise",
+      "pride",
+      "shame",
+      "guilt",
+      "gratitude",
+      "awe",
+    ];
+
+    /**
+     * Convert emotion classifications to response format with all 11 emotions
+     * This ensures parity with the REST API response format
+     * Requirements: 8.2
+     */
+    const convertToDiscreteResponse = (
+      classifications: EmotionClassification[]
+    ): { emotion: EmotionType; confidence: number; intensity: number }[] => {
+      // Create a map of detected emotions
+      const detectedMap = new Map<EmotionType, EmotionClassification>();
+      for (const classification of classifications) {
+        detectedMap.set(classification.emotion, classification);
+      }
+
+      // Return all 11 emotions with their scores (0 if not detected)
+      return ALL_EMOTION_TYPES.map((emotion) => {
+        const detected = detectedMap.get(emotion);
+        return {
+          emotion,
+          confidence: detected?.confidence ?? 0,
+          intensity: detected?.intensity ?? 0,
+        };
+      });
+    };
+
     this.toolRegistry.registerTool({
       name: "detect_emotion",
       description:
@@ -2643,22 +2709,26 @@ export class CognitiveMCPServer {
 
           const circumplex = this.emotionAnalyzer.analyzeCircumplex(input.text);
 
-          let discrete = null;
+          let discrete: { emotion: EmotionType; confidence: number; intensity: number }[] | null =
+            null;
           if (input.includeDiscrete !== false) {
             // Check if emotionAnalyzer has classifyEmotions method (for testing)
             const analyzer = this.emotionAnalyzer as {
-              classifyEmotions?: (text: string) => unknown;
+              classifyEmotions?: (text: string) => EmotionClassification[];
             };
+            let rawClassifications: EmotionClassification[];
             if (typeof analyzer.classifyEmotions === "function") {
-              discrete = analyzer.classifyEmotions(input.text);
+              rawClassifications = analyzer.classifyEmotions(input.text);
             } else {
               // Import discrete classifier for production
               const { DiscreteEmotionClassifier } =
                 await import("../emotion/discrete-emotion-classifier.js");
               const defaultModel = { name: "lexicon-based", version: "1.0.0" };
               const classifier = new DiscreteEmotionClassifier(defaultModel);
-              discrete = classifier.classify(input.text);
+              rawClassifications = classifier.classify(input.text);
             }
+            // Convert to full 11-emotion response format for API parity
+            discrete = convertToDiscreteResponse(rawClassifications);
           }
 
           const detectionTime = Date.now() - startTime;

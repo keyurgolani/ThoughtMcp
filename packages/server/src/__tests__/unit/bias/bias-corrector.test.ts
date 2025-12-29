@@ -1,7 +1,7 @@
 /**
  * Tests for BiasCorrector
  *
- * Tests correction suggestion generation for all eight bias types,
+ * Tests correction suggestion generation for all nine bias types,
  * ensuring each bias type has appropriate suggestions, techniques,
  * and challenge questions.
  *
@@ -303,6 +303,18 @@ describe("BiasCorrector", () => {
         suggestion.challengeQuestions.some((q) => q.toLowerCase().includes("situational"));
 
       expect(hasSituational).toBe(true);
+    });
+
+    it("bandwagon bias suggestion should mention evaluating on merit", () => {
+      const suggestion = corrector.getSuggestion(BiasType.BANDWAGON);
+
+      const hasMerit =
+        suggestion.suggestion.toLowerCase().includes("merit") ||
+        suggestion.suggestion.toLowerCase().includes("needs") ||
+        suggestion.techniques.some((t) => t.toLowerCase().includes("requirements")) ||
+        suggestion.challengeQuestions.some((q) => q.toLowerCase().includes("popular"));
+
+      expect(hasMerit).toBe(true);
     });
   });
 

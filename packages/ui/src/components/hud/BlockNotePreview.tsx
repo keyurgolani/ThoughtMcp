@@ -28,7 +28,7 @@ import { useCodeBlockEnhancer } from "../editor/CodeBlockEnhancer";
 export interface BlockNotePreviewProps {
   /** Markdown content to render */
   content: string;
-  /** Maximum number of lines to display (uses CSS line-clamp) */
+  /** Maximum number of lines to display (uses CSS line-clamp). If undefined, shows all content. */
   maxLines?: number;
   /** Additional CSS classes */
   className?: string;
@@ -46,11 +46,12 @@ export interface BlockNotePreviewProps {
  * BlockNotePreview - Lightweight BlockNote renderer for previews
  *
  * Uses BlockNote's native rendering for consistent display with the editor.
- * Optimized for card previews with line clamping support.
+ * Optimized for card previews with optional line clamping support.
+ * When maxLines is not provided, shows full content without truncation.
  */
 export function BlockNotePreview({
   content,
-  maxLines = 2,
+  maxLines,
   className = "",
   theme: themeProp,
   showCodeToolbar = false,
@@ -103,9 +104,8 @@ export function BlockNotePreview({
       ? "light"
       : "dark");
 
-  // Line clamp class
-  const lineClampClass =
-    maxLines <= 6 ? `line-clamp-${String(maxLines)}` : `line-clamp-${String(maxLines)}`;
+  // Line clamp class - only apply if maxLines is specified
+  const lineClampClass = maxLines !== undefined ? `line-clamp-${String(maxLines)}` : "";
 
   // Type assertion for BlockNote's complex generics
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment

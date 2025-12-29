@@ -5,7 +5,7 @@
  * Broadcasts cognitive activity events to connected clients including
  * active processes, memory operations, and reasoning events.
  *
- * Requirements: 7.1, 7.3
+ * Requirements: 7.1, 7.3, 3.1, 3.2, 3.3, 3.8
  */
 
 import type { Server as HttpServer } from "http";
@@ -14,7 +14,7 @@ import { Logger } from "../utils/logger.js";
 
 /**
  * Activity event types for WebSocket broadcasts
- * Requirements: 7.1
+ * Requirements: 7.1, 3.1, 3.2, 3.3
  */
 export type ActivityEventType =
   | "memory_operation"
@@ -23,7 +23,10 @@ export type ActivityEventType =
   | "session_event"
   | "system_event"
   | "heartbeat"
-  | "connection_established";
+  | "connection_established"
+  | "memory_created"
+  | "memory_updated"
+  | "memory_deleted";
 
 /**
  * Memory operation event data
@@ -88,8 +91,54 @@ export interface SystemEventData {
 }
 
 /**
+ * Memory created event data
+ * Requirements: 3.1, 3.8
+ */
+export interface MemoryCreatedEventData {
+  /** The created memory object */
+  memory: {
+    id: string;
+    content: string;
+    primarySector: string;
+    createdAt: string;
+    embeddingStatus?: "pending" | "complete" | "failed";
+    [key: string]: unknown;
+  };
+  /** User ID for scoped broadcasting */
+  userId: string;
+  /** Temporary ID for matching optimistic updates */
+  tempId?: string;
+}
+
+/**
+ * Memory updated event data
+ * Requirements: 3.2, 3.8
+ */
+export interface MemoryUpdatedEventData {
+  /** Memory ID that was updated */
+  memoryId: string;
+  /** User ID for scoped broadcasting */
+  userId: string;
+  /** Updated fields */
+  updates: Record<string, unknown>;
+  /** Reason for update (e.g., 'embedding_complete', 'user_edit') */
+  reason: string;
+}
+
+/**
+ * Memory deleted event data
+ * Requirements: 3.3
+ */
+export interface MemoryDeletedEventData {
+  /** Memory ID that was deleted */
+  memoryId: string;
+  /** User ID for scoped broadcasting */
+  userId: string;
+}
+
+/**
  * Activity event structure for WebSocket broadcasts
- * Requirements: 7.1
+ * Requirements: 7.1, 3.1, 3.2, 3.3
  */
 export interface ActivityEvent {
   /** Event type identifier */
@@ -103,17 +152,23 @@ export interface ActivityEvent {
     | LoadChangeData
     | SessionEventData
     | SystemEventData
+    | MemoryCreatedEventData
+    | MemoryUpdatedEventData
+    | MemoryDeletedEventData
     | { message: string };
 }
 
 /**
  * WebSocket client connection metadata
+ * Requirements: 3.1, 3.2, 3.3
  */
 interface WebSocketClient {
   /** WebSocket connection */
   ws: WebSocket;
   /** Client identifier */
   clientId: string;
+  /** User ID for scoped broadcasting (set via subscribe message) */
+  userId: string | null;
   /** Connection timestamp */
   connectedAt: Date;
   /** Last activity timestamp */
@@ -153,7 +208,7 @@ export const DEFAULT_WEBSOCKET_CONFIG: WebSocketHandlerConfig = {
  * Broadcasts activity events to all connected clients and handles
  * connection lifecycle including heartbeats and cleanup.
  *
- * Requirements: 7.1, 7.3
+ * Requirements: 7.1, 7.3, 3.1, 3.2, 3.3, 3.8
  */
 export class ActivityWebSocketHandler {
   private wss: WebSocketServer | null = null;
@@ -162,6 +217,10 @@ export class ActivityWebSocketHandler {
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private cleanupInterval: NodeJS.Timeout | null = null;
   private isRunning: boolean = false;
+  /** Track recent events for deduplication (eventKey -> timestamp) */
+  private recentEvents: Map<string, number> = new Map();
+  /** Deduplication window in milliseconds */
+  private readonly deduplicationWindowMs: number = 5000;
 
   constructor(config: Partial<WebSocketHandlerConfig> = {}) {
     this.config = { ...DEFAULT_WEBSOCKET_CONFIG, ...config };
@@ -212,7 +271,7 @@ export class ActivityWebSocketHandler {
 
   /**
    * Handle new WebSocket connection
-   * Requirements: 7.1
+   * Requirements: 7.1, 3.1, 3.2, 3.3
    */
   private handleConnection(ws: WebSocket, _req: { url?: string }): void {
     // Check max clients limit
@@ -226,6 +285,7 @@ export class ActivityWebSocketHandler {
     const client: WebSocketClient = {
       ws,
       clientId,
+      userId: null,
       connectedAt: new Date(),
       lastActivity: new Date(),
       subscribedTypes: new Set(),
@@ -264,12 +324,19 @@ export class ActivityWebSocketHandler {
 
   /**
    * Handle incoming message from client
+   * Requirements: 3.1, 3.2, 3.3
    */
   private handleMessage(client: WebSocketClient, data: Buffer | string): void {
     client.lastActivity = new Date();
 
     try {
       const message = JSON.parse(data.toString());
+
+      // Handle user subscription for scoped broadcasting
+      if (message.action === "subscribe_user" && typeof message.userId === "string") {
+        client.userId = message.userId;
+        Logger.debug(`Client ${client.clientId} subscribed to user: ${message.userId}`);
+      }
 
       // Handle subscription requests
       if (message.action === "subscribe" && Array.isArray(message.types)) {
@@ -333,7 +400,7 @@ export class ActivityWebSocketHandler {
 
   /**
    * Broadcast an activity event to all connected clients
-   * Requirements: 7.1, 7.3
+   * Requirements: 7.1, 7.3, 3.1, 3.2, 3.3
    *
    * @param event - Activity event to broadcast
    */
@@ -349,6 +416,91 @@ export class ActivityWebSocketHandler {
       }
 
       this.sendRawToClient(client, eventData);
+    }
+  }
+
+  /**
+   * Broadcast a memory event to clients subscribed to a specific user
+   * Requirements: 3.1, 3.2, 3.3, 3.8
+   *
+   * @param event - Memory event to broadcast
+   * @param userId - User ID to scope the broadcast to
+   * @param tempId - Optional temp ID for deduplication with optimistic updates
+   */
+  broadcastToUser(event: ActivityEvent, userId: string, tempId?: string): void {
+    if (!this.isRunning || this.clients.size === 0) return;
+
+    // Check for duplicate events
+    const eventKey = this.generateEventKey(event, userId, tempId);
+    if (this.isDuplicateEvent(eventKey)) {
+      Logger.debug(`Skipping duplicate event: ${eventKey}`);
+      return;
+    }
+
+    // Mark event as processed
+    this.markEventProcessed(eventKey);
+
+    const eventData = JSON.stringify(event);
+
+    for (const client of this.clients.values()) {
+      // Only send to clients subscribed to this user
+      if (client.userId !== userId) {
+        continue;
+      }
+
+      // Check if client is subscribed to this event type
+      if (client.subscribedTypes.size > 0 && !client.subscribedTypes.has(event.type)) {
+        continue;
+      }
+
+      this.sendRawToClient(client, eventData);
+    }
+  }
+
+  /**
+   * Generate a unique key for event deduplication
+   * Requirements: 3.8
+   */
+  private generateEventKey(event: ActivityEvent, userId: string, tempId?: string): string {
+    const data = event.data as Record<string, unknown>;
+    const memoryId = data.memoryId ?? (data.memory as Record<string, unknown>)?.id ?? "";
+    return `${event.type}:${userId}:${memoryId}:${tempId ?? ""}`;
+  }
+
+  /**
+   * Check if an event is a duplicate within the deduplication window
+   * Requirements: 3.8
+   */
+  private isDuplicateEvent(eventKey: string): boolean {
+    const lastProcessed = this.recentEvents.get(eventKey);
+    if (!lastProcessed) return false;
+
+    const now = Date.now();
+    return now - lastProcessed < this.deduplicationWindowMs;
+  }
+
+  /**
+   * Mark an event as processed for deduplication
+   * Requirements: 3.8
+   */
+  private markEventProcessed(eventKey: string): void {
+    this.recentEvents.set(eventKey, Date.now());
+
+    // Clean up old entries periodically
+    if (this.recentEvents.size > 1000) {
+      this.cleanupRecentEvents();
+    }
+  }
+
+  /**
+   * Clean up old entries from the recent events map
+   */
+  private cleanupRecentEvents(): void {
+    const now = Date.now();
+    for (const [key, timestamp] of this.recentEvents) {
+      if (now - timestamp > this.deduplicationWindowMs) {
+        this.recentEvents.delete(key);
+      }
     }
   }
 
@@ -423,6 +575,7 @@ export class ActivityWebSocketHandler {
 
   /**
    * Check if a string is a valid event type
+   * Requirements: 3.1, 3.2, 3.3
    */
   private isValidEventType(type: string): type is ActivityEventType {
     const validTypes: ActivityEventType[] = [
@@ -433,6 +586,9 @@ export class ActivityWebSocketHandler {
       "system_event",
       "heartbeat",
       "connection_established",
+      "memory_created",
+      "memory_updated",
+      "memory_deleted",
     ];
     return validTypes.includes(type as ActivityEventType);
   }
@@ -453,12 +609,19 @@ export class ActivityWebSocketHandler {
 
   /**
    * Get client connection info
+   * Requirements: 3.1, 3.2, 3.3
    */
-  getClientInfo(): Array<{ clientId: string; connectedAt: Date; subscribedTypes: string[] }> {
+  getClientInfo(): Array<{
+    clientId: string;
+    connectedAt: Date;
+    subscribedTypes: string[];
+    userId: string | null;
+  }> {
     return Array.from(this.clients.values()).map((client) => ({
       clientId: client.clientId,
       connectedAt: client.connectedAt,
       subscribedTypes: [...client.subscribedTypes],
+      userId: client.userId,
     }));
   }
 
@@ -493,6 +656,7 @@ export class ActivityWebSocketHandler {
       }
     }
     this.clients.clear();
+    this.recentEvents.clear();
 
     // Close WebSocket server
     if (this.wss) {
@@ -564,6 +728,42 @@ export function createSessionEvent(data: SessionEventData): ActivityEvent {
 export function createSystemEvent(data: SystemEventData): ActivityEvent {
   return {
     type: "system_event",
+    timestamp: new Date().toISOString(),
+    data,
+  };
+}
+
+/**
+ * Create a memory created event
+ * Requirements: 3.1, 3.8
+ */
+export function createMemoryCreatedEvent(data: MemoryCreatedEventData): ActivityEvent {
+  return {
+    type: "memory_created",
+    timestamp: new Date().toISOString(),
+    data,
+  };
+}
+
+/**
+ * Create a memory updated event
+ * Requirements: 3.2, 3.8
+ */
+export function createMemoryUpdatedEvent(data: MemoryUpdatedEventData): ActivityEvent {
+  return {
+    type: "memory_updated",
+    timestamp: new Date().toISOString(),
+    data,
+  };
+}
+
+/**
+ * Create a memory deleted event
+ * Requirements: 3.3
+ */
+export function createMemoryDeletedEvent(data: MemoryDeletedEventData): ActivityEvent {
+  return {
+    type: "memory_deleted",
     timestamp: new Date().toISOString(),
     data,
   };

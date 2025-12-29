@@ -4,13 +4,15 @@
 # This script ensures all dependencies are ready before starting the MCP server:
 # 1. Waits for Ollama to be ready and responding
 # 2. Pulls the embedding model if not already present
-# 3. Starts the MCP server and optionally the REST API server
+# 3. Pulls the inference model if not already present (for AI-augmented reasoning)
+# 4. Starts the MCP server and optionally the REST API server
 #
-# Requirements: 0.4, 11.3, 9.2, 9.3, 16.1, 16.3
+# Requirements: 0.4, 11.3, 9.2, 9.3, 14.2, 14.3, 16.1, 16.3
 #
 # Environment Variables:
 #   OLLAMA_HOST         - Ollama API URL (default: http://ollama:11434)
-#   EMBEDDING_MODEL     - Model to pull (default: nomic-embed-text)
+#   EMBEDDING_MODEL     - Embedding model to pull (default: nomic-embed-text)
+#   LLM_MODEL           - Inference model to pull for AI reasoning (default: llama3.2:1b)
 #   OLLAMA_WAIT_TIMEOUT - Max seconds to wait for Ollama (default: 120)
 #   SKIP_MODEL_PULL     - Skip model pull if set to "true" (default: false)
 #   MCP_STANDBY_MODE    - If "true", container stays alive without starting server (default: false)
@@ -22,6 +24,7 @@
 # Usage:
 #   ./docker/entrypoint.sh
 #   OLLAMA_HOST=http://localhost:11434 ./docker/entrypoint.sh
+#   LLM_MODEL=phi3:mini ./docker/entrypoint.sh
 #   REST_API_ENABLED=true REST_API_PORT=3000 ./docker/entrypoint.sh
 
 set -e
@@ -29,6 +32,7 @@ set -e
 # Configuration with defaults
 OLLAMA_HOST="${OLLAMA_HOST:-http://ollama:11434}"
 EMBEDDING_MODEL="${EMBEDDING_MODEL:-nomic-embed-text}"
+LLM_MODEL="${LLM_MODEL:-llama3.2:1b}"
 OLLAMA_WAIT_TIMEOUT="${OLLAMA_WAIT_TIMEOUT:-120}"
 SKIP_MODEL_PULL="${SKIP_MODEL_PULL:-false}"
 MCP_STANDBY_MODE="${MCP_STANDBY_MODE:-false}"
@@ -172,13 +176,71 @@ verify_model() {
     return 0
 }
 
+# Pull inference model if not present
+# Requirements: 14.2, 14.3
+pull_inference_model() {
+    if [ "$SKIP_MODEL_PULL" = "true" ]; then
+        log_info "Skipping inference model pull (SKIP_MODEL_PULL=true)"
+        return 0
+    fi
+
+    log_info "Checking for inference model: ${LLM_MODEL}"
+
+    if is_model_present "$LLM_MODEL"; then
+        log_info "Inference model ${LLM_MODEL} is already present"
+        return 0
+    fi
+
+    log_info "Pulling inference model: ${LLM_MODEL}..."
+    log_info "This may take several minutes on first run..."
+
+    # Pull the model using Ollama API
+    local pull_response
+    local http_code
+
+    # Use curl to pull the model, streaming the response
+    # The pull endpoint returns JSON lines with status updates
+    http_code=$(curl -sf -w "%{http_code}" -o /tmp/pull_inference_output.txt \
+        -X POST "${OLLAMA_HOST}/api/pull" \
+        -H "Content-Type: application/json" \
+        -d "{\"name\": \"${LLM_MODEL}\", \"stream\": false}" 2>/dev/null) || true
+
+    if [ "$http_code" = "200" ]; then
+        log_info "Successfully pulled inference model: ${LLM_MODEL}"
+        rm -f /tmp/pull_inference_output.txt
+        return 0
+    fi
+
+    # If non-streaming failed, try streaming approach
+    log_info "Attempting streaming pull for inference model..."
+
+    if curl -sf -X POST "${OLLAMA_HOST}/api/pull" \
+        -H "Content-Type: application/json" \
+        -d "{\"name\": \"${LLM_MODEL}\"}" 2>&1 | while read -r line; do
+            # Parse status from JSON response
+            status=$(echo "$line" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+            if [ -n "$status" ]; then
+                log_info "Pull status: $status"
+            fi
+        done; then
+        log_info "Successfully pulled inference model: ${LLM_MODEL}"
+        return 0
+    fi
+
+    log_warn "Failed to pull inference model: ${LLM_MODEL}"
+    log_warn "AI-augmented reasoning features may be unavailable"
+    # Don't fail - inference model is optional, system can fall back to rule-based analysis
+    return 0
+}
+
 # Start the MCP server
 # Requirements: 16.1
 start_server() {
     log_info "Starting Thought MCP Server..."
     log_info "Database: ${DB_HOST:-postgres}:${DB_PORT:-5432}/${DB_NAME:-thought}"
     log_info "Ollama: ${OLLAMA_HOST}"
-    log_info "Model: ${EMBEDDING_MODEL}"
+    log_info "Embedding Model: ${EMBEDDING_MODEL}"
+    log_info "Inference Model: ${LLM_MODEL}"
 
     # Start REST API if enabled (Requirements: 16.1)
     # REST API starts first to ensure it's ready before MCP server
@@ -227,7 +289,8 @@ standby_mode() {
     log_info "Connect via: docker exec -i thought-server node dist/index.js"
     log_info "Database: ${DB_HOST:-postgres}:${DB_PORT:-5432}/${DB_NAME:-thought}"
     log_info "Ollama: ${OLLAMA_HOST}"
-    log_info "Model: ${EMBEDDING_MODEL}"
+    log_info "Embedding Model: ${EMBEDDING_MODEL}"
+    log_info "Inference Model: ${LLM_MODEL}"
 
     # Start REST API if enabled (Requirements: 16.3)
     if [ "$REST_API_ENABLED" = "true" ]; then
@@ -259,10 +322,14 @@ main() {
         exit 1
     fi
 
-    # Step 3: Verify model is working
+    # Step 3: Pull inference model if needed (Requirements: 14.2, 14.3)
+    # Note: Inference model is optional - failure doesn't prevent startup
+    pull_inference_model
+
+    # Step 4: Verify embedding model is working
     verify_model
 
-    # Step 4: Start the server or enter standby mode
+    # Step 5: Start the server or enter standby mode
     if [ "$MCP_STANDBY_MODE" = "true" ]; then
         standby_mode
     else

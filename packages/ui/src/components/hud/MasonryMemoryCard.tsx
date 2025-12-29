@@ -139,7 +139,7 @@ export function MasonryMemoryCard({
 
       {/* Content area - independently scrollable (Requirements: 4.5, 4.6) */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 text-sm text-ui-text-primary group-hover:text-ui-accent-primary/90 transition-colors duration-fast">
-        <BlockNotePreview content={memory.content} maxLines={10} />
+        <BlockNotePreview content={memory.content} />
       </div>
     </div>
   );

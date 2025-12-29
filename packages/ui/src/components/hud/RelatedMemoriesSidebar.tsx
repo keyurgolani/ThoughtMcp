@@ -241,8 +241,11 @@ function RelatedMemoryItem({
         className="w-full text-left mb-2 focus:outline-none focus:ring-1 focus:ring-ui-accent-primary/50 rounded"
         aria-label={`Preview memory: ${memory.content.substring(0, 80)}`}
       >
-        <div className="text-sm text-ui-text-primary group-hover:text-ui-accent-primary transition-colors">
-          <MarkdownPreview content={firstLine} maxLines={2} />
+        <div
+          className="text-sm text-ui-text-primary group-hover:text-ui-accent-primary transition-colors overflow-hidden"
+          style={{ maxHeight: "48px" }}
+        >
+          <MarkdownPreview content={firstLine} />
         </div>
       </button>
 
@@ -802,8 +805,11 @@ function SuggestedMemoryItem({
       </div>
 
       {/* Content preview */}
-      <div className="text-xs text-ui-text-primary mb-2">
-        <MarkdownPreview content={memory.content} maxLines={2} />
+      <div
+        className="text-xs text-ui-text-primary mb-2 overflow-hidden"
+        style={{ maxHeight: "40px" }}
+      >
+        <MarkdownPreview content={memory.content} />
       </div>
 
       {/* Action buttons */}

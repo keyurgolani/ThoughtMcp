@@ -74,6 +74,8 @@ export const ErrorCodes = {
   SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
   /** Request timeout - HTTP 408 */
   REQUEST_TIMEOUT: "REQUEST_TIMEOUT",
+  /** Upstream service timeout - HTTP 504 */
+  GATEWAY_TIMEOUT: "GATEWAY_TIMEOUT",
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
@@ -91,6 +93,7 @@ export const ErrorCodeToHttpStatus: Record<ErrorCode, number> = {
   [ErrorCodes.INTERNAL_ERROR]: 500,
   [ErrorCodes.SERVICE_UNAVAILABLE]: 503,
   [ErrorCodes.REQUEST_TIMEOUT]: 408,
+  [ErrorCodes.GATEWAY_TIMEOUT]: 504,
 };
 
 /**

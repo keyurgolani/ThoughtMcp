@@ -130,6 +130,25 @@ export class ConflictError extends ApiError {
 }
 
 /**
+ * Gateway timeout error for upstream service timeouts
+ * Requirements: 15.4
+ */
+export class GatewayTimeoutError extends ApiError {
+  constructor(
+    message = "Upstream service timed out",
+    options?: { details?: Record<string, unknown>; suggestion?: string }
+  ) {
+    super(message, 504, ErrorCodes.GATEWAY_TIMEOUT, {
+      details: options?.details,
+      suggestion:
+        options?.suggestion ??
+        "The reasoning service took too long to respond. Try a simpler query or try again later",
+    });
+    this.name = "GatewayTimeoutError";
+  }
+}
+
+/**
  * Maps internal error codes to REST API error codes
  */
 function mapUtilErrorCodeToApiErrorCode(code: string): ErrorCode {

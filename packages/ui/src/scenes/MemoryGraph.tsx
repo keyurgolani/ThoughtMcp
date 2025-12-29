@@ -16,6 +16,11 @@
  * - Top-right search and filter panel
  * - Focused mode to hide all panels
  * - Memory view/edit modals via React Portal
+ * - Lazy loading: fetch only root node and immediate neighbors initially
+ * - On-demand expansion: fetch neighbors when clicking unexpanded nodes
+ * - Node caching: previously fetched nodes are cached
+ *
+ * Requirements: 11.1, 11.2, 11.3
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -23,11 +28,12 @@ import { MemoryGraph3D } from "../components/graph/MemoryGraph3D";
 import { BlockNotePreview } from "../components/hud/BlockNotePreview";
 import { MasonryMemoryCard } from "../components/hud/MasonryMemoryCard";
 import { SectorBadge } from "../components/hud/SectorBadge";
+import { useGraphLazyLoading } from "../hooks/useGraphLazyLoading";
 import { useMemoryStore } from "../stores/memoryStore";
 import { themes, useThemeStore } from "../stores/themeStore";
 import { useUIStore } from "../stores/uiStore";
 import type { GraphNode, Memory, MemorySectorType } from "../types/api";
-import type { GraphEdgeType } from "../utils/graphEdges";
+import type { GraphEdge2D } from "../utils/graphEdges";
 import { generateEdges } from "../utils/graphEdges";
 
 // ============================================================================
@@ -58,26 +64,21 @@ function getKeyboardShortcutDisplay(): string {
 // Types
 // ============================================================================
 
-interface GraphNodeInternal {
-  id: string;
-  content: string;
-  primarySector: MemorySectorType;
-  salience: number;
-  strength: number;
-  createdAt: string;
-  metadata: GraphNode["metadata"];
-}
-
-interface GraphLinkInternal {
-  source: string | GraphNodeInternal;
-  target: string | GraphNodeInternal;
-  type: GraphEdgeType;
-  weight: number;
-}
-
 export interface MemoryGraphProps {
   userId: string;
   sessionId: string;
+  /** Enable lazy loading mode (default: true) - Requirements: 11.1, 11.2, 11.3 */
+  enableLazyLoading?: boolean;
+  /** Initial depth for lazy loading (default: 1) - Requirements: 11.5 */
+  initialDepth?: number;
+  /** Maximum depth for graph traversal (default: 3) - Requirements: 11.5 */
+  maxDepth?: number;
+  /** Root memory ID to center the graph on (optional) */
+  rootMemoryId?: string;
+  /** Enable level-of-detail rendering for large graphs (default: true) - Requirements: 11.6 */
+  enableLOD?: boolean;
+  /** Threshold for enabling LOD rendering (default: 500) - Requirements: 11.6 */
+  lodThreshold?: number;
 }
 
 // ============================================================================
@@ -362,10 +363,9 @@ function RelatedMemoryCard({
 }: RelatedMemoryCardProps): React.ReactElement {
   const { memory, connectionType, relevanceScore } = item;
 
-  // In compact mode, limit to 3 lines; otherwise show more content
-  const maxLines = compact ? 3 : 8;
-  const contentLines = memory.content.split("\n").slice(0, maxLines).join("\n").trim();
-  const previewContent = contentLines || memory.content.substring(0, compact ? 200 : 500);
+  // Use height-based truncation instead of line-clamp
+  // Compact mode shows less content height
+  const maxHeight = compact ? "80px" : "180px";
 
   return (
     <div className="p-3 rounded-lg border border-ui-border/50 bg-ui-surface/50 hover:border-ui-accent-primary/30 transition-colors">
@@ -392,9 +392,12 @@ function RelatedMemoryCard({
         </span>
       </div>
 
-      {/* Content - BlockNote rendered preview */}
-      <div className={compact ? "mb-2" : "mb-3"}>
-        <BlockNotePreview content={previewContent} maxLines={maxLines} />
+      {/* Content - BlockNote rendered preview, truncated by height */}
+      <div
+        className={compact ? "mb-2 overflow-hidden" : "mb-3 overflow-hidden"}
+        style={{ maxHeight }}
+      >
+        <BlockNotePreview content={memory.content} />
       </div>
 
       {/* Relevance */}
@@ -855,9 +858,12 @@ function SearchResultCard({ node, onClick }: SearchResultCardProps): React.React
         <SectorBadge sector={node.primarySector} variant="pill" size="sm" />
       </div>
 
-      {/* Content preview - no scroll, uses line clamp */}
-      <div className="text-ui-text-secondary group-hover:text-ui-text-primary transition-colors">
-        <BlockNotePreview content={node.content} maxLines={3} />
+      {/* Content preview - truncated by card container */}
+      <div
+        className="text-ui-text-secondary group-hover:text-ui-text-primary transition-colors overflow-hidden"
+        style={{ maxHeight: "120px" }}
+      >
+        <BlockNotePreview content={node.content} />
       </div>
     </div>
   );
@@ -1032,6 +1038,12 @@ interface GraphRef {
 export function MemoryGraph({
   userId,
   sessionId: _sessionId,
+  enableLazyLoading = true,
+  initialDepth = 1,
+  maxDepth = 3,
+  rootMemoryId,
+  enableLOD = true,
+  lodThreshold = 500,
 }: MemoryGraphProps): React.ReactElement {
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1063,19 +1075,63 @@ export function MemoryGraph({
   const currentTheme = useThemeStore((state) => state.currentTheme);
   const isLightMode = themes[currentTheme].isLight;
 
-  // Store
+  // Store (for non-lazy loading mode and memory lookup)
   const memories = useMemoryStore((state) => state.memories);
   const fetchMemories = useMemoryStore((state) => state.fetchMemories);
   const isLoading = useMemoryStore((state) => state.isLoading);
   const isLoadingMore = useMemoryStore((state) => state.isLoadingMore);
   const totalCount = useMemoryStore((state) => state.totalCount);
 
-  // Fetch memories on mount
+  // Lazy loading hook - Requirements: 11.1, 11.2, 11.3
+  const lazyLoading = useGraphLazyLoading();
+
+  // Extract stable references to avoid infinite loops in useEffect
+  // The hook returns a new object each render, but the functions are stable via useCallback
+  const {
+    initializeGraph,
+    setInitialDepth,
+    setMaxDepth,
+    isInitialLoading: lazyIsInitialLoading,
+  } = lazyLoading;
+
+  // Track if we've already initialized to prevent duplicate calls
+  const hasInitializedRef = useRef(false);
+
+  // Initialize lazy loading or fetch all memories based on mode
+  // Requirements: 11.5 - Configurable depth parameter
   useEffect(() => {
-    if (userId) {
+    if (!userId) return;
+
+    // Prevent duplicate initialization
+    if (hasInitializedRef.current) return;
+
+    if (enableLazyLoading) {
+      // Set initial depth and max depth, then initialize lazy loading graph
+      setInitialDepth(initialDepth);
+      setMaxDepth(maxDepth);
+      hasInitializedRef.current = true;
+      void initializeGraph(userId, rootMemoryId);
+    } else {
+      // Fallback to fetching all memories
+      hasInitializedRef.current = true;
       void fetchMemories(userId);
     }
-  }, [fetchMemories, userId]);
+  }, [
+    userId,
+    enableLazyLoading,
+    initialDepth,
+    maxDepth,
+    rootMemoryId,
+    fetchMemories,
+    initializeGraph,
+    setInitialDepth,
+    setMaxDepth,
+  ]);
+
+  // Reset initialization flag when userId changes
+  useEffect(() => {
+    hasInitializedRef.current = false;
+  }, [userId]);
 
   // Handle escape key to exit focus mode
   useEffect(() => {
@@ -1109,21 +1165,78 @@ export function MemoryGraph({
     };
   }, []);
 
-  // Generate all edges
-  const allEdges = useMemo(() => generateEdges(memories), [memories]);
+  // Get nodes and edges based on loading mode
+  const { displayNodes, displayEdges, allMemoriesForLookup } = useMemo((): {
+    displayNodes: GraphNode[];
+    displayEdges: GraphEdge2D[];
+    allMemoriesForLookup: Memory[];
+  } => {
+    if (enableLazyLoading) {
+      // Use lazy-loaded nodes and edges
+      const lazyNodes = lazyLoading.getNodesArray();
+      const lazyEdges = lazyLoading.getEdgesArray();
+
+      // Convert LazyGraphNode to GraphNode for display
+      const nodes: GraphNode[] = lazyNodes.map(
+        (n): GraphNode => ({
+          id: n.id,
+          content: n.content,
+          primarySector: n.primarySector,
+          salience: n.salience,
+          strength: n.strength,
+          createdAt: n.createdAt,
+          metadata: n.metadata,
+        })
+      );
+
+      // Convert lazy edges to display format
+      const edges: GraphEdge2D[] = lazyEdges.map(
+        (e): GraphEdge2D => ({
+          source: e.source,
+          target: e.target,
+          type: e.type,
+          weight: e.weight,
+        })
+      );
+
+      // Create memory lookup from lazy nodes
+      const memoryLookup: Memory[] = lazyNodes.map(
+        (n): Memory => ({
+          id: n.id,
+          content: n.content,
+          primarySector: n.primarySector,
+          salience: n.salience,
+          strength: n.strength,
+          createdAt: n.createdAt,
+          lastAccessed: n.createdAt,
+          accessCount: 0,
+          userId: userId,
+          sessionId: "",
+          metadata: n.metadata,
+        })
+      );
+
+      return { displayNodes: nodes, displayEdges: edges, allMemoriesForLookup: memoryLookup };
+    } else {
+      // Use all memories from store
+      const nodes = memories.map(memoryToGraphNode);
+      const edges = generateEdges(memories);
+      return { displayNodes: nodes, displayEdges: edges, allMemoriesForLookup: memories };
+    }
+  }, [enableLazyLoading, lazyLoading, memories, userId]);
 
   // Extract all unique tags
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
-    memories.forEach((m) => {
+    allMemoriesForLookup.forEach((m) => {
       m.metadata.tags?.forEach((t) => tagSet.add(t));
     });
     return Array.from(tagSet).sort();
-  }, [memories]);
+  }, [allMemoriesForLookup]);
 
   // Filter nodes
   const filteredNodes = useMemo(() => {
-    let nodes = memories.map(memoryToGraphNode);
+    let nodes = displayNodes;
 
     // Filter by sectors
     nodes = nodes.filter((n) => selectedSectors.includes(n.primarySector));
@@ -1136,38 +1249,38 @@ export function MemoryGraph({
     }
 
     return nodes;
-  }, [memories, selectedSectors, selectedTags]);
+  }, [displayNodes, selectedSectors, selectedTags]);
 
   // Filter edges
-  const filteredEdges = useMemo(() => {
+  const filteredEdges = useMemo((): GraphEdge2D[] => {
     const nodeIds = new Set(filteredNodes.map((n) => n.id));
-    let edges = allEdges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
+    let edges = displayEdges.filter(
+      (e: GraphEdge2D) => nodeIds.has(e.source) && nodeIds.has(e.target)
+    );
 
     // Filter by connection type
     if (connectionFilter === "direct") {
-      edges = edges.filter((e) => e.type === "tag" || e.type === "mention");
+      edges = edges.filter((e: GraphEdge2D) => e.type === "tag" || e.type === "mention");
     } else if (connectionFilter === "semantic") {
-      edges = edges.filter((e) => e.type === "similarity");
+      edges = edges.filter((e: GraphEdge2D) => e.type === "similarity");
     }
 
     return edges;
-  }, [allEdges, filteredNodes, connectionFilter]);
+  }, [displayEdges, filteredNodes, connectionFilter]);
 
   // Build neighbor maps for highlighting
   const { nodeNeighbors, nodeLinks } = useMemo(() => {
     const neighbors = new Map<string, Set<string>>();
-    const links = new Map<string, Set<GraphLinkInternal>>();
+    const links = new Map<string, Set<GraphEdge2D>>();
 
     filteredNodes.forEach((node) => {
       neighbors.set(node.id, new Set());
       links.set(node.id, new Set());
     });
 
-    filteredEdges.forEach((link) => {
-      const sourceId =
-        typeof link.source === "string" ? link.source : (link.source as GraphNodeInternal).id;
-      const targetId =
-        typeof link.target === "string" ? link.target : (link.target as GraphNodeInternal).id;
+    filteredEdges.forEach((link: GraphEdge2D) => {
+      const sourceId = link.source;
+      const targetId = link.target;
 
       if (neighbors.has(sourceId) && neighbors.has(targetId)) {
         neighbors.get(sourceId)?.add(targetId);
@@ -1192,7 +1305,7 @@ export function MemoryGraph({
     const directLinks = nodeLinks.get(focusedId) ?? new Set();
 
     directNeighbors.forEach((neighborId) => {
-      const memory = memories.find((m) => m.id === neighborId);
+      const memory = allMemoriesForLookup.find((m) => m.id === neighborId);
       if (!memory) return;
 
       // Find the link to determine connection type
@@ -1200,10 +1313,8 @@ export function MemoryGraph({
       let maxWeight = 0;
 
       directLinks.forEach((link) => {
-        const sourceId = typeof link.source === "string" ? link.source : link.source.id;
-        const targetId = typeof link.target === "string" ? link.target : link.target.id;
-
-        if (sourceId === neighborId || targetId === neighborId) {
+        // GraphEdge2D always has source/target as strings
+        if (link.source === neighborId || link.target === neighborId) {
           if (link.type === "similarity") {
             connectionType = "semantic";
           }
@@ -1220,7 +1331,7 @@ export function MemoryGraph({
 
     // Sort by relevance
     return related.sort((a, b) => b.relevanceScore - a.relevanceScore);
-  }, [focusedMemory, memories, nodeNeighbors, nodeLinks]);
+  }, [focusedMemory, allMemoriesForLookup, nodeNeighbors, nodeLinks]);
 
   // Sector toggle handler
   const handleSectorToggle = useCallback((sector: MemorySectorType) => {
@@ -1246,12 +1357,35 @@ export function MemoryGraph({
   // Navigate to memory from sidebar
   const handleMemoryNavigate = useCallback(
     (memoryId: string) => {
-      const memory = memories.find((m) => m.id === memoryId);
+      const memory = allMemoriesForLookup.find((m) => m.id === memoryId);
       if (memory) {
         setFocusedMemory(memory);
+        // If lazy loading is enabled and node can be expanded, expand it
+        if (enableLazyLoading && lazyLoading.canExpandNode(memoryId)) {
+          void lazyLoading.expandNode(memoryId);
+        }
       }
     },
-    [memories]
+    [allMemoriesForLookup, enableLazyLoading, lazyLoading]
+  );
+
+  /**
+   * Handle node click - focus on node and expand if lazy loading is enabled
+   * Requirements: 11.2 - Fetch neighbors on node expansion
+   */
+  const handleNodeClick = useCallback(
+    (nodeId: string) => {
+      const memory = allMemoriesForLookup.find((m) => m.id === nodeId);
+      if (memory) {
+        setFocusedMemory(memory);
+        // If lazy loading is enabled and node can be expanded, expand it
+        // Requirements: 11.2
+        if (enableLazyLoading && lazyLoading.canExpandNode(nodeId)) {
+          void lazyLoading.expandNode(nodeId);
+        }
+      }
+    },
+    [allMemoriesForLookup, enableLazyLoading, lazyLoading]
   );
 
   // View memory modal
@@ -1272,14 +1406,30 @@ export function MemoryGraph({
 
   return (
     <div className="h-full relative" ref={containerRef}>
+      {/* Loading overlay for initial lazy load */}
+      {enableLazyLoading && lazyIsInitialLoading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-ui-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <svg
+              className="animate-spin h-8 w-8 text-ui-accent-primary"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+              <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+            </svg>
+            <span className="text-sm text-ui-text-secondary">Loading graph...</span>
+          </div>
+        </div>
+      )}
+
       <MemoryGraph3D
         nodes={filteredNodes}
         edges={filteredEdges}
         selectedNodeId={focusedMemory?.id ?? null}
-        onNodeClick={(nodeId) => {
-          const memory = memories.find((m) => m.id === nodeId);
-          if (memory) setFocusedMemory(memory);
-        }}
+        onNodeClick={handleNodeClick}
         onNodeHover={() => {
           // Hover highlighting is handled internally by MemoryGraph3D
         }}
@@ -1295,7 +1445,51 @@ export function MemoryGraph({
         onBackgroundClick={() => {
           setFocusedMemory(null);
         }}
+        enableLOD={enableLOD}
+        lodThreshold={lodThreshold}
       />
+
+      {/* LOD Mode Indicator - Requirements: 11.6 */}
+      {enableLOD && filteredNodes.length > lodThreshold && !isFocusedMode && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40">
+          <div className="glass-panel-glow rounded-lg px-3 py-2 flex items-center gap-2 text-xs text-ui-text-secondary">
+            <svg
+              className="w-4 h-4 text-ui-accent-primary"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 10V3L4 14h7v7l9-11h-7z"
+              />
+            </svg>
+            <span>LOD Mode: {filteredNodes.length} nodes</span>
+            <span className="text-ui-text-muted">(simplified rendering)</span>
+          </div>
+        </div>
+      )}
+
+      {/* Expanding nodes indicator */}
+      {enableLazyLoading && lazyLoading.expandingNodeIds.size > 0 && (
+        <div className="absolute top-4 right-4 z-40">
+          <div className="glass-panel-glow rounded-lg px-3 py-2 flex items-center gap-2 text-sm text-ui-text-secondary">
+            <svg
+              className="animate-spin h-4 w-4 text-ui-accent-primary"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+              <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+            </svg>
+            <span>Loading neighbors...</span>
+          </div>
+        </div>
+      )}
 
       {/* Left Sidebar - Memory Details */}
       {!isFocusedMode && focusedMemory && (
@@ -1306,7 +1500,7 @@ export function MemoryGraph({
             onMemoryClick={handleMemoryNavigate}
             onViewMemory={handleViewMemory}
             onEditMemory={handleEditMemory}
-            isLoading={isLoading}
+            isLoading={enableLazyLoading ? lazyIsInitialLoading : isLoading}
           />
         </div>
       )}
@@ -1327,8 +1521,8 @@ export function MemoryGraph({
               graphRef.current.fitToCanvas();
             }
           }}
-          totalCount={totalCount}
-          isLoadingMore={isLoadingMore}
+          totalCount={enableLazyLoading ? filteredNodes.length : totalCount}
+          isLoadingMore={enableLazyLoading ? lazyLoading.expandingNodeIds.size > 0 : isLoadingMore}
         />
       )}
 

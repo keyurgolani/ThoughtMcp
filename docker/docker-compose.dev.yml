@@ -97,6 +97,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       ollama:
         condition: service_healthy
     environment:
@@ -112,6 +114,16 @@ services:
       OLLAMA_HOST: http://ollama:11434
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
+      # Inference model configuration (Requirements: 14.2, 14.3)
+      LLM_MODEL: ${LLM_MODEL:-llama3.2:1b}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-30000}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.7}
+      # Redis configuration (Requirements: 9.1, 9.2)
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
       # Application configuration
       NODE_ENV: development
       LOG_LEVEL: ${LOG_LEVEL:-DEBUG}

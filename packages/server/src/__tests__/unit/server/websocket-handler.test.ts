@@ -3,21 +3,27 @@
  *
  * Tests for the ActivityWebSocketHandler class that provides real-time
  * cognitive activity updates via WebSocket connections.
- * Requirements: 7.1, 7.3
+ * Requirements: 7.1, 7.3, 3.1, 3.2, 3.3, 3.8
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   ActivityWebSocketHandler,
   createLoadChangeEvent,
+  createMemoryCreatedEvent,
+  createMemoryDeletedEvent,
   createMemoryOperationEvent,
+  createMemoryUpdatedEvent,
   createReasoningUpdateEvent,
   createSessionEvent,
   createSystemEvent,
   DEFAULT_WEBSOCKET_CONFIG,
   type ActivityEvent,
   type LoadChangeData,
+  type MemoryCreatedEventData,
+  type MemoryDeletedEventData,
   type MemoryOperationData,
+  type MemoryUpdatedEventData,
   type ReasoningUpdateData,
   type SessionEventData,
   type SystemEventData,
@@ -350,5 +356,267 @@ describe("ActivityEvent Type Validation", () => {
       event: "startup",
     });
     expect(event.type).toBe("system_event");
+  });
+
+  it("should have correct event type for memory_created", () => {
+    const event = createMemoryCreatedEvent({
+      memory: {
+        id: "mem-123",
+        content: "Test memory",
+        primarySector: "episodic",
+        createdAt: new Date().toISOString(),
+      },
+      userId: "user-123",
+    });
+    expect(event.type).toBe("memory_created");
+  });
+
+  it("should have correct event type for memory_updated", () => {
+    const event = createMemoryUpdatedEvent({
+      memoryId: "mem-123",
+      userId: "user-123",
+      updates: { content: "Updated content" },
+      reason: "user_edit",
+    });
+    expect(event.type).toBe("memory_updated");
+  });
+
+  it("should have correct event type for memory_deleted", () => {
+    const event = createMemoryDeletedEvent({
+      memoryId: "mem-123",
+      userId: "user-123",
+    });
+    expect(event.type).toBe("memory_deleted");
+  });
+});
+
+describe("Memory Event Helpers - Requirements: 3.1, 3.2, 3.3, 3.8", () => {
+  describe("createMemoryCreatedEvent", () => {
+    it("should create memory created event with correct type", () => {
+      const data: MemoryCreatedEventData = {
+        memory: {
+          id: "mem-123",
+          content: "Test memory content",
+          primarySector: "episodic",
+          createdAt: new Date().toISOString(),
+          embeddingStatus: "pending",
+        },
+        userId: "user-456",
+      };
+
+      const event = createMemoryCreatedEvent(data);
+
+      expect(event.type).toBe("memory_created");
+      expect(event.timestamp).toBeDefined();
+      expect(event.data).toEqual(data);
+    });
+
+    it("should create event with valid ISO timestamp", () => {
+      const data: MemoryCreatedEventData = {
+        memory: {
+          id: "mem-123",
+          content: "Test",
+          primarySector: "semantic",
+          createdAt: new Date().toISOString(),
+        },
+        userId: "user-123",
+      };
+
+      const event = createMemoryCreatedEvent(data);
+      const timestamp = new Date(event.timestamp);
+
+      expect(timestamp.toISOString()).toBe(event.timestamp);
+    });
+
+    it("should include tempId for optimistic update matching", () => {
+      const data: MemoryCreatedEventData = {
+        memory: {
+          id: "mem-123",
+          content: "Test",
+          primarySector: "procedural",
+          createdAt: new Date().toISOString(),
+        },
+        userId: "user-123",
+        tempId: "temp-abc-123",
+      };
+
+      const event = createMemoryCreatedEvent(data);
+
+      expect((event.data as MemoryCreatedEventData).tempId).toBe("temp-abc-123");
+    });
+
+    it("should handle all embedding statuses", () => {
+      const statuses: Array<"pending" | "complete" | "failed"> = ["pending", "complete", "failed"];
+
+      for (const embeddingStatus of statuses) {
+        const event = createMemoryCreatedEvent({
+          memory: {
+            id: "mem-123",
+            content: "Test",
+            primarySector: "emotional",
+            createdAt: new Date().toISOString(),
+            embeddingStatus,
+          },
+          userId: "user-123",
+        });
+        expect((event.data as MemoryCreatedEventData).memory.embeddingStatus).toBe(embeddingStatus);
+      }
+    });
+  });
+
+  describe("createMemoryUpdatedEvent", () => {
+    it("should create memory updated event with correct type", () => {
+      const data: MemoryUpdatedEventData = {
+        memoryId: "mem-123",
+        userId: "user-456",
+        updates: { content: "Updated content", strength: 0.9 },
+        reason: "user_edit",
+      };
+
+      const event = createMemoryUpdatedEvent(data);
+
+      expect(event.type).toBe("memory_updated");
+      expect(event.timestamp).toBeDefined();
+      expect(event.data).toEqual(data);
+    });
+
+    it("should create event with valid ISO timestamp", () => {
+      const data: MemoryUpdatedEventData = {
+        memoryId: "mem-123",
+        userId: "user-123",
+        updates: {},
+        reason: "embedding_complete",
+      };
+
+      const event = createMemoryUpdatedEvent(data);
+      const timestamp = new Date(event.timestamp);
+
+      expect(timestamp.toISOString()).toBe(event.timestamp);
+    });
+
+    it("should handle embedding_complete reason", () => {
+      const event = createMemoryUpdatedEvent({
+        memoryId: "mem-123",
+        userId: "user-123",
+        updates: { embeddingStatus: "complete" },
+        reason: "embedding_complete",
+      });
+
+      expect((event.data as MemoryUpdatedEventData).reason).toBe("embedding_complete");
+    });
+
+    it("should handle user_edit reason", () => {
+      const event = createMemoryUpdatedEvent({
+        memoryId: "mem-123",
+        userId: "user-123",
+        updates: { content: "New content" },
+        reason: "user_edit",
+      });
+
+      expect((event.data as MemoryUpdatedEventData).reason).toBe("user_edit");
+    });
+  });
+
+  describe("createMemoryDeletedEvent", () => {
+    it("should create memory deleted event with correct type", () => {
+      const data: MemoryDeletedEventData = {
+        memoryId: "mem-123",
+        userId: "user-456",
+      };
+
+      const event = createMemoryDeletedEvent(data);
+
+      expect(event.type).toBe("memory_deleted");
+      expect(event.timestamp).toBeDefined();
+      expect(event.data).toEqual(data);
+    });
+
+    it("should create event with valid ISO timestamp", () => {
+      const data: MemoryDeletedEventData = {
+        memoryId: "mem-123",
+        userId: "user-123",
+      };
+
+      const event = createMemoryDeletedEvent(data);
+      const timestamp = new Date(event.timestamp);
+
+      expect(timestamp.toISOString()).toBe(event.timestamp);
+    });
+  });
+});
+
+describe("User-Scoped Broadcasting - Requirements: 3.1, 3.2, 3.3", () => {
+  let handler: ActivityWebSocketHandler;
+
+  beforeEach(() => {
+    handler = new ActivityWebSocketHandler();
+  });
+
+  afterEach(() => {
+    if (handler.getIsRunning()) {
+      handler.close();
+    }
+  });
+
+  it("should handle broadcastToUser when no clients connected", () => {
+    const event = createMemoryCreatedEvent({
+      memory: {
+        id: "mem-123",
+        content: "Test",
+        primarySector: "episodic",
+        createdAt: new Date().toISOString(),
+      },
+      userId: "user-123",
+    });
+
+    // Should not throw
+    expect(() => handler.broadcastToUser(event, "user-123")).not.toThrow();
+  });
+
+  it("should handle broadcastToUser when handler not running", () => {
+    const event = createMemoryUpdatedEvent({
+      memoryId: "mem-123",
+      userId: "user-123",
+      updates: {},
+      reason: "test",
+    });
+
+    // Should not throw
+    expect(() => handler.broadcastToUser(event, "user-123")).not.toThrow();
+  });
+
+  it("should handle broadcastToUser with tempId for deduplication", () => {
+    const event = createMemoryCreatedEvent({
+      memory: {
+        id: "mem-123",
+        content: "Test",
+        primarySector: "episodic",
+        createdAt: new Date().toISOString(),
+      },
+      userId: "user-123",
+      tempId: "temp-abc",
+    });
+
+    // Should not throw
+    expect(() => handler.broadcastToUser(event, "user-123", "temp-abc")).not.toThrow();
+  });
+});
+
+describe("Client Info with UserId - Requirements: 3.1, 3.2, 3.3", () => {
+  let handler: ActivityWebSocketHandler;
+
+  beforeEach(() => {
+    handler = new ActivityWebSocketHandler();
+  });
+
+  afterEach(() => {
+    if (handler.getIsRunning()) {
+      handler.close();
+    }
+  });
+
+  it("should return empty client info with userId field", () => {
+    const clientInfo = handler.getClientInfo();
+    expect(clientInfo).toEqual([]);
   });
 });

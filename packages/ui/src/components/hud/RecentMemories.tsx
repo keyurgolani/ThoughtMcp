@@ -132,8 +132,11 @@ function MemoryListItem({ memory, showTimestamp, onClick }: MemoryListItemProps)
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <div className="text-sm text-ui-text-primary truncate group-hover:text-ui-accent-primary transition-colors duration-fast">
-            <BlockNotePreview content={memory.contentPreview} maxLines={1} />
+          <div
+            className="text-sm text-ui-text-primary truncate group-hover:text-ui-accent-primary transition-colors duration-fast overflow-hidden"
+            style={{ maxHeight: "24px" }}
+          >
+            <BlockNotePreview content={memory.contentPreview} />
           </div>
           <div className="flex items-center gap-2 mt-1">
             <span className={sectorBadgeClass} aria-hidden="true">
@@ -192,8 +195,11 @@ function CompactMemoryItem({ memory, onClick }: CompactMemoryItemProps): ReactEl
         <span className={sectorBadgeClass} aria-hidden="true">
           {getSectorIcon(sector, "xs")}
         </span>
-        <div className="text-xs text-ui-text-primary truncate group-hover:text-ui-accent-primary flex-1 min-w-0">
-          <BlockNotePreview content={memory.contentPreview} maxLines={1} />
+        <div
+          className="text-xs text-ui-text-primary truncate group-hover:text-ui-accent-primary flex-1 min-w-0 overflow-hidden"
+          style={{ maxHeight: "20px" }}
+        >
+          <BlockNotePreview content={memory.contentPreview} />
         </div>
       </div>
     </button>
@@ -252,8 +258,11 @@ function GridMemoryItem({ memory, onClick }: GridMemoryItemProps): ReactElement 
       </div>
 
       {/* Content preview */}
-      <div className="text-sm text-ui-text-primary group-hover:text-ui-accent-primary transition-colors duration-fast">
-        <BlockNotePreview content={memory.contentPreview} maxLines={2} />
+      <div
+        className="text-sm text-ui-text-primary group-hover:text-ui-accent-primary transition-colors duration-fast overflow-hidden"
+        style={{ maxHeight: "48px" }}
+      >
+        <BlockNotePreview content={memory.contentPreview} />
       </div>
 
       {/* Timestamp */}

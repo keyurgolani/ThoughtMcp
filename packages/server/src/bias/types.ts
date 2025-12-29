@@ -11,7 +11,7 @@ import type { ReasoningContext } from "../reasoning/types";
 /**
  * Types of cognitive biases that can be detected
  *
- * Represents the eight primary cognitive biases monitored by the system.
+ * Represents the nine primary cognitive biases monitored by the system.
  */
 export enum BiasType {
   /** Tendency to search for, interpret, favor, and recall information that confirms pre-existing beliefs */
@@ -30,6 +30,8 @@ export enum BiasType {
   SUNK_COST = "sunk_cost",
   /** Tendency to attribute others' behavior to internal characteristics while attributing own behavior to external factors */
   ATTRIBUTION = "attribution",
+  /** Tendency to adopt beliefs or behaviors because many others do (social proof fallacy) */
+  BANDWAGON = "bandwagon",
 }
 
 /**

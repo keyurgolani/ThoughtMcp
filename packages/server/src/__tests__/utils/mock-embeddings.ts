@@ -369,6 +369,39 @@ export class MockOllamaEmbeddingModel {
   }
 
   /**
+   * Generate embeddings for multiple texts in a single batch request
+   *
+   * This mirrors the batch API of the real OllamaEmbeddingModel.
+   * For testing, it simply calls generate() for each text.
+   *
+   * @param texts - Array of texts to generate embeddings for
+   * @returns Array of embedding vectors in the same order as input texts
+   */
+  async generateBatch(texts: string[]): Promise<number[][]> {
+    if (texts.length === 0) {
+      return [];
+    }
+
+    // Validate all inputs first (same as real implementation)
+    for (const text of texts) {
+      if (!text || typeof text !== "string") {
+        throw new Error("Text must be a non-empty string");
+      }
+
+      if (text.trim().length === 0) {
+        throw new Error("Text cannot be empty or whitespace only");
+      }
+
+      if (text.length > 100000) {
+        throw new Error("Text exceeds maximum length of 100,000 characters");
+      }
+    }
+
+    // Generate embeddings for all texts
+    return Promise.all(texts.map((text) => this.generate(text)));
+  }
+
+  /**
    * Generate deterministic embedding based on text hash
    * Used as fallback when no cached Ollama embedding is available
    */

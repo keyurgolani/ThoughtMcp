@@ -131,6 +131,7 @@ Development environment with persistent data volumes.
 **Services:**
 
 - `postgres`: PostgreSQL 16 with pgvector extension
+- `redis`: Redis for distributed caching
 - `ollama`: Ollama for local embedding generation
 - `pgadmin`: (Optional) pgAdmin web interface for database management
 
@@ -175,6 +176,7 @@ Test environment with isolated containers and no persistent data.
 - Separate ports to avoid conflicts with development
 - Faster health check intervals
 - Container name prefix for easy identification
+- Note: Redis is not included in test environment (tests use in-memory cache)
 
 **Usage:**
 
@@ -199,16 +201,18 @@ Production deployment with the full MCP server stack.
 **Services:**
 
 - `postgres`: PostgreSQL with persistent storage
+- `redis`: Redis for distributed caching (Requirements: 9.1, 9.2)
 - `ollama`: Ollama with model caching
 - `thoughtmcp`: ThoughtMCP MCP server (runs in standby mode by default)
 
 **Features:**
 
-- Automatic dependency ordering (postgres → ollama → thoughtmcp)
+- Automatic dependency ordering (postgres → redis → ollama → thoughtmcp)
 - Health check conditions for service startup
-- Persistent volumes for data and models
+- Persistent volumes for data, cache, and models
 - Production-optimized configuration
 - **MCP Standby Mode**: Container stays alive, MCP clients connect via `docker exec`
+- **Distributed Cache**: Redis enables cache sharing across multiple server instances
 
 **MCP Standby Mode (Default):**
 
@@ -309,6 +313,17 @@ EMBEDDING_MODEL=nomic-embed-text
 EMBEDDING_DIMENSION=768
 ```
 
+#### Redis Configuration (Production Hardening)
+
+```bash
+# Redis distributed cache (Requirements: 9.1, 9.2)
+REDIS_ENABLED=true
+REDIS_HOST=localhost        # Use 'redis' in Docker
+REDIS_PORT=6379
+REDIS_PASSWORD=             # Set strong password in production
+REDIS_DB=0
+```
+
 #### Container Management
 
 ```bash
@@ -335,6 +350,10 @@ nano .env.production
 POSTGRES_USER=thoughtmcp
 POSTGRES_PASSWORD=your_secure_password_here
 POSTGRES_DB=thoughtmcp
+
+# Redis distributed cache (Requirements: 9.1, 9.2)
+REDIS_ENABLED=true
+REDIS_PASSWORD=your_secure_redis_password_here
 
 # Production logging
 LOG_LEVEL=WARN

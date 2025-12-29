@@ -24,6 +24,8 @@ This document provides comprehensive documentation for all MCP (Model Context Pr
   - [evaluate](#evaluate)
 - [Response Format](#response-format)
 - [Error Codes](#error-codes)
+- [Best Practices](#best-practices)
+- [Recommended Memory Content Formatting](#recommended-memory-content-formatting)
 
 ---
 
@@ -1319,6 +1321,286 @@ Common error scenarios and their solutions:
 2. **Check for biases**: Run `detect_bias` on reasoning before finalizing conclusions
 
 3. **Consider emotional context**: Use `detect_emotion` when emotional factors are relevant
+
+---
+
+## Recommended Memory Content Formatting
+
+For optimal organization, retrieval, and readability, memory content should be stored in **markdown format**. Markdown provides structure that enhances both human readability and semantic search accuracy.
+
+### Why Markdown?
+
+1. **Structured Content**: Headers, lists, and sections make memories easier to parse and understand
+2. **Better Retrieval**: Well-structured content improves embedding quality and search relevance
+3. **Consistent Organization**: Standard formatting across memories enables predictable patterns
+4. **Rich Formatting**: Code blocks, links, and emphasis preserve important details
+
+### Formatting Guidelines
+
+- Use **headers** (`#`, `##`, `###`) to structure sections
+- Use **lists** (`-` or `1.`) for enumerated items or key points
+- Use **code blocks** (`` ` `` or ` ``` `) for code snippets, commands, or technical content
+- Use **bold** (`**text**`) and _italic_ (`*text*`) for emphasis
+- Use **links** (`[text](url)`) for references
+- Keep content focused and concise within each memory
+
+### Markdown Examples by Memory Sector
+
+#### Episodic Memories (Events and Experiences)
+
+Episodic memories capture temporal events, experiences, and contextual information.
+
+```markdown
+# Meeting: Q1 Planning Session
+
+## Date
+
+2025-01-15, 2:00 PM - 4:00 PM
+
+## Participants
+
+- Sarah (Product Lead)
+- Mike (Engineering Manager)
+- Lisa (Design Lead)
+
+## Key Decisions
+
+1. Prioritize mobile app development for Q1
+2. Delay analytics dashboard to Q2
+3. Hire two additional frontend developers
+
+## Action Items
+
+- [ ] Sarah: Draft mobile app requirements by Jan 20
+- [ ] Mike: Create hiring plan by Jan 18
+- [ ] Lisa: Prepare mobile UI mockups by Jan 25
+
+## Context
+
+This was a follow-up to the December strategy review. Team expressed concerns about timeline but agreed on priorities.
+```
+
+#### Semantic Memories (Facts and Knowledge)
+
+Semantic memories store factual information, concepts, and general knowledge.
+
+````markdown
+# PostgreSQL Connection Pooling
+
+## Overview
+
+Connection pooling maintains a cache of database connections for reuse, reducing connection overhead.
+
+## Key Concepts
+
+- **Pool Size**: Maximum concurrent connections (recommended: 20-50)
+- **Idle Timeout**: Time before unused connections are closed
+- **Connection Lifetime**: Maximum age of a connection before recycling
+
+## Best Practices
+
+1. Set pool size based on expected concurrent users
+2. Use connection timeouts to prevent resource exhaustion
+3. Monitor pool metrics for optimization
+
+## Configuration Example
+
+```typescript
+const pool = new Pool({
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
+```
+````
+
+## Related Topics
+
+- Database performance optimization
+- Query caching strategies
+- Load balancing
+
+````
+
+#### Procedural Memories (How-To and Processes)
+
+Procedural memories capture step-by-step processes, skills, and methodologies.
+
+```markdown
+# How to Deploy to Production
+
+## Prerequisites
+- Access to production AWS account
+- Approved PR merged to main branch
+- All tests passing in CI
+
+## Steps
+
+### 1. Prepare Release
+```bash
+git checkout main
+git pull origin main
+npm run build
+npm run test:qa
+````
+
+### 2. Create Release Tag
+
+```bash
+git tag -a v1.2.3 -m "Release v1.2.3"
+git push origin v1.2.3
+```
+
+### 3. Deploy to Staging
+
+1. Navigate to GitHub Actions
+2. Run "Deploy to Staging" workflow
+3. Verify staging environment at staging.example.com
+
+### 4. Production Deployment
+
+1. Run smoke tests on staging
+2. Get approval from on-call engineer
+3. Run "Deploy to Production" workflow
+4. Monitor dashboards for 30 minutes
+
+## Rollback Procedure
+
+If issues occur:
+
+```bash
+./scripts/rollback.sh v1.2.2
+```
+
+## Contacts
+
+- On-call: #ops-oncall Slack channel
+- Escalation: ops-lead@example.com
+
+````
+
+#### Emotional Memories (Feelings and Experiences)
+
+Emotional memories capture affective experiences, sentiments, and emotional context.
+
+```markdown
+# User Feedback: Frustration with Onboarding
+
+## Emotional Context
+**Primary Emotion**: Frustration
+**Intensity**: High
+**Trigger**: Complex setup process
+
+## User Quotes
+> "I spent 2 hours just trying to connect my account. This is ridiculous."
+
+> "Why do I need to configure 5 different settings before I can even start?"
+
+## Observed Patterns
+- Users abandon onboarding at step 3 (API configuration)
+- Support tickets spike on Mondays (new user signups)
+- Negative sentiment correlates with setup time > 15 minutes
+
+## Emotional Impact
+- **User Trust**: Decreased confidence in product
+- **Brand Perception**: "Complicated" and "developer-only"
+- **Churn Risk**: High for users who struggle with setup
+
+## Recommended Response
+1. Simplify onboarding to 3 steps maximum
+2. Add progress indicator with time estimates
+3. Provide "quick start" option with sensible defaults
+````
+
+#### Reflective Memories (Insights and Meta-Observations)
+
+Reflective memories capture insights, lessons learned, and meta-level observations.
+
+```markdown
+# Insight: Why Our Estimates Are Always Wrong
+
+## Observation
+
+Sprint velocity has been 30-40% below estimates for 6 consecutive sprints.
+
+## Root Causes Identified
+
+1. **Optimism Bias**: We estimate for best-case scenarios
+2. **Hidden Dependencies**: Integration work consistently underestimated
+3. **Context Switching**: Meetings and interruptions not factored in
+4. **Technical Debt**: Legacy code complexity surprises us
+
+## Pattern Recognition
+
+- Backend tasks: Estimates accurate within 20%
+- Frontend tasks: Estimates off by 50%+
+- Integration tasks: Estimates off by 100%+
+
+## Lessons Learned
+
+1. Add 50% buffer to frontend estimates
+2. Double integration task estimates
+3. Include "discovery time" for unfamiliar codebases
+4. Break tasks into smaller units (< 4 hours)
+
+## Applied Changes
+
+- Introduced planning poker with historical reference
+- Created estimation checklist for common pitfalls
+- Added "uncertainty factor" field to task tracking
+
+## Results After Changes
+
+Sprint velocity improved to within 15% of estimates after implementing these changes.
+```
+
+### Tips for Effective Memory Content
+
+1. **Be Specific**: Include concrete details, dates, names, and numbers
+2. **Add Context**: Explain why information matters, not just what it is
+3. **Use Consistent Structure**: Similar memories should follow similar formats
+4. **Include Relationships**: Reference related memories, topics, or concepts
+5. **Update Over Time**: Revise memories as understanding evolves
+6. **Tag Appropriately**: Use metadata keywords and tags for discoverability
+
+### Example: Well-Structured vs. Poorly-Structured Memory
+
+**❌ Poorly Structured:**
+
+```
+talked to john about the api thing. he said we should use rest not graphql. something about caching. need to follow up.
+```
+
+**✅ Well Structured:**
+
+```markdown
+# Technical Decision: REST vs GraphQL for Public API
+
+## Decision
+
+Use REST API instead of GraphQL for the public API.
+
+## Rationale
+
+- **Caching**: REST enables HTTP-level caching (CDN, browser)
+- **Simplicity**: Most integrators familiar with REST patterns
+- **Tooling**: Better OpenAPI/Swagger documentation support
+
+## Decision Maker
+
+John Smith (API Architect) - discussed 2025-01-10
+
+## Follow-up Required
+
+- [ ] Draft REST API specification
+- [ ] Review with frontend team
+- [ ] Update API documentation
+
+## Related
+
+- See also: Internal API design (uses GraphQL)
+- Reference: API Design Guidelines document
+```
 
 ---
 

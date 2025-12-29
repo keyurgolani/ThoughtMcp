@@ -182,6 +182,27 @@ const CORRECTION_TEMPLATES: Record<BiasType, Omit<BiasCorrectionSuggestion, "bia
       "What external factors am I not considering?",
     ],
   },
+
+  // Bandwagon bias / social proof fallacy correction
+  [BiasType.BANDWAGON]: {
+    suggestion:
+      "Evaluate options based on their own merits and fit for your specific needs, not on popularity or what others are doing.",
+    techniques: [
+      "List your specific requirements and evaluate each option against them",
+      "Consider why popular choices might not fit your unique situation",
+      "Research failures and drawbacks of popular options, not just successes",
+      "Ask what would be the best choice if no one else had made this decision yet",
+      "Evaluate the actual evidence for effectiveness, not adoption rates",
+    ],
+    challengeQuestions: [
+      "Would this still be the best choice if no one else was using it?",
+      "Am I choosing this because it's popular or because it meets my needs?",
+      "What are the specific reasons this is right for my situation?",
+      "Have I evaluated alternatives on their merits, or dismissed them because they're less popular?",
+      "What problems have others encountered with this popular choice?",
+      "Is 'everyone is doing it' actually evidence that it's the right choice for me?",
+    ],
+  },
 };
 
 /**

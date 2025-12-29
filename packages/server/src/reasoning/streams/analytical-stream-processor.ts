@@ -41,35 +41,23 @@ export class AnalyticalStreamProcessor implements StreamProcessor {
   private readonly keyTermExtractor: KeyTermExtractor;
   private llmAvailable: boolean | null = null;
 
-  // System prompt defining the persona and rules
-  private readonly SYSTEM_PROMPT = `
-You are the Analytical Engine of a sophisticated thinking system.
-Your role is to perform logical, systematic, and rigorous analysis.
+  // System prompt defining the persona and rules - simplified for smaller LLMs
+  private readonly SYSTEM_PROMPT = `You are an Analytical Engine performing logical, systematic analysis.
 
 METHODOLOGY:
-1. Decompose the problem into atomic components.
-2. Evaluate evidence and data strictly.
-3. Identify root causes and structural relationships.
-4.Deduce conclusions based ONLY on provided context and logic.
+1. Decompose the problem into components
+2. Evaluate evidence strictly
+3. Identify root causes and relationships
+4. Deduce conclusions based on logic
 
-OUTPUT FORMAT:
-Your response must be a JSON object complying with the schema provided.
-Ensure "reasoning" contains detailed, sequential steps.
-Ensure "insights" capture key discoveries.
-Ensure "confidence" reflects the strength of your logical proof (0.0-1.0).
-`;
+Provide step-by-step reasoning, key insights, and a confidence score (0.0-1.0).`;
 
   constructor(llm?: LLMClient) {
-    // Determine timeout based on context or default
-    // We use a shorter timeout for the LLM call than the stream total to allow for processing/overhead
-    const llmTimeout = 25000;
+    // Use LLM_TIMEOUT from environment, default to 60 seconds for larger models
+    // This allows time for model loading on first request
+    const llmTimeout = process.env.LLM_TIMEOUT ? parseInt(process.env.LLM_TIMEOUT, 10) : 60000;
 
-    // Use provided LLM client or create a new one (encapsulation)
-    // Note: In a real system, we might inject this dependency.
-    // For now, we instantiate it here to keep the usage simple.
-    // We use StreamManager to get the shared LLM client if available?
-    // Actually, StreamManager might manage the *streams*, not the *clients*.
-    // Let's just create a new client or use a shared instance pattern if implemented.
+    // Use provided LLM client or create a new one
     this.llm = llm ?? new LLMClient({ timeout: llmTimeout });
     this.keyTermExtractor = new KeyTermExtractor();
   }
@@ -113,12 +101,24 @@ Ensure "confidence" reflects the strength of your logical proof (0.0-1.0).
   private async checkLLMAvailability(): Promise<boolean> {
     try {
       const baseUrl = process.env.OLLAMA_HOST ?? "http://localhost:11434";
+      const modelName = process.env.LLM_MODEL ?? "llama3.2:1b";
+
+      Logger.debug("AnalyticalStreamProcessor: Checking LLM availability", {
+        baseUrl,
+        modelName,
+      });
+
       const response = await fetch(`${baseUrl}/api/tags`, {
         method: "GET",
         signal: AbortSignal.timeout(5000),
       });
 
-      if (!response.ok) return false;
+      if (!response.ok) {
+        Logger.warn("AnalyticalStreamProcessor: Ollama API not responding", {
+          status: response.status,
+        });
+        return false;
+      }
 
       const data = (await response.json()) as { models?: Array<{ name: string }> };
       const models = data.models ?? [];
@@ -132,8 +132,16 @@ Ensure "confidence" reflects the strength of your logical proof (0.0-1.0).
           !m.name.includes("all-minilm")
       );
 
+      Logger.debug("AnalyticalStreamProcessor: LLM availability check complete", {
+        chatModelsAvailable: chatModels.length,
+        modelNames: chatModels.map((m) => m.name).slice(0, 5),
+      });
+
       return chatModels.length > 0;
-    } catch {
+    } catch (error) {
+      Logger.warn("AnalyticalStreamProcessor: LLM availability check failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
@@ -143,7 +151,14 @@ Ensure "confidence" reflects the strength of your logical proof (0.0-1.0).
    */
   private async processWithLLM(problem: Problem, startTime: number): Promise<StreamResult> {
     // 2. Prepare Prompt
-    Logger.debug("AnalyticalStreamProcessor: Preparing prompt", { problemId: problem.id });
+    const modelName = process.env.LLM_MODEL ?? "llama3.2:1b";
+    const timeout = process.env.LLM_TIMEOUT ? parseInt(process.env.LLM_TIMEOUT, 10) : 60000;
+
+    Logger.info("AnalyticalStreamProcessor: Starting LLM-based analysis", {
+      problemId: problem.id,
+      model: modelName,
+      timeout,
+    });
 
     const systemInstruction = PromptBinder.bindSchemaToPrompt(
       this.SYSTEM_PROMPT,
@@ -182,6 +197,12 @@ Perform a systematic analysis.
       onChunk,
       AnalyticalOutputSchema
     );
+
+    Logger.info("AnalyticalStreamProcessor: LLM response received", {
+      problemId: problem.id,
+      responseLength: aiResponseContent.length,
+      processingTime: Date.now() - startTime,
+    });
 
     // 4. Parse Output
     // LLMClient.streamChat with schema returns a string that *should* be JSON.

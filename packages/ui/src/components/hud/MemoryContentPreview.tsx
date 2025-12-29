@@ -80,15 +80,17 @@ function stripMarkdown(content: string): string {
  */
 export function MemoryContentPreview({
   content,
-  maxLines = 2,
+  maxLines,
   className = "",
 }: MemoryContentPreviewProps): ReactElement {
   const previewText = useMemo(() => {
     const stripped = stripMarkdown(content);
-    // Limit to reasonable length for preview
-    const maxLength = maxLines * 80; // ~80 chars per line
-    if (stripped.length > maxLength) {
-      return stripped.substring(0, maxLength).trim() + "...";
+    // If maxLines is specified, limit to reasonable length for preview
+    if (maxLines !== undefined) {
+      const maxLength = maxLines * 80; // ~80 chars per line
+      if (stripped.length > maxLength) {
+        return stripped.substring(0, maxLength).trim() + "...";
+      }
     }
     return stripped;
   }, [content, maxLines]);

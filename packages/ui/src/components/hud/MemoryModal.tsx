@@ -17,6 +17,7 @@
 import { Edit, Zap } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getDefaultClient, isDemoMemoryId } from "../../api/client";
+import { useMemoryStore } from "../../stores/memoryStore";
 import type { Memory, MemorySectorType } from "../../types/api";
 import { formatPercentage } from "../../utils/formatUtils";
 import { getSectorIcon } from "../../utils/iconUtils";
@@ -353,13 +354,21 @@ export function MemoryModal({
     };
   }, [isOpen, content, onClose, handleSave, mode, onCancelEdit, handleCancelEdit]);
 
+  // Get isMemoryPending from store for checking pending state (Requirements: 1.5)
+  const isMemoryPending = useMemoryStore((state) => state.isMemoryPending);
+
   const handleSwitchToEdit = useCallback(() => {
     if (memory && isDemoMemoryId(memory.id)) {
       setError("Cannot edit demo memories. Demo data is read-only.");
       return;
     }
+    // Disable edit for pending memories (Requirements: 1.5)
+    if (memory && isMemoryPending(memory.id)) {
+      setError("Cannot edit pending memories. Please wait for the memory to be saved.");
+      return;
+    }
     onEdit?.();
-  }, [memory, onEdit]);
+  }, [memory, onEdit, isMemoryPending]);
 
   const handleLinkMemory = useCallback(
     (memoryId: string) => {
@@ -446,6 +455,13 @@ export function MemoryModal({
             {(isViewMode || isEditMode) && onDelete && memory && (
               <button
                 onClick={() => {
+                  // Disable delete for pending memories (Requirements: 1.5)
+                  if (isMemoryPending(memory.id)) {
+                    setError(
+                      "Cannot delete pending memories. Please wait for the memory to be saved."
+                    );
+                    return;
+                  }
                   setShowDeleteConfirm(true);
                 }}
                 className="px-3 py-1.5 text-sm border border-status-error/30 bg-status-error/10 hover:bg-status-error/20 rounded-lg transition-colors text-status-error flex items-center gap-1.5"

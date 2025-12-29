@@ -251,7 +251,7 @@ describe("ThemeStore", () => {
     it("should have light backgrounds", () => {
       const lightThemes: ThemeId[] = ["dawn", "arctic", "sage", "pearl"];
       for (const themeId of lightThemes) {
-        const bg = themes[themeId].colors.background;
+        const bg = themes[themeId].colors.background.toLowerCase();
         // Light backgrounds should start with high hex values
         expect(bg.startsWith("#f") || bg.startsWith("#e")).toBe(true);
       }
@@ -260,7 +260,7 @@ describe("ThemeStore", () => {
     it("should have dark text colors", () => {
       const lightThemes: ThemeId[] = ["dawn", "arctic", "sage", "pearl"];
       for (const themeId of lightThemes) {
-        const textPrimary = themes[themeId].colors.textPrimary;
+        const textPrimary = themes[themeId].colors.textPrimary.toLowerCase();
         // Dark text should start with low hex values
         expect(textPrimary.startsWith("#1") || textPrimary.startsWith("#0")).toBe(true);
       }
