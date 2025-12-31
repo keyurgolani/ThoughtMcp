@@ -38,15 +38,25 @@ services:
   ollama-test:
     image: ollama/ollama:latest
     container_name: ${TEST_CONTAINER_PREFIX:-thought-test}-ollama
+    # Use custom entrypoint to pull both embedding and inference models
+    entrypoint: ["/bin/sh", "/ollama-entrypoint.sh"]
+    environment:
+      # Model configuration - read from env with defaults
+      EMBEDDING_MODEL: ${TEST_EMBEDDING_MODEL:-nomic-embed-text}
+      LLM_MODEL: ${TEST_LLM_MODEL:-llama3.2:1b}
+      OLLAMA_WAIT_TIMEOUT: ${OLLAMA_WAIT_TIMEOUT:-120}
     ports:
       - "${TEST_OLLAMA_PORT:-11435}:11434"
+    volumes:
+      # Mount the entrypoint script
+      - ./ollama-entrypoint.sh:/ollama-entrypoint.sh:ro
     healthcheck:
-      # Use ollama list instead of curl since curl is not available in the ollama image
-      test: ["CMD", "ollama", "list"]
+      # Verify embedding model is available (required for tests)
+      test: ["CMD-SHELL", "ollama list | grep -q '${TEST_EMBEDDING_MODEL:-nomic-embed-text}'"]
       interval: 5s
       timeout: 10s
-      retries: 15
-      start_period: 10s
+      retries: 30
+      start_period: 60s
     networks:
       - thought-test
 

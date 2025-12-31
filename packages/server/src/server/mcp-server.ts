@@ -17,8 +17,29 @@ import type { EmotionClassification, EmotionModel, EmotionType } from "../emotio
 import { FrameworkRegistry } from "../framework/framework-registry.js";
 import { FrameworkSelector } from "../framework/framework-selector.js";
 import { ProblemClassifier } from "../framework/problem-classifier.js";
+import {
+  ConsolidationEngine,
+  type ConsolidationConfig,
+  type ConsolidationResult,
+} from "../memory/consolidation-engine.js";
+import { ConsolidationScheduler } from "../memory/consolidation-scheduler.js";
 import { ContentValidator } from "../memory/content-validator.js";
+import {
+  ExportImportService,
+  type ExportFilter,
+  type ExportResult,
+} from "../memory/export-import-service.js";
+import {
+  HealthMonitor,
+  type HealthRecommendation,
+  type MemoryHealthResponse,
+} from "../memory/health-monitor.js";
 import { MemoryRepository } from "../memory/memory-repository.js";
+import {
+  DEFAULT_PRUNING_CRITERIA,
+  PruningService,
+  type PruningCriteria,
+} from "../memory/pruning-service.js";
 import { PerformanceMonitoringSystem } from "../metacognitive/performance-monitoring-system.js";
 import {
   MemoryAugmentedReasoning,
@@ -54,6 +75,11 @@ export class CognitiveMCPServer {
   public biasCorrector?: BiasCorrector;
   public emotionAnalyzer?: CircumplexEmotionAnalyzer;
   public performanceMonitor?: PerformanceMonitoringSystem;
+  public healthMonitor?: HealthMonitor;
+  public pruningService?: PruningService;
+  public consolidationEngine?: ConsolidationEngine;
+  public consolidationScheduler?: ConsolidationScheduler;
+  public exportImportService?: ExportImportService;
 
   // Infrastructure
   private databaseManager?: DatabaseConnectionManager;
@@ -136,6 +162,12 @@ export class CognitiveMCPServer {
 
     // Initialize memory repository
     await this.initializeMemoryRepository();
+
+    // Initialize health monitor (after database manager)
+    await this.initializeHealthMonitor();
+
+    // Initialize memory management services (after database manager and embedding engine)
+    await this.initializeMemoryManagementServices();
 
     // Initialize memory-augmented reasoning (after memory repository)
     await this.initializeMemoryAugmentedReasoning();
@@ -307,6 +339,48 @@ export class CognitiveMCPServer {
   }
 
   /**
+   * Initialize health monitor
+   *
+   * Requirements: 2.1-2.7 (Memory Health Dashboard API)
+   */
+  private async initializeHealthMonitor(): Promise<void> {
+    if (!this.databaseManager) {
+      throw new Error("Database manager must be initialized first");
+    }
+
+    this.healthMonitor = new HealthMonitor(this.databaseManager);
+  }
+
+  /**
+   * Initialize memory management services
+   *
+   * Requirements: 3.1-3.6 (Pruning), 7.2 (Consolidation), 6.1-6.2 (Export/Import)
+   */
+  private async initializeMemoryManagementServices(): Promise<void> {
+    if (!this.databaseManager) {
+      throw new Error("Database manager must be initialized first");
+    }
+
+    // Import required dependencies
+    const { EmbeddingStorage } = await import("../embeddings/embedding-storage.js");
+
+    // Create embedding storage for services that need it
+    const embeddingStorage = new EmbeddingStorage(this.databaseManager);
+
+    // Initialize pruning service
+    this.pruningService = new PruningService(this.databaseManager);
+
+    // Initialize consolidation engine (without LLM client for now - can be set later)
+    this.consolidationEngine = new ConsolidationEngine(this.databaseManager, embeddingStorage);
+
+    // Initialize consolidation scheduler
+    this.consolidationScheduler = new ConsolidationScheduler(this.consolidationEngine);
+
+    // Initialize export/import service
+    this.exportImportService = new ExportImportService(this.databaseManager, embeddingStorage);
+  }
+
+  /**
    * Register all MCP tools
    */
   private registerTools(): void {
@@ -330,6 +404,10 @@ export class CognitiveMCPServer {
     this.registerDeleteMemoryTool();
     this.registerSearchMemoriesTool();
     this.registerBatchMemoryTools();
+    this.registerMemoryHealthTool();
+    this.registerPruneMemoriesTool();
+    this.registerConsolidateMemoriesTool();
+    this.registerExportMemoriesTool();
   }
 
   /**
@@ -1414,6 +1492,758 @@ export class CognitiveMCPServer {
         success: false,
         error: error instanceof Error ? error.message : "Batch memory deletion failed",
         suggestion: "Check that memoryIds array is provided",
+      };
+    }
+  }
+
+  /**
+   * Register memory_health tool
+   *
+   * Requirements: 2.1-2.7 (Memory Health Dashboard API)
+   */
+  private registerMemoryHealthTool(): void {
+    this.toolRegistry.registerTool({
+      name: "memory_health",
+      description:
+        "Get comprehensive memory health metrics and recommendations for a user. " +
+        "Returns storage usage, memory counts by sector and age, consolidation queue status, " +
+        "forgetting candidates breakdown, and actionable recommendations. " +
+        "When storage usage exceeds 80%, recommendations include storage optimization suggestions. " +
+        "\n\n" +
+        "**Metrics Included:**\n" +
+        "- Storage: bytes used, quota, usage percentage\n" +
+        "- Counts by sector: episodic, semantic, procedural, emotional, reflective\n" +
+        "- Counts by age: last 24h, last week, last month, older\n" +
+        "- Consolidation queue: size and estimated processing time\n" +
+        "- Forgetting candidates: low strength, old age, low access counts\n" +
+        "- Recommendations: consolidation, pruning, archiving, optimization\n" +
+        "\n" +
+        "Example: memory_health({ userId: 'user123' })",
+      inputSchema: {
+        type: "object",
+        properties: {
+          userId: {
+            type: "string",
+            description: "User ID for memory isolation (required)",
+          },
+        },
+        required: ["userId"],
+      },
+      handler: this.handleMemoryHealth.bind(this),
+    });
+  }
+
+  /**
+   * Handle memory_health tool execution
+   *
+   * Requirements: 2.1-2.7 (Memory Health Dashboard API)
+   */
+  private async handleMemoryHealth(params: unknown): Promise<MCPResponse> {
+    if (!this.healthMonitor) {
+      return {
+        success: false,
+        error: "Health monitor not initialized",
+        suggestion: "Wait for server initialization to complete",
+      };
+    }
+
+    try {
+      const input = params as { userId: string };
+
+      if (!input.userId || typeof input.userId !== "string") {
+        return {
+          success: false,
+          error: "userId is required and must be a string",
+          suggestion: "Provide a valid userId parameter",
+        };
+      }
+
+      const startTime = Date.now();
+      const health: MemoryHealthResponse = await this.healthMonitor.getHealth(input.userId);
+      const processingTime = Date.now() - startTime;
+
+      return {
+        success: true,
+        data: {
+          storage: {
+            bytesUsed: health.storage.bytesUsed,
+            quotaBytes: health.storage.quotaBytes,
+            usagePercent: health.storage.usagePercent,
+          },
+          countsBySector: {
+            episodic: health.countsBySector.episodic,
+            semantic: health.countsBySector.semantic,
+            procedural: health.countsBySector.procedural,
+            emotional: health.countsBySector.emotional,
+            reflective: health.countsBySector.reflective,
+          },
+          countsByAge: {
+            last24h: health.countsByAge.last24h,
+            lastWeek: health.countsByAge.lastWeek,
+            lastMonth: health.countsByAge.lastMonth,
+            older: health.countsByAge.older,
+          },
+          consolidationQueue: {
+            size: health.consolidationQueue.size,
+            estimatedTimeMs: health.consolidationQueue.estimatedTimeMs,
+          },
+          activeConsolidation: {
+            isRunning: health.activeConsolidation.isRunning,
+            phase: health.activeConsolidation.phase,
+            clustersIdentified: health.activeConsolidation.clustersIdentified,
+            clustersConsolidated: health.activeConsolidation.clustersConsolidated,
+            memoriesProcessed: health.activeConsolidation.memoriesProcessed,
+            memoriesTotal: health.activeConsolidation.memoriesTotal,
+            percentComplete: health.activeConsolidation.percentComplete,
+            estimatedRemainingMs: health.activeConsolidation.estimatedRemainingMs,
+            startedAt: health.activeConsolidation.startedAt?.toISOString() ?? null,
+          },
+          forgettingCandidates: {
+            lowStrength: health.forgettingCandidates.lowStrength,
+            oldAge: health.forgettingCandidates.oldAge,
+            lowAccess: health.forgettingCandidates.lowAccess,
+            total: health.forgettingCandidates.total,
+          },
+          recommendations: health.recommendations.map((rec: HealthRecommendation) => ({
+            type: rec.type,
+            priority: rec.priority,
+            message: rec.message,
+            action: rec.action,
+          })),
+          timestamp: health.timestamp.toISOString(),
+        },
+        metadata: {
+          timestamp: new Date().toISOString(),
+          processingTime,
+          componentsUsed: ["healthMonitor"],
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Memory health check failed",
+        suggestion: "Check that userId is provided and is a valid string",
+      };
+    }
+  }
+
+  /**
+   * Register prune_memories tool
+   *
+   * Requirements: 3.1-3.6 (Memory Pruning Tools)
+   */
+  private registerPruneMemoriesTool(): void {
+    this.toolRegistry.registerTool({
+      name: "prune_memories",
+      description:
+        "Identify and remove low-value memories to optimize storage and improve retrieval relevance. " +
+        "Supports listing candidates, previewing effects (dry-run), and executing pruning. " +
+        "Candidates are identified based on configurable criteria: low strength, old age, or low access count. " +
+        "\n\n" +
+        "**Actions:**\n" +
+        "- list: List forgetting candidates matching criteria\n" +
+        "- preview: Preview pruning effects without deletion (dry-run)\n" +
+        "- prune: Execute pruning for specific memory IDs\n" +
+        "- prune_all: Prune all candidates matching criteria\n" +
+        "\n" +
+        "**Default Criteria:**\n" +
+        "- minStrength: 0.1 (memories below this strength)\n" +
+        "- maxAgeDays: 180 (memories older than 6 months)\n" +
+        "- minAccessCount: 0 (memories never accessed)\n" +
+        "\n" +
+        "Example: prune_memories({ userId: 'user123', action: 'list', criteria: { minStrength: 0.1, maxAgeDays: 90 } })",
+      inputSchema: {
+        type: "object",
+        properties: {
+          userId: {
+            type: "string",
+            description: "User ID for memory isolation (required)",
+          },
+          action: {
+            type: "string",
+            enum: ["list", "preview", "prune", "prune_all"],
+            description:
+              "Action to perform: list candidates, preview effects, prune specific IDs, or prune all candidates",
+          },
+          memoryIds: {
+            type: "array",
+            items: { type: "string" },
+            description: "Memory IDs to prune (required for 'prune' and 'preview' actions)",
+          },
+          criteria: {
+            type: "object",
+            description: "Pruning criteria (optional, uses defaults if not provided)",
+            properties: {
+              minStrength: {
+                type: "number",
+                minimum: 0,
+                maximum: 1,
+                description:
+                  "Minimum strength threshold - memories below this are candidates (default: 0.1)",
+              },
+              maxAgeDays: {
+                type: "number",
+                minimum: 0,
+                description:
+                  "Maximum age in days - memories older than this are candidates (default: 180)",
+              },
+              minAccessCount: {
+                type: "number",
+                minimum: 0,
+                description:
+                  "Minimum access count - memories with fewer accesses are candidates (default: 0)",
+              },
+            },
+          },
+        },
+        required: ["userId", "action"],
+      },
+      handler: this.handlePruneMemories.bind(this),
+    });
+  }
+
+  /**
+   * Handle prune_memories tool execution
+   *
+   * Requirements: 3.1-3.6
+   */
+  private async handlePruneMemories(params: unknown): Promise<MCPResponse> {
+    if (!this.pruningService) {
+      return {
+        success: false,
+        error: "Pruning service not initialized",
+        suggestion: "Wait for server initialization to complete",
+      };
+    }
+
+    try {
+      const input = params as {
+        userId: string;
+        action: "list" | "preview" | "prune" | "prune_all";
+        memoryIds?: string[];
+        criteria?: Partial<PruningCriteria>;
+      };
+
+      if (!input.userId || typeof input.userId !== "string") {
+        return {
+          success: false,
+          error: "userId is required and must be a string",
+          suggestion: "Provide a valid userId parameter",
+        };
+      }
+
+      const startTime = Date.now();
+
+      // Merge provided criteria with defaults
+      const criteria: PruningCriteria = {
+        ...DEFAULT_PRUNING_CRITERIA,
+        ...input.criteria,
+      };
+
+      switch (input.action) {
+        case "list": {
+          const candidates = await this.pruningService.listCandidates(input.userId, criteria);
+          return {
+            success: true,
+            data: {
+              candidates: candidates.map((c) => ({
+                memoryId: c.memoryId,
+                content: c.content.substring(0, 200) + (c.content.length > 200 ? "..." : ""),
+                strength: c.strength,
+                createdAt: c.createdAt.toISOString(),
+                lastAccessed: c.lastAccessed.toISOString(),
+                accessCount: c.accessCount,
+                reason: c.reason,
+              })),
+              totalCount: candidates.length,
+              criteria,
+            },
+            metadata: {
+              timestamp: new Date().toISOString(),
+              processingTime: Date.now() - startTime,
+              componentsUsed: ["pruningService"],
+            },
+          };
+        }
+
+        case "preview": {
+          if (!input.memoryIds || input.memoryIds.length === 0) {
+            return {
+              success: false,
+              error: "memoryIds is required for preview action",
+              suggestion: "Provide an array of memory IDs to preview pruning effects",
+            };
+          }
+          const preview = await this.pruningService.previewPruning(input.userId, input.memoryIds);
+          return {
+            success: true,
+            data: {
+              wouldDelete: preview.deletedCount,
+              wouldFreeBytes: preview.freedBytes,
+              wouldRemoveLinks: preview.orphanedLinksRemoved,
+              isDryRun: true,
+            },
+            metadata: {
+              timestamp: new Date().toISOString(),
+              processingTime: Date.now() - startTime,
+              componentsUsed: ["pruningService"],
+            },
+          };
+        }
+
+        case "prune": {
+          if (!input.memoryIds || input.memoryIds.length === 0) {
+            return {
+              success: false,
+              error: "memoryIds is required for prune action",
+              suggestion: "Provide an array of memory IDs to prune",
+            };
+          }
+          const result = await this.pruningService.prune(input.userId, input.memoryIds);
+          return {
+            success: true,
+            data: {
+              deletedCount: result.deletedCount,
+              freedBytes: result.freedBytes,
+              orphanedLinksRemoved: result.orphanedLinksRemoved,
+              timestamp: result.timestamp.toISOString(),
+            },
+            metadata: {
+              timestamp: new Date().toISOString(),
+              processingTime: Date.now() - startTime,
+              componentsUsed: ["pruningService"],
+            },
+          };
+        }
+
+        case "prune_all": {
+          const result = await this.pruningService.pruneAllCandidates(input.userId, criteria);
+          return {
+            success: true,
+            data: {
+              deletedCount: result.deletedCount,
+              freedBytes: result.freedBytes,
+              orphanedLinksRemoved: result.orphanedLinksRemoved,
+              timestamp: result.timestamp.toISOString(),
+              criteria,
+            },
+            metadata: {
+              timestamp: new Date().toISOString(),
+              processingTime: Date.now() - startTime,
+              componentsUsed: ["pruningService"],
+            },
+          };
+        }
+
+        default:
+          return {
+            success: false,
+            error: `Unknown action: ${input.action}`,
+            suggestion: "Use one of: list, preview, prune, prune_all",
+          };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Pruning operation failed",
+        suggestion: "Check that userId is provided and criteria values are valid",
+      };
+    }
+  }
+
+  /**
+   * Register consolidate_memories tool
+   *
+   * Requirements: 7.2 (Manual trigger via API)
+   */
+  private registerConsolidateMemoriesTool(): void {
+    this.toolRegistry.registerTool({
+      name: "consolidate_memories",
+      description:
+        "Trigger memory consolidation to combine related episodic memories into semantic summaries. " +
+        "Consolidation identifies clusters of similar memories and generates summaries using LLM. " +
+        "Original memories are preserved with reduced strength and linked to the summary. " +
+        "\n\n" +
+        "**Process:**\n" +
+        "1. Identify clusters of related episodic memories (similarity >= threshold)\n" +
+        "2. Generate semantic summary for clusters with 5+ memories\n" +
+        "3. Create graph links from summary to original memories\n" +
+        "4. Reduce strength of original memories (not deleted)\n" +
+        "\n" +
+        "**Configuration:**\n" +
+        "- similarityThreshold: 0.75 (default) - minimum similarity for clustering\n" +
+        "- minClusterSize: 5 (default) - minimum memories to form a cluster\n" +
+        "- batchSize: 100 (default) - max memories per consolidation run\n" +
+        "\n" +
+        "Example: consolidate_memories({ userId: 'user123' })",
+      inputSchema: {
+        type: "object",
+        properties: {
+          userId: {
+            type: "string",
+            description: "User ID for memory isolation (required)",
+          },
+          config: {
+            type: "object",
+            description: "Consolidation configuration (optional, uses defaults if not provided)",
+            properties: {
+              similarityThreshold: {
+                type: "number",
+                minimum: 0,
+                maximum: 1,
+                description: "Minimum similarity threshold for clustering (default: 0.75)",
+              },
+              minClusterSize: {
+                type: "number",
+                minimum: 2,
+                description: "Minimum cluster size to trigger consolidation (default: 5)",
+              },
+              batchSize: {
+                type: "number",
+                minimum: 1,
+                description: "Maximum memories to process per batch (default: 100)",
+              },
+              strengthReductionFactor: {
+                type: "number",
+                minimum: 0,
+                maximum: 1,
+                description: "Factor to reduce original memory strength (default: 0.5)",
+              },
+            },
+          },
+        },
+        required: ["userId"],
+      },
+      handler: this.handleConsolidateMemories.bind(this),
+    });
+  }
+
+  /**
+   * Handle consolidate_memories tool execution
+   *
+   * Requirements: 7.2
+   *
+   * Handles edge cases gracefully:
+   * - Empty memory set (no memories to consolidate) - returns success with 0 clusters
+   * - Insufficient memories for clustering - returns success with 0 clusters
+   * - No clusters found above similarity threshold - returns success with 0 clusters
+   * - Database connection issues - returns error with helpful message
+   */
+  private async handleConsolidateMemories(params: unknown): Promise<MCPResponse> {
+    if (!this.consolidationScheduler) {
+      return {
+        success: false,
+        error: "Consolidation scheduler not initialized",
+        suggestion: "Wait for server initialization to complete",
+      };
+    }
+
+    try {
+      const input = params as {
+        userId: string;
+        config?: Partial<ConsolidationConfig>;
+      };
+
+      if (!input.userId || typeof input.userId !== "string") {
+        return {
+          success: false,
+          error: "userId is required and must be a string",
+          suggestion: "Provide a valid userId parameter",
+        };
+      }
+
+      const startTime = Date.now();
+
+      // Update scheduler config if provided
+      if (input.config) {
+        const currentConfig = this.consolidationScheduler.getConfig();
+        this.consolidationScheduler.updateConfig({
+          consolidationConfig: {
+            ...currentConfig.consolidationConfig,
+            ...input.config,
+          },
+        });
+      }
+
+      // Trigger consolidation
+      const results = await this.consolidationScheduler.triggerNow(input.userId);
+
+      // Determine message based on results
+      let message: string;
+      if (results.length === 0) {
+        message =
+          "No clusters were consolidated. This can happen when: " +
+          "(1) there are no episodic memories to consolidate, " +
+          "(2) there are fewer memories than the minimum cluster size (default: 5), or " +
+          "(3) no memories are similar enough to form clusters above the similarity threshold (default: 0.75).";
+      } else {
+        message = `Successfully consolidated ${results.length} cluster(s) into semantic summaries.`;
+      }
+
+      return {
+        success: true,
+        data: {
+          consolidationsPerformed: results.length,
+          message,
+          results: results.map((r: ConsolidationResult) => ({
+            summaryId: r.summaryId,
+            consolidatedCount: r.consolidatedIds.length,
+            consolidatedIds: r.consolidatedIds,
+            summaryPreview:
+              r.summaryContent.substring(0, 200) + (r.summaryContent.length > 200 ? "..." : ""),
+            consolidatedAt: r.consolidatedAt.toISOString(),
+          })),
+          status: this.consolidationScheduler.getStatus(),
+        },
+        metadata: {
+          timestamp: new Date().toISOString(),
+          processingTime: Date.now() - startTime,
+          componentsUsed: ["consolidationScheduler", "consolidationEngine"],
+        },
+      };
+    } catch (error) {
+      // Handle specific error cases with helpful messages
+      const errorMessage = error instanceof Error ? error.message : "Consolidation failed";
+      const errorCode =
+        error instanceof Error && "code" in error ? (error as { code: string }).code : undefined;
+
+      // Check for common error patterns and provide helpful suggestions
+      let suggestion =
+        "Check that userId is provided. If a consolidation is already running, wait for it to complete.";
+
+      if (errorMessage.includes("Failed to identify clusters")) {
+        // This error typically occurs when there's a database issue or schema mismatch
+        suggestion =
+          "This error may indicate a database schema issue. Ensure all migrations have been run. " +
+          "If the issue persists, check database connectivity and logs for more details.";
+      } else if (
+        errorCode === "LOAD_THRESHOLD_EXCEEDED" ||
+        errorMessage.includes("high system load")
+      ) {
+        suggestion =
+          "System load is too high for consolidation. Try again later when system load is lower.";
+      } else if (errorCode === "JOB_IN_PROGRESS" || errorMessage.includes("already running")) {
+        suggestion =
+          "A consolidation job is already running. Wait for it to complete before starting another.";
+      }
+
+      return {
+        success: false,
+        error: errorMessage,
+        suggestion,
+      };
+    }
+  }
+
+  /**
+   * Register export_memories tool
+   *
+   * Requirements: 6.1-6.2 (Memory Export)
+   */
+  private registerExportMemoriesTool(): void {
+    this.toolRegistry.registerTool({
+      name: "export_memories",
+      description:
+        "Export memories to JSON format with all metadata and embeddings. " +
+        "Supports filtering by date range, sector, tags, and minimum strength. " +
+        "Exported data includes content, metadata, embeddings, tags, and graph links. " +
+        "\n\n" +
+        "**Filter Options:**\n" +
+        "- dateRange: Filter by creation date (start/end)\n" +
+        "- sectors: Filter by memory sectors (episodic, semantic, etc.)\n" +
+        "- tags: Filter by tags (memories with any of the specified tags)\n" +
+        "- minStrength: Filter by minimum strength threshold\n" +
+        "\n" +
+        "Example: export_memories({ userId: 'user123', filter: { sectors: ['semantic'], minStrength: 0.5 } })",
+      inputSchema: {
+        type: "object",
+        properties: {
+          userId: {
+            type: "string",
+            description: "User ID for memory isolation (required)",
+          },
+          filter: {
+            type: "object",
+            description: "Filter criteria for export (optional)",
+            properties: {
+              dateRange: {
+                type: "object",
+                properties: {
+                  start: {
+                    type: "string",
+                    format: "date-time",
+                    description: "Start date (ISO 8601)",
+                  },
+                  end: {
+                    type: "string",
+                    format: "date-time",
+                    description: "End date (ISO 8601)",
+                  },
+                },
+                description: "Filter by creation date range",
+              },
+              sectors: {
+                type: "array",
+                items: {
+                  type: "string",
+                  enum: ["episodic", "semantic", "procedural", "emotional", "reflective"],
+                },
+                description: "Filter by memory sectors",
+              },
+              tags: {
+                type: "array",
+                items: { type: "string" },
+                description: "Filter by tags (memories with any of these tags)",
+              },
+              minStrength: {
+                type: "number",
+                minimum: 0,
+                maximum: 1,
+                description: "Minimum strength threshold",
+              },
+            },
+          },
+        },
+        required: ["userId"],
+      },
+      handler: this.handleExportMemories.bind(this),
+    });
+  }
+
+  /**
+   * Build export filter from input parameters
+   */
+  private buildExportFilter(inputFilter?: {
+    dateRange?: { start?: string; end?: string };
+    sectors?: string[];
+    tags?: string[];
+    minStrength?: number;
+  }): ExportFilter {
+    const filter: ExportFilter = {};
+
+    if (inputFilter?.dateRange) {
+      filter.dateRange = {
+        start: inputFilter.dateRange.start ? new Date(inputFilter.dateRange.start) : new Date(0),
+        end: inputFilter.dateRange.end ? new Date(inputFilter.dateRange.end) : new Date(),
+      };
+    }
+
+    if (inputFilter?.sectors) {
+      filter.sectors = inputFilter.sectors as import("../memory/types").MemorySectorType[];
+    }
+
+    if (inputFilter?.tags) {
+      filter.tags = inputFilter.tags;
+    }
+
+    if (inputFilter?.minStrength !== undefined) {
+      filter.minStrength = inputFilter.minStrength;
+    }
+
+    return filter;
+  }
+
+  /**
+   * Handle export_memories tool execution
+   *
+   * Requirements: 6.1-6.2
+   */
+  private async handleExportMemories(params: unknown): Promise<MCPResponse> {
+    if (!this.exportImportService) {
+      return {
+        success: false,
+        error: "Export/Import service not initialized",
+        suggestion: "Wait for server initialization to complete",
+      };
+    }
+
+    try {
+      const input = params as {
+        userId: string;
+        filter?: {
+          dateRange?: { start?: string; end?: string };
+          sectors?: string[];
+          tags?: string[];
+          minStrength?: number;
+        };
+      };
+
+      if (!input.userId || typeof input.userId !== "string") {
+        return {
+          success: false,
+          error: "userId is required and must be a string",
+          suggestion: "Provide a valid userId parameter",
+        };
+      }
+
+      const startTime = Date.now();
+      const filter = this.buildExportFilter(input.filter);
+
+      // Execute export
+      const result: ExportResult = await this.exportImportService.exportMemories(
+        input.userId,
+        filter
+      );
+
+      return {
+        success: true,
+        data: {
+          exportedAt: result.exportedAt,
+          version: result.version,
+          userId: result.userId,
+          count: result.count,
+          filter: result.filter,
+          // Include memory summaries (not full content to keep response manageable)
+          memories: result.memories.map((m) => ({
+            id: m.id,
+            contentPreview: m.content.substring(0, 100) + (m.content.length > 100 ? "..." : ""),
+            primarySector: m.primarySector,
+            tags: m.tags,
+            strength: m.strength,
+            salience: m.salience,
+            createdAt: m.createdAt,
+            hasEmbeddings: m.embeddings !== null,
+            linkCount: m.links.length,
+          })),
+          // Include full export data for actual backup use
+          fullExport: result,
+        },
+        metadata: {
+          timestamp: new Date().toISOString(),
+          processingTime: Date.now() - startTime,
+          componentsUsed: ["exportImportService"],
+        },
+      };
+    } catch (error) {
+      // Extract detailed error information
+      let errorMessage = "Export failed";
+      let suggestion = "Check that userId is provided and filter values are valid";
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+
+        // Check if it's an ExportImportError with additional context
+        const exportError = error as Error & {
+          code?: string;
+          context?: { error?: string };
+        };
+
+        if (exportError.context?.error) {
+          errorMessage = `${error.message}: ${exportError.context.error}`;
+        }
+
+        // Provide more specific suggestions based on error type
+        if (exportError.code === "INVALID_INPUT") {
+          suggestion = "Ensure userId is a non-empty string";
+        } else if (errorMessage.includes("connection") || errorMessage.includes("database")) {
+          suggestion = "Database connection issue - check if the database is running";
+        }
+      }
+
+      return {
+        success: false,
+        error: errorMessage,
+        suggestion,
       };
     }
   }
@@ -2968,7 +3798,18 @@ export class CognitiveMCPServer {
     this.confidenceAssessor = undefined;
     this.frameworkSelector = undefined;
     this.reasoningOrchestrator = undefined;
+    this.memoryAugmentedReasoning = undefined;
+    this.healthMonitor = undefined;
     this.memoryRepository = undefined;
+
+    // Shutdown memory management services
+    if (this.consolidationScheduler) {
+      this.consolidationScheduler.stop();
+      this.consolidationScheduler = undefined;
+    }
+    this.consolidationEngine = undefined;
+    this.pruningService = undefined;
+    this.exportImportService = undefined;
 
     // Shutdown infrastructure
     this.embeddingEngine = undefined;
@@ -3100,6 +3941,10 @@ export class CognitiveMCPServer {
       update_memory: ["memoryRepository", "embeddingEngine", "graphBuilder"],
       delete_memory: ["memoryRepository"],
       search_memories: ["memoryRepository", "embeddingEngine"],
+      memory_health: ["healthMonitor"],
+      prune_memories: ["pruningService"],
+      consolidate_memories: ["consolidationScheduler", "consolidationEngine"],
+      export_memories: ["exportImportService"],
       // Reasoning tools
       think: ["reasoningOrchestrator", "confidenceAssessor", "biasDetector"],
       analyze_systematically: ["frameworkSelector", "problemClassifier", "confidenceAssessor"],
@@ -3226,6 +4071,7 @@ export class CognitiveMCPServer {
   private getComponentHealth(): Record<string, ComponentHealth> {
     return {
       memoryRepository: this.memoryRepository ? "healthy" : "unhealthy",
+      healthMonitor: this.healthMonitor ? "healthy" : "unhealthy",
       reasoningOrchestrator: this.reasoningOrchestrator ? "healthy" : "unhealthy",
       frameworkSelector: this.frameworkSelector ? "healthy" : "unhealthy",
       confidenceAssessor: this.confidenceAssessor ? "healthy" : "unhealthy",

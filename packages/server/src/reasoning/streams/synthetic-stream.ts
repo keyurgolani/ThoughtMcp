@@ -582,34 +582,123 @@ export class SyntheticStreamProcessor implements StreamProcessor {
     const leveragePoints: Insight[] = [];
     const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the system";
     const domainTerms = keyTerms.domainTerms.slice(0, 2);
+    const context = problem.context ?? "";
 
-    // Find high-impact intervention points
+    // Add high-impact leverage points
+    this.addHighImpactLeveragePoints(leveragePoints, insights, primaryTerm, domainTerms, keyTerms);
+
+    // Add goal-aligned leverage points
+    this.addGoalAlignedLeveragePoints(leveragePoints, problem, primaryTerm, domainTerms, keyTerms);
+
+    // Add context-specific leverage points
+    this.addContextSpecificLeveragePoints(leveragePoints, context, primaryTerm, keyTerms);
+
+    // Add trade-off analysis
+    this.addTradeoffAnalysis(leveragePoints, problem, primaryTerm, domainTerms, keyTerms);
+
+    return leveragePoints;
+  }
+
+  /**
+   * Add leverage points for high-importance insights
+   */
+  private addHighImpactLeveragePoints(
+    leveragePoints: Insight[],
+    insights: Insight[],
+    primaryTerm: string,
+    domainTerms: string[],
+    keyTerms: KeyTerms
+  ): void {
     const highImportanceInsights = insights.filter((i) => i.importance > 0.8);
 
     if (highImportanceInsights.length > 0) {
-      const criticalContent = `Critical leverage point for ${primaryTerm}: Focus on ${highImportanceInsights.length} key ${domainTerms[0] ?? "areas"} with highest impact`;
+      const content = `Critical leverage point for ${primaryTerm}: Focus on ${highImportanceInsights.length} key ${domainTerms[0] ?? "areas"} with highest impact. Prioritization framework: (1) Address items with >80% importance first, (2) Sequence by dependency order, (3) Target 80/20 rule - 20% of changes should yield 80% of benefits`;
       leveragePoints.push({
-        content: criticalContent,
+        content,
         source: StreamType.SYNTHETIC,
         confidence: 0.75,
         importance: 0.85,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(criticalContent, keyTerms),
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
+  }
 
-    // Consider goals with specific terms
+  /**
+   * Add leverage points aligned with problem goals
+   */
+  private addGoalAlignedLeveragePoints(
+    leveragePoints: Insight[],
+    problem: Problem,
+    primaryTerm: string,
+    domainTerms: string[],
+    keyTerms: KeyTerms
+  ): void {
     if (problem.goals && problem.goals.length > 0) {
-      const strategicContent = `Strategic leverage for ${primaryTerm}: Align ${domainTerms[0] ?? "interventions"} with ${problem.goals[0]} to maximize effectiveness`;
+      const content = `Strategic leverage for ${primaryTerm}: Align ${domainTerms[0] ?? "interventions"} with "${problem.goals[0]}" using OKR framework - define 3-5 key results with measurable targets, review progress bi-weekly, and adjust tactics based on leading indicators`;
       leveragePoints.push({
-        content: strategicContent,
+        content,
         source: StreamType.SYNTHETIC,
         confidence: 0.7,
         importance: 0.8,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(strategicContent, keyTerms),
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
+      });
+    }
+  }
+
+  /**
+   * Add context-specific leverage points (performance, user engagement)
+   */
+  private addContextSpecificLeveragePoints(
+    leveragePoints: Insight[],
+    context: string,
+    primaryTerm: string,
+    keyTerms: KeyTerms
+  ): void {
+    const lowerContext = context.toLowerCase();
+
+    if (lowerContext.includes("performance") || lowerContext.includes("latency")) {
+      const content = `System leverage point for ${primaryTerm}: Target the critical path - identify the 3-5 operations that account for 80% of latency and optimize those first. Use profiling data to validate assumptions before investing in optimization`;
+      leveragePoints.push({
+        content,
+        source: StreamType.SYNTHETIC,
+        confidence: 0.75,
+        importance: 0.85,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
 
-    return leveragePoints;
+    if (lowerContext.includes("user") || lowerContext.includes("engagement")) {
+      const content = `User experience leverage point for ${primaryTerm}: Focus on the "aha moment" - identify the single action that correlates most strongly with long-term retention and optimize the path to that action. Reduce friction by eliminating unnecessary steps`;
+      leveragePoints.push({
+        content,
+        source: StreamType.SYNTHETIC,
+        confidence: 0.7,
+        importance: 0.8,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
+      });
+    }
+  }
+
+  /**
+   * Add trade-off analysis for constrained problems
+   */
+  private addTradeoffAnalysis(
+    leveragePoints: Insight[],
+    problem: Problem,
+    primaryTerm: string,
+    domainTerms: string[],
+    keyTerms: KeyTerms
+  ): void {
+    if (problem.constraints && problem.constraints.length > 0) {
+      const content = `Trade-off analysis for ${primaryTerm}: Given constraint "${problem.constraints[0]}", optimize for ${domainTerms[0] ?? "primary metric"} while accepting controlled degradation in secondary metrics. Document trade-off decisions for future reference`;
+      leveragePoints.push({
+        content,
+        source: StreamType.SYNTHETIC,
+        confidence: 0.7,
+        importance: 0.75,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
+      });
+    }
   }
 
   /**
@@ -662,34 +751,40 @@ export class SyntheticStreamProcessor implements StreamProcessor {
     const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the situation";
     const domainTerms = keyTerms.domainTerms.slice(0, 2);
 
-    // Overall synthesis with specific terms
+    // Overall synthesis with specific characterization
     parts.push(`${primaryTerm} represents`);
 
-    // Assess complexity
+    // Assess complexity with specific implications
     if (insights.length >= 7) {
-      parts.push(`a highly complex ${domainTerms[0] ?? "system"}`);
+      parts.push(
+        `a highly complex ${domainTerms[0] ?? "system"} with multiple interdependencies requiring coordinated intervention across ${Math.min(insights.length, 5)} key areas`
+      );
     } else if (insights.length >= 4) {
-      parts.push(`a moderately complex ${domainTerms[0] ?? "system"}`);
+      parts.push(
+        `a moderately complex ${domainTerms[0] ?? "system"} with identifiable patterns that can be addressed through focused, sequential improvements`
+      );
     } else {
-      parts.push(`an interconnected ${domainTerms[0] ?? "system"}`);
+      parts.push(
+        `an interconnected ${domainTerms[0] ?? "system"} with clear intervention points for targeted optimization`
+      );
     }
 
-    // Key themes with specific terms
+    // Key themes with specific recommendations
     const highImportanceCount = insights.filter((i) => i.importance > 0.8).length;
     if (highImportanceCount > 0) {
       parts.push(
-        `with ${highImportanceCount} critical ${domainTerms[1] ?? "leverage point"}${highImportanceCount > 1 ? "s" : ""}`
+        `with ${highImportanceCount} critical ${domainTerms[1] ?? "leverage point"}${highImportanceCount > 1 ? "s" : ""} that should be prioritized in the first phase of implementation`
       );
     }
 
-    // Strategic direction with specific terms
+    // Strategic direction with actionable next steps
     if (problem.goals && problem.goals.length > 0) {
       parts.push(
-        `requiring strategic ${domainTerms[0] ?? "systems-level"} thinking to ${problem.goals[0]}`
+        `Recommended approach to ${problem.goals[0]}: (1) Start with highest-impact, lowest-risk interventions, (2) Establish feedback loops to measure progress, (3) Iterate based on observed outcomes`
       );
     } else {
       parts.push(
-        `requiring holistic understanding of ${domainTerms.join(" and ") || "all components"}`
+        `Recommended approach: Apply systems thinking to understand ${domainTerms.join(" and ") || "all components"} holistically, then implement changes incrementally with continuous monitoring`
       );
     }
 

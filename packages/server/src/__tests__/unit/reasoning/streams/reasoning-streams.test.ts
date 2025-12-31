@@ -137,6 +137,21 @@ describe("AnalyticalReasoningStream", () => {
       expect(result.status).toBe("cancelled");
       expect(result.conclusion).toBe("Cancelled");
     });
+
+    it("should return cancelled status immediately when cancelled before processing", async () => {
+      // Cancel before calling process
+      stream.cancel();
+      const result = await stream.process(testProblem);
+
+      expect(result.status).toBe("cancelled");
+      expect(result.conclusion).toBe("Cancelled");
+      expect(result.reasoning).toEqual([]);
+      expect(result.insights).toEqual([]);
+      expect(result.confidence).toBe(0);
+      expect(result.processingTime).toBe(0);
+      expect(result.streamType).toBe("analytical");
+      expect(result.streamId).toContain("analytical");
+    });
   });
 
   describe("Error Handling", () => {

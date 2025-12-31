@@ -843,3 +843,341 @@ describe("Metacognitive Tools - Essential Operations", () => {
     });
   });
 });
+
+describe("Export Memories Tool", () => {
+  let server: CognitiveMCPServer;
+  let mockExportImportService: {
+    exportMemories: ReturnType<typeof vi.fn>;
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = new CognitiveMCPServer();
+    mockExportImportService = {
+      exportMemories: vi.fn(),
+    };
+
+    vi.spyOn(server as any, "initializeComponents").mockImplementation(async () => {
+      server.exportImportService = mockExportImportService as any;
+      server.memoryRepository = {} as any;
+      server.reasoningOrchestrator = {} as any;
+      server.frameworkSelector = {} as any;
+      server.confidenceAssessor = {} as any;
+      server.evidenceExtractor = {} as any;
+      server.biasDetector = {} as any;
+      server.emotionAnalyzer = {} as any;
+      server.performanceMonitor = {} as any;
+      (server as any).databaseManager = {
+        healthCheck: vi.fn().mockResolvedValue(true),
+      };
+    });
+
+    await server.initialize();
+  });
+
+  afterEach(async () => {
+    if (server?.isInitialized) {
+      try {
+        await server.shutdown();
+      } catch {
+        // Ignore errors during cleanup
+      }
+    }
+    vi.clearAllMocks();
+  });
+
+  it("should export memories successfully", async () => {
+    const mockExportResult = {
+      memories: [
+        {
+          id: "mem-1",
+          content:
+            "Test memory content that is longer than 100 characters to test the preview truncation feature properly",
+          primarySector: "episodic",
+          metadata: { keywords: ["test"], tags: ["unit-test"] },
+          embeddings: {
+            episodic: [0.1, 0.2],
+            semantic: [],
+            procedural: [],
+            emotional: [],
+            reflective: [],
+          },
+          tags: ["test"],
+          createdAt: "2024-01-01T00:00:00Z",
+          lastAccessed: "2024-01-02T00:00:00Z",
+          strength: 0.8,
+          salience: 0.5,
+          accessCount: 5,
+          links: [{ targetId: "mem-2", weight: 0.6, linkType: "related" }],
+        },
+      ],
+      exportedAt: "2024-01-15T00:00:00Z",
+      version: "1.0.0",
+      userId: "user-123",
+      filter: {},
+      count: 1,
+    };
+
+    mockExportImportService.exportMemories.mockResolvedValue(mockExportResult);
+
+    const result = await server.executeTool("export_memories", {
+      userId: "user-123",
+    });
+
+    expect(result.success).toBe(true);
+    expect((result.data as any).count).toBe(1);
+    expect((result.data as any).userId).toBe("user-123");
+    expect((result.data as any).memories).toHaveLength(1);
+    expect((result.data as any).memories[0].id).toBe("mem-1");
+    expect((result.data as any).memories[0].hasEmbeddings).toBe(true);
+    expect((result.data as any).memories[0].linkCount).toBe(1);
+    expect((result.data as any).fullExport).toBeDefined();
+    expect(mockExportImportService.exportMemories).toHaveBeenCalledWith("user-123", {});
+  });
+
+  it("should export memories with filters", async () => {
+    const mockExportResult = {
+      memories: [],
+      exportedAt: "2024-01-15T00:00:00Z",
+      version: "1.0.0",
+      userId: "user-123",
+      filter: {
+        sectors: ["episodic", "semantic"],
+        minStrength: 0.5,
+      },
+      count: 0,
+    };
+
+    mockExportImportService.exportMemories.mockResolvedValue(mockExportResult);
+
+    const result = await server.executeTool("export_memories", {
+      userId: "user-123",
+      filter: {
+        sectors: ["episodic", "semantic"],
+        minStrength: 0.5,
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect((result.data as any).count).toBe(0);
+    expect(mockExportImportService.exportMemories).toHaveBeenCalledWith(
+      "user-123",
+      expect.objectContaining({
+        sectors: ["episodic", "semantic"],
+        minStrength: 0.5,
+      })
+    );
+  });
+
+  it("should return error when userId is missing", async () => {
+    const result = await server.executeTool("export_memories", {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("userId");
+  });
+
+  it("should handle export service errors gracefully", async () => {
+    mockExportImportService.exportMemories.mockRejectedValue(
+      new Error("Database connection failed")
+    );
+
+    const result = await server.executeTool("export_memories", {
+      userId: "user-123",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Database connection failed");
+  });
+
+  it("should return error when export service is not initialized", async () => {
+    server.exportImportService = undefined;
+
+    const result = await server.executeTool("export_memories", {
+      userId: "user-123",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Export/Import service not initialized");
+  });
+});
+
+describe("Consolidate Memories Tool", () => {
+  let server: CognitiveMCPServer;
+  let mockConsolidationScheduler: {
+    triggerNow: ReturnType<typeof vi.fn>;
+    getConfig: ReturnType<typeof vi.fn>;
+    updateConfig: ReturnType<typeof vi.fn>;
+    getStatus: ReturnType<typeof vi.fn>;
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = new CognitiveMCPServer();
+    mockConsolidationScheduler = {
+      triggerNow: vi.fn(),
+      getConfig: vi.fn().mockReturnValue({
+        consolidationConfig: {
+          similarityThreshold: 0.75,
+          minClusterSize: 5,
+          batchSize: 100,
+          strengthReductionFactor: 0.5,
+        },
+      }),
+      updateConfig: vi.fn(),
+      getStatus: vi.fn().mockReturnValue({
+        isRunning: false,
+        lastRunAt: null,
+        nextRunAt: null,
+        currentProgress: null,
+        detailedProgress: null,
+        lastError: null,
+        retryAttempts: 0,
+        batchSize: 100,
+      }),
+    };
+
+    vi.spyOn(server as any, "initializeComponents").mockImplementation(async () => {
+      server.consolidationScheduler = mockConsolidationScheduler as any;
+      server.memoryRepository = {} as any;
+      server.reasoningOrchestrator = {} as any;
+      server.frameworkSelector = {} as any;
+      server.confidenceAssessor = {} as any;
+      server.evidenceExtractor = {} as any;
+      server.biasDetector = {} as any;
+      server.emotionAnalyzer = {} as any;
+      server.performanceMonitor = {} as any;
+      (server as any).databaseManager = {
+        healthCheck: vi.fn().mockResolvedValue(true),
+      };
+    });
+
+    await server.initialize();
+  });
+
+  afterEach(async () => {
+    if (server?.isInitialized) {
+      try {
+        await server.shutdown();
+      } catch {
+        // Ignore errors during cleanup
+      }
+    }
+    vi.clearAllMocks();
+  });
+
+  it("should return success with 0 clusters when no memories to consolidate", async () => {
+    mockConsolidationScheduler.triggerNow.mockResolvedValue([]);
+
+    const result = await server.executeTool("consolidate_memories", {
+      userId: "user-123",
+    });
+
+    expect(result.success).toBe(true);
+    expect((result.data as any).consolidationsPerformed).toBe(0);
+    expect((result.data as any).message).toContain("No clusters were consolidated");
+    expect((result.data as any).results).toEqual([]);
+  });
+
+  it("should return success with consolidated clusters", async () => {
+    const mockResults = [
+      {
+        summaryId: "summary-1",
+        consolidatedIds: ["mem-1", "mem-2", "mem-3", "mem-4", "mem-5"],
+        summaryContent: "This is a consolidated summary of related memories about programming.",
+        consolidatedAt: new Date("2024-01-15T00:00:00Z"),
+      },
+    ];
+
+    mockConsolidationScheduler.triggerNow.mockResolvedValue(mockResults);
+
+    const result = await server.executeTool("consolidate_memories", {
+      userId: "user-123",
+    });
+
+    expect(result.success).toBe(true);
+    expect((result.data as any).consolidationsPerformed).toBe(1);
+    expect((result.data as any).message).toContain("Successfully consolidated 1 cluster");
+    expect((result.data as any).results).toHaveLength(1);
+    expect((result.data as any).results[0].summaryId).toBe("summary-1");
+    expect((result.data as any).results[0].consolidatedCount).toBe(5);
+  });
+
+  it("should return error when userId is missing", async () => {
+    const result = await server.executeTool("consolidate_memories", {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("userId");
+  });
+
+  it("should handle job already in progress error", async () => {
+    const error = new Error("A consolidation job is already running");
+    (error as any).code = "JOB_IN_PROGRESS";
+    mockConsolidationScheduler.triggerNow.mockRejectedValue(error);
+
+    const result = await server.executeTool("consolidate_memories", {
+      userId: "user-123",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("already running");
+    expect(result.suggestion).toContain("Wait for it to complete");
+  });
+
+  it("should handle load threshold exceeded error", async () => {
+    const error = new Error("Consolidation skipped due to high system load");
+    (error as any).code = "LOAD_THRESHOLD_EXCEEDED";
+    mockConsolidationScheduler.triggerNow.mockRejectedValue(error);
+
+    const result = await server.executeTool("consolidate_memories", {
+      userId: "user-123",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("high system load");
+    expect(result.suggestion).toContain("Try again later");
+  });
+
+  it("should handle clustering error with helpful suggestion", async () => {
+    mockConsolidationScheduler.triggerNow.mockRejectedValue(
+      new Error("Failed to identify clusters")
+    );
+
+    const result = await server.executeTool("consolidate_memories", {
+      userId: "user-123",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Failed to identify clusters");
+    expect(result.suggestion).toContain("database schema");
+  });
+
+  it("should return error when consolidation scheduler is not initialized", async () => {
+    server.consolidationScheduler = undefined;
+
+    const result = await server.executeTool("consolidate_memories", {
+      userId: "user-123",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Consolidation scheduler not initialized");
+  });
+
+  it("should update config when provided", async () => {
+    mockConsolidationScheduler.triggerNow.mockResolvedValue([]);
+
+    await server.executeTool("consolidate_memories", {
+      userId: "user-123",
+      config: {
+        similarityThreshold: 0.8,
+        minClusterSize: 3,
+      },
+    });
+
+    expect(mockConsolidationScheduler.updateConfig).toHaveBeenCalledWith({
+      consolidationConfig: expect.objectContaining({
+        similarityThreshold: 0.8,
+        minClusterSize: 3,
+      }),
+    });
+  });
+});

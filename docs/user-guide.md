@@ -8,6 +8,7 @@ ThoughtMCP is a production-ready cognitive architecture that provides AI systems
 
 - [Getting Started](#getting-started)
 - [MCP Tools Reference](#mcp-tools-reference)
+- [Memory Management](#memory-management)
 - [Common Workflows](#common-workflows)
 - [Configuration Options](#configuration-options)
 - [FAQ](#faq)
@@ -425,6 +426,137 @@ Analyze emotional content using the Circumplex model.
 
 ---
 
+## Memory Management
+
+ThoughtMCP provides comprehensive tools for managing memory health, optimizing storage, and maintaining memory quality over time.
+
+### Memory Health Monitoring
+
+Use `memory_health` to get comprehensive metrics about your memory system:
+
+```json
+{
+  "userId": "user-123"
+}
+```
+
+**Response includes**:
+
+- Storage usage (bytes used, quota, percentage)
+- Memory counts by sector (episodic, semantic, procedural, emotional, reflective)
+- Memory age distribution (last 24h, week, month, older)
+- Consolidation queue status
+- Forgetting candidates breakdown
+- Actionable recommendations
+
+### Pruning Low-Value Memories
+
+Over time, some memories become less valuable. Use `prune_memories` to identify and remove them:
+
+**Step 1: List candidates**
+
+```json
+{
+  "userId": "user-123",
+  "action": "list",
+  "criteria": {
+    "minStrength": 0.1,
+    "maxAgeDays": 90,
+    "minAccessCount": 0
+  }
+}
+```
+
+**Step 2: Preview effects (dry-run)**
+
+```json
+{
+  "userId": "user-123",
+  "action": "preview",
+  "memoryIds": ["mem-abc123", "mem-def456"]
+}
+```
+
+**Step 3: Execute pruning**
+
+```json
+{
+  "userId": "user-123",
+  "action": "prune",
+  "memoryIds": ["mem-abc123", "mem-def456"]
+}
+```
+
+### Memory Consolidation
+
+Consolidate related episodic memories into semantic summaries to reduce bloat while preserving insights:
+
+```json
+{
+  "userId": "user-123",
+  "similarityThreshold": 0.75,
+  "minClusterSize": 5
+}
+```
+
+**What happens during consolidation**:
+
+1. Identifies clusters of related episodic memories
+2. Generates semantic summaries using LLM
+3. Creates graph links from summaries to originals
+4. Reduces strength of original memories (but doesn't delete them)
+
+### Exporting Memories
+
+Create backups or transfer memories between systems:
+
+```json
+{
+  "userId": "user-123",
+  "filter": {
+    "sectors": ["semantic", "procedural"],
+    "minStrength": 0.5,
+    "tags": ["important"]
+  }
+}
+```
+
+**Export includes**:
+
+- Full memory content
+- All metadata (keywords, tags, category, importance)
+- Embeddings for all sectors
+- Graph links to other memories
+
+### REST API Endpoints
+
+For programmatic access, use the REST API:
+
+| Endpoint                            | Method | Description               |
+| ----------------------------------- | ------ | ------------------------- |
+| `/api/v1/memory/health`             | GET    | Get health metrics        |
+| `/api/v1/memory/quality`            | GET    | Get quality metrics       |
+| `/api/v1/memory/prune/candidates`   | GET    | List pruning candidates   |
+| `/api/v1/memory/prune`              | POST   | Execute pruning           |
+| `/api/v1/memory/prune/preview`      | POST   | Preview pruning (dry-run) |
+| `/api/v1/memory/archive`            | POST   | Archive memories          |
+| `/api/v1/memory/archive/search`     | GET    | Search archived memories  |
+| `/api/v1/memory/archive/restore`    | POST   | Restore archived memory   |
+| `/api/v1/memory/export`             | GET    | Export memories to JSON   |
+| `/api/v1/memory/import`             | POST   | Import memories from JSON |
+| `/api/v1/memory/consolidate`        | POST   | Trigger consolidation     |
+| `/api/v1/memory/consolidate/status` | GET    | Get consolidation status  |
+
+### Best Practices
+
+1. **Monitor regularly**: Check `memory_health` weekly to catch issues early
+2. **Prune proactively**: Don't wait for storage to fill up
+3. **Consolidate periodically**: Run consolidation when queue grows large
+4. **Export before major changes**: Create backups before bulk operations
+5. **Use appropriate thresholds**: Adjust pruning criteria based on your use case
+
+---
+
 ## Common Workflows
 
 ### Workflow 1: Building User Context
@@ -564,7 +696,16 @@ No, PostgreSQL with pgvector is required for vector similarity search and persis
 
 ### How do I backup my memories?
 
-Use standard PostgreSQL backup tools:
+Use the `export_memories` MCP tool or REST API endpoint for portable JSON backups:
+
+```json
+{
+  "userId": "user-123",
+  "filter": { "minStrength": 0.3 }
+}
+```
+
+Or use standard PostgreSQL backup tools:
 
 ```bash
 pg_dump thoughtmcp > backup.sql
@@ -574,6 +715,37 @@ pg_dump thoughtmcp > backup.sql
 
 - **Soft delete**: Sets strength to 0, preserves data (recoverable)
 - **Hard delete**: Removes memory and all related data (permanent)
+
+### How do I know when to prune memories?
+
+Use `memory_health` to check recommendations. Prune when:
+
+- Storage usage exceeds 80%
+- Many memories have low strength (< 0.1)
+- Memories haven't been accessed in months
+
+### What happens during memory consolidation?
+
+Consolidation combines related episodic memories into semantic summaries:
+
+1. Clusters are identified based on semantic similarity (default threshold: 0.75)
+2. Clusters with 5+ memories generate summaries
+3. Summaries are linked to original memories via the waypoint graph
+4. Original memory strength is reduced (but memories are preserved)
+
+### Can I restore archived memories?
+
+Yes, use the `restore` endpoint or access the archived memory directly (auto-restores on access).
+
+### How often should I run consolidation?
+
+Run consolidation when:
+
+- The consolidation queue grows large (check via `memory_health`)
+- You have many related episodic memories
+- Storage is becoming constrained
+
+The scheduler can also run automatically (default: daily at 3 AM).
 
 ---
 

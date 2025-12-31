@@ -93,6 +93,26 @@ export interface Memory {
    * - 'failed': Embedding generation failed after all retries
    */
   embeddingStatus?: EmbeddingStatus;
+  /**
+   * Tags associated with this memory for categorization
+   * Requirements: 5.1, 5.5
+   */
+  tags?: string[];
+  /**
+   * Whether this memory is archived to cold storage
+   * Requirements: 4.1, 4.2
+   */
+  isArchived?: boolean;
+  /**
+   * If consolidated, the summary memory ID this was consolidated into
+   * Requirements: 1.3, 1.4
+   */
+  consolidatedInto?: string;
+  /**
+   * If this is a summary memory, the original memory IDs that were consolidated
+   * Requirements: 1.3, 1.4
+   */
+  consolidatedFrom?: string[];
 }
 
 /**

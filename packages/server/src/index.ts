@@ -11,6 +11,7 @@
  * - Bias Detection and Mitigation
  * - Emotion Detection
  * - Metacognitive Monitoring
+ * - Memory Consolidation Scheduler (Requirements: 7.1)
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -26,12 +27,78 @@ export * from "./embeddings/index.js";
 export * from "./security/index.js";
 export { CognitiveMCPServer } from "./server/mcp-server.js";
 
+// Track if shutdown is in progress to prevent multiple shutdown attempts
+let isShuttingDown = false;
+
+/**
+ * Setup graceful shutdown handlers for SIGINT and SIGTERM signals
+ *
+ * Requirements: 7.1 - Graceful shutdown handling for consolidation scheduler
+ *
+ * @param cognitiveServer - The cognitive server instance to shutdown
+ */
+function setupGracefulShutdown(cognitiveServer: CognitiveMCPServer): void {
+  const handleShutdown = async (signal: string): Promise<void> => {
+    if (isShuttingDown) {
+      Logger.debug(`Shutdown already in progress, ignoring ${signal}`);
+      return;
+    }
+
+    isShuttingDown = true;
+    Logger.info(`Received ${signal}, initiating graceful shutdown...`);
+
+    try {
+      // Shutdown the cognitive server (stops consolidation scheduler and cleans up resources)
+      await cognitiveServer.shutdown();
+      Logger.info("Graceful shutdown complete");
+      process.exit(0);
+    } catch (error) {
+      Logger.error("Error during graceful shutdown:", error);
+      process.exit(1);
+    }
+  };
+
+  // Register signal handlers
+  process.on("SIGINT", () => {
+    void handleShutdown("SIGINT");
+  });
+
+  process.on("SIGTERM", () => {
+    void handleShutdown("SIGTERM");
+  });
+
+  Logger.debug("Graceful shutdown handlers registered");
+}
+
+/**
+ * Start the consolidation scheduler if available
+ *
+ * Requirements: 7.1 - Start consolidation scheduler on server init
+ *
+ * @param cognitiveServer - The cognitive server instance
+ */
+function startConsolidationScheduler(cognitiveServer: CognitiveMCPServer): void {
+  if (cognitiveServer.consolidationScheduler) {
+    cognitiveServer.consolidationScheduler.start();
+    Logger.info("Consolidation scheduler started");
+  } else {
+    Logger.warn("Consolidation scheduler not available, skipping scheduler start");
+  }
+}
+
 async function main(): Promise<void> {
   // Create and initialize the cognitive server
   const cognitiveServer = new CognitiveMCPServer();
 
+  // Setup graceful shutdown handlers early
+  setupGracefulShutdown(cognitiveServer);
+
   try {
     await cognitiveServer.initialize();
+
+    // Start the consolidation scheduler after successful initialization
+    // Requirements: 7.1 - Cron-based scheduling (default: daily at 3 AM)
+    startConsolidationScheduler(cognitiveServer);
   } catch (error) {
     Logger.error("Failed to initialize cognitive server:", error);
     Logger.warn("Starting in degraded mode with limited functionality");

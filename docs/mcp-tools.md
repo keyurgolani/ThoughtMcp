@@ -12,6 +12,11 @@ This document provides comprehensive documentation for all MCP (Model Context Pr
   - [update_memory](#update_memory)
   - [forget](#forget)
   - [search](#search)
+- [Memory Management Tools](#memory-management-tools)
+  - [memory_health](#memory_health)
+  - [prune_memories](#prune_memories)
+  - [consolidate_memories](#consolidate_memories)
+  - [export_memories](#export_memories)
 - [Reasoning Tools](#reasoning-tools)
   - [think](#think)
   - [analyze](#analyze)
@@ -515,6 +520,406 @@ Performs comprehensive search using PostgreSQL full-text search with boolean ope
     ],
     "totalCount": 1,
     "searchType": "full-text"
+  }
+}
+```
+
+---
+
+## Memory Management Tools
+
+### memory_health
+
+Get comprehensive memory health metrics and recommendations for a user.
+
+**Description:**
+Returns storage usage, memory counts by sector and age, consolidation queue status, forgetting candidates breakdown, and actionable recommendations. When usage exceeds 80%, recommendations include storage optimization suggestions.
+
+**Input Schema:**
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "userId": {
+      "type": "string",
+      "description": "User ID for memory isolation (required)"
+    }
+  },
+  "required": ["userId"]
+}
+```
+
+**Example Request:**
+
+```json
+{
+  "userId": "user-123"
+}
+```
+
+**Success Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "storage": {
+      "bytesUsed": 1048576,
+      "quotaBytes": 10485760,
+      "usagePercent": 10
+    },
+    "countsBySector": {
+      "episodic": 50,
+      "semantic": 30,
+      "procedural": 10,
+      "emotional": 5,
+      "reflective": 5
+    },
+    "countsByAge": {
+      "last24h": 5,
+      "lastWeek": 20,
+      "lastMonth": 40,
+      "older": 35
+    },
+    "consolidationQueue": {
+      "size": 15,
+      "estimatedTimeMs": 5000
+    },
+    "activeConsolidation": {
+      "isRunning": false,
+      "phase": null,
+      "clustersIdentified": 0,
+      "clustersConsolidated": 0,
+      "memoriesProcessed": 0,
+      "memoriesTotal": 0,
+      "percentComplete": 0,
+      "estimatedRemainingMs": 0,
+      "startedAt": null
+    },
+    "forgettingCandidates": {
+      "lowStrength": 10,
+      "oldAge": 5,
+      "lowAccess": 8,
+      "total": 23
+    },
+    "recommendations": [
+      {
+        "type": "consolidation",
+        "priority": "medium",
+        "message": "15 memories are candidates for consolidation",
+        "action": "Run consolidate_memories to combine related memories"
+      }
+    ],
+    "timestamp": "2025-12-07T10:30:00Z"
+  }
+}
+```
+
+---
+
+### prune_memories
+
+Identify and remove low-value memories to optimize storage and improve retrieval relevance.
+
+**Description:**
+Lists forgetting candidates based on configurable criteria (strength, age, access count), previews pruning effects, or executes pruning with graph cleanup. Supports dry-run mode to preview effects without deletion.
+
+**Input Schema:**
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "userId": {
+      "type": "string",
+      "description": "User ID for memory isolation (required)"
+    },
+    "action": {
+      "type": "string",
+      "enum": ["list", "preview", "prune"],
+      "description": "Action to perform: list candidates, preview effects, or execute pruning"
+    },
+    "criteria": {
+      "type": "object",
+      "description": "Pruning criteria (for list action)",
+      "properties": {
+        "minStrength": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Memories below this strength are candidates (default: 0.1)"
+        },
+        "maxAgeDays": {
+          "type": "number",
+          "minimum": 1,
+          "description": "Memories older than this are candidates (default: 180)"
+        },
+        "minAccessCount": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Memories with fewer accesses are candidates (default: 0)"
+        }
+      }
+    },
+    "memoryIds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Memory IDs to prune (for preview/prune actions)"
+    }
+  },
+  "required": ["userId", "action"]
+}
+```
+
+**Example Request (List Candidates):**
+
+```json
+{
+  "userId": "user-123",
+  "action": "list",
+  "criteria": {
+    "minStrength": 0.1,
+    "maxAgeDays": 90,
+    "minAccessCount": 0
+  }
+}
+```
+
+**Success Response (List):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "candidates": [
+      {
+        "memoryId": "mem-abc123",
+        "content": "Old meeting notes from Q1",
+        "strength": 0.05,
+        "createdAt": "2025-03-15T10:00:00Z",
+        "lastAccessed": "2025-03-20T14:00:00Z",
+        "accessCount": 1,
+        "reason": "low_strength"
+      }
+    ],
+    "count": 1,
+    "criteria": {
+      "minStrength": 0.1,
+      "maxAgeDays": 90,
+      "minAccessCount": 0
+    }
+  }
+}
+```
+
+**Example Request (Prune):**
+
+```json
+{
+  "userId": "user-123",
+  "action": "prune",
+  "memoryIds": ["mem-abc123", "mem-def456"]
+}
+```
+
+**Success Response (Prune):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "deletedCount": 2,
+    "freedBytes": 4096,
+    "orphanedLinksRemoved": 3,
+    "timestamp": "2025-12-07T10:30:00Z"
+  }
+}
+```
+
+---
+
+### consolidate_memories
+
+Trigger memory consolidation to combine related episodic memories into semantic summaries.
+
+**Description:**
+Identifies clusters of related episodic memories based on semantic similarity and consolidates them into higher-level semantic summaries. Creates graph links from summaries to originals and reduces original memory strength.
+
+**Input Schema:**
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "userId": {
+      "type": "string",
+      "description": "User ID for memory isolation (required)"
+    },
+    "similarityThreshold": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Minimum similarity for clustering (default: 0.75)"
+    },
+    "minClusterSize": {
+      "type": "number",
+      "minimum": 2,
+      "description": "Minimum cluster size to consolidate (default: 5)"
+    },
+    "batchSize": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 1000,
+      "description": "Maximum memories per consolidation run (default: 100)"
+    },
+    "strengthReductionFactor": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Factor to reduce original memory strength (default: 0.5)"
+    }
+  },
+  "required": ["userId"]
+}
+```
+
+**Example Request:**
+
+```json
+{
+  "userId": "user-123",
+  "similarityThreshold": 0.8,
+  "minClusterSize": 5
+}
+```
+
+**Success Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "results": [
+      {
+        "summaryId": "mem-summary-001",
+        "consolidatedIds": ["mem-001", "mem-002", "mem-003", "mem-004", "mem-005"],
+        "summaryContent": "Multiple meetings about Q4 planning discussed roadmap priorities, resource allocation, and timeline adjustments.",
+        "consolidatedAt": "2025-12-07T10:30:00Z"
+      }
+    ],
+    "totalConsolidated": 5,
+    "clustersProcessed": 1,
+    "timestamp": "2025-12-07T10:30:00Z"
+  }
+}
+```
+
+---
+
+### export_memories
+
+Export memories to JSON format with all metadata and embeddings.
+
+**Description:**
+Exports memories to a portable JSON format including content, metadata, embeddings, tags, and graph links. Supports filtering by date range, sector, tags, and minimum strength.
+
+**Input Schema:**
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "userId": {
+      "type": "string",
+      "description": "User ID for memory isolation (required)"
+    },
+    "filter": {
+      "type": "object",
+      "description": "Export filters (optional)",
+      "properties": {
+        "startDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Start date for date range filter"
+        },
+        "endDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "End date for date range filter"
+        },
+        "sectors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["episodic", "semantic", "procedural", "emotional", "reflective"]
+          },
+          "description": "Filter by memory sectors"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Filter by tags"
+        },
+        "minStrength": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Filter by minimum strength"
+        }
+      }
+    }
+  },
+  "required": ["userId"]
+}
+```
+
+**Example Request:**
+
+```json
+{
+  "userId": "user-123",
+  "filter": {
+    "sectors": ["semantic", "procedural"],
+    "minStrength": 0.5
+  }
+}
+```
+
+**Success Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "memories": [
+      {
+        "id": "mem-abc123",
+        "content": "PostgreSQL connection pooling best practices",
+        "primarySector": "procedural",
+        "metadata": {
+          "keywords": ["database", "postgresql", "performance"],
+          "tags": ["technical", "best-practices"],
+          "importance": 0.8
+        },
+        "embeddings": { "procedural": [0.1, 0.2, ...] },
+        "tags": ["technical"],
+        "createdAt": "2025-12-01T10:00:00Z",
+        "lastAccessed": "2025-12-07T09:00:00Z",
+        "strength": 0.85,
+        "salience": 0.7,
+        "accessCount": 5,
+        "links": [{ "targetId": "mem-def456", "weight": 0.8, "linkType": "waypoint" }]
+      }
+    ],
+    "exportedAt": "2025-12-07T10:30:00Z",
+    "version": "1.0.0",
+    "userId": "user-123",
+    "filter": {
+      "sectors": ["semantic", "procedural"],
+      "minStrength": 0.5
+    },
+    "count": 1
   }
 }
 ```
@@ -1300,6 +1705,28 @@ Common error scenarios and their solutions:
 3. **Set appropriate importance**: Higher importance (0.8-1.0) for critical information
 
 4. **Use soft delete for recovery**: Soft delete preserves data for potential recovery
+
+### Memory Health & Maintenance
+
+1. **Monitor health regularly**: Use `memory_health` to track storage usage and get recommendations
+
+2. **Prune proactively**: Regularly review and prune low-value memories to optimize storage
+   - Use `prune_memories` with `action: "list"` to identify candidates
+   - Preview effects with `action: "preview"` before actual deletion
+   - Execute with `action: "prune"` when ready
+
+3. **Consolidate related memories**: Use `consolidate_memories` to combine related episodic memories
+   - Reduces memory bloat while preserving insights
+   - Creates semantic summaries linked to originals
+   - Run periodically or when consolidation queue grows
+
+4. **Export for backup**: Use `export_memories` to create backups before major operations
+   - Filter by sector, tags, or date range for targeted exports
+   - Store exports securely for disaster recovery
+
+5. **Archive old memories**: Move infrequently accessed memories to archive
+   - Maintains searchability while optimizing active storage
+   - Auto-restores when accessed
 
 ### Reasoning
 

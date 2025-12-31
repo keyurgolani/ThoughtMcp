@@ -72,6 +72,24 @@ export class SchemaMigrationSystem {
         upFile: "005_embedding_status.sql",
         downFile: "005_embedding_status_down.sql",
       },
+      {
+        version: 6,
+        name: "memory_tags",
+        upFile: "006_memory_tags.sql",
+        downFile: "006_memory_tags_down.sql",
+      },
+      {
+        version: 7,
+        name: "archived_memories",
+        upFile: "007_archived_memories.sql",
+        downFile: "007_archived_memories_down.sql",
+      },
+      {
+        version: 8,
+        name: "consolidation_tracking",
+        upFile: "008_consolidation_tracking.sql",
+        downFile: "008_consolidation_tracking_down.sql",
+      },
     ];
   }
 

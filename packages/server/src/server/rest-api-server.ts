@@ -28,6 +28,10 @@ import { createConfigRoutes } from "./routes/config.js";
 import { createDocsRoutes } from "./routes/docs.js";
 import { createEmotionRoutes } from "./routes/emotion.js";
 import { createHealthRoutes } from "./routes/health.js";
+import { createMemoryArchiveRoutes } from "./routes/memory-archive.js";
+import { createMemoryConsolidationRoutes } from "./routes/memory-consolidation.js";
+import { createMemoryExportImportRoutes } from "./routes/memory-export-import.js";
+import { createMemoryHealthRoutes } from "./routes/memory-health.js";
 import { createMemoryRoutes } from "./routes/memory.js";
 import { createMetacognitionRoutes } from "./routes/metacognition.js";
 import { createProblemRoutes } from "./routes/problem.js";
@@ -216,6 +220,18 @@ export class RestApiServer {
   mountRoutes(): void {
     // Memory routes - Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
     this.app.use("/api/v1/memory", createMemoryRoutes(this.cognitiveCore));
+
+    // Memory health routes - Requirements: 2.1-2.7, 8.1-8.6
+    this.app.use("/api/v1/memory", createMemoryHealthRoutes(this.cognitiveCore));
+
+    // Memory archive routes - Requirements: 4.1-4.6
+    this.app.use("/api/v1/memory", createMemoryArchiveRoutes(this.cognitiveCore));
+
+    // Memory export/import routes - Requirements: 6.1-6.6
+    this.app.use("/api/v1/memory", createMemoryExportImportRoutes(this.cognitiveCore));
+
+    // Memory consolidation routes - Requirements: 7.2, 7.3
+    this.app.use("/api/v1/memory", createMemoryConsolidationRoutes(this.cognitiveCore));
 
     // Think routes - Requirements: 3.1, 3.2, 3.3
     this.app.use("/api/v1/think", createReasoningRoutes(this.cognitiveCore));

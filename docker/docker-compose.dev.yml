@@ -66,23 +66,32 @@ services:
     networks:
       - thought-dev
 
-  # Ollama for local embedding generation
+  # Ollama for local embedding generation and inference
   ollama:
     image: ollama/ollama:latest
     container_name: thought-ollama-dev
     restart: unless-stopped
+    # Use custom entrypoint to pull both embedding and inference models
+    entrypoint: ["/bin/sh", "/ollama-entrypoint.sh"]
+    environment:
+      # Model configuration - read from env with defaults
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+      LLM_MODEL: ${LLM_MODEL:-llama3.2:1b}
+      OLLAMA_WAIT_TIMEOUT: ${OLLAMA_WAIT_TIMEOUT:-120}
     ports:
       - "${OLLAMA_PORT:-11434}:11434"
     volumes:
       # Persist downloaded models
       - ollama_dev_models:/root/.ollama
+      # Mount the entrypoint script
+      - ./ollama-entrypoint.sh:/ollama-entrypoint.sh:ro
     healthcheck:
-      # Use ollama list instead of curl since curl is not available in the ollama image
-      test: ["CMD", "ollama", "list"]
+      # Verify both models are available
+      test: ["CMD-SHELL", "ollama list | grep -q '${EMBEDDING_MODEL:-nomic-embed-text}'"]
       interval: 10s
       timeout: 10s
       retries: 10
-      start_period: 15s
+      start_period: 60s
     networks:
       - thought-dev
 

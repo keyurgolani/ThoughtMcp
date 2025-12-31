@@ -158,19 +158,169 @@ export class CreativeStreamProcessor implements StreamProcessor {
    * @returns Array of creative insights with referenced terms tracked
    */
   private generateCreativeIdeas(problem: Problem, keyTerms: KeyTerms): Insight[] {
-    const ideas: Insight[] = [];
     const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the challenge";
     const domainTerms = keyTerms.domainTerms.slice(0, 2);
-    const actionVerb = keyTerms.actionVerbs[0] ?? "transform";
+    const context = problem.context ?? "";
 
-    // Generate problem-specific ideas using extracted terms
-    const ideaTemplates = [
-      `Create a novel ${domainTerms[0] ?? "approach"} for ${primaryTerm} that leverages ${domainTerms[1] ?? "existing strengths"}`,
-      `Imagine ${primaryTerm} reimagined with ${problem.goals?.[0] ?? "enhanced capabilities"}`,
-      `Design a unique method to ${actionVerb} ${primaryTerm} using unconventional techniques`,
-      `Develop an innovative ${domainTerms[0] ?? "strategy"} that addresses ${primaryTerm} from a fresh angle`,
-      `Invent a creative way to ${problem.goals?.[0] ?? `improve ${primaryTerm}`} by combining disparate concepts`,
-    ];
+    // Generate context-aware, specific ideas
+    const ideaTemplates = this.getContextSpecificIdeas(context, primaryTerm, domainTerms, problem);
+
+    return this.convertTemplatesToInsights(ideaTemplates, keyTerms);
+  }
+
+  /**
+   * Get context-specific idea templates based on problem context
+   */
+  private getContextSpecificIdeas(
+    context: string,
+    primaryTerm: string,
+    domainTerms: string[],
+    problem: Problem
+  ): string[] {
+    const ideaTemplates: string[] = [];
+    const lowerContext = context.toLowerCase();
+
+    // Add performance ideas
+    this.addPerformanceIdeas(lowerContext, primaryTerm, ideaTemplates);
+
+    // Add user engagement ideas
+    this.addUserEngagementIdeas(lowerContext, primaryTerm, domainTerms, ideaTemplates);
+
+    // Add scalability ideas
+    this.addScalabilityIdeas(lowerContext, primaryTerm, ideaTemplates);
+
+    // Add cost optimization ideas
+    this.addCostOptimizationIdeas(lowerContext, primaryTerm, domainTerms, ideaTemplates);
+
+    // Default creative ideas if no specific context matches
+    if (ideaTemplates.length === 0) {
+      this.addDefaultIdeas(primaryTerm, domainTerms, problem, ideaTemplates);
+    }
+
+    return ideaTemplates;
+  }
+
+  /**
+   * Add performance-focused ideas if context matches
+   */
+  private addPerformanceIdeas(
+    lowerContext: string,
+    primaryTerm: string,
+    ideaTemplates: string[]
+  ): void {
+    if (
+      lowerContext.includes("performance") ||
+      lowerContext.includes("slow") ||
+      lowerContext.includes("latency")
+    ) {
+      ideaTemplates.push(
+        `Implement predictive caching for ${primaryTerm} - pre-compute results for common scenarios to reduce latency by 50-80%`
+      );
+      ideaTemplates.push(
+        `Apply lazy loading pattern to ${primaryTerm} - defer non-critical operations to improve perceived performance`
+      );
+    }
+  }
+
+  /**
+   * Add user engagement ideas if context matches
+   */
+  private addUserEngagementIdeas(
+    lowerContext: string,
+    primaryTerm: string,
+    domainTerms: string[],
+    ideaTemplates: string[]
+  ): void {
+    if (
+      lowerContext.includes("user") ||
+      lowerContext.includes("engagement") ||
+      lowerContext.includes("retention")
+    ) {
+      ideaTemplates.push(
+        `Gamify ${primaryTerm} with progress indicators and micro-rewards to increase user motivation and completion rates`
+      );
+      ideaTemplates.push(
+        `Implement personalized ${domainTerms[0] ?? "experience"} paths based on user behavior patterns to improve relevance`
+      );
+    }
+  }
+
+  /**
+   * Add scalability ideas if context matches
+   */
+  private addScalabilityIdeas(
+    lowerContext: string,
+    primaryTerm: string,
+    ideaTemplates: string[]
+  ): void {
+    if (
+      lowerContext.includes("scale") ||
+      lowerContext.includes("growth") ||
+      lowerContext.includes("capacity")
+    ) {
+      ideaTemplates.push(
+        `Design ${primaryTerm} as event-driven microservices to enable horizontal scaling and independent deployment`
+      );
+      ideaTemplates.push(
+        `Implement circuit breaker pattern for ${primaryTerm} to gracefully handle load spikes and prevent cascade failures`
+      );
+    }
+  }
+
+  /**
+   * Add cost optimization ideas if context matches
+   */
+  private addCostOptimizationIdeas(
+    lowerContext: string,
+    primaryTerm: string,
+    domainTerms: string[],
+    ideaTemplates: string[]
+  ): void {
+    if (
+      lowerContext.includes("cost") ||
+      lowerContext.includes("budget") ||
+      lowerContext.includes("expensive")
+    ) {
+      ideaTemplates.push(
+        `Apply serverless architecture to ${primaryTerm} - pay only for actual usage, potentially reducing costs by 40-60%`
+      );
+      ideaTemplates.push(
+        `Implement tiered ${domainTerms[0] ?? "service"} levels for ${primaryTerm} to optimize resource allocation based on priority`
+      );
+    }
+  }
+
+  /**
+   * Add default creative ideas when no specific context matches
+   */
+  private addDefaultIdeas(
+    primaryTerm: string,
+    domainTerms: string[],
+    problem: Problem,
+    ideaTemplates: string[]
+  ): void {
+    ideaTemplates.push(
+      `Create a novel ${domainTerms[0] ?? "approach"} for ${primaryTerm} that combines automation with human oversight for optimal results`
+    );
+    ideaTemplates.push(
+      `Reimagine ${primaryTerm} as a self-service platform where users can customize their own ${domainTerms[1] ?? "experience"}`
+    );
+    ideaTemplates.push(
+      `Design a feedback loop for ${primaryTerm} that continuously learns from outcomes to improve future decisions`
+    );
+    ideaTemplates.push(
+      `Develop an innovative ${domainTerms[0] ?? "strategy"} that addresses ${primaryTerm} through collaborative problem-solving`
+    );
+    ideaTemplates.push(
+      `Invent a creative way to ${problem.goals?.[0] ?? `improve ${primaryTerm}`} by applying cross-industry best practices`
+    );
+  }
+
+  /**
+   * Convert idea templates to Insight objects
+   */
+  private convertTemplatesToInsights(ideaTemplates: string[], keyTerms: KeyTerms): Insight[] {
+    const ideas: Insight[] = [];
 
     for (const template of ideaTemplates) {
       ideas.push({
@@ -197,22 +347,22 @@ export class CreativeStreamProcessor implements StreamProcessor {
     const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "this challenge";
     const domainTerm = keyTerms.domainTerms[0] ?? "";
 
-    // Generate problem-specific analogies
+    // Generate problem-specific analogies with actionable insights
     let analogy: string;
     if (
       domainTerm === "performance" ||
       domainTerm === "optimization" ||
       domainTerm === "scalability"
     ) {
-      analogy = `${primaryTerm} is like a highway system - we can apply traffic flow optimization principles to improve throughput`;
+      analogy = `${primaryTerm} is like a highway system - apply traffic flow optimization: identify bottlenecks, add parallel lanes (horizontal scaling), and implement smart routing (load balancing) to improve throughput by 2-3x`;
     } else if (domainTerm === "user" || domainTerm === "customer" || domainTerm === "engagement") {
-      analogy = `${primaryTerm} is like a conversation - we can apply principles of active listening and responsiveness`;
+      analogy = `${primaryTerm} is like a conversation - apply active listening principles: reduce response time to under 100ms, acknowledge user actions immediately, and provide contextual suggestions based on user history`;
     } else if (domainTerm === "security" || domainTerm === "authentication") {
-      analogy = `${primaryTerm} is like a castle defense - we can apply layered protection strategies`;
+      analogy = `${primaryTerm} is like a castle defense - implement defense in depth: multiple authentication factors, network segmentation, and continuous monitoring to reduce breach risk by 80%`;
     } else if (domainTerm === "data" || domainTerm === "analytics") {
-      analogy = `${primaryTerm} is like archaeology - we can apply systematic excavation techniques to uncover insights`;
+      analogy = `${primaryTerm} is like archaeology - apply systematic excavation: layer data by time periods, cross-reference multiple sources, and document findings to uncover actionable patterns`;
     } else {
-      analogy = `${primaryTerm} is like how nature solves similar problems through evolution - we could apply adaptive principles`;
+      analogy = `${primaryTerm} is like how nature solves similar problems through evolution - apply adaptive principles: start with multiple small experiments, measure outcomes, and iterate on successful approaches`;
     }
 
     insights.push({

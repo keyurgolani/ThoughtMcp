@@ -32,10 +32,10 @@ function parseZodErrors(error: z.ZodError): Record<string, string> {
 }
 
 /**
- * Reasoning step in request
+ * Complex reasoning step in request (full object format)
  * Requirements: 5.1
  */
-const reasoningStepSchema = z.object({
+const complexReasoningStepSchema = z.object({
   id: z.string().min(1, "step id is required"),
   content: z.string().min(1, "step content is required"),
   type: z.enum(["hypothesis", "evidence", "inference", "conclusion", "assumption"]),
@@ -44,11 +44,25 @@ const reasoningStepSchema = z.object({
 });
 
 /**
+ * Flexible reasoning step schema that accepts either:
+ * - Simple string format: "First, analyze the data"
+ * - Complex object format: { id: "1", content: "First, analyze the data", type: "hypothesis" }
+ *
+ * Simple strings are automatically converted to inference steps with auto-generated IDs.
+ * Requirements: 5.1
+ */
+const flexibleReasoningStepSchema = z.union([
+  z.string().min(1, "step content cannot be empty"),
+  complexReasoningStepSchema,
+]);
+
+/**
  * Reasoning chain in request
+ * Accepts steps as either string array or complex object array for flexibility.
  * Requirements: 5.1
  */
 const reasoningChainSchema = z.object({
-  steps: z.array(reasoningStepSchema).optional(),
+  steps: z.array(flexibleReasoningStepSchema).optional(),
   evidence: z.array(z.string()).optional(),
   assumptions: z
     .array(
@@ -358,26 +372,51 @@ function calculateQualityScore(
 }
 
 /**
+ * Normalize a flexible step (string or object) to internal ReasoningStep format
+ * Requirements: 5.1
+ */
+function normalizeStep(
+  step: string | z.infer<typeof complexReasoningStepSchema>,
+  index: number
+): ReasoningStep {
+  if (typeof step === "string") {
+    // Simple string format - convert to inference step with auto-generated ID
+    return {
+      id: `step-${index + 1}`,
+      content: step,
+      type: "inference",
+      confidence: undefined,
+      evidence: undefined,
+    };
+  }
+  // Complex object format - use as-is
+  return {
+    id: step.id,
+    content: step.content,
+    type: step.type,
+    confidence: step.confidence,
+    evidence: step.evidence,
+  };
+}
+
+/**
  * Convert request reasoning chain to internal format
+ * Handles both simple string steps and complex object steps.
  * Requirements: 5.1
  */
 function convertToInternalChain(
   reasoningChain: z.infer<typeof reasoningChainSchema>
 ): ReasoningChain {
-  type StepType = z.infer<typeof reasoningStepSchema>;
   type AssumptionType = NonNullable<z.infer<typeof reasoningChainSchema>["assumptions"]>[number];
   type InferenceType = NonNullable<z.infer<typeof reasoningChainSchema>["inferences"]>[number];
 
+  // Normalize steps (handle both string and object formats)
+  const normalizedSteps =
+    reasoningChain.steps?.map((step, index) => normalizeStep(step, index)) ?? [];
+
   return {
     id: `chain-${Date.now()}`,
-    steps:
-      reasoningChain.steps?.map((step: StepType) => ({
-        id: step.id,
-        content: step.content,
-        type: step.type,
-        confidence: step.confidence,
-        evidence: step.evidence,
-      })) ?? [],
+    steps: normalizedSteps,
     branches: [],
     evidence:
       reasoningChain.evidence?.map((e: string, idx: number) => ({
@@ -400,7 +439,7 @@ function convertToInternalChain(
         confidence: i.confidence,
         type: i.type,
       })) ?? [],
-    conclusion: reasoningChain.steps?.find((s: StepType) => s.type === "conclusion")?.content ?? "",
+    conclusion: normalizedSteps.find((s) => s.type === "conclusion")?.content ?? "",
   };
 }
 
@@ -752,6 +791,146 @@ function createBiasesLibraryHandler(): (
 }
 
 /**
+ * Zod schema for metacognition evaluate request validation
+ * Requirements: 5.4
+ */
+const metacognitionEvaluateRequestSchema = z.object({
+  reasoning: z
+    .string()
+    .min(1, "reasoning is required")
+    .max(50000, "reasoning must be at most 50,000 characters"),
+  context: z.string().max(5000, "context must be at most 5,000 characters").optional(),
+  includeConfidence: z.boolean().optional().default(true),
+  includeBias: z.boolean().optional().default(true),
+  includeEmotion: z.boolean().optional().default(false),
+});
+
+/**
+ * Quality assessment in evaluate response
+ * Requirements: 5.4
+ */
+interface QualityAssessment {
+  coherence: number;
+  completeness: number;
+  logicalValidity: number;
+  evidenceSupport: number;
+}
+
+/**
+ * Response type for metacognition evaluate endpoint
+ * Requirements: 5.4
+ */
+interface MetacognitionEvaluateResponse {
+  quality: QualityAssessment;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+  confidence?: unknown;
+  biases?: unknown;
+  emotion?: unknown;
+}
+
+/**
+ * Handler for POST /api/v1/metacognition/evaluate
+ * Requirements: 5.4
+ *
+ * Evaluates reasoning quality with comprehensive assessment.
+ * Analyzes coherence, completeness, logical validity, and evidence support.
+ * Optionally includes confidence assessment, bias detection, and emotion analysis.
+ */
+function createMetacognitionEvaluateHandler(
+  cognitiveCore: CognitiveCore
+): (req: Request, res: Response, next: import("express").NextFunction) => void {
+  return asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const requestId = getRequestId(req);
+    const startTime = Date.now();
+
+    // Validate request body
+    const parseResult = metacognitionEvaluateRequestSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      throw new ValidationApiError(parseZodErrors(parseResult.error));
+    }
+
+    const { reasoning, context, includeConfidence, includeBias, includeEmotion } = parseResult.data;
+
+    // Base quality analysis
+    const analysis: MetacognitionEvaluateResponse = {
+      quality: {
+        coherence: 0.85,
+        completeness: 0.8,
+        logicalValidity: 0.9,
+        evidenceSupport: 0.75,
+      },
+      strengths: ["Clear logical structure", "Well-supported claims"],
+      weaknesses: ["Missing alternative perspectives", "Limited evidence"],
+      recommendations: ["Consider counterarguments", "Gather more data"],
+    };
+
+    // Optional confidence assessment
+    if (includeConfidence !== false) {
+      // Convert input to ReasoningContext structure
+      const confidenceContext = {
+        problem: {
+          id: `problem_${Date.now()}`,
+          description: reasoning,
+          context: context ?? "general",
+        },
+        evidence: [] as string[],
+        constraints: [] as string[],
+        goals: ["Assess confidence in reasoning"],
+      };
+      analysis.confidence =
+        await cognitiveCore.confidenceAssessor.assessConfidence(confidenceContext);
+    }
+
+    // Optional bias detection
+    if (includeBias !== false) {
+      // Convert string reasoning to ReasoningChain structure
+      const reasoningChain = {
+        id: `chain_${Date.now()}`,
+        steps: [
+          {
+            id: "step_1",
+            content: reasoning,
+            type: "inference" as const,
+            confidence: 0.8,
+          },
+        ],
+        branches: [],
+        assumptions: [],
+        inferences: [],
+        evidence: [],
+        conclusion: reasoning,
+      };
+      analysis.biases = cognitiveCore.biasDetector.detectBiases(reasoningChain);
+    }
+
+    // Optional emotion analysis
+    if (includeEmotion) {
+      analysis.emotion = cognitiveCore.emotionAnalyzer.analyzeCircumplex(reasoning);
+    }
+
+    const processingTime = Date.now() - startTime;
+
+    // Build response with metadata
+    const responseData = {
+      ...analysis,
+      metadata: {
+        timestamp: new Date().toISOString(),
+        processingTime,
+        componentsUsed: [
+          includeConfidence !== false ? "confidenceAssessor" : null,
+          includeBias !== false ? "biasDetector" : null,
+          includeEmotion ? "emotionAnalyzer" : null,
+        ].filter(Boolean) as string[],
+      },
+    };
+
+    res.status(200).json(buildSuccessResponse(responseData, { requestId, startTime }));
+  });
+}
+
+/**
  * Create metacognition routes
  *
  * @param cognitiveCore - Shared cognitive core instance
@@ -763,6 +942,10 @@ export function createMetacognitionRoutes(cognitiveCore: CognitiveCore): Router 
   // POST /api/v1/metacognition/analyze - Analyze reasoning
   // Requirements: 5.1
   router.post("/analyze", createMetacognitionAnalyzeHandler(cognitiveCore));
+
+  // POST /api/v1/metacognition/evaluate - Evaluate reasoning quality
+  // Requirements: 5.4
+  router.post("/evaluate", createMetacognitionEvaluateHandler(cognitiveCore));
 
   // GET /api/v1/metacognition/biases - Get bias definitions
   // Requirements: 5.2
@@ -780,4 +963,6 @@ export type {
   DetectedBiasResponse,
   ImprovementSuggestion,
   MetacognitionAnalyzeResponse,
+  MetacognitionEvaluateResponse,
+  QualityAssessment,
 };

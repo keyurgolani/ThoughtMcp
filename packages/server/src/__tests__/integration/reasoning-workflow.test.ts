@@ -429,18 +429,32 @@ describe("Reasoning Workflow Integration (Mocked)", () => {
 
     it("should handle reasoning timeout gracefully", async () => {
       const { ParallelReasoningOrchestrator } = await import("../../reasoning/orchestrator");
-      const { AnalyticalReasoningStream } =
-        await import("../../reasoning/streams/analytical-stream");
-      const { CreativeReasoningStream } = await import("../../reasoning/streams/creative-stream");
-      const { CriticalReasoningStream } = await import("../../reasoning/streams/critical-stream");
-      const { SyntheticReasoningStream } = await import("../../reasoning/streams/synthetic-stream");
+
+      // Create mock streams that simulate slow processing to test timeout handling
+      // This avoids dependency on actual LLM response times which can be 30-60+ seconds
+      // during model loading on dev environments
+      const createSlowMockStream = (type: string, delayMs: number) => ({
+        type,
+        cancel: () => {
+          /* no-op for mock */
+        },
+        process: async () => {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          return {
+            type,
+            insights: [`${type} insight`],
+            confidence: 0.8,
+            processingTime: delayMs,
+          };
+        },
+      });
 
       const orchestrator = new ParallelReasoningOrchestrator();
       const streams = [
-        new AnalyticalReasoningStream(),
-        new CreativeReasoningStream(),
-        new CriticalReasoningStream(),
-        new SyntheticReasoningStream(),
+        createSlowMockStream("analytical", 5000), // 5 seconds - will timeout
+        createSlowMockStream("creative", 5000),
+        createSlowMockStream("critical", 5000),
+        createSlowMockStream("synthetic", 5000),
       ];
 
       const problem: Problem = {
@@ -451,8 +465,8 @@ describe("Reasoning Workflow Integration (Mocked)", () => {
         goals: ["Test timeout"],
       };
 
-      // Use very short timeout
-      const result = await orchestrator.executeStreams(problem, streams, 100);
+      // Use short timeout (1 second) - streams take 5 seconds each
+      const result = await orchestrator.executeStreams(problem, streams as any, 1000);
 
       // Should return partial results even if timeout
       expect(result).toBeDefined();

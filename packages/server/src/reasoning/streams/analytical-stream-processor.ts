@@ -389,25 +389,122 @@ Perform a systematic analysis.
   }
 
   /**
-   * Identify potential root causes
+   * Check for specific context indicators and return hypothesis if found
+   */
+  private checkContextIndicator(
+    context: string,
+    indicators: string[],
+    hypothesis: string
+  ): string | null {
+    const lowerContext = context.toLowerCase();
+    for (const indicator of indicators) {
+      if (lowerContext.includes(indicator)) {
+        return hypothesis;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Identify potential root causes with specific hypotheses
    */
   private identifyRootCauses(problem: Problem, keyTerms: KeyTerms): string {
     const primaryTerm = keyTerms.primarySubject ?? "the issue";
     const actionVerb = keyTerms.actionVerbs[0] ?? "address";
+    const context = problem.context ?? "";
 
-    if (problem.constraints && problem.constraints.length > 0) {
-      return `Root cause of ${primaryTerm} likely relates to ${problem.constraints[0]}; to ${actionVerb} this, underlying constraints must be considered`;
+    // Generate specific root cause hypotheses based on context analysis
+    const hypotheses = this.generateRootCauseHypotheses(context);
+
+    // Build specific root cause statement
+    if (hypotheses.length > 0) {
+      return this.buildRootCauseStatement(hypotheses, primaryTerm, actionVerb, problem.constraints);
     }
 
-    if (keyTerms.domainTerms.length > 1) {
-      return `Root cause analysis suggests ${primaryTerm} stems from interaction between ${keyTerms.domainTerms.slice(0, 2).join(" and ")}`;
-    }
-
-    return `Root cause of ${primaryTerm} requires deeper investigation; initial analysis suggests structural factors`;
+    // Fallback with actionable next steps
+    return this.buildFallbackRootCause(primaryTerm, actionVerb, problem.constraints, keyTerms);
   }
 
   /**
-   * Generate analytical conclusion
+   * Generate hypotheses based on context indicators
+   */
+  private generateRootCauseHypotheses(context: string): string[] {
+    const hypotheses: string[] = [];
+
+    const indicatorMap: Array<{ indicators: string[]; hypothesis: string }> = [
+      {
+        indicators: ["slow", "latency", "performance"],
+        hypothesis: "resource contention or inefficient algorithms",
+      },
+      {
+        indicators: ["user", "engagement", "retention"],
+        hypothesis: "user experience friction points or unmet user needs",
+      },
+      {
+        indicators: ["error", "fail", "crash"],
+        hypothesis: "system instability or inadequate error handling",
+      },
+      {
+        indicators: ["process", "workflow", "manual"],
+        hypothesis: "process inefficiencies or lack of automation",
+      },
+      {
+        indicators: ["data", "inconsistent", "quality"],
+        hypothesis: "data quality issues or inconsistent data sources",
+      },
+    ];
+
+    for (const { indicators, hypothesis } of indicatorMap) {
+      const result = this.checkContextIndicator(context, indicators, hypothesis);
+      if (result) {
+        hypotheses.push(result);
+      }
+    }
+
+    return hypotheses;
+  }
+
+  /**
+   * Build root cause statement from hypotheses
+   */
+  private buildRootCauseStatement(
+    hypotheses: string[],
+    primaryTerm: string,
+    actionVerb: string,
+    constraints: string[] | undefined
+  ): string {
+    const primaryHypothesis = hypotheses[0];
+    const secondaryHypothesis = hypotheses[1];
+
+    if (constraints && constraints.length > 0) {
+      return `Root cause hypothesis for ${primaryTerm}: ${primaryHypothesis}, compounded by constraint "${constraints[0]}". To ${actionVerb} this, prioritize addressing ${primaryHypothesis} first${secondaryHypothesis ? `, then investigate ${secondaryHypothesis}` : ""}`;
+    }
+
+    return `Root cause hypothesis for ${primaryTerm}: ${primaryHypothesis}${secondaryHypothesis ? `. Secondary factor: ${secondaryHypothesis}` : ""}. Recommended investigation: gather metrics to validate this hypothesis`;
+  }
+
+  /**
+   * Build fallback root cause when no specific hypotheses found
+   */
+  private buildFallbackRootCause(
+    primaryTerm: string,
+    actionVerb: string,
+    constraints: string[] | undefined,
+    keyTerms: KeyTerms
+  ): string {
+    if (constraints && constraints.length > 0) {
+      return `Root cause of ${primaryTerm} likely relates to ${constraints[0]}; to ${actionVerb} this, conduct stakeholder interviews and analyze historical data to identify specific triggers`;
+    }
+
+    if (keyTerms.domainTerms.length > 1) {
+      return `Root cause analysis suggests ${primaryTerm} stems from interaction between ${keyTerms.domainTerms.slice(0, 2).join(" and ")}. Next step: map dependencies between these components to identify failure points`;
+    }
+
+    return `Root cause of ${primaryTerm} requires structured investigation. Recommended approach: (1) gather baseline metrics, (2) identify recent changes, (3) interview stakeholders to surface hidden factors`;
+  }
+
+  /**
+   * Generate analytical conclusion with specific recommendations
    */
   private generateConclusion(problem: Problem, keyTerms: KeyTerms, insights: Insight[]): string {
     const primaryTerm = keyTerms.primarySubject ?? "the problem";
@@ -415,10 +512,10 @@ Perform a systematic analysis.
 
     const parts: string[] = [];
 
-    // Main finding
+    // Main finding with specificity
     parts.push(`Systematic analysis of ${primaryTerm} reveals`);
 
-    // Key insight summary
+    // Key insight summary with actionable detail
     if (insights.length > 0) {
       const topInsight = insights.sort((a, b) => b.importance - a.importance)[0];
       parts.push(topInsight.content.toLowerCase());
@@ -426,11 +523,32 @@ Perform a systematic analysis.
       parts.push("structural patterns requiring attention");
     }
 
-    // Recommendation
+    // Generate specific recommendations based on problem characteristics
+    const recommendations: string[] = [];
+
     if (problem.goals && problem.goals.length > 0) {
-      parts.push(`To ${problem.goals[0].toLowerCase()}, a methodical approach is recommended`);
+      recommendations.push(`align efforts with goal: ${problem.goals[0].toLowerCase()}`);
+    }
+
+    if (problem.constraints && problem.constraints.length > 0) {
+      recommendations.push(`work within constraint: ${problem.constraints[0]}`);
+    }
+
+    if (problem.urgency === "high") {
+      recommendations.push("prioritize quick wins that demonstrate progress");
+    }
+
+    if (problem.complexity === "complex") {
+      recommendations.push("break into smaller, manageable phases");
+    }
+
+    // Build recommendation section
+    if (recommendations.length > 0) {
+      parts.push(`Recommended approach: ${recommendations.slice(0, 2).join("; ")}`);
     } else {
-      parts.push(`To ${actionVerb} this effectively, systematic intervention is recommended`);
+      parts.push(
+        `To ${actionVerb} this effectively, implement systematic intervention with measurable milestones`
+      );
     }
 
     return parts.join(". ");

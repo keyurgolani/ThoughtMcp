@@ -17,6 +17,11 @@
     "url": "https://github.com/keyurgolani"
   },
   "license": "MIT",
+  "pnpm": {
+    "overrides": {
+      "qs": ">=6.14.1"
+    }
+  },
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "dev:server": "pnpm --filter @thought/server dev",
@@ -28,7 +33,9 @@
     "test:server": "pnpm --filter @thought/server test",
     "test:ui": "pnpm --filter @thought/ui test",
     "test:unit": "pnpm --filter @thought/server test:unit",
+    "test:unit:file": "pnpm --filter @thought/server exec vitest run",
     "test:integration": "pnpm --filter @thought/server test:integration",
+    "test:integration:file": "pnpm --filter @thought/server exec vitest run",
     "test:e2e": "pnpm --filter @thought/server test:e2e",
     "test:qa": "pnpm --filter @thought/server test:qa",
     "test:coverage": "pnpm -r test:coverage",

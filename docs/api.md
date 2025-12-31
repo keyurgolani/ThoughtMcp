@@ -12,6 +12,7 @@ This document provides comprehensive API documentation for all public interfaces
 
 - [MCP Tools](#mcp-tools)
 - [Memory System](#memory-system)
+- [Memory Health & Management](#memory-health--management)
 - [Embedding System](#embedding-system)
 - [Graph System](#graph-system)
 - [Temporal Decay](#temporal-decay)
@@ -24,6 +25,169 @@ This document provides comprehensive API documentation for all public interfaces
 - [Metacognitive System](#metacognitive-system)
 - [Database Layer](#database-layer)
 - [Utilities](#utilities)
+- [REST vs MCP Response Differences](#rest-vs-mcp-response-differences)
+
+---
+
+## REST vs MCP Response Differences
+
+ThoughtMCP provides two interfaces for accessing cognitive capabilities: **REST API** and **MCP (Model Context Protocol)**. While both interfaces provide access to the same underlying functionality, their response structures differ slightly to optimize for their respective use cases.
+
+### Design Philosophy
+
+| Interface    | Optimized For                                     | Response Style                     |
+| ------------ | ------------------------------------------------- | ---------------------------------- |
+| **REST API** | Web applications, dashboards, programmatic access | Comprehensive with full metadata   |
+| **MCP**      | LLM context windows, AI assistants                | Minimal, focused on essential data |
+
+### Memory Recall Response Differences
+
+The most notable differences appear in memory retrieval responses:
+
+#### REST API Response (`POST /api/v1/memory/recall`)
+
+```json
+{
+  "success": true,
+  "data": {
+    "memories": [
+      {
+        "id": "mem-abc123",
+        "content": "User prefers dark mode",
+        "createdAt": "2025-12-07T10:30:00Z",
+        "lastAccessed": "2025-12-07T12:00:00Z",
+        "accessCount": 5,
+        "salience": 0.75,
+        "strength": 0.95,
+        "userId": "user-123",
+        "sessionId": "session-456",
+        "primarySector": "semantic",
+        "metadata": { "tags": ["settings"] }
+      }
+    ],
+    "totalCount": 1,
+    "scores": {
+      "mem-abc123": {
+        "total": 0.87,
+        "similarity": 0.9,
+        "salience": 0.75,
+        "recency": 0.8,
+        "linkWeight": 0.6
+      }
+    },
+    "rankingMethod": "similarity",
+    "nextCursor": "eyJ0aW1lc3RhbXAiOi4uLn0=",
+    "hasMore": true
+  }
+}
+```
+
+#### MCP Response (`recall` tool)
+
+```json
+{
+  "success": true,
+  "data": {
+    "memories": [
+      {
+        "id": "mem-abc123",
+        "content": "User prefers dark mode",
+        "createdAt": "2025-12-07T10:30:00Z",
+        "lastAccessed": "2025-12-07T12:00:00Z",
+        "strength": 0.95,
+        "salience": 0.75,
+        "primarySector": "semantic",
+        "metadata": { "tags": ["settings"] },
+        "score": 0.87
+      }
+    ],
+    "totalCount": 1,
+    "scores": { "mem-abc123": 0.87 },
+    "rankingMethod": "similarity"
+  }
+}
+```
+
+### Field Comparison
+
+| Field                | REST API | MCP | Notes                                |
+| -------------------- | -------- | --- | ------------------------------------ |
+| `accessCount`        | ✅       | ❌  | Useful for analytics dashboards      |
+| `userId`             | ✅       | ❌  | Included for multi-user applications |
+| `sessionId`          | ✅       | ❌  | Useful for session tracking          |
+| `nextCursor`         | ✅       | ❌  | Enables cursor-based pagination      |
+| `hasMore`            | ✅       | ❌  | Indicates more results available     |
+| `scores` (detailed)  | ✅       | ❌  | REST provides component breakdown    |
+| `scores` (simple)    | ❌       | ✅  | MCP provides total score only        |
+| `score` (per memory) | ❌       | ✅  | MCP includes score in memory object  |
+
+### Why the Differences?
+
+**REST API provides additional fields because:**
+
+- Web applications often need pagination controls (`nextCursor`, `hasMore`)
+- Dashboards benefit from detailed analytics (`accessCount`, detailed `scores`)
+- Multi-tenant applications need user/session context for display
+- Programmatic clients can handle larger response payloads
+
+**MCP responses are minimal because:**
+
+- LLM context windows have token limits
+- AI assistants need focused, actionable data
+- Reducing response size improves processing speed
+- Essential information is preserved for decision-making
+
+### Pagination Differences
+
+**REST API** uses cursor-based pagination:
+
+```json
+{
+  "nextCursor": "eyJ0aW1lc3RhbXAiOi4uLn0=",
+  "hasMore": true
+}
+```
+
+**MCP** uses offset-based pagination via input parameters:
+
+```json
+{
+  "limit": 10,
+  "offset": 20
+}
+```
+
+### Score Format Differences
+
+**REST API** provides detailed score breakdown:
+
+```json
+{
+  "scores": {
+    "mem-abc123": {
+      "total": 0.87,
+      "similarity": 0.9,
+      "salience": 0.75,
+      "recency": 0.8,
+      "linkWeight": 0.6
+    }
+  }
+}
+```
+
+**MCP** provides simplified scores:
+
+```json
+{
+  "scores": { "mem-abc123": 0.87 }
+}
+```
+
+### Recommendations
+
+- **Use REST API** when building web dashboards, analytics tools, or applications that need full metadata and pagination controls
+- **Use MCP** when integrating with AI assistants, LLMs, or when minimizing response size is important
+- **Both interfaces** return the same core memory data (content, timestamps, strength, salience, sector, metadata)
 
 ---
 
@@ -33,21 +197,25 @@ ThoughtMCP exposes cognitive capabilities through MCP (Model Context Protocol) t
 
 ### Available Tools
 
-| Category          | Tool                     | Description                              |
-| ----------------- | ------------------------ | ---------------------------------------- |
-| **Memory**        | `remember`           | Store new memory with embeddings         |
-| **Memory**        | `recall`      | Retrieve memories with composite scoring |
-| **Memory**        | `update_memory`          | Update existing memory                   |
-| **Memory**        | `forget`          | Delete memory (soft/hard)                |
-| **Memory**        | `search`        | Full-text and vector search              |
-| **Reasoning**     | `think`                  | Single or parallel reasoning             |
-| **Reasoning**     | `analyze` | Framework-based analysis                 |
-| **Reasoning**     | `ponder`         | Parallel stream reasoning                |
-| **Reasoning**     | `breakdown`      | Problem decomposition                    |
-| **Metacognitive** | `assess_confidence`      | Confidence assessment                    |
-| **Metacognitive** | `detect_bias`            | Bias detection                           |
-| **Metacognitive** | `detect_emotion`         | Emotion analysis                         |
-| **Metacognitive** | `evaluate`      | Reasoning quality analysis               |
+| Category          | Tool                   | Description                              |
+| ----------------- | ---------------------- | ---------------------------------------- |
+| **Memory**        | `remember`             | Store new memory with embeddings         |
+| **Memory**        | `recall`               | Retrieve memories with composite scoring |
+| **Memory**        | `update_memory`        | Update existing memory                   |
+| **Memory**        | `forget`               | Delete memory (soft/hard)                |
+| **Memory**        | `search`               | Full-text and vector search              |
+| **Memory Health** | `memory_health`        | Get health metrics and recommendations   |
+| **Memory Mgmt**   | `prune_memories`       | Identify and remove low-value memories   |
+| **Memory Mgmt**   | `consolidate_memories` | Consolidate related memories             |
+| **Memory Mgmt**   | `export_memories`      | Export memories to JSON format           |
+| **Reasoning**     | `think`                | Single or parallel reasoning             |
+| **Reasoning**     | `analyze`              | Framework-based analysis                 |
+| **Reasoning**     | `ponder`               | Parallel stream reasoning                |
+| **Reasoning**     | `breakdown`            | Problem decomposition                    |
+| **Metacognitive** | `assess_confidence`    | Confidence assessment                    |
+| **Metacognitive** | `detect_bias`          | Bias detection                           |
+| **Metacognitive** | `detect_emotion`       | Emotion analysis                         |
+| **Metacognitive** | `evaluate`             | Reasoning quality analysis               |
 
 For complete tool documentation including schemas and examples, see **[MCP Tools Reference](mcp-tools.md)**.
 
@@ -188,6 +356,227 @@ await memoryRepository.delete("mem-abc123", true);
 // Hard delete (permanent)
 await memoryRepository.delete("mem-abc123", false);
 ```
+
+---
+
+## Memory Health & Management
+
+ThoughtMCP provides comprehensive memory health monitoring, quality analysis, pruning, archiving, consolidation, and export/import capabilities through REST API endpoints.
+
+### REST API Endpoints
+
+#### Memory Health Endpoints
+
+| Method | Endpoint                                 | Description                              |
+| ------ | ---------------------------------------- | ---------------------------------------- |
+| GET    | `/api/v1/memory/health`                  | Get comprehensive health metrics         |
+| GET    | `/api/v1/memory/quality`                 | Get quality metrics (strength, coverage) |
+| GET    | `/api/v1/memory/quality/access-patterns` | Get access patterns (most/least/never)   |
+| GET    | `/api/v1/memory/quality/duplicates`      | Find duplicate memories                  |
+| GET    | `/api/v1/memory/quality/trends`          | Get quality trends over time             |
+
+#### Pruning Endpoints
+
+| Method | Endpoint                          | Description                           |
+| ------ | --------------------------------- | ------------------------------------- |
+| GET    | `/api/v1/memory/prune/candidates` | List forgetting candidates            |
+| POST   | `/api/v1/memory/prune`            | Execute pruning for specific memories |
+| POST   | `/api/v1/memory/prune/preview`    | Preview pruning effects (dry-run)     |
+
+#### Archive Endpoints
+
+| Method | Endpoint                         | Description                               |
+| ------ | -------------------------------- | ----------------------------------------- |
+| POST   | `/api/v1/memory/archive`         | Archive memories by IDs or age threshold  |
+| GET    | `/api/v1/memory/archive/search`  | Search archived memories                  |
+| POST   | `/api/v1/memory/archive/restore` | Restore archived memory to active storage |
+| GET    | `/api/v1/memory/archive/stats`   | Get archive statistics                    |
+
+#### Export/Import Endpoints
+
+| Method | Endpoint                         | Description                           |
+| ------ | -------------------------------- | ------------------------------------- |
+| GET    | `/api/v1/memory/export`          | Export memories to JSON format        |
+| POST   | `/api/v1/memory/import`          | Import memories from JSON             |
+| POST   | `/api/v1/memory/import/validate` | Validate import data before insertion |
+
+#### Consolidation Endpoints
+
+| Method | Endpoint                            | Description                        |
+| ------ | ----------------------------------- | ---------------------------------- |
+| POST   | `/api/v1/memory/consolidate`        | Trigger manual consolidation       |
+| GET    | `/api/v1/memory/consolidate/status` | Get consolidation scheduler status |
+
+### HealthMonitor
+
+Provides comprehensive memory health metrics and recommendations.
+
+**Location**: `src/memory/health-monitor.ts`
+
+#### `getHealth(userId: string): Promise<MemoryHealthResponse>`
+
+Returns comprehensive health metrics including storage usage, memory counts by sector and age, consolidation queue status, forgetting candidates, and actionable recommendations.
+
+**Example**:
+
+```typescript
+const health = await healthMonitor.getHealth("user-123");
+// Returns:
+// {
+//   storage: { bytesUsed: 1048576, quotaBytes: 10485760, usagePercent: 10 },
+//   countsBySector: { episodic: 50, semantic: 30, procedural: 10, emotional: 5, reflective: 5 },
+//   countsByAge: { last24h: 5, lastWeek: 20, lastMonth: 40, older: 35 },
+//   consolidationQueue: { size: 15, estimatedTimeMs: 5000 },
+//   forgettingCandidates: { lowStrength: 10, oldAge: 5, lowAccess: 8, total: 23 },
+//   recommendations: [{ type: "consolidation", priority: "medium", message: "...", action: "..." }],
+//   timestamp: Date
+// }
+```
+
+### PruningService
+
+Identifies and removes low-value memories to optimize storage.
+
+**Location**: `src/memory/pruning-service.ts`
+
+#### `listCandidates(userId: string, criteria: PruningCriteria): Promise<ForgettingCandidate[]>`
+
+Lists memories that match pruning criteria (low strength, old age, low access count).
+
+**Parameters**:
+
+- `userId` (string): User identifier
+- `criteria` (PruningCriteria): Pruning criteria
+  - `minStrength` (number): Memories below this strength are candidates (default: 0.1)
+  - `maxAgeDays` (number): Memories older than this are candidates (default: 180)
+  - `minAccessCount` (number): Memories with fewer accesses are candidates (default: 0)
+
+**Example**:
+
+```typescript
+const candidates = await pruningService.listCandidates("user-123", {
+  minStrength: 0.1,
+  maxAgeDays: 90,
+  minAccessCount: 0,
+});
+```
+
+#### `prune(userId: string, memoryIds: string[]): Promise<PruningResult>`
+
+Deletes specified memories and cleans up orphaned graph links.
+
+#### `previewPruning(userId: string, memoryIds: string[]): Promise<PruningResult>`
+
+Previews pruning effects without actually deleting (dry-run mode).
+
+### ArchiveManager
+
+Manages memory archiving to cold storage while maintaining searchability.
+
+**Location**: `src/memory/archive-manager.ts`
+
+#### `archiveOld(userId: string, config: ArchiveConfig): Promise<ArchiveResult>`
+
+Archives memories older than the configured threshold.
+
+**Parameters**:
+
+- `userId` (string): User identifier
+- `config` (ArchiveConfig): Archive configuration
+  - `ageThresholdDays` (number): Age threshold in days (default: 180)
+  - `retainEmbeddings` (boolean): Whether to retain embeddings (default: true)
+
+#### `archiveMemories(userId: string, memoryIds: string[]): Promise<ArchiveResult>`
+
+Archives specific memories by ID.
+
+#### `searchArchive(userId: string, query: string): Promise<ArchivedMemory[]>`
+
+Searches archived memories. Returns metadata with `isArchived: true` flag.
+
+#### `restore(userId: string, memoryId: string): Promise<RestoreResult>`
+
+Restores an archived memory to active storage.
+
+### ConsolidationEngine
+
+Consolidates related episodic memories into semantic summaries.
+
+**Location**: `src/memory/consolidation-engine.ts`
+
+#### `identifyClusters(userId: string, config: ConsolidationConfig): Promise<MemoryCluster[]>`
+
+Identifies clusters of related memories based on semantic similarity.
+
+**Parameters**:
+
+- `userId` (string): User identifier
+- `config` (ConsolidationConfig): Consolidation configuration
+  - `similarityThreshold` (number): Minimum similarity for clustering (default: 0.75)
+  - `minClusterSize` (number): Minimum cluster size to consolidate (default: 5)
+  - `batchSize` (number): Maximum memories per batch (default: 100)
+  - `strengthReductionFactor` (number): Factor to reduce original memory strength (default: 0.5)
+
+#### `consolidate(cluster: MemoryCluster): Promise<ConsolidationResult>`
+
+Consolidates a cluster into a semantic summary, creates graph links, and reduces original memory strength.
+
+### ExportImportService
+
+Handles memory export to JSON and import with validation.
+
+**Location**: `src/memory/export-import-service.ts`
+
+#### `exportMemories(userId: string, filter: ExportFilter): Promise<ExportResult>`
+
+Exports memories to JSON format with all metadata and embeddings.
+
+**Parameters**:
+
+- `userId` (string): User identifier
+- `filter` (ExportFilter): Export filters
+  - `dateRange` (object): Filter by date range
+  - `sectors` (MemorySectorType[]): Filter by sectors
+  - `tags` (string[]): Filter by tags
+  - `minStrength` (number): Filter by minimum strength
+
+#### `importMemories(userId: string, data: ExportResult, options: ImportOptions): Promise<ImportResult>`
+
+Imports memories from JSON data.
+
+**Parameters**:
+
+- `userId` (string): User identifier
+- `data` (ExportResult): Exported memory data
+- `options` (ImportOptions): Import options
+  - `mode` ("merge" | "replace"): Merge updates existing, replace overwrites
+  - `regenerateEmbeddings` (boolean): Whether to regenerate embeddings
+
+#### `validateImport(data: unknown): Promise<ValidationResult>`
+
+Validates import data against the memory schema before insertion.
+
+### QualityAnalyzer
+
+Analyzes memory quality metrics and identifies issues.
+
+**Location**: `src/memory/quality-analyzer.ts`
+
+#### `getMetrics(userId: string): Promise<QualityMetrics>`
+
+Returns quality metrics including average strength by sector, embedding coverage, and clustering coefficient.
+
+#### `getAccessPatterns(userId: string, type: "most" | "least" | "never"): Promise<AccessPattern[]>`
+
+Returns memory access patterns (most accessed, least accessed, never accessed).
+
+#### `findDuplicates(userId: string, threshold?: number): Promise<DuplicateCandidate[]>`
+
+Finds potential duplicate memories based on content similarity.
+
+#### `getTrends(userId: string, days?: number): Promise<QualityTrend[]>`
+
+Returns quality trends over time showing average strength and memory counts.
 
 ---
 
@@ -1069,7 +1458,8 @@ interface ReasoningResult {
 
 ## See Also
 
-- **[MCP Tools Reference](mcp-tools.md)** - Complete MCP tool documentation
+- **[MCP Tools Reference](mcp-tools.md)** - Complete MCP tool documentation including memory management tools
+- **[User Guide](user-guide.md)** - Getting started and memory management workflows
 - **[Integration Guide](integration.md)** - Platform integration guides
 - **[Architecture Guide](architecture.md)** - System architecture and design
 - **[Examples](examples.md)** - Usage examples for each feature

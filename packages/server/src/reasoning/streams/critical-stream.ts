@@ -465,69 +465,152 @@ export class CriticalStreamProcessor implements StreamProcessor {
     const risks: Insight[] = [];
     const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the proposal";
     const domainTerm = keyTerms.domainTerms[0] ?? "";
+    const context = problem.context ?? "";
 
-    // Risk of unintended consequences
-    const unintendedContent = `Risk of unintended consequences: ${primaryTerm} changes may have negative ${domainTerm !== "" ? domainTerm : "side effects"} not considered`;
+    // Always add unintended consequences risk
+    this.addUnintendedConsequencesRisk(risks, primaryTerm, domainTerm, keyTerms);
+
+    // Add conditional risks based on problem characteristics
+    this.addUserAlienationRisk(risks, problem, primaryTerm, context, keyTerms);
+    this.addImplementationFailureRisk(risks, problem, primaryTerm, keyTerms);
+    this.addResourceOverrunRisk(risks, problem, primaryTerm, keyTerms);
+    this.addCompetitiveResponseRisk(risks, primaryTerm, domainTerm, context, keyTerms);
+    this.addTechnicalDebtRisk(risks, problem, primaryTerm, keyTerms);
+
+    return risks;
+  }
+
+  /**
+   * Add unintended consequences risk (always included)
+   */
+  private addUnintendedConsequencesRisk(
+    risks: Insight[],
+    primaryTerm: string,
+    domainTerm: string,
+    keyTerms: KeyTerms
+  ): void {
+    const content = `Risk of unintended consequences (likelihood: 60-70%): ${primaryTerm} changes may trigger ${domainTerm !== "" ? domainTerm : "cascading"} side effects. Mitigation: implement feature flags for gradual rollout and establish rollback procedures`;
     risks.push({
-      content: unintendedContent,
+      content,
       source: StreamType.CRITICAL,
       confidence: 0.75,
       importance: 0.85,
-      referencedTerms: this.keyTermExtractor.findReferencedTerms(unintendedContent, keyTerms),
+      referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
     });
+  }
 
-    // Risk of user alienation
-    if (problem.constraints?.some((c) => c.toLowerCase().includes("user"))) {
-      const userContent = `Significant risk of alienating existing users with ${primaryTerm} - mitigation strategy unclear`;
+  /**
+   * Add user alienation risk if user-related context exists
+   */
+  private addUserAlienationRisk(
+    risks: Insight[],
+    problem: Problem,
+    primaryTerm: string,
+    context: string,
+    keyTerms: KeyTerms
+  ): void {
+    const hasUserConstraint = problem.constraints?.some((c) => c.toLowerCase().includes("user"));
+    if (hasUserConstraint || context.toLowerCase().includes("user")) {
+      const content = `User alienation risk (likelihood: 40-50%): Changes to ${primaryTerm} may disrupt existing workflows. Mitigation: conduct user research before implementation, provide migration path, and maintain backward compatibility for 2-3 release cycles`;
       risks.push({
-        content: userContent,
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.8,
         importance: 0.9,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(userContent, keyTerms),
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
+  }
 
-    // Risk of failure
+  /**
+   * Add implementation failure risk for complex or urgent problems
+   */
+  private addImplementationFailureRisk(
+    risks: Insight[],
+    problem: Problem,
+    primaryTerm: string,
+    keyTerms: KeyTerms
+  ): void {
     if (problem.complexity === "complex" || problem.urgency === "high") {
-      const failureContent = `High risk of ${primaryTerm} failure due to complexity and time pressure - could damage ${domainTerm !== "" ? domainTerm : "reputation"}`;
+      const content = `Implementation failure risk (likelihood: 30-40%): ${primaryTerm} complexity combined with time pressure increases error probability. Mitigation: define clear success criteria, implement automated testing (target 80%+ coverage), and schedule regular checkpoint reviews`;
       risks.push({
-        content: failureContent,
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.7,
         importance: 0.85,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(failureContent, keyTerms),
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
+  }
 
-    // Risk of resource overrun
+  /**
+   * Add resource overrun risk if constraints exist
+   */
+  private addResourceOverrunRisk(
+    risks: Insight[],
+    problem: Problem,
+    primaryTerm: string,
+    keyTerms: KeyTerms
+  ): void {
     if (problem.constraints && problem.constraints.length > 0) {
-      const resourceContent = `Risk of ${primaryTerm} exceeding constraints (${problem.constraints[0]}) - initial estimates often prove insufficient`;
+      const content = `Resource overrun risk (likelihood: 50-60%): ${primaryTerm} may exceed ${problem.constraints[0]} by 20-50% based on typical project variance. Mitigation: build 25% buffer into estimates, track burn rate weekly, and identify scope reduction options early`;
       risks.push({
-        content: resourceContent,
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.75,
         importance: 0.75,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(resourceContent, keyTerms),
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
+  }
 
-    // Risk of competitive response
-    if (
-      problem.context.toLowerCase().includes("engagement") ||
-      problem.context.toLowerCase().includes("market")
-    ) {
-      const competitiveContent = `Risk that competitors may respond to ${primaryTerm} with superior ${domainTerm !== "" ? domainTerm : "solutions"}`;
+  /**
+   * Add competitive response risk for market-related contexts
+   */
+  private addCompetitiveResponseRisk(
+    risks: Insight[],
+    primaryTerm: string,
+    domainTerm: string,
+    context: string,
+    keyTerms: KeyTerms
+  ): void {
+    const lowerContext = context.toLowerCase();
+    const hasCompetitiveContext =
+      lowerContext.includes("engagement") ||
+      lowerContext.includes("market") ||
+      lowerContext.includes("competitive");
+
+    if (hasCompetitiveContext) {
+      const content = `Competitive response risk (likelihood: 70-80%): Competitors may respond to ${primaryTerm} within 3-6 months with similar or superior ${domainTerm !== "" ? domainTerm : "solutions"}. Mitigation: focus on defensible differentiators, accelerate time-to-market, and plan follow-up innovations`;
       risks.push({
-        content: competitiveContent,
+        content,
         source: StreamType.CRITICAL,
         confidence: 0.65,
         importance: 0.7,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(competitiveContent, keyTerms),
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
       });
     }
+  }
 
-    return risks;
+  /**
+   * Add technical debt risk for high urgency problems
+   */
+  private addTechnicalDebtRisk(
+    risks: Insight[],
+    problem: Problem,
+    primaryTerm: string,
+    keyTerms: KeyTerms
+  ): void {
+    if (problem.urgency === "high") {
+      const content = `Technical debt risk (likelihood: 80-90%): Rushing ${primaryTerm} will likely introduce shortcuts that cost 2-3x more to fix later. Mitigation: document all known shortcuts, schedule debt repayment sprints, and establish code quality gates`;
+      risks.push({
+        content,
+        source: StreamType.CRITICAL,
+        confidence: 0.8,
+        importance: 0.75,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(content, keyTerms),
+      });
+    }
   }
 
   /**
@@ -633,9 +716,10 @@ export class CriticalStreamProcessor implements StreamProcessor {
     const counterArguments: Insight[] = [];
     const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the solution";
     const domainTerm = keyTerms.domainTerms[0] ?? "";
+    const context = problem.context ?? "";
 
-    // Devil's advocate: argue against the proposal
-    const devilContent = `Devil's advocate: what if ${primaryTerm} makes ${domainTerm !== "" ? domainTerm : "things"} worse rather than better?`;
+    // Devil's advocate: argue against the proposal with specific reasoning
+    const devilContent = `Devil's advocate: What if ${primaryTerm} makes ${domainTerm !== "" ? domainTerm : "things"} worse? Consider: (1) increased complexity may slow down future changes, (2) learning curve may temporarily reduce productivity, (3) opportunity cost of not pursuing alternatives`;
     counterArguments.push({
       content: devilContent,
       source: StreamType.CRITICAL,
@@ -644,8 +728,18 @@ export class CriticalStreamProcessor implements StreamProcessor {
       referencedTerms: this.keyTermExtractor.findReferencedTerms(devilContent, keyTerms),
     });
 
-    // Alternative perspective
-    const altContent = `Alternative perspective on ${primaryTerm}: consider addressing root causes rather than symptoms`;
+    // Alternative perspective with specific alternatives
+    let altContent: string;
+    if (context.toLowerCase().includes("performance") || context.toLowerCase().includes("slow")) {
+      altContent = `Alternative perspective on ${primaryTerm}: Instead of optimizing the current approach, consider whether the underlying architecture is fundamentally misaligned with requirements. A complete redesign might be more cost-effective long-term`;
+    } else if (
+      context.toLowerCase().includes("user") ||
+      context.toLowerCase().includes("engagement")
+    ) {
+      altContent = `Alternative perspective on ${primaryTerm}: Rather than adding features, consider removing friction points. User research shows that simplification often outperforms feature additions for engagement metrics`;
+    } else {
+      altContent = `Alternative perspective on ${primaryTerm}: Consider addressing root causes rather than symptoms. The proposed solution may provide temporary relief while the underlying issue continues to grow`;
+    }
     counterArguments.push({
       content: altContent,
       source: StreamType.CRITICAL,
@@ -654,9 +748,9 @@ export class CriticalStreamProcessor implements StreamProcessor {
       referencedTerms: this.keyTermExtractor.findReferencedTerms(altContent, keyTerms),
     });
 
-    // Challenge from different angle
+    // Challenge from different angle with specific questions
     if (problem.goals && problem.goals.length > 0) {
-      const goalContent = `Counter-argument: the goal of "${problem.goals[0]}" for ${primaryTerm} may not be the right objective`;
+      const goalContent = `Counter-argument: Is "${problem.goals[0]}" the right objective for ${primaryTerm}? Consider: (1) Are we measuring the right metrics? (2) Does this goal align with long-term strategy? (3) What would success look like if we chose a different goal?`;
       counterArguments.push({
         content: goalContent,
         source: StreamType.CRITICAL,
@@ -666,8 +760,8 @@ export class CriticalStreamProcessor implements StreamProcessor {
       });
     }
 
-    // Constructive criticism
-    const constructiveContent = `Constructive criticism: ${primaryTerm} has merit but needs refinement - suggest pilot testing ${domainTerm !== "" ? domainTerm : "before full rollout"}`;
+    // Constructive criticism with specific recommendations
+    const constructiveContent = `Constructive criticism: ${primaryTerm} has merit but needs refinement. Recommended validation approach: (1) Run a 2-week pilot with 5-10% of users, (2) Define success metrics upfront (e.g., 20% improvement threshold), (3) Establish kill criteria to avoid sunk cost fallacy`;
     counterArguments.push({
       content: constructiveContent,
       source: StreamType.CRITICAL,
