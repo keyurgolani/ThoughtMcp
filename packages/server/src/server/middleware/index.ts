@@ -25,9 +25,11 @@ export {
   UnauthorizedError,
   ValidationApiError,
   asyncHandler,
+  buildEnhancedValidationErrorResponse,
   errorHandler,
   formatZodErrors,
   notFoundHandler,
+  transformZodErrorsEnhanced,
 } from "./error-handler.js";
 
 // Performance monitoring middleware - Requirements: 17.1

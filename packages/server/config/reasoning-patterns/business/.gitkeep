@@ -1,0 +1,7 @@
+# Business domain patterns
+# This directory contains patterns for business/strategy domains:
+# - customer-engagement.json - Retention, satisfaction, feedback
+# - market-analysis.json - Competition, trends, positioning
+# - product-strategy.json - Roadmap, prioritization, feature decisions
+# - pricing.json - Models, optimization, competitive analysis
+# - growth.json - Acquisition, conversion, expansion

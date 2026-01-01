@@ -1,0 +1,6 @@
+# Analysis domain patterns
+# This directory contains patterns for research/analysis domains:
+# - root-cause-analysis.json - Investigation, evidence, causation
+# - risk-assessment.json - Identification, mitigation, monitoring
+# - cost-benefit.json - ROI, trade-offs, alternatives
+# - feasibility.json - Technical, financial, operational

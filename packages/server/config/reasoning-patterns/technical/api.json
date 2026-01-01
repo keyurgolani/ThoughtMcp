@@ -1,0 +1,587 @@
+{
+  "version": "1.0.0",
+  "domain": "api",
+  "description": "Patterns for API performance, reliability, and security issues including rate limiting, endpoint performance, and authentication/authorization",
+  "patterns": [
+    {
+      "id": "api-rate-limiting",
+      "name": "Rate Limiting Issues",
+      "description": "Detects API rate limiting problems including throttling, quota exhaustion, and rate limit configuration issues",
+      "indicators": [
+        { "type": "exact", "value": "rate limit", "weight": 0.95 },
+        { "type": "exact", "value": "rate limiting", "weight": 0.95 },
+        { "type": "exact", "value": "429 error", "weight": 0.95 },
+        { "type": "exact", "value": "too many requests", "weight": 0.9 },
+        { "type": "exact", "value": "throttling", "weight": 0.9 },
+        { "type": "exact", "value": "quota exceeded", "weight": 0.85 },
+        { "type": "exact", "value": "api throttle", "weight": 0.85 },
+        { "type": "fuzzy", "value": "request limit exceeded", "weight": 0.8 },
+        { "type": "fuzzy", "value": "api calls blocked", "weight": 0.75 },
+        { "type": "regex", "value": "\\b429\\b.*\\b(error|status|response)\\b", "weight": 0.85 },
+        {
+          "type": "regex",
+          "value": "\\brate.*limit.*exceed\\b",
+          "weight": 0.8,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "retry-after",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "x-ratelimit",
+          "weight": 0.65,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "database limit", "weight": 0.3 },
+        { "type": "exact", "value": "memory limit", "weight": 0.25 },
+        { "type": "exact", "value": "cpu limit", "weight": 0.25 }
+      ],
+      "hypotheses": [
+        {
+          "id": "quota-exhaustion",
+          "statement": "The API quota for {{primarySubject}} may be exhausted due to high request volume or inefficient API usage patterns",
+          "investigationSteps": [
+            "Check current API usage against quota limits in provider dashboard",
+            "Review request patterns for burst traffic or inefficient polling",
+            "Analyze which endpoints are consuming the most quota",
+            "Check for retry storms or exponential backoff failures"
+          ],
+          "expectedFindings": [
+            "Request count approaching or exceeding quota limits",
+            "Burst traffic patterns during specific time windows",
+            "Inefficient polling instead of webhooks or push notifications",
+            "Missing or broken exponential backoff in retry logic"
+          ],
+          "relatedHypotheses": ["rate-limit-misconfiguration", "client-side-caching"],
+          "estimatedTime": "15-30 minutes",
+          "likelihood": 0.75
+        },
+        {
+          "id": "rate-limit-misconfiguration",
+          "statement": "Rate limit configuration may be too restrictive or not properly tuned for the workload of {{primarySubject}}",
+          "investigationSteps": [
+            "Review rate limit settings per endpoint and user tier",
+            "Compare configured limits with actual traffic patterns",
+            "Check if rate limits are applied per-user, per-IP, or globally",
+            "Analyze rate limit headers in API responses"
+          ],
+          "expectedFindings": [
+            "Rate limits set too low for legitimate traffic",
+            "Missing rate limit tiers for different user types",
+            "Incorrect rate limit scope (global vs per-user)",
+            "Rate limit windows not aligned with usage patterns"
+          ],
+          "relatedHypotheses": ["quota-exhaustion"],
+          "estimatedTime": "20-35 minutes",
+          "likelihood": 0.6
+        },
+        {
+          "id": "client-side-caching",
+          "statement": "Missing or ineffective client-side caching may be causing unnecessary API calls for {{primarySubject}}",
+          "investigationSteps": [
+            "Review client code for caching implementation",
+            "Check if Cache-Control headers are being respected",
+            "Analyze request patterns for duplicate or redundant calls",
+            "Verify ETags and conditional requests are being used"
+          ],
+          "expectedFindings": [
+            "No client-side caching implemented",
+            "Cache-Control headers being ignored",
+            "Duplicate requests for the same data",
+            "Missing ETag or If-None-Match headers"
+          ],
+          "relatedHypotheses": ["quota-exhaustion"],
+          "estimatedTime": "25-40 minutes",
+          "likelihood": 0.55
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "monitor-rate-limits",
+          "type": "diagnostic",
+          "action": "Monitor API rate limit usage and track quota consumption for {{primarySubject}}",
+          "tools": ["API provider dashboard", "X-RateLimit headers", "Application metrics"],
+          "expectedOutcome": "Visibility into rate limit consumption patterns and remaining quota",
+          "prerequisites": ["API access", "Monitoring infrastructure"],
+          "priority": 9
+        },
+        {
+          "id": "implement-backoff",
+          "type": "remedial",
+          "action": "Implement exponential backoff with jitter for rate-limited requests",
+          "tools": ["Retry libraries", "Circuit breaker patterns"],
+          "expectedOutcome": "Graceful handling of rate limits without retry storms",
+          "prerequisites": ["Identify rate-limited endpoints", "Code access"],
+          "priority": 8,
+          "documentationLinks": [
+            "https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/"
+          ]
+        },
+        {
+          "id": "implement-caching",
+          "type": "remedial",
+          "action": "Implement client-side caching to reduce redundant API calls",
+          "tools": ["HTTP caching", "Redis", "In-memory cache"],
+          "expectedOutcome": "Reduced API call volume by 30-70%",
+          "prerequisites": ["Understand data freshness requirements", "Cache infrastructure"],
+          "priority": 8
+        },
+        {
+          "id": "request-quota-increase",
+          "type": "remedial",
+          "action": "Request quota increase from API provider or upgrade to higher tier",
+          "tools": ["API provider support", "Account management"],
+          "expectedOutcome": "Higher rate limits to accommodate legitimate traffic",
+          "prerequisites": ["Document business justification", "Budget approval if needed"],
+          "priority": 7
+        },
+        {
+          "id": "optimize-api-usage",
+          "type": "remedial",
+          "action": "Optimize API usage by batching requests and using bulk endpoints",
+          "tools": ["Batch APIs", "GraphQL", "Request aggregation"],
+          "expectedOutcome": "Fewer API calls achieving the same functionality",
+          "prerequisites": ["API supports batching", "Code refactoring"],
+          "priority": 7
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "api-endpoint-performance",
+      "name": "Endpoint Performance Issues",
+      "description": "Detects API endpoint performance problems including slow response times, timeouts, and latency issues",
+      "indicators": [
+        { "type": "exact", "value": "api slow", "weight": 0.9 },
+        { "type": "exact", "value": "endpoint slow", "weight": 0.9 },
+        { "type": "exact", "value": "api latency", "weight": 0.9 },
+        { "type": "exact", "value": "api timeout", "weight": 0.9 },
+        { "type": "exact", "value": "response time", "weight": 0.8 },
+        { "type": "exact", "value": "504 error", "weight": 0.85 },
+        { "type": "exact", "value": "gateway timeout", "weight": 0.85 },
+        { "type": "exact", "value": "request timeout", "weight": 0.8 },
+        { "type": "fuzzy", "value": "api response slow", "weight": 0.8 },
+        { "type": "fuzzy", "value": "endpoint taking long", "weight": 0.75 },
+        {
+          "type": "regex",
+          "value": "\\bapi.*slow\\b",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "regex",
+          "value": "\\b(p50|p95|p99).*latency\\b",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "ttfb", "weight": 0.65, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "time to first byte", "weight": 0.65 }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "frontend slow", "weight": 0.3 },
+        { "type": "exact", "value": "client-side", "weight": 0.25 },
+        { "type": "exact", "value": "browser slow", "weight": 0.25 }
+      ],
+      "hypotheses": [
+        {
+          "id": "backend-bottleneck",
+          "statement": "Backend processing bottlenecks may be causing slow API response times for {{primarySubject}}",
+          "investigationSteps": [
+            "Profile endpoint handler code to identify slow operations",
+            "Check database query performance within the endpoint",
+            "Review external service calls and their latencies",
+            "Analyze CPU and memory usage during slow requests"
+          ],
+          "expectedFindings": [
+            "Slow database queries within endpoint handlers",
+            "Blocking I/O operations in request path",
+            "Inefficient algorithms or data processing",
+            "External service calls adding latency"
+          ],
+          "relatedHypotheses": ["n-plus-one-queries", "missing-caching"],
+          "estimatedTime": "30-60 minutes",
+          "likelihood": 0.7
+        },
+        {
+          "id": "n-plus-one-queries",
+          "statement": "N+1 query patterns may be causing excessive database calls for {{primarySubject}}",
+          "investigationSteps": [
+            "Enable query logging and count queries per request",
+            "Look for loops that execute database queries",
+            "Check ORM eager loading configuration",
+            "Analyze query patterns for related data fetching"
+          ],
+          "expectedFindings": [
+            "Multiple similar queries executed per request",
+            "Queries inside loops fetching related data",
+            "Missing eager loading for associations",
+            "Query count scaling with data size"
+          ],
+          "relatedHypotheses": ["backend-bottleneck", "missing-caching"],
+          "estimatedTime": "20-40 minutes",
+          "likelihood": 0.65
+        },
+        {
+          "id": "missing-caching",
+          "statement": "Missing or ineffective caching may be causing repeated expensive computations for {{primarySubject}}",
+          "investigationSteps": [
+            "Review caching strategy for the endpoint",
+            "Check cache hit rates and miss patterns",
+            "Analyze if cacheable data is being recomputed",
+            "Verify cache invalidation is working correctly"
+          ],
+          "expectedFindings": [
+            "No caching implemented for expensive operations",
+            "Low cache hit rates indicating ineffective caching",
+            "Cache keys not properly scoped",
+            "Cache invalidation too aggressive"
+          ],
+          "relatedHypotheses": ["backend-bottleneck"],
+          "estimatedTime": "20-35 minutes",
+          "likelihood": 0.6
+        },
+        {
+          "id": "payload-size",
+          "statement": "Large response payloads may be causing slow API performance for {{primarySubject}}",
+          "investigationSteps": [
+            "Measure response payload sizes for slow endpoints",
+            "Check if pagination is implemented for list endpoints",
+            "Review if unnecessary data is being returned",
+            "Analyze compression settings"
+          ],
+          "expectedFindings": [
+            "Response payloads exceeding 1MB",
+            "Missing pagination on list endpoints",
+            "Returning full objects when partial data needed",
+            "Compression not enabled"
+          ],
+          "relatedHypotheses": ["backend-bottleneck"],
+          "estimatedTime": "15-25 minutes",
+          "likelihood": 0.5
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "profile-endpoints",
+          "type": "diagnostic",
+          "action": "Profile slow API endpoints to identify performance bottlenecks for {{primarySubject}}",
+          "tools": ["APM tools", "Profilers", "Distributed tracing", "Flame graphs"],
+          "expectedOutcome": "Identification of specific code paths causing latency",
+          "prerequisites": ["Profiling tools installed", "Access to production or staging"],
+          "priority": 9
+        },
+        {
+          "id": "implement-api-caching",
+          "type": "remedial",
+          "action": "Implement response caching for frequently accessed endpoints",
+          "tools": ["Redis", "Memcached", "CDN caching", "HTTP cache headers"],
+          "expectedOutcome": "Reduced response times by 50-90% for cached responses",
+          "prerequisites": ["Identify cacheable endpoints", "Cache infrastructure"],
+          "priority": 8
+        },
+        {
+          "id": "fix-n-plus-one",
+          "type": "remedial",
+          "action": "Resolve N+1 query patterns with eager loading or batch queries",
+          "tools": ["ORM eager loading", "DataLoader pattern", "Batch queries"],
+          "expectedOutcome": "Reduced database queries from N+1 to 1-2 per request",
+          "prerequisites": ["Identify N+1 patterns", "ORM knowledge"],
+          "priority": 8
+        },
+        {
+          "id": "implement-pagination",
+          "type": "remedial",
+          "action": "Implement pagination for list endpoints returning large datasets",
+          "tools": ["Cursor pagination", "Offset pagination", "Keyset pagination"],
+          "expectedOutcome": "Consistent response times regardless of total data size",
+          "prerequisites": ["Identify unpaginated endpoints", "API versioning strategy"],
+          "priority": 7,
+          "documentationLinks": ["https://www.django-rest-framework.org/api-guide/pagination/"]
+        },
+        {
+          "id": "enable-compression",
+          "type": "remedial",
+          "action": "Enable response compression for API responses",
+          "tools": ["gzip", "brotli", "Content-Encoding headers"],
+          "expectedOutcome": "Reduced response payload size by 60-80%",
+          "prerequisites": ["Server configuration access"],
+          "priority": 6
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "api-auth",
+      "name": "Authentication/Authorization Issues",
+      "description": "Detects API authentication and authorization problems including token issues, permission errors, and security misconfigurations",
+      "indicators": [
+        { "type": "exact", "value": "401 error", "weight": 0.95 },
+        { "type": "exact", "value": "403 error", "weight": 0.95 },
+        { "type": "exact", "value": "unauthorized", "weight": 0.9 },
+        { "type": "exact", "value": "forbidden", "weight": 0.9 },
+        { "type": "exact", "value": "authentication failed", "weight": 0.9 },
+        { "type": "exact", "value": "authorization failed", "weight": 0.9 },
+        { "type": "exact", "value": "token expired", "weight": 0.85 },
+        { "type": "exact", "value": "invalid token", "weight": 0.85 },
+        { "type": "exact", "value": "access denied", "weight": 0.85 },
+        { "type": "exact", "value": "permission denied", "weight": 0.85 },
+        { "type": "fuzzy", "value": "api authentication issue", "weight": 0.8 },
+        { "type": "fuzzy", "value": "jwt token problem", "weight": 0.75 },
+        { "type": "regex", "value": "\\b(401|403)\\b.*\\b(error|status)\\b", "weight": 0.85 },
+        {
+          "type": "regex",
+          "value": "\\btoken.*invalid\\b",
+          "weight": 0.8,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "oauth", "weight": 0.7, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "jwt", "weight": 0.7, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "api key", "weight": 0.65, "keyTermCategory": "domainTerms" },
+        {
+          "type": "exact",
+          "value": "bearer token",
+          "weight": 0.65,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "user login", "weight": 0.3 },
+        { "type": "exact", "value": "password reset", "weight": 0.25 },
+        { "type": "exact", "value": "frontend auth", "weight": 0.25 }
+      ],
+      "hypotheses": [
+        {
+          "id": "token-expiration",
+          "statement": "Token expiration or refresh issues may be causing authentication failures for {{primarySubject}}",
+          "investigationSteps": [
+            "Check token expiration times and refresh token flow",
+            "Review client-side token refresh implementation",
+            "Verify clock synchronization between client and server",
+            "Analyze token lifecycle and storage"
+          ],
+          "expectedFindings": [
+            "Tokens expiring before refresh occurs",
+            "Missing or broken refresh token flow",
+            "Clock skew causing premature expiration",
+            "Tokens not being refreshed proactively"
+          ],
+          "relatedHypotheses": ["token-validation", "credential-misconfiguration"],
+          "estimatedTime": "20-35 minutes",
+          "likelihood": 0.7
+        },
+        {
+          "id": "token-validation",
+          "statement": "Token validation issues may be causing legitimate requests to be rejected for {{primarySubject}}",
+          "investigationSteps": [
+            "Review token validation logic and error messages",
+            "Check JWT signature verification configuration",
+            "Verify issuer and audience claims are correct",
+            "Test token validation with known-good tokens"
+          ],
+          "expectedFindings": [
+            "Incorrect JWT secret or public key",
+            "Mismatched issuer or audience claims",
+            "Algorithm mismatch in token validation",
+            "Token format or encoding issues"
+          ],
+          "relatedHypotheses": ["token-expiration", "credential-misconfiguration"],
+          "estimatedTime": "25-45 minutes",
+          "likelihood": 0.65
+        },
+        {
+          "id": "permission-misconfiguration",
+          "statement": "Permission or role configuration may be incorrectly denying access for {{primarySubject}}",
+          "investigationSteps": [
+            "Review role-based access control (RBAC) configuration",
+            "Check user roles and permissions assignments",
+            "Verify endpoint permission requirements",
+            "Test with different user roles"
+          ],
+          "expectedFindings": [
+            "Missing role assignments for users",
+            "Incorrect permission requirements on endpoints",
+            "Role hierarchy not properly configured",
+            "Permission caching causing stale access decisions"
+          ],
+          "relatedHypotheses": ["token-validation"],
+          "estimatedTime": "20-40 minutes",
+          "likelihood": 0.6
+        },
+        {
+          "id": "credential-misconfiguration",
+          "statement": "API credentials or secrets may be misconfigured or rotated without updating clients for {{primarySubject}}",
+          "investigationSteps": [
+            "Verify API keys and secrets are current",
+            "Check if credentials were recently rotated",
+            "Review credential storage and retrieval",
+            "Verify environment-specific credentials"
+          ],
+          "expectedFindings": [
+            "Outdated API keys after rotation",
+            "Wrong credentials for environment",
+            "Credentials not properly loaded from secrets manager",
+            "Hardcoded credentials that weren't updated"
+          ],
+          "relatedHypotheses": ["token-expiration"],
+          "estimatedTime": "15-25 minutes",
+          "likelihood": 0.55
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "audit-auth-flow",
+          "type": "diagnostic",
+          "action": "Audit the authentication flow and token lifecycle for {{primarySubject}}",
+          "tools": ["JWT debugger", "Auth logs", "Network inspection"],
+          "expectedOutcome": "Complete understanding of auth flow and failure points",
+          "prerequisites": ["Access to auth logs", "Understanding of auth architecture"],
+          "priority": 9
+        },
+        {
+          "id": "implement-token-refresh",
+          "type": "remedial",
+          "action": "Implement proactive token refresh before expiration",
+          "tools": ["Token refresh libraries", "Interceptors"],
+          "expectedOutcome": "Seamless token refresh without authentication failures",
+          "prerequisites": ["Refresh token endpoint available", "Client code access"],
+          "priority": 8
+        },
+        {
+          "id": "fix-token-validation",
+          "type": "remedial",
+          "action": "Correct token validation configuration including secrets and claims",
+          "tools": ["JWT libraries", "Secret management"],
+          "expectedOutcome": "Valid tokens accepted, invalid tokens rejected",
+          "prerequisites": ["Access to auth configuration", "Correct secrets"],
+          "priority": 9
+        },
+        {
+          "id": "review-permissions",
+          "type": "remedial",
+          "action": "Review and correct role-based access control configuration",
+          "tools": ["RBAC management", "Permission audit tools"],
+          "expectedOutcome": "Users have appropriate access based on roles",
+          "prerequisites": ["Permission requirements documented", "Admin access"],
+          "priority": 8
+        },
+        {
+          "id": "rotate-credentials",
+          "type": "remedial",
+          "action": "Rotate compromised or outdated API credentials",
+          "tools": ["Secrets manager", "Credential rotation scripts"],
+          "expectedOutcome": "Fresh credentials deployed across all services",
+          "prerequisites": ["Identify all credential consumers", "Coordination plan"],
+          "priority": 9,
+          "documentationLinks": [
+            "https://docs.aws.amazon.com/secretsmanager/latest/userguide/rotating-secrets.html"
+          ]
+        },
+        {
+          "id": "implement-auth-logging",
+          "type": "diagnostic",
+          "action": "Implement comprehensive authentication logging for debugging",
+          "tools": ["Structured logging", "Log aggregation"],
+          "expectedOutcome": "Detailed visibility into auth failures and their causes",
+          "prerequisites": ["Logging infrastructure", "Privacy considerations"],
+          "priority": 7
+        }
+      ],
+      "severity": "critical",
+      "qualityThreshold": 0.6
+    }
+  ],
+  "testCases": [
+    {
+      "id": "test-rate-limit-basic",
+      "input": "We're getting rate limit errors from the API, too many requests",
+      "expectedDomain": "api",
+      "expectedPatternIds": ["api-rate-limiting"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-rate-limit-429",
+      "input": "API returning 429 error status, rate limiting is blocking our requests",
+      "expectedDomain": "api",
+      "expectedPatternIds": ["api-rate-limiting"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-rate-limit-throttling",
+      "input": "Our API calls are being throttled and we're exceeding the quota",
+      "expectedDomain": "api",
+      "expectedPatternIds": ["api-rate-limiting"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-endpoint-slow",
+      "input": "The API endpoint is slow and response times are very high",
+      "expectedDomain": "api",
+      "expectedPatternIds": ["api-endpoint-performance"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-api-timeout",
+      "input": "Getting 504 gateway timeout errors from the API, requests are timing out",
+      "expectedDomain": "api",
+      "expectedPatternIds": ["api-endpoint-performance"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-api-latency",
+      "input": "API latency has increased significantly, p95 response time is over 5 seconds",
+      "expectedDomain": "api",
+      "expectedPatternIds": ["api-endpoint-performance"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-auth-401",
+      "input": "Getting 401 unauthorized errors when calling the API",
+      "expectedDomain": "api",
+      "expectedPatternIds": ["api-auth"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-auth-403",
+      "input": "API returning 403 forbidden, access denied to the endpoint",
+      "expectedDomain": "api",
+      "expectedPatternIds": ["api-auth"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-token-expired",
+      "input": "JWT token expired error, authentication failed with invalid token",
+      "expectedDomain": "api",
+      "expectedPatternIds": ["api-auth"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-auth-permission",
+      "input": "Permission denied when accessing the API, authorization failed",
+      "expectedDomain": "api",
+      "expectedPatternIds": ["api-auth"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-combined-auth-rate",
+      "input": "API authentication is failing with 401 errors and we're also hitting rate limits",
+      "expectedDomain": "api",
+      "expectedPatternIds": ["api-auth", "api-rate-limiting"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-combined-perf-rate",
+      "input": "API is slow and we're getting throttled with too many requests errors",
+      "expectedDomain": "api",
+      "expectedPatternIds": ["api-endpoint-performance", "api-rate-limiting"],
+      "minConfidence": 0.7
+    }
+  ]
+}

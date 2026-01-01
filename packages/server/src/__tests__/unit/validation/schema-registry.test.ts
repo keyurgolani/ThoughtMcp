@@ -1,18 +1,21 @@
 /**
  * SchemaRegistry Unit Tests
  *
- * Tests for schema registration, retrieval, validation, and caching:
+ * Tests for schema registration, retrieval, validation, caching, and composition:
  * - Schema storage by name
  * - Schema compilation caching
  * - Schema self-validation
+ * - Schema composition (extend, include, merge)
  *
- * Requirements: 3.1, 3.4, 9.4
+ * Requirements: 3.1, 3.2, 3.4, 9.4
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
   createSchemaRegistry,
+  SchemaCompositionError,
+  SchemaNotFoundError,
   SchemaRegistry,
   SchemaValidationError,
 } from "../../../validation/schema-registry.js";
@@ -449,6 +452,320 @@ describe("SchemaRegistry", () => {
 
       expect(originalInvalid.success).toBe(false);
       expect(retrievedInvalid?.success).toBe(false);
+    });
+  });
+
+  describe("extendSchema() (Requirement 3.2)", () => {
+    it("should extend a schema with additional fields", () => {
+      registry.registerSchema("user", userSchema);
+
+      const extendedSchema = registry.extendSchema("user", "userWithPhone", {
+        phone: z.string().regex(/^\d{10}$/),
+      });
+
+      // Extended schema should be registered
+      expect(registry.hasSchema("userWithPhone")).toBe(true);
+
+      // Valid input with all fields should pass
+      const validInput = {
+        name: "John",
+        email: "john@example.com",
+        age: 30,
+        phone: "1234567890",
+      };
+      const result = extendedSchema.safeParse(validInput);
+      expect(result.success).toBe(true);
+
+      // Input missing extended field should fail
+      const missingPhone = { name: "John", email: "john@example.com", age: 30 };
+      const missingResult = extendedSchema.safeParse(missingPhone);
+      expect(missingResult.success).toBe(false);
+    });
+
+    it("should preserve original schema validation rules", () => {
+      registry.registerSchema("user", userSchema);
+
+      const extendedSchema = registry.extendSchema("user", "userExtended", {
+        role: z.string(),
+      });
+
+      // Invalid original field should still fail
+      const invalidInput = {
+        name: "", // Invalid: min length 1
+        email: "john@example.com",
+        age: 30,
+        role: "admin",
+      };
+      const result = extendedSchema.safeParse(invalidInput);
+      expect(result.success).toBe(false);
+    });
+
+    it("should throw SchemaNotFoundError for non-existent base schema", () => {
+      expect(() => registry.extendSchema("nonexistent", "extended", { field: z.string() })).toThrow(
+        SchemaNotFoundError
+      );
+    });
+
+    it("should throw SchemaCompositionError for non-object schema", () => {
+      registry.registerSchema("simple", simpleSchema);
+
+      expect(() => registry.extendSchema("simple", "extended", { field: z.string() })).toThrow(
+        SchemaCompositionError
+      );
+    });
+
+    it("should set default metadata description", () => {
+      registry.registerSchema("user", userSchema);
+      registry.extendSchema("user", "userExtended", { role: z.string() });
+
+      const entry = registry.getSchemaEntry("userExtended");
+      expect(entry?.metadata.description).toBe("Extended from user");
+    });
+
+    it("should use custom metadata when provided", () => {
+      registry.registerSchema("user", userSchema);
+      registry.extendSchema(
+        "user",
+        "userExtended",
+        { role: z.string() },
+        {
+          description: "User with role",
+          version: "2.0.0",
+        }
+      );
+
+      const entry = registry.getSchemaEntry("userExtended");
+      expect(entry?.metadata.description).toBe("User with role");
+      expect(entry?.metadata.version).toBe("2.0.0");
+    });
+  });
+
+  describe("includeSchemas() (Requirement 3.2)", () => {
+    it("should merge multiple schemas into one", () => {
+      registry.registerSchema("user", userSchema);
+      registry.registerSchema("address", addressSchema);
+
+      const mergedSchema = registry.includeSchemas("fullProfile", ["user", "address"]);
+
+      // Merged schema should be registered
+      expect(registry.hasSchema("fullProfile")).toBe(true);
+
+      // Valid input with all fields should pass
+      const validInput = {
+        name: "John",
+        email: "john@example.com",
+        age: 30,
+        street: "123 Main St",
+        city: "New York",
+        zipCode: "12345",
+      };
+      const result = mergedSchema.safeParse(validInput);
+      expect(result.success).toBe(true);
+    });
+
+    it("should apply validation rules from all included schemas", () => {
+      registry.registerSchema("user", userSchema);
+      registry.registerSchema("address", addressSchema);
+
+      const mergedSchema = registry.includeSchemas("fullProfile", ["user", "address"]);
+
+      // Invalid user field should fail
+      const invalidUser = {
+        name: "", // Invalid
+        email: "john@example.com",
+        age: 30,
+        street: "123 Main St",
+        city: "New York",
+        zipCode: "12345",
+      };
+      expect(mergedSchema.safeParse(invalidUser).success).toBe(false);
+
+      // Invalid address field should fail
+      const invalidAddress = {
+        name: "John",
+        email: "john@example.com",
+        age: 30,
+        street: "123 Main St",
+        city: "New York",
+        zipCode: "invalid", // Invalid: must be 5 digits
+      };
+      expect(mergedSchema.safeParse(invalidAddress).success).toBe(false);
+    });
+
+    it("should throw SchemaCompositionError for less than 2 schemas", () => {
+      registry.registerSchema("user", userSchema);
+
+      expect(() => registry.includeSchemas("merged", ["user"])).toThrow(SchemaCompositionError);
+      expect(() => registry.includeSchemas("merged", [])).toThrow(SchemaCompositionError);
+    });
+
+    it("should throw SchemaNotFoundError for non-existent schema", () => {
+      registry.registerSchema("user", userSchema);
+
+      expect(() => registry.includeSchemas("merged", ["user", "nonexistent"])).toThrow(
+        SchemaNotFoundError
+      );
+    });
+
+    it("should throw SchemaCompositionError for non-object schema", () => {
+      registry.registerSchema("user", userSchema);
+      registry.registerSchema("simple", simpleSchema);
+
+      expect(() => registry.includeSchemas("merged", ["user", "simple"])).toThrow(
+        SchemaCompositionError
+      );
+    });
+
+    it("should set default metadata description", () => {
+      registry.registerSchema("user", userSchema);
+      registry.registerSchema("address", addressSchema);
+      registry.includeSchemas("fullProfile", ["user", "address"]);
+
+      const entry = registry.getSchemaEntry("fullProfile");
+      expect(entry?.metadata.description).toBe("Merged from: user, address");
+    });
+
+    it("should handle field override when schemas have same field names", () => {
+      const schema1 = z.object({
+        name: z.string().min(1),
+        value: z.number(),
+      });
+      const schema2 = z.object({
+        value: z.string(), // Override: number -> string
+        extra: z.boolean(),
+      });
+
+      registry.registerSchema("schema1", schema1);
+      registry.registerSchema("schema2", schema2);
+
+      const mergedSchema = registry.includeSchemas("merged", ["schema1", "schema2"]);
+
+      // Later schema (schema2) should override earlier schema (schema1) for 'value' field
+      const validInput = {
+        name: "test",
+        value: "string value", // Now expects string, not number
+        extra: true,
+      };
+      expect(mergedSchema.safeParse(validInput).success).toBe(true);
+
+      // Number value should fail (was overridden to string)
+      const invalidInput = {
+        name: "test",
+        value: 123, // Should fail: expects string
+        extra: true,
+      };
+      expect(mergedSchema.safeParse(invalidInput).success).toBe(false);
+    });
+  });
+
+  describe("mergeSchemas() (Requirement 3.2)", () => {
+    it("should merge two schemas", () => {
+      registry.registerSchema("user", userSchema);
+      registry.registerSchema("address", addressSchema);
+
+      const mergedSchema = registry.mergeSchemas("user", "address", "userWithAddress");
+
+      expect(registry.hasSchema("userWithAddress")).toBe(true);
+
+      const validInput = {
+        name: "John",
+        email: "john@example.com",
+        age: 30,
+        street: "123 Main St",
+        city: "New York",
+        zipCode: "12345",
+      };
+      expect(mergedSchema.safeParse(validInput).success).toBe(true);
+    });
+
+    it("should throw SchemaNotFoundError for non-existent base schema", () => {
+      registry.registerSchema("address", addressSchema);
+
+      expect(() => registry.mergeSchemas("nonexistent", "address", "merged")).toThrow(
+        SchemaNotFoundError
+      );
+    });
+
+    it("should throw SchemaNotFoundError for non-existent merge schema", () => {
+      registry.registerSchema("user", userSchema);
+
+      expect(() => registry.mergeSchemas("user", "nonexistent", "merged")).toThrow(
+        SchemaNotFoundError
+      );
+    });
+  });
+
+  describe("schema composition correctness (Property 5)", () => {
+    it("should apply all rules from all included schemas", () => {
+      // Create schemas with distinct validation rules
+      const nameSchema = z.object({
+        firstName: z.string().min(2),
+        lastName: z.string().min(2),
+      });
+      const contactSchema = z.object({
+        email: z.string().email(),
+        phone: z.string().regex(/^\d{10}$/),
+      });
+      const ageSchema = z.object({
+        age: z.number().min(0).max(150),
+      });
+
+      registry.registerSchema("name", nameSchema);
+      registry.registerSchema("contact", contactSchema);
+      registry.registerSchema("age", ageSchema);
+
+      const composedSchema = registry.includeSchemas("person", ["name", "contact", "age"]);
+
+      // Valid input should pass all rules
+      const validInput = {
+        firstName: "John",
+        lastName: "Doe",
+        email: "john@example.com",
+        phone: "1234567890",
+        age: 30,
+      };
+      expect(composedSchema.safeParse(validInput).success).toBe(true);
+
+      // Each schema's rules should be enforced
+      const invalidFirstName = { ...validInput, firstName: "J" }; // min 2
+      expect(composedSchema.safeParse(invalidFirstName).success).toBe(false);
+
+      const invalidEmail = { ...validInput, email: "invalid" };
+      expect(composedSchema.safeParse(invalidEmail).success).toBe(false);
+
+      const invalidAge = { ...validInput, age: 200 }; // max 150
+      expect(composedSchema.safeParse(invalidAge).success).toBe(false);
+    });
+
+    it("should apply all rules from extended schema", () => {
+      const baseSchema = z.object({
+        id: z.string().uuid(),
+        createdAt: z.date(),
+      });
+
+      registry.registerSchema("base", baseSchema);
+
+      const extendedSchema = registry.extendSchema("base", "entity", {
+        name: z.string().min(1),
+        active: z.boolean(),
+      });
+
+      // Valid input should pass all rules (base + extension)
+      const validInput = {
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        createdAt: new Date(),
+        name: "Test",
+        active: true,
+      };
+      expect(extendedSchema.safeParse(validInput).success).toBe(true);
+
+      // Base schema rules should be enforced
+      const invalidId = { ...validInput, id: "not-a-uuid" };
+      expect(extendedSchema.safeParse(invalidId).success).toBe(false);
+
+      // Extension rules should be enforced
+      const invalidName = { ...validInput, name: "" };
+      expect(extendedSchema.safeParse(invalidName).success).toBe(false);
     });
   });
 });

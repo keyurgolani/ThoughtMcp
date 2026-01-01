@@ -329,12 +329,19 @@ describe("Error Handler Middleware", () => {
           expect.objectContaining({
             success: false,
             error: "Invalid request parameters",
-            code: ErrorCodes.VALIDATION_ERROR,
+            code: "VALIDATION_ERROR",
           })
         );
         const response = jsonMock.mock.calls[0][0];
-        expect(response.details).toHaveProperty("content");
-        expect(response.details).toHaveProperty("userId");
+        // Enhanced format has details.fields containing field errors
+        expect(response.details).toHaveProperty("fields");
+        expect(response.details.fields).toHaveProperty("content");
+        expect(response.details.fields).toHaveProperty("userId");
+        expect(response.details).toHaveProperty("totalErrors", 2);
+        // Verify metadata is included
+        expect(response).toHaveProperty("metadata");
+        expect(response.metadata).toHaveProperty("requestId");
+        expect(response.metadata).toHaveProperty("timestamp");
       }
     });
 

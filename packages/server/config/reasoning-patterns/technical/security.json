@@ -1,0 +1,672 @@
+{
+  "version": "1.0.0",
+  "domain": "security",
+  "description": "Patterns for security issues including vulnerability detection, access control problems, and data exposure risks",
+  "patterns": [
+    {
+      "id": "security-vulnerability",
+      "name": "Vulnerability Detection",
+      "description": "Detects security vulnerabilities including injection attacks, XSS, CSRF, and other common security flaws",
+      "indicators": [
+        { "type": "exact", "value": "vulnerability", "weight": 0.95 },
+        { "type": "exact", "value": "security vulnerability", "weight": 0.95 },
+        { "type": "exact", "value": "sql injection", "weight": 0.95 },
+        { "type": "exact", "value": "xss", "weight": 0.9 },
+        { "type": "exact", "value": "cross-site scripting", "weight": 0.9 },
+        { "type": "exact", "value": "csrf", "weight": 0.9 },
+        { "type": "exact", "value": "cross-site request forgery", "weight": 0.9 },
+        { "type": "exact", "value": "injection attack", "weight": 0.9 },
+        { "type": "exact", "value": "security flaw", "weight": 0.85 },
+        { "type": "exact", "value": "cve", "weight": 0.85, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "exploit", "weight": 0.85 },
+        { "type": "fuzzy", "value": "security issue found", "weight": 0.8 },
+        { "type": "fuzzy", "value": "vulnerable code", "weight": 0.8 },
+        { "type": "regex", "value": "\\b(sql|command|code).*injection\\b", "weight": 0.85 },
+        {
+          "type": "regex",
+          "value": "\\bCVE-\\d{4}-\\d+\\b",
+          "weight": 0.9,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "owasp", "weight": 0.75, "keyTermCategory": "domainTerms" },
+        {
+          "type": "exact",
+          "value": "penetration test",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "security scan", "weight": 0.7 }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "performance issue", "weight": 0.3 },
+        { "type": "exact", "value": "bug fix", "weight": 0.2 },
+        { "type": "exact", "value": "feature request", "weight": 0.2 }
+      ],
+      "hypotheses": [
+        {
+          "id": "injection-vulnerability",
+          "statement": "The {{primarySubject}} may be vulnerable to injection attacks due to unsanitized user input",
+          "investigationSteps": [
+            "Review code for direct string concatenation in SQL queries",
+            "Check for parameterized queries or prepared statements usage",
+            "Analyze input validation and sanitization routines",
+            "Test with common injection payloads in input fields"
+          ],
+          "expectedFindings": [
+            "SQL queries built with string concatenation",
+            "Missing parameterized queries or ORM usage",
+            "Insufficient input validation on user-supplied data",
+            "Command execution with unsanitized input"
+          ],
+          "relatedHypotheses": ["xss-vulnerability", "input-validation-gap"],
+          "estimatedTime": "30-60 minutes",
+          "likelihood": 0.75
+        },
+        {
+          "id": "xss-vulnerability",
+          "statement": "The {{primarySubject}} may be vulnerable to cross-site scripting (XSS) due to improper output encoding",
+          "investigationSteps": [
+            "Review templates and views for unescaped user content",
+            "Check for proper HTML entity encoding on output",
+            "Analyze JavaScript code for DOM-based XSS patterns",
+            "Test with XSS payloads in user input fields"
+          ],
+          "expectedFindings": [
+            "User input rendered without HTML encoding",
+            "innerHTML or document.write with user data",
+            "Missing Content-Security-Policy headers",
+            "Unsafe use of eval() or similar functions"
+          ],
+          "relatedHypotheses": ["injection-vulnerability", "input-validation-gap"],
+          "estimatedTime": "25-45 minutes",
+          "likelihood": 0.7
+        },
+        {
+          "id": "input-validation-gap",
+          "statement": "Insufficient input validation may be allowing malicious data to reach {{primarySubject}}",
+          "investigationSteps": [
+            "Review input validation logic at API boundaries",
+            "Check for whitelist vs blacklist validation approaches",
+            "Analyze file upload handling and validation",
+            "Test boundary conditions and edge cases"
+          ],
+          "expectedFindings": [
+            "Missing input length limits",
+            "Blacklist-based validation instead of whitelist",
+            "File uploads without type or size validation",
+            "Missing validation on nested or complex objects"
+          ],
+          "relatedHypotheses": ["injection-vulnerability", "xss-vulnerability"],
+          "estimatedTime": "20-40 minutes",
+          "likelihood": 0.65
+        },
+        {
+          "id": "dependency-vulnerability",
+          "statement": "Third-party dependencies may contain known vulnerabilities affecting {{primarySubject}}",
+          "investigationSteps": [
+            "Run dependency vulnerability scanner (npm audit, Snyk, etc.)",
+            "Check for outdated packages with known CVEs",
+            "Review transitive dependencies for vulnerabilities",
+            "Analyze severity and exploitability of findings"
+          ],
+          "expectedFindings": [
+            "Packages with known CVEs in dependency tree",
+            "Outdated dependencies with security patches available",
+            "Transitive dependencies with vulnerabilities",
+            "High or critical severity vulnerabilities"
+          ],
+          "relatedHypotheses": ["injection-vulnerability"],
+          "estimatedTime": "15-30 minutes",
+          "likelihood": 0.6
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "security-scan",
+          "type": "diagnostic",
+          "action": "Run comprehensive security scanning tools on {{primarySubject}}",
+          "tools": ["OWASP ZAP", "Burp Suite", "npm audit", "Snyk", "SonarQube"],
+          "expectedOutcome": "Identification of vulnerabilities with severity ratings and remediation guidance",
+          "prerequisites": ["Access to codebase", "Security scanning tools installed"],
+          "priority": 9
+        },
+        {
+          "id": "implement-parameterized-queries",
+          "type": "remedial",
+          "action": "Replace string concatenation with parameterized queries or ORM",
+          "tools": ["Prepared statements", "ORM frameworks", "Query builders"],
+          "expectedOutcome": "Elimination of SQL injection vulnerabilities",
+          "prerequisites": ["Identify vulnerable queries", "Database access"],
+          "priority": 9,
+          "documentationLinks": [
+            "https://cheatsheetseries.owasp.org/cheatsheets/Query_Parameterization_Cheat_Sheet.html"
+          ]
+        },
+        {
+          "id": "implement-output-encoding",
+          "type": "remedial",
+          "action": "Implement proper output encoding for all user-supplied content",
+          "tools": ["Template engines with auto-escaping", "DOMPurify", "Content-Security-Policy"],
+          "expectedOutcome": "Prevention of XSS attacks through proper encoding",
+          "prerequisites": ["Identify output points", "Template engine configuration"],
+          "priority": 9,
+          "documentationLinks": [
+            "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"
+          ]
+        },
+        {
+          "id": "implement-input-validation",
+          "type": "remedial",
+          "action": "Implement comprehensive input validation using whitelist approach",
+          "tools": ["Joi", "Zod", "class-validator", "JSON Schema"],
+          "expectedOutcome": "Rejection of malformed or malicious input at API boundaries",
+          "prerequisites": ["Define valid input schemas", "Validation library"],
+          "priority": 8
+        },
+        {
+          "id": "update-dependencies",
+          "type": "remedial",
+          "action": "Update vulnerable dependencies to patched versions",
+          "tools": ["npm update", "Dependabot", "Renovate"],
+          "expectedOutcome": "Elimination of known vulnerabilities in dependencies",
+          "prerequisites": ["Vulnerability scan complete", "Test environment"],
+          "priority": 8
+        }
+      ],
+      "severity": "critical",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "security-access-control",
+      "name": "Access Control Issues",
+      "description": "Detects access control problems including broken authentication, authorization bypass, and privilege escalation",
+      "indicators": [
+        { "type": "exact", "value": "access control", "weight": 0.95 },
+        { "type": "exact", "value": "authorization bypass", "weight": 0.95 },
+        { "type": "exact", "value": "privilege escalation", "weight": 0.95 },
+        { "type": "exact", "value": "broken authentication", "weight": 0.9 },
+        { "type": "exact", "value": "idor", "weight": 0.9, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "insecure direct object reference", "weight": 0.9 },
+        { "type": "exact", "value": "unauthorized access", "weight": 0.9 },
+        { "type": "exact", "value": "permission bypass", "weight": 0.85 },
+        { "type": "exact", "value": "role escalation", "weight": 0.85 },
+        { "type": "exact", "value": "broken access control", "weight": 0.9 },
+        { "type": "fuzzy", "value": "access other user data", "weight": 0.85 },
+        { "type": "fuzzy", "value": "bypass authorization", "weight": 0.8 },
+        { "type": "regex", "value": "\\b(access|permission).*bypass\\b", "weight": 0.8 },
+        {
+          "type": "regex",
+          "value": "\\bprivilege.*escalat\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "rbac", "weight": 0.7, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "acl", "weight": 0.7, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "horizontal privilege", "weight": 0.75 },
+        { "type": "exact", "value": "vertical privilege", "weight": 0.75 }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "network access", "weight": 0.3 },
+        { "type": "exact", "value": "file access", "weight": 0.25 },
+        { "type": "exact", "value": "disk access", "weight": 0.2 }
+      ],
+      "hypotheses": [
+        {
+          "id": "idor-vulnerability",
+          "statement": "The {{primarySubject}} may be vulnerable to Insecure Direct Object Reference (IDOR) allowing access to other users' data",
+          "investigationSteps": [
+            "Review API endpoints for direct object ID usage in URLs",
+            "Check if authorization validates resource ownership",
+            "Test accessing resources with different user IDs",
+            "Analyze parameter tampering possibilities"
+          ],
+          "expectedFindings": [
+            "Direct object IDs exposed in URLs without ownership checks",
+            "Missing authorization checks on resource access",
+            "Predictable or sequential resource identifiers",
+            "Ability to access other users' data by changing IDs"
+          ],
+          "relatedHypotheses": ["missing-authorization-checks", "broken-rbac"],
+          "estimatedTime": "25-45 minutes",
+          "likelihood": 0.75
+        },
+        {
+          "id": "missing-authorization-checks",
+          "statement": "Missing or incomplete authorization checks may allow unauthorized actions on {{primarySubject}}",
+          "investigationSteps": [
+            "Review middleware and decorators for authorization logic",
+            "Check if all sensitive endpoints have authorization",
+            "Analyze authorization logic for completeness",
+            "Test endpoints with different user roles"
+          ],
+          "expectedFindings": [
+            "Endpoints missing authorization middleware",
+            "Incomplete role checks allowing unauthorized access",
+            "Authorization logic only on some code paths",
+            "Missing checks for specific actions or operations"
+          ],
+          "relatedHypotheses": ["idor-vulnerability", "broken-rbac"],
+          "estimatedTime": "30-50 minutes",
+          "likelihood": 0.7
+        },
+        {
+          "id": "broken-rbac",
+          "statement": "Role-based access control implementation may have flaws allowing privilege escalation in {{primarySubject}}",
+          "investigationSteps": [
+            "Review role hierarchy and permission assignments",
+            "Check for hardcoded role checks vs centralized RBAC",
+            "Analyze role assignment and modification logic",
+            "Test role escalation scenarios"
+          ],
+          "expectedFindings": [
+            "Inconsistent role checks across endpoints",
+            "Ability to self-assign higher privileges",
+            "Missing validation on role modification",
+            "Hardcoded role names instead of permission-based checks"
+          ],
+          "relatedHypotheses": ["missing-authorization-checks", "session-management-flaw"],
+          "estimatedTime": "35-60 minutes",
+          "likelihood": 0.6
+        },
+        {
+          "id": "session-management-flaw",
+          "statement": "Session management weaknesses may allow session hijacking or fixation in {{primarySubject}}",
+          "investigationSteps": [
+            "Review session token generation and storage",
+            "Check session invalidation on logout and password change",
+            "Analyze session timeout and renewal logic",
+            "Test for session fixation vulnerabilities"
+          ],
+          "expectedFindings": [
+            "Predictable session tokens",
+            "Sessions not invalidated on logout",
+            "Missing session regeneration after authentication",
+            "Overly long session timeouts"
+          ],
+          "relatedHypotheses": ["broken-rbac"],
+          "estimatedTime": "20-40 minutes",
+          "likelihood": 0.55
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "audit-access-control",
+          "type": "diagnostic",
+          "action": "Audit all endpoints for proper access control implementation on {{primarySubject}}",
+          "tools": ["Code review", "Burp Suite", "OWASP ZAP", "Authorization matrix"],
+          "expectedOutcome": "Complete mapping of access control gaps and vulnerabilities",
+          "prerequisites": ["Access to codebase", "Understanding of user roles"],
+          "priority": 9
+        },
+        {
+          "id": "implement-ownership-checks",
+          "type": "remedial",
+          "action": "Implement resource ownership validation for all data access operations",
+          "tools": ["Authorization middleware", "Policy-based access control"],
+          "expectedOutcome": "Prevention of IDOR vulnerabilities through ownership verification",
+          "prerequisites": ["Identify affected endpoints", "User-resource mapping"],
+          "priority": 9,
+          "documentationLinks": [
+            "https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html"
+          ]
+        },
+        {
+          "id": "centralize-authorization",
+          "type": "remedial",
+          "action": "Centralize authorization logic using middleware or policy framework",
+          "tools": ["CASL", "Casbin", "OPA", "Custom middleware"],
+          "expectedOutcome": "Consistent authorization enforcement across all endpoints",
+          "prerequisites": ["Define authorization policies", "Refactoring plan"],
+          "priority": 8
+        },
+        {
+          "id": "implement-rbac",
+          "type": "remedial",
+          "action": "Implement proper role-based access control with least privilege principle",
+          "tools": ["RBAC libraries", "Permission management systems"],
+          "expectedOutcome": "Fine-grained access control based on user roles and permissions",
+          "prerequisites": ["Role hierarchy defined", "Permission matrix"],
+          "priority": 8,
+          "documentationLinks": [
+            "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+          ]
+        },
+        {
+          "id": "secure-session-management",
+          "type": "remedial",
+          "action": "Implement secure session management with proper token handling",
+          "tools": ["Secure session libraries", "Redis for session storage"],
+          "expectedOutcome": "Protection against session hijacking and fixation attacks",
+          "prerequisites": ["Session architecture review", "Secure storage"],
+          "priority": 8
+        }
+      ],
+      "severity": "critical",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "security-data-exposure",
+      "name": "Data Exposure",
+      "description": "Detects data exposure risks including sensitive data leakage, improper encryption, and information disclosure",
+      "indicators": [
+        { "type": "exact", "value": "data exposure", "weight": 0.95 },
+        { "type": "exact", "value": "data leak", "weight": 0.95 },
+        { "type": "exact", "value": "sensitive data", "weight": 0.9 },
+        { "type": "exact", "value": "data breach", "weight": 0.95 },
+        { "type": "exact", "value": "information disclosure", "weight": 0.9 },
+        {
+          "type": "exact",
+          "value": "pii exposure",
+          "weight": 0.9,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "personally identifiable information", "weight": 0.9 },
+        { "type": "exact", "value": "unencrypted data", "weight": 0.85 },
+        { "type": "exact", "value": "plaintext password", "weight": 0.95 },
+        { "type": "exact", "value": "api key exposed", "weight": 0.9 },
+        { "type": "exact", "value": "secret leaked", "weight": 0.9 },
+        { "type": "fuzzy", "value": "sensitive information exposed", "weight": 0.85 },
+        { "type": "fuzzy", "value": "data not encrypted", "weight": 0.8 },
+        { "type": "regex", "value": "\\b(password|secret|key).*exposed\\b", "weight": 0.85 },
+        {
+          "type": "regex",
+          "value": "\\b(pii|gdpr|hipaa)\\b",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "encryption", "weight": 0.7, "keyTermCategory": "domainTerms" },
+        {
+          "type": "exact",
+          "value": "data masking",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "verbose error", "weight": 0.7 }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "data migration", "weight": 0.3 },
+        { "type": "exact", "value": "data backup", "weight": 0.25 },
+        { "type": "exact", "value": "data sync", "weight": 0.2 }
+      ],
+      "hypotheses": [
+        {
+          "id": "sensitive-data-in-logs",
+          "statement": "Sensitive data may be inadvertently logged or exposed in error messages for {{primarySubject}}",
+          "investigationSteps": [
+            "Review logging configuration and log output",
+            "Check error handlers for information disclosure",
+            "Analyze API responses for excessive data exposure",
+            "Search logs for patterns matching sensitive data"
+          ],
+          "expectedFindings": [
+            "Passwords or tokens appearing in logs",
+            "Stack traces exposed to end users",
+            "Detailed error messages revealing system internals",
+            "PII logged without redaction"
+          ],
+          "relatedHypotheses": ["missing-encryption", "excessive-data-exposure"],
+          "estimatedTime": "20-40 minutes",
+          "likelihood": 0.7
+        },
+        {
+          "id": "missing-encryption",
+          "statement": "Sensitive data may be stored or transmitted without proper encryption in {{primarySubject}}",
+          "investigationSteps": [
+            "Review database schema for sensitive field encryption",
+            "Check TLS configuration for data in transit",
+            "Analyze encryption key management practices",
+            "Verify encryption algorithms and key lengths"
+          ],
+          "expectedFindings": [
+            "Sensitive fields stored in plaintext",
+            "Missing TLS for API communications",
+            "Weak encryption algorithms (MD5, SHA1 for passwords)",
+            "Encryption keys stored alongside encrypted data"
+          ],
+          "relatedHypotheses": ["sensitive-data-in-logs", "hardcoded-secrets"],
+          "estimatedTime": "30-50 minutes",
+          "likelihood": 0.65
+        },
+        {
+          "id": "excessive-data-exposure",
+          "statement": "API responses may expose more data than necessary for {{primarySubject}}",
+          "investigationSteps": [
+            "Review API response schemas and serialization",
+            "Check for internal fields exposed in responses",
+            "Analyze GraphQL queries for over-fetching",
+            "Test API responses for unnecessary data"
+          ],
+          "expectedFindings": [
+            "Internal IDs or metadata in API responses",
+            "User data including fields not needed by client",
+            "Sensitive fields not excluded from serialization",
+            "Debug information in production responses"
+          ],
+          "relatedHypotheses": ["sensitive-data-in-logs"],
+          "estimatedTime": "25-40 minutes",
+          "likelihood": 0.6
+        },
+        {
+          "id": "hardcoded-secrets",
+          "statement": "Secrets or credentials may be hardcoded in source code or configuration for {{primarySubject}}",
+          "investigationSteps": [
+            "Scan codebase for hardcoded credentials",
+            "Review configuration files for secrets",
+            "Check version control history for leaked secrets",
+            "Analyze environment variable usage"
+          ],
+          "expectedFindings": [
+            "API keys or passwords in source code",
+            "Secrets committed to version control",
+            "Configuration files with plaintext credentials",
+            "Missing use of secrets management"
+          ],
+          "relatedHypotheses": ["missing-encryption"],
+          "estimatedTime": "20-35 minutes",
+          "likelihood": 0.55
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "audit-data-exposure",
+          "type": "diagnostic",
+          "action": "Audit all data flows for potential sensitive data exposure in {{primarySubject}}",
+          "tools": ["Data flow analysis", "Log analysis", "API response inspection"],
+          "expectedOutcome": "Complete inventory of data exposure risks and remediation priorities",
+          "prerequisites": ["Access to logs and APIs", "Data classification"],
+          "priority": 9
+        },
+        {
+          "id": "implement-data-encryption",
+          "type": "remedial",
+          "action": "Implement encryption for sensitive data at rest and in transit",
+          "tools": ["AES-256", "TLS 1.3", "Database encryption", "Key management systems"],
+          "expectedOutcome": "Protection of sensitive data through strong encryption",
+          "prerequisites": ["Identify sensitive data", "Key management infrastructure"],
+          "priority": 9,
+          "documentationLinks": [
+            "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html"
+          ]
+        },
+        {
+          "id": "implement-log-redaction",
+          "type": "remedial",
+          "action": "Implement automatic redaction of sensitive data in logs",
+          "tools": ["Log redaction libraries", "Structured logging", "PII detection"],
+          "expectedOutcome": "Prevention of sensitive data appearing in logs",
+          "prerequisites": ["Identify sensitive patterns", "Logging infrastructure"],
+          "priority": 8
+        },
+        {
+          "id": "implement-response-filtering",
+          "type": "remedial",
+          "action": "Implement response filtering to exclude sensitive or unnecessary fields",
+          "tools": ["DTO patterns", "Serialization excludes", "GraphQL field-level security"],
+          "expectedOutcome": "API responses contain only necessary data",
+          "prerequisites": ["Define response schemas", "Serialization configuration"],
+          "priority": 8
+        },
+        {
+          "id": "implement-secrets-management",
+          "type": "remedial",
+          "action": "Migrate hardcoded secrets to a secrets management system",
+          "tools": [
+            "AWS Secrets Manager",
+            "HashiCorp Vault",
+            "Azure Key Vault",
+            "Environment variables"
+          ],
+          "expectedOutcome": "Centralized, secure secrets management with rotation support",
+          "prerequisites": ["Secrets inventory", "Secrets management infrastructure"],
+          "priority": 9,
+          "documentationLinks": [
+            "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+          ]
+        },
+        {
+          "id": "scan-for-secrets",
+          "type": "diagnostic",
+          "action": "Scan codebase and version control history for leaked secrets",
+          "tools": ["git-secrets", "truffleHog", "Gitleaks", "GitHub secret scanning"],
+          "expectedOutcome": "Identification and remediation of any leaked secrets",
+          "prerequisites": ["Repository access", "Secret scanning tools"],
+          "priority": 9
+        }
+      ],
+      "severity": "critical",
+      "qualityThreshold": 0.6
+    }
+  ],
+  "testCases": [
+    {
+      "id": "test-vulnerability-basic",
+      "input": "We found a security vulnerability in our application",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-vulnerability"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-sql-injection",
+      "input": "Our application may be vulnerable to SQL injection attacks",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-vulnerability"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-xss-vulnerability",
+      "input": "Security scan found XSS cross-site scripting vulnerability in the web application",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-vulnerability"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-cve-found",
+      "input": "CVE-2024-1234 vulnerability detected in our dependencies",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-vulnerability"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-owasp-scan",
+      "input": "OWASP security scan found injection vulnerabilities and security flaws",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-vulnerability"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-access-control-basic",
+      "input": "We have broken access control allowing unauthorized access to resources",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-access-control"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-idor",
+      "input": "Found IDOR vulnerability allowing users to access other users' data by changing IDs",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-access-control"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-privilege-escalation",
+      "input": "Privilege escalation vulnerability allows regular users to gain admin access",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-access-control"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-authorization-bypass",
+      "input": "Authorization bypass allows accessing protected endpoints without proper permissions",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-access-control"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-rbac-issue",
+      "input": "RBAC implementation has flaws allowing role escalation and permission bypass",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-access-control"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-data-exposure-basic",
+      "input": "Sensitive data exposure found in our API responses",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-data-exposure"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-data-leak",
+      "input": "Data leak discovered with PII being exposed in logs",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-data-exposure"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-unencrypted-data",
+      "input": "Sensitive data stored unencrypted in the database including passwords",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-data-exposure"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-secret-exposed",
+      "input": "API key exposed in source code, secret leaked to version control",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-data-exposure"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-pii-exposure",
+      "input": "GDPR compliance issue with PII exposure and personally identifiable information not encrypted",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-data-exposure"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-combined-vuln-access",
+      "input": "Security vulnerability found with broken access control and authorization bypass",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-vulnerability", "security-access-control"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-combined-access-data",
+      "input": "IDOR vulnerability exposing sensitive data and PII of other users",
+      "expectedDomain": "security",
+      "expectedPatternIds": ["security-access-control", "security-data-exposure"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-combined-all",
+      "input": "Security audit found SQL injection vulnerability, broken access control, and sensitive data exposure",
+      "expectedDomain": "security",
+      "expectedPatternIds": [
+        "security-vulnerability",
+        "security-access-control",
+        "security-data-exposure"
+      ],
+      "minConfidence": 0.7
+    }
+  ]
+}

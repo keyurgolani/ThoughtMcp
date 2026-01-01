@@ -1,0 +1,756 @@
+{
+  "version": "1.0.0",
+  "domain": "infrastructure",
+  "description": "Patterns for infrastructure issues including scaling problems, deployment failures, and monitoring gaps",
+  "patterns": [
+    {
+      "id": "infra-scaling-issues",
+      "name": "Scaling Issues Detection",
+      "description": "Detects infrastructure scaling problems including auto-scaling failures, capacity planning issues, and horizontal/vertical scaling limitations",
+      "indicators": [
+        { "type": "exact", "value": "scaling issues", "weight": 0.95 },
+        { "type": "exact", "value": "auto-scaling", "weight": 0.9 },
+        { "type": "exact", "value": "autoscaling", "weight": 0.9 },
+        { "type": "exact", "value": "scale up", "weight": 0.85 },
+        { "type": "exact", "value": "scale out", "weight": 0.85 },
+        { "type": "exact", "value": "horizontal scaling", "weight": 0.9 },
+        { "type": "exact", "value": "vertical scaling", "weight": 0.85 },
+        { "type": "exact", "value": "capacity planning", "weight": 0.8 },
+        { "type": "exact", "value": "pod scaling", "weight": 0.85 },
+        { "type": "exact", "value": "instance scaling", "weight": 0.85 },
+        { "type": "fuzzy", "value": "cannot scale handle load", "weight": 0.8 },
+        { "type": "fuzzy", "value": "scaling not working failing", "weight": 0.85 },
+        { "type": "fuzzy", "value": "capacity insufficient exceeded", "weight": 0.75 },
+        {
+          "type": "regex",
+          "value": "\\b(hpa|vpa).*fail\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bscal(e|ing).*issue\\b", "weight": 0.8 },
+        { "type": "regex", "value": "\\b(under|over).*provision\\b", "weight": 0.75 },
+        {
+          "type": "exact",
+          "value": "replica count",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "node pool", "weight": 0.75 },
+        { "type": "exact", "value": "cluster autoscaler", "weight": 0.9 }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "database scaling", "weight": 0.3 },
+        { "type": "exact", "value": "image scaling", "weight": 0.35 },
+        { "type": "exact", "value": "font scaling", "weight": 0.4 }
+      ],
+
+      "hypotheses": [
+        {
+          "id": "autoscaling-misconfiguration",
+          "statement": "Auto-scaling for {{primarySubject}} may be misconfigured with incorrect thresholds, limits, or metrics",
+          "investigationSteps": [
+            "Review HPA/VPA configuration and scaling metrics",
+            "Check min/max replica settings against actual requirements",
+            "Verify scaling metric thresholds (CPU, memory, custom metrics)",
+            "Review scaling cooldown periods and stabilization windows"
+          ],
+          "expectedFindings": [
+            "Scaling thresholds set too high or too low",
+            "Min replicas insufficient for baseline load",
+            "Max replicas limiting scale-out capacity",
+            "Wrong metrics being used for scaling decisions"
+          ],
+          "relatedHypotheses": ["resource-quota-limits", "cluster-capacity"],
+          "estimatedTime": "15-30 minutes",
+          "likelihood": 0.7
+        },
+        {
+          "id": "resource-quota-limits",
+          "statement": "Resource quotas or limits may be preventing {{primarySubject}} from scaling to meet demand",
+          "investigationSteps": [
+            "Check namespace resource quotas and limit ranges",
+            "Review cluster-level resource constraints",
+            "Verify cloud provider service quotas and limits",
+            "Check for pending pods due to resource constraints"
+          ],
+          "expectedFindings": [
+            "Resource quota exhausted in namespace",
+            "Cloud provider quota limits reached",
+            "Limit ranges preventing pod scheduling",
+            "Insufficient cluster resources for new pods"
+          ],
+          "relatedHypotheses": ["autoscaling-misconfiguration", "cluster-capacity"],
+          "estimatedTime": "10-20 minutes",
+          "likelihood": 0.65
+        },
+        {
+          "id": "cluster-capacity",
+          "statement": "Cluster capacity may be insufficient to support scaling requirements for {{primarySubject}}",
+          "investigationSteps": [
+            "Check node pool capacity and utilization",
+            "Review cluster autoscaler configuration and logs",
+            "Verify node instance types meet workload requirements",
+            "Check for node taints or affinity rules blocking scheduling"
+          ],
+          "expectedFindings": [
+            "All nodes at capacity with no room for new pods",
+            "Cluster autoscaler not provisioning new nodes",
+            "Node instance types too small for pod requirements",
+            "Scheduling constraints preventing pod placement"
+          ],
+          "relatedHypotheses": ["resource-quota-limits"],
+          "estimatedTime": "20-35 minutes",
+          "likelihood": 0.6
+        },
+        {
+          "id": "stateful-scaling-limitations",
+          "statement": "Stateful components may be limiting horizontal scaling capabilities for {{primarySubject}}",
+          "investigationSteps": [
+            "Identify stateful components in the architecture",
+            "Review session management and state storage patterns",
+            "Check for shared state dependencies between instances",
+            "Analyze data partitioning and sharding strategies"
+          ],
+          "expectedFindings": [
+            "In-memory session state preventing horizontal scaling",
+            "Shared file system dependencies",
+            "Database connections not scaling with instances",
+            "Lack of proper state externalization"
+          ],
+          "relatedHypotheses": ["autoscaling-misconfiguration"],
+          "estimatedTime": "30-60 minutes",
+          "likelihood": 0.5
+        }
+      ],
+
+      "recommendations": [
+        {
+          "id": "review-autoscaling-config",
+          "type": "diagnostic",
+          "action": "Review and validate auto-scaling configuration for {{primarySubject}}",
+          "tools": [
+            "kubectl describe hpa",
+            "kubectl get vpa",
+            "Cloud console auto-scaling settings"
+          ],
+          "expectedOutcome": "Clear understanding of current scaling configuration and gaps",
+          "prerequisites": ["Cluster access", "Scaling configuration documentation"],
+          "priority": 9
+        },
+        {
+          "id": "check-resource-quotas",
+          "type": "diagnostic",
+          "action": "Check resource quotas and limits that may be constraining scaling",
+          "tools": [
+            "kubectl describe quota",
+            "kubectl describe limitrange",
+            "Cloud provider quota dashboards"
+          ],
+          "expectedOutcome": "Identification of quota or limit constraints blocking scaling",
+          "prerequisites": ["Namespace access", "Cloud provider console access"],
+          "priority": 9
+        },
+        {
+          "id": "tune-scaling-thresholds",
+          "type": "remedial",
+          "action": "Tune auto-scaling thresholds based on actual workload patterns",
+          "tools": ["HPA configuration", "Custom metrics adapters", "Prometheus metrics"],
+          "expectedOutcome": "Scaling triggers at appropriate load levels",
+          "prerequisites": ["Load pattern analysis", "Metrics infrastructure"],
+          "priority": 8,
+          "documentationLinks": [
+            "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+          ]
+        },
+        {
+          "id": "increase-quotas",
+          "type": "remedial",
+          "action": "Request quota increases or adjust resource limits to allow scaling",
+          "tools": ["Cloud provider support", "Namespace quota configuration"],
+          "expectedOutcome": "Sufficient quota headroom for scaling operations",
+          "prerequisites": ["Quota analysis complete", "Approval for quota increase"],
+          "priority": 8
+        },
+        {
+          "id": "enable-cluster-autoscaler",
+          "type": "remedial",
+          "action": "Enable or configure cluster autoscaler for automatic node provisioning",
+          "tools": ["Cluster Autoscaler", "Karpenter", "Cloud provider node auto-scaling"],
+          "expectedOutcome": "Automatic node provisioning when pod scheduling fails",
+          "prerequisites": ["Cluster admin access", "Cloud provider permissions"],
+          "priority": 7,
+          "documentationLinks": [
+            "https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler"
+          ]
+        },
+        {
+          "id": "externalize-state",
+          "type": "remedial",
+          "action": "Externalize application state to enable stateless horizontal scaling",
+          "tools": ["Redis", "Memcached", "External session stores", "Database-backed sessions"],
+          "expectedOutcome": "Stateless application instances that can scale horizontally",
+          "prerequisites": ["Architecture review", "State storage infrastructure"],
+          "priority": 7
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+
+    {
+      "id": "infra-deployment-failures",
+      "name": "Deployment Failures Detection",
+      "description": "Detects deployment and release issues including failed rollouts, configuration errors, and CI/CD pipeline problems",
+      "indicators": [
+        { "type": "exact", "value": "deployment failed", "weight": 0.95 },
+        { "type": "exact", "value": "deployment failure", "weight": 0.95 },
+        { "type": "exact", "value": "rollout failed", "weight": 0.9 },
+        { "type": "exact", "value": "deploy error", "weight": 0.9 },
+        { "type": "exact", "value": "release failed", "weight": 0.85 },
+        { "type": "exact", "value": "pipeline failed", "weight": 0.85 },
+        { "type": "exact", "value": "CI/CD failure", "weight": 0.9 },
+        { "type": "exact", "value": "rollback", "weight": 0.8 },
+        { "type": "exact", "value": "image pull error", "weight": 0.9 },
+        { "type": "exact", "value": "crashloopbackoff", "weight": 0.95 },
+        { "type": "fuzzy", "value": "deployment not working failing", "weight": 0.85 },
+        { "type": "fuzzy", "value": "cannot deploy release", "weight": 0.8 },
+        { "type": "fuzzy", "value": "pods not starting crashing", "weight": 0.85 },
+        { "type": "regex", "value": "\\bdeploy.*fail\\b", "weight": 0.85 },
+        {
+          "type": "regex",
+          "value": "\\b(helm|kubectl).*error\\b",
+          "weight": 0.8,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\brollout.*(stuck|fail|error)\\b", "weight": 0.85 },
+        { "type": "exact", "value": "ImagePullBackOff", "weight": 0.95 },
+        { "type": "exact", "value": "ErrImagePull", "weight": 0.9 },
+        {
+          "type": "exact",
+          "value": "readiness probe",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "liveness probe",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "successful deployment", "weight": 0.4 },
+        { "type": "exact", "value": "deployment complete", "weight": 0.35 },
+        { "type": "exact", "value": "software deployment", "weight": 0.2 }
+      ],
+
+      "hypotheses": [
+        {
+          "id": "image-pull-failure",
+          "statement": "Container image pull failures may be preventing deployment of {{primarySubject}}",
+          "investigationSteps": [
+            "Check pod events for ImagePullBackOff or ErrImagePull errors",
+            "Verify image name and tag are correct",
+            "Check container registry authentication and credentials",
+            "Verify network connectivity to container registry"
+          ],
+          "expectedFindings": [
+            "Incorrect image name or tag specified",
+            "Missing or expired registry credentials",
+            "Image does not exist in registry",
+            "Network policy blocking registry access"
+          ],
+          "relatedHypotheses": ["configuration-error", "resource-constraints"],
+          "estimatedTime": "10-20 minutes",
+          "likelihood": 0.7
+        },
+        {
+          "id": "configuration-error",
+          "statement": "Configuration errors in deployment manifests may be causing {{primarySubject}} deployment failures",
+          "investigationSteps": [
+            "Review deployment YAML for syntax errors",
+            "Check ConfigMaps and Secrets referenced by deployment",
+            "Verify environment variables and volume mounts",
+            "Review resource requests and limits configuration"
+          ],
+          "expectedFindings": [
+            "Missing or incorrect ConfigMap/Secret references",
+            "Invalid environment variable values",
+            "Incorrect volume mount paths",
+            "Malformed YAML syntax"
+          ],
+          "relatedHypotheses": ["image-pull-failure", "probe-failures"],
+          "estimatedTime": "15-30 minutes",
+          "likelihood": 0.65
+        },
+        {
+          "id": "probe-failures",
+          "statement": "Health probe failures may be causing pods to fail readiness or liveness checks for {{primarySubject}}",
+          "investigationSteps": [
+            "Check pod events for probe failure messages",
+            "Review readiness and liveness probe configurations",
+            "Verify probe endpoints are responding correctly",
+            "Check probe timing (initialDelaySeconds, periodSeconds)"
+          ],
+          "expectedFindings": [
+            "Probe endpoint not responding or returning errors",
+            "InitialDelaySeconds too short for application startup",
+            "Probe timeout too aggressive",
+            "Wrong port or path configured for probes"
+          ],
+          "relatedHypotheses": ["configuration-error", "application-startup-failure"],
+          "estimatedTime": "15-25 minutes",
+          "likelihood": 0.6
+        },
+        {
+          "id": "resource-constraints",
+          "statement": "Insufficient resources may be preventing pods from being scheduled for {{primarySubject}}",
+          "investigationSteps": [
+            "Check for pending pods and their events",
+            "Review resource requests vs available cluster resources",
+            "Check for node selector or affinity constraints",
+            "Verify PersistentVolumeClaim bindings"
+          ],
+          "expectedFindings": [
+            "Insufficient CPU or memory on available nodes",
+            "No nodes matching node selector criteria",
+            "PVC not bound to available PersistentVolume",
+            "Resource requests exceeding node capacity"
+          ],
+          "relatedHypotheses": ["configuration-error"],
+          "estimatedTime": "10-20 minutes",
+          "likelihood": 0.55
+        },
+        {
+          "id": "application-startup-failure",
+          "statement": "Application startup failures may be causing CrashLoopBackOff for {{primarySubject}}",
+          "investigationSteps": [
+            "Check pod logs for application errors",
+            "Review application configuration and dependencies",
+            "Verify database and external service connectivity",
+            "Check for missing environment variables or secrets"
+          ],
+          "expectedFindings": [
+            "Application throwing exceptions on startup",
+            "Missing required configuration values",
+            "Unable to connect to required services",
+            "Permission or authentication errors"
+          ],
+          "relatedHypotheses": ["probe-failures", "configuration-error"],
+          "estimatedTime": "20-40 minutes",
+          "likelihood": 0.6
+        }
+      ],
+
+      "recommendations": [
+        {
+          "id": "check-pod-events",
+          "type": "diagnostic",
+          "action": "Check pod events and status to identify deployment failure cause for {{primarySubject}}",
+          "tools": ["kubectl describe pod", "kubectl get events", "kubectl logs"],
+          "expectedOutcome": "Clear identification of why pods are failing to start",
+          "prerequisites": ["Cluster access", "Namespace permissions"],
+          "priority": 9
+        },
+        {
+          "id": "verify-image-access",
+          "type": "diagnostic",
+          "action": "Verify container image exists and is accessible from the cluster",
+          "tools": ["docker pull", "kubectl create secret docker-registry", "Registry UI"],
+          "expectedOutcome": "Confirmation that image is pullable with current credentials",
+          "prerequisites": ["Registry access", "Image name and tag"],
+          "priority": 9
+        },
+        {
+          "id": "validate-manifests",
+          "type": "diagnostic",
+          "action": "Validate deployment manifests for syntax and configuration errors",
+          "tools": ["kubectl apply --dry-run", "kubeval", "helm lint", "kustomize build"],
+          "expectedOutcome": "Identification of manifest errors before deployment",
+          "prerequisites": ["Manifest files", "Validation tools"],
+          "priority": 8
+        },
+        {
+          "id": "fix-image-credentials",
+          "type": "remedial",
+          "action": "Create or update image pull secrets for container registry authentication",
+          "tools": ["kubectl create secret docker-registry", "Service account configuration"],
+          "expectedOutcome": "Successful image pulls from private registry",
+          "prerequisites": ["Registry credentials", "Namespace access"],
+          "priority": 8,
+          "documentationLinks": [
+            "https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/"
+          ]
+        },
+        {
+          "id": "adjust-probe-timing",
+          "type": "remedial",
+          "action": "Adjust health probe timing to match application startup characteristics",
+          "tools": ["Deployment manifest editing", "kubectl patch"],
+          "expectedOutcome": "Probes succeed after application fully starts",
+          "prerequisites": ["Understanding of application startup time", "Manifest access"],
+          "priority": 7
+        },
+        {
+          "id": "implement-rollback",
+          "type": "remedial",
+          "action": "Rollback to previous working deployment version",
+          "tools": ["kubectl rollout undo", "helm rollback", "ArgoCD rollback"],
+          "expectedOutcome": "Service restored to last known working state",
+          "prerequisites": ["Previous deployment version available", "Rollback permissions"],
+          "priority": 9,
+          "documentationLinks": [
+            "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-back-a-deployment"
+          ]
+        },
+        {
+          "id": "implement-canary-deployment",
+          "type": "remedial",
+          "action": "Implement canary or blue-green deployment strategy to reduce deployment risk",
+          "tools": ["Istio", "Flagger", "Argo Rollouts", "Kubernetes native canary"],
+          "expectedOutcome": "Gradual rollout with automatic rollback on failures",
+          "prerequisites": ["Service mesh or rollout controller", "Metrics infrastructure"],
+          "priority": 6,
+          "documentationLinks": ["https://argoproj.github.io/argo-rollouts/"]
+        }
+      ],
+      "severity": "critical",
+      "qualityThreshold": 0.6
+    },
+
+    {
+      "id": "infra-monitoring-gaps",
+      "name": "Monitoring Gaps Detection",
+      "description": "Detects observability and monitoring issues including missing metrics, inadequate alerting, and logging gaps",
+      "indicators": [
+        { "type": "exact", "value": "monitoring gap", "weight": 0.95 },
+        { "type": "exact", "value": "no visibility", "weight": 0.9 },
+        { "type": "exact", "value": "missing metrics", "weight": 0.9 },
+        { "type": "exact", "value": "no alerts", "weight": 0.85 },
+        { "type": "exact", "value": "alerting gap", "weight": 0.9 },
+        { "type": "exact", "value": "blind spot", "weight": 0.85 },
+        { "type": "exact", "value": "observability", "weight": 0.8 },
+        { "type": "exact", "value": "no logging", "weight": 0.85 },
+        { "type": "exact", "value": "missing logs", "weight": 0.85 },
+        { "type": "exact", "value": "no tracing", "weight": 0.8 },
+        { "type": "fuzzy", "value": "cannot see monitor observe", "weight": 0.8 },
+        { "type": "fuzzy", "value": "no visibility insight metrics", "weight": 0.85 },
+        { "type": "fuzzy", "value": "monitoring not working missing", "weight": 0.8 },
+        { "type": "regex", "value": "\\bno.*(metric|alert|log|trace)\\b", "weight": 0.8 },
+        {
+          "type": "regex",
+          "value": "\\b(monitor|observ).*gap\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bmissing.*(dashboard|alert|metric)\\b", "weight": 0.8 },
+        { "type": "exact", "value": "prometheus", "weight": 0.6, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "grafana", "weight": 0.6, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "datadog", "weight": 0.6, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "cloudwatch", "weight": 0.6, "keyTermCategory": "domainTerms" }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "monitoring working", "weight": 0.35 },
+        { "type": "exact", "value": "alerts firing", "weight": 0.3 },
+        { "type": "exact", "value": "health monitoring", "weight": 0.2 }
+      ],
+
+      "hypotheses": [
+        {
+          "id": "missing-key-metrics",
+          "statement": "Key metrics may not be collected or exposed for {{primarySubject}}, creating visibility gaps",
+          "investigationSteps": [
+            "Inventory current metrics being collected",
+            "Compare against RED/USE methodology requirements",
+            "Check for application-specific business metrics",
+            "Review metric cardinality and retention policies"
+          ],
+          "expectedFindings": [
+            "Missing request rate, error rate, or duration metrics",
+            "No resource utilization metrics (CPU, memory, disk)",
+            "Business-critical metrics not being tracked",
+            "Metrics being dropped due to cardinality limits"
+          ],
+          "relatedHypotheses": ["inadequate-alerting", "logging-gaps"],
+          "estimatedTime": "20-40 minutes",
+          "likelihood": 0.7
+        },
+        {
+          "id": "inadequate-alerting",
+          "statement": "Alerting rules may be missing or misconfigured for {{primarySubject}}, leading to undetected issues",
+          "investigationSteps": [
+            "Review existing alert rules and their coverage",
+            "Check alert thresholds against SLO requirements",
+            "Verify alert routing and notification channels",
+            "Analyze alert fatigue and noise levels"
+          ],
+          "expectedFindings": [
+            "Critical failure scenarios without alerts",
+            "Alert thresholds not aligned with SLOs",
+            "Alerts not reaching on-call personnel",
+            "Too many noisy alerts causing fatigue"
+          ],
+          "relatedHypotheses": ["missing-key-metrics", "slo-monitoring-gaps"],
+          "estimatedTime": "25-45 minutes",
+          "likelihood": 0.65
+        },
+        {
+          "id": "logging-gaps",
+          "statement": "Logging may be insufficient or improperly configured for troubleshooting {{primarySubject}}",
+          "investigationSteps": [
+            "Review log levels and what is being captured",
+            "Check log aggregation and retention policies",
+            "Verify structured logging format and searchability",
+            "Assess log correlation capabilities across services"
+          ],
+          "expectedFindings": [
+            "Important events not being logged",
+            "Logs not aggregated to central location",
+            "Unstructured logs difficult to search",
+            "No correlation IDs for distributed tracing"
+          ],
+          "relatedHypotheses": ["missing-key-metrics", "tracing-gaps"],
+          "estimatedTime": "20-35 minutes",
+          "likelihood": 0.6
+        },
+        {
+          "id": "tracing-gaps",
+          "statement": "Distributed tracing may be missing or incomplete for {{primarySubject}}, hindering root cause analysis",
+          "investigationSteps": [
+            "Check if distributed tracing is implemented",
+            "Review trace sampling rates and coverage",
+            "Verify trace context propagation across services",
+            "Assess trace storage and query capabilities"
+          ],
+          "expectedFindings": [
+            "No distributed tracing implemented",
+            "Trace context not propagated between services",
+            "Sampling rate too low to capture issues",
+            "Traces not retained long enough for analysis"
+          ],
+          "relatedHypotheses": ["logging-gaps"],
+          "estimatedTime": "15-30 minutes",
+          "likelihood": 0.55
+        },
+        {
+          "id": "slo-monitoring-gaps",
+          "statement": "SLO/SLI monitoring may be missing for {{primarySubject}}, preventing reliability measurement",
+          "investigationSteps": [
+            "Check if SLOs are defined for the service",
+            "Review SLI metrics and measurement accuracy",
+            "Verify error budget tracking and alerting",
+            "Assess SLO dashboard and reporting"
+          ],
+          "expectedFindings": [
+            "No formal SLOs defined",
+            "SLIs not accurately measuring user experience",
+            "Error budget not being tracked",
+            "No visibility into SLO compliance trends"
+          ],
+          "relatedHypotheses": ["inadequate-alerting", "missing-key-metrics"],
+          "estimatedTime": "20-35 minutes",
+          "likelihood": 0.5
+        }
+      ],
+
+      "recommendations": [
+        {
+          "id": "audit-current-monitoring",
+          "type": "diagnostic",
+          "action": "Audit current monitoring coverage against RED/USE methodology for {{primarySubject}}",
+          "tools": ["Prometheus queries", "Grafana dashboards", "Monitoring inventory spreadsheet"],
+          "expectedOutcome": "Complete inventory of monitoring gaps and priorities",
+          "prerequisites": ["Access to monitoring systems", "Service inventory"],
+          "priority": 9
+        },
+        {
+          "id": "review-alert-coverage",
+          "type": "diagnostic",
+          "action": "Review alert rules for coverage of critical failure scenarios",
+          "tools": ["Alertmanager", "PagerDuty", "OpsGenie", "Alert rule documentation"],
+          "expectedOutcome": "Identification of missing alerts and misconfigured thresholds",
+          "prerequisites": ["Alert rule access", "SLO documentation"],
+          "priority": 9
+        },
+        {
+          "id": "implement-red-metrics",
+          "type": "remedial",
+          "action": "Implement RED metrics (Rate, Errors, Duration) for all services",
+          "tools": ["Prometheus client libraries", "OpenTelemetry", "StatsD"],
+          "expectedOutcome": "Comprehensive request-level metrics for all services",
+          "prerequisites": ["Metrics infrastructure", "Application instrumentation"],
+          "priority": 8,
+          "documentationLinks": [
+            "https://www.weave.works/blog/the-red-method-key-metrics-for-microservices-architecture/"
+          ]
+        },
+        {
+          "id": "implement-use-metrics",
+          "type": "remedial",
+          "action": "Implement USE metrics (Utilization, Saturation, Errors) for infrastructure",
+          "tools": ["node_exporter", "cAdvisor", "kube-state-metrics", "CloudWatch"],
+          "expectedOutcome": "Complete resource utilization visibility",
+          "prerequisites": ["Infrastructure access", "Metrics collection agents"],
+          "priority": 8,
+          "documentationLinks": ["https://www.brendangregg.com/usemethod.html"]
+        },
+        {
+          "id": "setup-centralized-logging",
+          "type": "remedial",
+          "action": "Set up centralized log aggregation with structured logging",
+          "tools": ["ELK Stack", "Loki", "CloudWatch Logs", "Datadog Logs"],
+          "expectedOutcome": "Searchable, correlated logs across all services",
+          "prerequisites": ["Log aggregation infrastructure", "Logging standards"],
+          "priority": 7,
+          "documentationLinks": ["https://grafana.com/docs/loki/latest/"]
+        },
+        {
+          "id": "implement-distributed-tracing",
+          "type": "remedial",
+          "action": "Implement distributed tracing for request flow visibility",
+          "tools": ["Jaeger", "Zipkin", "AWS X-Ray", "OpenTelemetry"],
+          "expectedOutcome": "End-to-end request tracing across services",
+          "prerequisites": ["Tracing infrastructure", "Application instrumentation"],
+          "priority": 7,
+          "documentationLinks": ["https://opentelemetry.io/docs/"]
+        },
+        {
+          "id": "define-slos",
+          "type": "remedial",
+          "action": "Define and implement SLOs with error budget tracking",
+          "tools": ["SLO frameworks", "Prometheus recording rules", "Grafana SLO dashboards"],
+          "expectedOutcome": "Measurable reliability targets with error budget visibility",
+          "prerequisites": ["Stakeholder alignment on SLOs", "Metrics infrastructure"],
+          "priority": 6,
+          "documentationLinks": ["https://sre.google/workbook/implementing-slos/"]
+        },
+        {
+          "id": "create-runbooks",
+          "type": "remedial",
+          "action": "Create runbooks for common alert scenarios and troubleshooting",
+          "tools": ["Documentation platforms", "Runbook automation tools"],
+          "expectedOutcome": "Faster incident response with documented procedures",
+          "prerequisites": ["Alert inventory", "Incident history analysis"],
+          "priority": 6
+        }
+      ],
+      "severity": "medium",
+      "qualityThreshold": 0.55
+    }
+  ],
+
+  "testCases": [
+    {
+      "id": "test-scaling-basic",
+      "input": "We're having scaling issues and auto-scaling is not working properly",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-scaling-issues"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-scaling-hpa",
+      "input": "The HPA is not scaling up pods even though CPU usage is high",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-scaling-issues"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-scaling-capacity",
+      "input": "We cannot scale out because of resource quota limits in the namespace",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-scaling-issues"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-scaling-cluster",
+      "input": "Cluster autoscaler is not provisioning new nodes when pods are pending",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-scaling-issues"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-deployment-basic",
+      "input": "Our deployment failed and pods are not starting",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-deployment-failures"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-deployment-image",
+      "input": "Getting ImagePullBackOff error, deployment cannot pull the container image",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-deployment-failures"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-deployment-crash",
+      "input": "Pods are in CrashLoopBackOff state after the latest deployment",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-deployment-failures"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-deployment-rollout",
+      "input": "The rollout is stuck and not progressing, need to rollback",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-deployment-failures"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-deployment-probe",
+      "input": "Readiness probe is failing and pods are not becoming ready",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-deployment-failures"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-monitoring-basic",
+      "input": "We have monitoring gaps and no visibility into our services",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-monitoring-gaps"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-monitoring-metrics",
+      "input": "Missing metrics for our critical services, cannot see what's happening",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-monitoring-gaps"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-monitoring-alerts",
+      "input": "No alerts are configured for our production services",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-monitoring-gaps"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-monitoring-logging",
+      "input": "We have no centralized logging and cannot troubleshoot issues",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-monitoring-gaps"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-monitoring-tracing",
+      "input": "No distributed tracing implemented, cannot trace requests across services",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-monitoring-gaps"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-scaling-deployment",
+      "input": "Deployment failed because auto-scaling could not provision enough resources",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-scaling-issues", "infra-deployment-failures"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-monitoring-deployment",
+      "input": "Deployment issues went unnoticed due to monitoring gaps and missing alerts",
+      "expectedDomain": "infrastructure",
+      "expectedPatternIds": ["infra-monitoring-gaps", "infra-deployment-failures"],
+      "minConfidence": 0.7
+    }
+  ]
+}

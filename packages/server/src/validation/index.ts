@@ -28,6 +28,7 @@ export { ZodErrorTransformer, createZodErrorTransformer } from "./zod-transforme
 export type { ZodErrorTransformerConfig } from "./zod-transformer.js";
 
 export {
+  SchemaCompositionError,
   SchemaNotFoundError,
   SchemaRegistry,
   SchemaValidationError,
@@ -71,3 +72,64 @@ export type {
   SerializedValidationContext,
   SerializedValidationResult,
 } from "./serialization.js";
+
+// Conditional Validation - Requirements: 3.3
+export {
+  ConditionalValidationBuilder,
+  ConditionalValidationError,
+  allOf,
+  anyOf,
+  createConditionalValidation,
+  fieldEquals,
+  fieldExists,
+  fieldMatches,
+  fieldTruthy,
+  not,
+} from "./conditional-validation.js";
+export type {
+  ConditionFn,
+  ConditionalRule,
+  ConditionalValidationConfig,
+} from "./conditional-validation.js";
+
+// Custom Validators - Requirements: 3.5
+export {
+  CustomValidationBuilder,
+  CustomValidatorNotFoundError,
+  CustomValidatorRegistrationError,
+  CustomValidatorRegistry,
+  createCustomValidation,
+  createCustomValidatorRegistry,
+  customResultToFieldError,
+} from "./custom-validators.js";
+export type {
+  CustomValidatorConfig,
+  CustomValidatorContext,
+  CustomValidatorFn,
+  CustomValidatorResult,
+} from "./custom-validators.js";
+
+// Built-in Validators - Requirements: 3.6
+export {
+  BUILT_IN_VALIDATORS,
+  BuiltInValidators,
+  createBuiltInValidators,
+  validateEmail,
+  validateISODate,
+  validateJSON,
+  validateURL,
+  validateUUID,
+} from "./built-in-validators.js";
+export type {
+  BuiltInValidatorName,
+  EmailValidationResult,
+  EmailValidatorConfig,
+  ISODateValidationResult,
+  ISODateValidatorConfig,
+  JSONValidationResult,
+  JSONValidatorConfig,
+  URLValidationResult,
+  URLValidatorConfig,
+  UUIDValidationResult,
+  UUIDValidatorConfig,
+} from "./built-in-validators.js";

@@ -5,7 +5,7 @@
  * error response formatting, HTTP status code mapping, and field-level
  * validation error details.
  *
- * Requirements: 15.3, 15.4, 15.5
+ * Requirements: 4.1, 8.1, 8.3, 8.4, 8.5, 15.3, 15.4, 15.5
  */
 
 import type { NextFunction, Request, Response } from "express";
@@ -20,9 +20,18 @@ import {
 } from "../../utils/errors.js";
 import { Logger } from "../../utils/logger.js";
 import {
+  createRESTFormatter,
+  createZodErrorTransformer,
+  type FieldError,
+  type RESTValidationErrorResponse,
+  type ValidationContext,
+  type ValidationResult,
+} from "../../validation/index.js";
+import {
   buildErrorResponse,
   buildValidationErrorResponse,
   ErrorCodes,
+  generateRequestId,
   getHttpStatusForErrorCode,
   type ErrorCode,
 } from "../types/api-response.js";
@@ -76,18 +85,23 @@ export class NotFoundError extends ApiError {
 
 /**
  * Validation error for invalid request parameters
- * Requirements: 15.3
+ * Requirements: 4.1, 8.1, 8.3, 8.4, 8.5, 15.3
+ *
+ * Supports both legacy field errors (Record<string, string>) and
+ * enhanced field errors (FieldError[]) for backward compatibility.
  */
 export class ValidationApiError extends ApiError {
   public readonly fieldErrors: Record<string, string>;
+  public readonly enhancedErrors?: FieldError[];
 
-  constructor(fieldErrors: Record<string, string>) {
+  constructor(fieldErrors: Record<string, string>, enhancedErrors?: FieldError[]) {
     super("Invalid request parameters", 400, ErrorCodes.VALIDATION_ERROR, {
       details: fieldErrors,
       suggestion: "Check that all required fields are provided with valid values",
     });
     this.name = "ValidationApiError";
     this.fieldErrors = fieldErrors;
+    this.enhancedErrors = enhancedErrors;
   }
 }
 
@@ -179,6 +193,8 @@ function mapUtilErrorCodeToApiErrorCode(code: string): ErrorCode {
 /**
  * Formats Zod validation errors into field-level error messages
  * Requirements: 15.3
+ *
+ * @deprecated Use transformZodErrorsEnhanced for enhanced error details
  */
 export function formatZodErrors(error: ZodError): Record<string, string> {
   const fieldErrors: Record<string, string> = {};
@@ -192,47 +208,152 @@ export function formatZodErrors(error: ZodError): Record<string, string> {
   return fieldErrors;
 }
 
+// Singleton instances for performance
+const zodErrorTransformer = createZodErrorTransformer();
+const restFormatter = createRESTFormatter();
+
 /**
- * Error handler middleware for Express
- * Converts various error types to consistent API error responses
+ * Transforms Zod validation errors into enhanced FieldError array
+ * Requirements: 4.1, 7.1, 7.2, 7.3, 7.4
  *
- * Requirements: 15.3, 15.4, 15.5
+ * @param error - The Zod error to transform
+ * @param input - The original input for value extraction
+ * @returns Array of FieldErrors with full details
  */
-export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction): void {
-  // Log the error for debugging
-  Logger.error("API Error", err);
+export function transformZodErrorsEnhanced(error: ZodError, input: unknown): FieldError[] {
+  return zodErrorTransformer.transform(error, input);
+}
 
-  // Handle ApiError and its subclasses
-  if (err instanceof ApiError) {
-    const response = buildErrorResponse(err.message, err.code, {
-      suggestion: err.suggestion,
-      details: err.details,
+/**
+ * Builds an enhanced validation error response using RESTFormatter
+ * Requirements: 4.1, 8.1, 8.3, 8.4
+ *
+ * @param errors - Array of FieldErrors
+ * @param requestId - Request ID for tracing
+ * @returns RESTValidationErrorResponse with enhanced details
+ */
+export function buildEnhancedValidationErrorResponse(
+  errors: FieldError[],
+  requestId?: string
+): RESTValidationErrorResponse {
+  const context: ValidationContext = {
+    endpoint: "unknown",
+    operation: "validate",
+    requestId: requestId ?? generateRequestId(),
+    timestamp: new Date(),
+  };
+
+  const validationResult: ValidationResult = {
+    valid: false,
+    errors,
+    context,
+    validationTimeMs: 0,
+  };
+
+  return restFormatter.format(validationResult);
+}
+
+/**
+ * Handles ApiError and its subclasses
+ * @returns true if error was handled, false otherwise
+ */
+function handleApiError(err: Error, req: Request, res: Response): boolean {
+  if (!(err instanceof ApiError)) {
+    return false;
+  }
+
+  // Check if this is a ValidationApiError with enhanced errors
+  if (err instanceof ValidationApiError && err.enhancedErrors) {
+    const enhancedResponse = buildEnhancedValidationErrorResponse(
+      err.enhancedErrors,
+      (req as Request & { requestId?: string }).requestId
+    );
+    res.status(err.statusCode).json(enhancedResponse);
+    return true;
+  }
+
+  const response = buildErrorResponse(err.message, err.code, {
+    suggestion: err.suggestion,
+    details: err.details,
+  });
+  res.status(err.statusCode).json(response);
+  return true;
+}
+
+/**
+ * Handles Zod validation errors with enhanced transformation
+ * @returns true if error was handled, false otherwise
+ */
+function handleZodError(err: Error, req: Request, res: Response): boolean {
+  if (!(err instanceof ZodError)) {
+    return false;
+  }
+
+  // Get the original input from request body for value extraction
+  const input = req.body;
+
+  // Transform to enhanced FieldError array
+  const enhancedErrors = transformZodErrorsEnhanced(err, input);
+
+  // Build enhanced response using RESTFormatter
+  const enhancedResponse = buildEnhancedValidationErrorResponse(
+    enhancedErrors,
+    (req as Request & { requestId?: string }).requestId
+  );
+
+  // Return enhanced response (maintains backward compatibility structure)
+  res.status(400).json(enhancedResponse);
+  return true;
+}
+
+/**
+ * Handles utility ValidationError
+ * @returns true if error was handled, false otherwise
+ */
+function handleUtilValidationError(err: Error, res: Response): boolean {
+  if (!(err instanceof UtilValidationError)) {
+    return false;
+  }
+
+  const fieldErrors: Record<string, string> = {
+    [err.field]: err.constraint,
+  };
+  const response = buildValidationErrorResponse(fieldErrors);
+  res.status(400).json(response);
+  return true;
+}
+
+/**
+ * Handles CognitiveError and its subclasses (DatabaseError, EmbeddingError, ReasoningError)
+ * @returns true if error was handled, false otherwise
+ */
+function handleCognitiveErrors(err: Error, res: Response): boolean {
+  if (err instanceof EmbeddingError) {
+    const response = buildErrorResponse(err.getUserMessage(), ErrorCodes.SERVICE_UNAVAILABLE, {
+      suggestion: "The embedding service is temporarily unavailable",
     });
-    res.status(err.statusCode).json(response);
-    return;
+    res.status(503).json(response);
+    return true;
   }
 
-  // Handle Zod validation errors
-  // Requirements: 15.3
-  if (err instanceof ZodError) {
-    const fieldErrors = formatZodErrors(err);
-    const response = buildValidationErrorResponse(fieldErrors);
-    res.status(400).json(response);
-    return;
+  if (err instanceof ReasoningError) {
+    const response = buildErrorResponse(err.getUserMessage(), ErrorCodes.INTERNAL_ERROR, {
+      suggestion: "Please try a simpler query or try again later",
+    });
+    res.status(500).json(response);
+    return true;
   }
 
-  // Handle utility ValidationError
-  // Requirements: 15.3
-  if (err instanceof UtilValidationError) {
-    const fieldErrors: Record<string, string> = {
-      [err.field]: err.constraint,
-    };
-    const response = buildValidationErrorResponse(fieldErrors);
-    res.status(400).json(response);
-    return;
+  if (err instanceof DatabaseError) {
+    const apiCode = mapUtilErrorCodeToApiErrorCode(err.code);
+    const statusCode = getHttpStatusForErrorCode(apiCode);
+    const response = buildErrorResponse(err.getUserMessage(), apiCode, {
+      suggestion: "Please try again in a moment",
+    });
+    res.status(statusCode).json(response);
+    return true;
   }
 
-  // Handle CognitiveError and subclasses
   if (err instanceof CognitiveError) {
     const apiCode = mapUtilErrorCodeToApiErrorCode(err.code);
     const statusCode = getHttpStatusForErrorCode(apiCode);
@@ -241,71 +362,63 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
       details: err.context.metadata,
     });
     res.status(statusCode).json(response);
-    return;
+    return true;
   }
 
-  // Handle DatabaseError specifically for better messages
-  if (err instanceof DatabaseError) {
-    const apiCode = mapUtilErrorCodeToApiErrorCode(err.code);
-    const statusCode = getHttpStatusForErrorCode(apiCode);
-    const response = buildErrorResponse(err.getUserMessage(), apiCode, {
-      suggestion: "Please try again in a moment",
-    });
-    res.status(statusCode).json(response);
-    return;
-  }
+  return false;
+}
 
-  // Handle EmbeddingError specifically
-  if (err instanceof EmbeddingError) {
-    const response = buildErrorResponse(err.getUserMessage(), ErrorCodes.SERVICE_UNAVAILABLE, {
-      suggestion: "The embedding service is temporarily unavailable",
-    });
-    res.status(503).json(response);
-    return;
-  }
-
-  // Handle ReasoningError specifically
-  if (err instanceof ReasoningError) {
-    const response = buildErrorResponse(err.getUserMessage(), ErrorCodes.INTERNAL_ERROR, {
-      suggestion: "Please try a simpler query or try again later",
-    });
-    res.status(500).json(response);
-    return;
-  }
-
-  // Handle generic errors with common patterns
+/**
+ * Handles generic errors based on message patterns
+ * @returns true if error was handled, false otherwise
+ */
+function handleGenericError(err: Error, res: Response): boolean {
   const errorMessage = err.message || "Internal server error";
+  const lowerMessage = errorMessage.toLowerCase();
 
-  // Check for common error patterns
-  if (errorMessage.toLowerCase().includes("not found")) {
+  if (lowerMessage.includes("not found")) {
     const response = buildErrorResponse(errorMessage, ErrorCodes.NOT_FOUND, {
       suggestion: "Verify the resource exists and you have access to it",
     });
     res.status(404).json(response);
-    return;
+    return true;
   }
 
-  if (
-    errorMessage.toLowerCase().includes("unauthorized") ||
-    errorMessage.toLowerCase().includes("authentication")
-  ) {
+  if (lowerMessage.includes("unauthorized") || lowerMessage.includes("authentication")) {
     const response = buildErrorResponse(errorMessage, ErrorCodes.UNAUTHORIZED, {
       suggestion: "Provide valid authentication credentials",
     });
     res.status(401).json(response);
-    return;
+    return true;
   }
 
-  if (
-    errorMessage.toLowerCase().includes("forbidden") ||
-    errorMessage.toLowerCase().includes("permission")
-  ) {
+  if (lowerMessage.includes("forbidden") || lowerMessage.includes("permission")) {
     const response = buildErrorResponse(errorMessage, ErrorCodes.FORBIDDEN, {
       suggestion: "You do not have permission to perform this action",
     });
     res.status(403).json(response);
-    return;
+    return true;
   }
+
+  return false;
+}
+
+/**
+ * Error handler middleware for Express
+ * Converts various error types to consistent API error responses
+ *
+ * Requirements: 4.1, 8.1, 8.3, 8.4, 8.5, 15.3, 15.4, 15.5
+ */
+export function errorHandler(err: Error, req: Request, res: Response, _next: NextFunction): void {
+  // Log the error for debugging
+  Logger.error("API Error", err);
+
+  // Try each error handler in order of specificity
+  if (handleApiError(err, req, res)) return;
+  if (handleZodError(err, req, res)) return;
+  if (handleUtilValidationError(err, res)) return;
+  if (handleCognitiveErrors(err, res)) return;
+  if (handleGenericError(err, res)) return;
 
   // Default to internal server error
   const response = buildErrorResponse("Internal server error", ErrorCodes.INTERNAL_ERROR, {

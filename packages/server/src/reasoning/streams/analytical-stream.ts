@@ -8,8 +8,11 @@
 import type { ReasoningStream, StreamProcessor } from "../stream.types.js";
 import { StreamStatus, StreamType, type Problem, type StreamResult } from "../types.js";
 // AnalyticalStreamProcessor stream processor
-import { AnalyticalStreamProcessor } from "./analytical-stream-processor.js";
-export { AnalyticalStreamProcessor };
+import {
+  AnalyticalStreamProcessor,
+  type AnalyticalStreamProcessorOptions,
+} from "./analytical-stream-processor.js";
+export { AnalyticalStreamProcessor, type AnalyticalStreamProcessorOptions };
 
 /**
  * Analytical Reasoning Stream Wrapper

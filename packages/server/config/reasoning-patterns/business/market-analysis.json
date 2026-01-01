@@ -1,0 +1,717 @@
+{
+  "version": "1.0.0",
+  "domain": "market-analysis",
+  "description": "Patterns for market analysis including competitive pressure, market trends, and positioning issues",
+  "patterns": [
+    {
+      "id": "competitive-pressure",
+      "name": "Competitive Pressure Detection",
+      "description": "Detects issues related to competitive threats, market share loss, and competitive positioning challenges",
+      "indicators": [
+        { "type": "exact", "value": "competitive pressure", "weight": 0.95 },
+        { "type": "exact", "value": "competitor threat", "weight": 0.95 },
+        { "type": "exact", "value": "losing market share", "weight": 0.95 },
+        { "type": "exact", "value": "market share decline", "weight": 0.95 },
+        { "type": "exact", "value": "competitive landscape", "weight": 0.9 },
+        { "type": "exact", "value": "competitor analysis", "weight": 0.9 },
+        { "type": "exact", "value": "competitive advantage", "weight": 0.85 },
+        { "type": "exact", "value": "competitor pricing", "weight": 0.85 },
+        { "type": "exact", "value": "price war", "weight": 0.85 },
+        { "type": "exact", "value": "market competition", "weight": 0.8 },
+        { "type": "exact", "value": "competitive differentiation", "weight": 0.8 },
+        { "type": "fuzzy", "value": "competitors gaining ground", "weight": 0.85 },
+        { "type": "fuzzy", "value": "losing to competitors", "weight": 0.9 },
+        { "type": "fuzzy", "value": "competitive threat increasing", "weight": 0.85 },
+        {
+          "type": "regex",
+          "value": "\\b(competitor|competition).*threat\\b",
+          "weight": 0.8,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bmarket.*share.*(loss|decline|drop)\\b", "weight": 0.85 },
+        { "type": "exact", "value": "win rate", "weight": 0.75, "keyTermCategory": "domainTerms" },
+        {
+          "type": "exact",
+          "value": "competitive intel",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "moat", "weight": 0.7, "keyTermCategory": "domainTerms" }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "internal competition", "weight": 0.4 },
+        { "type": "exact", "value": "team competition", "weight": 0.35 },
+        { "type": "exact", "value": "healthy competition", "weight": 0.3 }
+      ],
+      "hypotheses": [
+        {
+          "id": "feature-parity-gap",
+          "statement": "Competitors may have achieved feature parity or superiority, eroding {{primarySubject}}'s competitive advantage",
+          "investigationSteps": [
+            "Conduct comprehensive feature comparison with top 3-5 competitors",
+            "Analyze competitor product releases and roadmap announcements",
+            "Review win/loss analysis for feature-related losses",
+            "Survey customers about competitor feature preferences",
+            "Track competitor review sites for feature mentions"
+          ],
+          "expectedFindings": [
+            "Competitors have matched or exceeded key differentiating features",
+            "Recent competitor releases addressing previous gaps",
+            "Feature gaps mentioned in lost deal analysis",
+            "Customer requests for features competitors already have",
+            "Declining feature advantage scores in analyst reports"
+          ],
+          "relatedHypotheses": ["pricing-pressure", "innovation-lag"],
+          "estimatedTime": "3-5 days",
+          "likelihood": 0.7
+        },
+        {
+          "id": "pricing-pressure",
+          "statement": "Competitor pricing strategies may be undercutting {{primarySubject}}'s market position",
+          "investigationSteps": [
+            "Gather competitive pricing intelligence across all tiers",
+            "Analyze price-to-value perception in customer surveys",
+            "Review lost deals for pricing-related reasons",
+            "Compare total cost of ownership with competitors",
+            "Assess competitor discounting patterns and promotions"
+          ],
+          "expectedFindings": [
+            "Competitors offering similar value at lower prices",
+            "Aggressive competitor discounting in key segments",
+            "Price mentioned as primary reason in lost deals",
+            "Customer perception of poor price-to-value ratio",
+            "Competitor promotional campaigns affecting win rates"
+          ],
+          "relatedHypotheses": ["feature-parity-gap", "value-proposition-weakness"],
+          "estimatedTime": "2-3 days",
+          "likelihood": 0.65
+        },
+        {
+          "id": "innovation-lag",
+          "statement": "{{primarySubject}} may be falling behind competitors in innovation and product development velocity",
+          "investigationSteps": [
+            "Compare product release frequency with competitors",
+            "Analyze time-to-market for new features vs competitors",
+            "Review industry analyst reports on innovation leadership",
+            "Track patent filings and R&D investments of competitors",
+            "Assess customer perception of innovation leadership"
+          ],
+          "expectedFindings": [
+            "Competitors releasing features faster",
+            "Longer development cycles compared to industry",
+            "Declining innovation scores in analyst reports",
+            "Competitors leading in emerging technology adoption",
+            "Customer perception of product stagnation"
+          ],
+          "relatedHypotheses": ["feature-parity-gap"],
+          "estimatedTime": "3-4 days",
+          "likelihood": 0.55
+        },
+        {
+          "id": "value-proposition-weakness",
+          "statement": "{{primarySubject}}'s value proposition may no longer resonate with target market needs",
+          "investigationSteps": [
+            "Review value proposition messaging effectiveness",
+            "Analyze customer feedback on perceived value",
+            "Compare value messaging with competitor positioning",
+            "Assess alignment between value proposition and customer priorities",
+            "Test value proposition with target audience"
+          ],
+          "expectedFindings": [
+            "Value proposition not addressing current customer priorities",
+            "Competitor messaging resonating better with market",
+            "Disconnect between stated value and customer perception",
+            "Outdated value proposition not reflecting product evolution",
+            "Low recall of key differentiators among prospects"
+          ],
+          "relatedHypotheses": ["pricing-pressure"],
+          "estimatedTime": "2-3 days",
+          "likelihood": 0.5
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "competitive-intelligence",
+          "type": "diagnostic",
+          "action": "Establish systematic competitive intelligence program to monitor {{primarySubject}}'s competitive landscape",
+          "tools": ["Crayon", "Klue", "Kompyte", "G2 Crowd", "Gartner"],
+          "expectedOutcome": "Real-time visibility into competitor moves and market dynamics",
+          "prerequisites": ["Competitor list defined", "Intelligence sources identified"],
+          "priority": 9
+        },
+        {
+          "id": "win-loss-analysis",
+          "type": "diagnostic",
+          "action": "Implement structured win/loss analysis program to understand competitive dynamics",
+          "tools": ["Clozd", "Primary Intelligence", "CRM analysis", "Customer interviews"],
+          "expectedOutcome": "Quantified understanding of why deals are won or lost to competitors",
+          "prerequisites": ["Sales team cooperation", "Interview process defined"],
+          "priority": 9
+        },
+        {
+          "id": "differentiation-strategy",
+          "type": "remedial",
+          "action": "Develop and execute differentiation strategy to strengthen competitive position",
+          "tools": ["Strategy frameworks", "Product roadmap", "Marketing positioning"],
+          "expectedOutcome": "Clear, defensible competitive differentiation in target segments",
+          "prerequisites": ["Competitive analysis complete", "Strategic alignment"],
+          "priority": 8
+        },
+        {
+          "id": "pricing-optimization",
+          "type": "remedial",
+          "action": "Optimize pricing strategy based on competitive positioning and value delivery",
+          "tools": ["Price Intelligently", "Profitwell", "Pricing research"],
+          "expectedOutcome": "Competitive pricing that reflects value and market position",
+          "prerequisites": ["Competitive pricing data", "Value metrics defined"],
+          "priority": 8
+        },
+        {
+          "id": "battle-cards",
+          "type": "remedial",
+          "action": "Create and maintain competitive battle cards for sales enablement",
+          "tools": ["Highspot", "Seismic", "Sales enablement platforms"],
+          "expectedOutcome": "Sales team equipped to effectively compete against key competitors",
+          "prerequisites": ["Competitive intelligence gathered", "Sales input collected"],
+          "priority": 7
+        },
+        {
+          "id": "innovation-acceleration",
+          "type": "remedial",
+          "action": "Accelerate product innovation to regain competitive advantage",
+          "tools": ["Agile methodologies", "Customer feedback loops", "R&D investment"],
+          "expectedOutcome": "Faster time-to-market and restored innovation leadership",
+          "prerequisites": ["Product strategy defined", "Engineering capacity"],
+          "priority": 7
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "market-trend",
+      "name": "Market Trend Detection",
+      "description": "Detects issues related to market trends, industry shifts, and changing market dynamics",
+      "indicators": [
+        { "type": "exact", "value": "market trend", "weight": 0.95 },
+        { "type": "exact", "value": "market trends", "weight": 0.95 },
+        { "type": "exact", "value": "industry trend", "weight": 0.95 },
+        { "type": "exact", "value": "market shift", "weight": 0.9 },
+        { "type": "exact", "value": "market dynamics", "weight": 0.9 },
+        { "type": "exact", "value": "market evolution", "weight": 0.85 },
+        { "type": "exact", "value": "emerging market", "weight": 0.85 },
+        { "type": "exact", "value": "market disruption", "weight": 0.9 },
+        { "type": "exact", "value": "industry disruption", "weight": 0.9 },
+        { "type": "exact", "value": "market growth", "weight": 0.8 },
+        { "type": "exact", "value": "market decline", "weight": 0.85 },
+        { "type": "exact", "value": "market saturation", "weight": 0.85 },
+        { "type": "fuzzy", "value": "market is changing", "weight": 0.8 },
+        { "type": "fuzzy", "value": "industry transformation", "weight": 0.85 },
+        { "type": "fuzzy", "value": "market opportunity", "weight": 0.75 },
+        {
+          "type": "regex",
+          "value": "\\bmarket.*(trend|shift|change|evolution)\\b",
+          "weight": 0.8,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bindustry.*(trend|shift|disruption)\\b", "weight": 0.8 },
+        { "type": "exact", "value": "tam", "weight": 0.7, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "sam", "weight": 0.7, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "som", "weight": 0.7, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "cagr", "weight": 0.7, "keyTermCategory": "domainTerms" }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "fashion trend", "weight": 0.4 },
+        { "type": "exact", "value": "social media trend", "weight": 0.35 },
+        { "type": "exact", "value": "trending topic", "weight": 0.3 }
+      ],
+      "hypotheses": [
+        {
+          "id": "technology-disruption",
+          "statement": "Emerging technologies may be disrupting {{primarySubject}}'s market and creating new competitive dynamics",
+          "investigationSteps": [
+            "Identify emerging technologies affecting the industry",
+            "Analyze technology adoption curves and timing",
+            "Review analyst reports on technology disruption",
+            "Assess competitor technology investments and strategies",
+            "Evaluate impact on customer needs and expectations"
+          ],
+          "expectedFindings": [
+            "New technologies enabling alternative solutions",
+            "Startups leveraging new tech to enter market",
+            "Customer expectations shifting due to technology",
+            "Traditional approaches becoming obsolete",
+            "Technology-driven business model changes"
+          ],
+          "relatedHypotheses": ["customer-behavior-shift", "business-model-evolution"],
+          "estimatedTime": "3-5 days",
+          "likelihood": 0.7
+        },
+        {
+          "id": "customer-behavior-shift",
+          "statement": "Customer buying behavior and preferences may be shifting in ways that affect {{primarySubject}}'s market position",
+          "investigationSteps": [
+            "Analyze customer behavior data and trends",
+            "Review industry research on buyer preferences",
+            "Survey customers about changing needs and priorities",
+            "Track customer journey changes over time",
+            "Assess generational differences in buying behavior"
+          ],
+          "expectedFindings": [
+            "Shift in purchase decision criteria",
+            "New buying channels gaining preference",
+            "Changed expectations for product/service delivery",
+            "Different value priorities among customer segments",
+            "Generational shifts affecting market dynamics"
+          ],
+          "relatedHypotheses": ["technology-disruption", "market-segment-shift"],
+          "estimatedTime": "2-4 days",
+          "likelihood": 0.65
+        },
+        {
+          "id": "market-segment-shift",
+          "statement": "Market segments may be evolving with some growing and others declining, affecting {{primarySubject}}'s addressable market",
+          "investigationSteps": [
+            "Analyze market segment size and growth rates",
+            "Review industry reports on segment dynamics",
+            "Track customer migration between segments",
+            "Assess new segment emergence and characteristics",
+            "Evaluate segment profitability trends"
+          ],
+          "expectedFindings": [
+            "Core segments declining or commoditizing",
+            "New high-growth segments emerging",
+            "Customer migration to different segments",
+            "Segment boundaries blurring or shifting",
+            "Profitability changes across segments"
+          ],
+          "relatedHypotheses": ["customer-behavior-shift"],
+          "estimatedTime": "3-4 days",
+          "likelihood": 0.6
+        },
+        {
+          "id": "business-model-evolution",
+          "statement": "Industry business models may be evolving in ways that require {{primarySubject}} to adapt",
+          "investigationSteps": [
+            "Analyze business model innovations in the industry",
+            "Review competitor business model changes",
+            "Assess customer preferences for different models",
+            "Evaluate economics of emerging business models",
+            "Track investor interest in new business models"
+          ],
+          "expectedFindings": [
+            "Subscription models replacing one-time purchases",
+            "Platform and marketplace models gaining traction",
+            "Bundling/unbundling trends affecting value chains",
+            "New monetization approaches emerging",
+            "Customer preference for different engagement models"
+          ],
+          "relatedHypotheses": ["technology-disruption"],
+          "estimatedTime": "2-3 days",
+          "likelihood": 0.55
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "market-research",
+          "type": "diagnostic",
+          "action": "Conduct comprehensive market research to understand current trends affecting {{primarySubject}}",
+          "tools": ["Gartner", "Forrester", "IDC", "Industry associations", "Primary research"],
+          "expectedOutcome": "Clear understanding of market trends and their implications",
+          "prerequisites": ["Research budget", "Research scope defined"],
+          "priority": 9
+        },
+        {
+          "id": "trend-monitoring",
+          "type": "diagnostic",
+          "action": "Establish ongoing market trend monitoring and early warning system",
+          "tools": [
+            "Google Trends",
+            "Industry newsletters",
+            "Analyst briefings",
+            "Social listening"
+          ],
+          "expectedOutcome": "Early identification of emerging trends and market shifts",
+          "prerequisites": ["Monitoring sources identified", "Review cadence established"],
+          "priority": 8
+        },
+        {
+          "id": "scenario-planning",
+          "type": "diagnostic",
+          "action": "Develop scenario plans for different market evolution paths",
+          "tools": ["Scenario planning frameworks", "Strategy workshops", "Expert panels"],
+          "expectedOutcome": "Prepared strategies for multiple market scenarios",
+          "prerequisites": ["Key uncertainties identified", "Leadership engagement"],
+          "priority": 8
+        },
+        {
+          "id": "customer-research",
+          "type": "diagnostic",
+          "action": "Conduct customer research to understand evolving needs and preferences",
+          "tools": ["Customer surveys", "Focus groups", "Jobs-to-be-done interviews"],
+          "expectedOutcome": "Deep understanding of customer evolution and future needs",
+          "prerequisites": ["Research methodology", "Customer access"],
+          "priority": 8
+        },
+        {
+          "id": "strategic-adaptation",
+          "type": "remedial",
+          "action": "Adapt strategy and product roadmap to align with market trends",
+          "tools": ["Strategic planning", "Product roadmap", "Resource allocation"],
+          "expectedOutcome": "Strategy aligned with market direction and opportunities",
+          "prerequisites": ["Trend analysis complete", "Strategic alignment"],
+          "priority": 8
+        },
+        {
+          "id": "innovation-investment",
+          "type": "remedial",
+          "action": "Invest in innovation to capitalize on emerging trends and opportunities",
+          "tools": ["R&D programs", "Innovation labs", "Partnerships", "Acquisitions"],
+          "expectedOutcome": "Positioned to lead or fast-follow market evolution",
+          "prerequisites": ["Innovation priorities defined", "Investment capacity"],
+          "priority": 7
+        },
+        {
+          "id": "market-expansion",
+          "type": "remedial",
+          "action": "Explore expansion into growing market segments or adjacent markets",
+          "tools": ["Market entry analysis", "Segment prioritization", "Go-to-market planning"],
+          "expectedOutcome": "Diversified market presence and growth opportunities",
+          "prerequisites": ["Segment analysis complete", "Expansion resources"],
+          "priority": 7
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "positioning-issues",
+      "name": "Market Positioning Issues",
+      "description": "Detects issues related to market positioning, brand perception, and differentiation challenges",
+      "indicators": [
+        { "type": "exact", "value": "market positioning", "weight": 0.95 },
+        { "type": "exact", "value": "positioning problem", "weight": 0.95 },
+        { "type": "exact", "value": "brand positioning", "weight": 0.95 },
+        { "type": "exact", "value": "positioning strategy", "weight": 0.9 },
+        { "type": "exact", "value": "market perception", "weight": 0.9 },
+        { "type": "exact", "value": "brand perception", "weight": 0.9 },
+        { "type": "exact", "value": "differentiation", "weight": 0.85 },
+        { "type": "exact", "value": "unique value proposition", "weight": 0.85 },
+        { "type": "exact", "value": "value proposition", "weight": 0.8 },
+        { "type": "exact", "value": "brand identity", "weight": 0.8 },
+        { "type": "exact", "value": "market segment targeting", "weight": 0.8 },
+        { "type": "exact", "value": "target market", "weight": 0.75 },
+        { "type": "fuzzy", "value": "unclear positioning", "weight": 0.9 },
+        { "type": "fuzzy", "value": "positioning not resonating", "weight": 0.85 },
+        { "type": "fuzzy", "value": "brand confusion", "weight": 0.85 },
+        { "type": "fuzzy", "value": "differentiation challenge", "weight": 0.85 },
+        {
+          "type": "regex",
+          "value": "\\b(positioning|differentiation).*(problem|issue|challenge)\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bbrand.*(perception|identity|confusion)\\b", "weight": 0.8 },
+        { "type": "exact", "value": "icp", "weight": 0.7, "keyTermCategory": "domainTerms" },
+        {
+          "type": "exact",
+          "value": "ideal customer profile",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "buyer persona",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "body positioning", "weight": 0.4 },
+        { "type": "exact", "value": "physical positioning", "weight": 0.35 },
+        { "type": "exact", "value": "gps positioning", "weight": 0.4 }
+      ],
+      "hypotheses": [
+        {
+          "id": "unclear-differentiation",
+          "statement": "{{primarySubject}}'s differentiation may be unclear or not compelling to target customers",
+          "investigationSteps": [
+            "Survey customers and prospects about perceived differentiation",
+            "Analyze messaging clarity and consistency across channels",
+            "Compare positioning with competitor messaging",
+            "Review sales conversations for differentiation effectiveness",
+            "Test positioning statements with target audience"
+          ],
+          "expectedFindings": [
+            "Customers unable to articulate key differentiators",
+            "Inconsistent messaging across marketing channels",
+            "Positioning too similar to competitors",
+            "Sales struggling to communicate unique value",
+            "Low recall of differentiation in market research"
+          ],
+          "relatedHypotheses": ["target-market-mismatch", "messaging-ineffective"],
+          "estimatedTime": "2-4 days",
+          "likelihood": 0.7
+        },
+        {
+          "id": "target-market-mismatch",
+          "statement": "{{primarySubject}} may be targeting the wrong market segments or customer profiles",
+          "investigationSteps": [
+            "Analyze customer success patterns by segment",
+            "Review ideal customer profile accuracy",
+            "Compare target market with actual customer base",
+            "Assess product-market fit across segments",
+            "Evaluate segment profitability and growth potential"
+          ],
+          "expectedFindings": [
+            "Best customers don't match target profile",
+            "Low conversion rates in target segments",
+            "High churn in targeted customer segments",
+            "Product features misaligned with target needs",
+            "Untapped segments with better fit"
+          ],
+          "relatedHypotheses": ["unclear-differentiation", "value-proposition-gap"],
+          "estimatedTime": "3-5 days",
+          "likelihood": 0.65
+        },
+        {
+          "id": "messaging-ineffective",
+          "statement": "{{primarySubject}}'s messaging may not effectively communicate value to target audience",
+          "investigationSteps": [
+            "Analyze marketing content performance metrics",
+            "Review message testing results and A/B tests",
+            "Assess message resonance through customer feedback",
+            "Compare messaging effectiveness with competitors",
+            "Evaluate consistency across customer touchpoints"
+          ],
+          "expectedFindings": [
+            "Low engagement with marketing content",
+            "Poor performance in message testing",
+            "Customer feedback indicating confusion",
+            "Competitor messaging outperforming in tests",
+            "Inconsistent messaging creating confusion"
+          ],
+          "relatedHypotheses": ["unclear-differentiation"],
+          "estimatedTime": "2-3 days",
+          "likelihood": 0.6
+        },
+        {
+          "id": "value-proposition-gap",
+          "statement": "{{primarySubject}}'s value proposition may not align with what target customers actually value",
+          "investigationSteps": [
+            "Research customer priorities and decision criteria",
+            "Compare value proposition with customer needs",
+            "Analyze win/loss data for value-related factors",
+            "Survey customers about value perception",
+            "Review competitor value propositions"
+          ],
+          "expectedFindings": [
+            "Value proposition emphasizing wrong benefits",
+            "Customer priorities not reflected in messaging",
+            "Deals lost due to value perception issues",
+            "Gap between stated value and customer experience",
+            "Competitors better aligned with customer values"
+          ],
+          "relatedHypotheses": ["target-market-mismatch"],
+          "estimatedTime": "2-4 days",
+          "likelihood": 0.55
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "positioning-audit",
+          "type": "diagnostic",
+          "action": "Conduct comprehensive positioning audit to assess current market position of {{primarySubject}}",
+          "tools": [
+            "Brand research",
+            "Competitive analysis",
+            "Customer surveys",
+            "Message testing"
+          ],
+          "expectedOutcome": "Clear understanding of current positioning effectiveness and gaps",
+          "prerequisites": ["Research methodology", "Stakeholder alignment"],
+          "priority": 9
+        },
+        {
+          "id": "customer-research-positioning",
+          "type": "diagnostic",
+          "action": "Conduct customer research to understand value drivers and decision criteria",
+          "tools": ["Customer interviews", "Jobs-to-be-done research", "Conjoint analysis"],
+          "expectedOutcome": "Deep understanding of what customers value and how they make decisions",
+          "prerequisites": ["Research design", "Customer access"],
+          "priority": 9
+        },
+        {
+          "id": "icp-refinement",
+          "type": "diagnostic",
+          "action": "Refine ideal customer profile based on success patterns and market analysis",
+          "tools": ["Customer data analysis", "Segment analysis", "Profitability analysis"],
+          "expectedOutcome": "Accurate ICP that guides targeting and positioning",
+          "prerequisites": ["Customer data available", "Success metrics defined"],
+          "priority": 8
+        },
+        {
+          "id": "positioning-strategy",
+          "type": "remedial",
+          "action": "Develop clear positioning strategy with differentiated value proposition",
+          "tools": ["Positioning frameworks", "Strategy workshops", "Message development"],
+          "expectedOutcome": "Clear, differentiated positioning that resonates with target market",
+          "prerequisites": ["Research complete", "Strategic alignment"],
+          "priority": 9
+        },
+        {
+          "id": "messaging-framework",
+          "type": "remedial",
+          "action": "Create comprehensive messaging framework aligned with positioning",
+          "tools": ["Messaging hierarchy", "Value propositions", "Proof points"],
+          "expectedOutcome": "Consistent, compelling messaging across all channels",
+          "prerequisites": ["Positioning defined", "Content resources"],
+          "priority": 8
+        },
+        {
+          "id": "brand-refresh",
+          "type": "remedial",
+          "action": "Execute brand refresh to align visual identity with positioning",
+          "tools": ["Brand guidelines", "Visual identity", "Brand assets"],
+          "expectedOutcome": "Brand identity that reinforces positioning and differentiation",
+          "prerequisites": ["Positioning strategy complete", "Design resources"],
+          "priority": 7
+        },
+        {
+          "id": "sales-enablement-positioning",
+          "type": "remedial",
+          "action": "Enable sales team with positioning tools and training",
+          "tools": ["Sales playbooks", "Pitch decks", "Objection handling", "Training programs"],
+          "expectedOutcome": "Sales team effectively communicating positioning and value",
+          "prerequisites": ["Messaging framework complete", "Training resources"],
+          "priority": 8
+        },
+        {
+          "id": "market-repositioning",
+          "type": "remedial",
+          "action": "Execute market repositioning campaign to shift market perception",
+          "tools": ["PR campaigns", "Content marketing", "Analyst relations", "Advertising"],
+          "expectedOutcome": "Improved market perception aligned with desired positioning",
+          "prerequisites": ["Positioning strategy complete", "Marketing budget"],
+          "priority": 7
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    }
+  ],
+  "testCases": [
+    {
+      "id": "test-competitive-basic",
+      "input": "We're facing increased competitive pressure and losing market share to competitors",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["competitive-pressure"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-competitive-threat",
+      "input": "A new competitor threat is emerging and our competitive advantage is eroding",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["competitive-pressure"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-competitive-pricing",
+      "input": "Competitor pricing is undercutting us and we're in a price war",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["competitive-pressure"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-competitive-win-rate",
+      "input": "Our win rate is declining and competitive intel shows competitors gaining ground",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["competitive-pressure"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-trend-basic",
+      "input": "Market trends are shifting and we need to understand the market dynamics",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["market-trend"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-trend-disruption",
+      "input": "Industry disruption is happening and the market is changing rapidly",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["market-trend"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-trend-growth",
+      "input": "We need to analyze market growth and understand the TAM, SAM, and SOM",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["market-trend"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-trend-saturation",
+      "input": "Market saturation is a concern and we're seeing market decline in our core segment",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["market-trend"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-positioning-basic",
+      "input": "We have a market positioning problem and our differentiation is unclear",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["positioning-issues"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-positioning-brand",
+      "input": "Brand perception is not aligned with our positioning strategy",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["positioning-issues"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-positioning-value",
+      "input": "Our value proposition is not resonating and we need to refine our unique value proposition",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["positioning-issues"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-positioning-icp",
+      "input": "We need to refine our ICP and ideal customer profile to improve targeting",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["positioning-issues"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-competitive-trend",
+      "input": "Market trends are shifting and competitive pressure is increasing as competitors adapt faster",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["market-trend", "competitive-pressure"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-competitive-positioning",
+      "input": "We're losing market share because our positioning and differentiation are weak compared to competitors",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["competitive-pressure", "positioning-issues"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-trend-positioning",
+      "input": "Market dynamics are changing and our positioning strategy needs to evolve with the market trends",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["market-trend", "positioning-issues"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-all",
+      "input": "We're facing competitive pressure, market trends are shifting, and our positioning is unclear",
+      "expectedDomain": "market-analysis",
+      "expectedPatternIds": ["competitive-pressure", "market-trend", "positioning-issues"],
+      "minConfidence": 0.65
+    }
+  ]
+}

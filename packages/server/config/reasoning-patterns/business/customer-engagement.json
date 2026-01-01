@@ -1,0 +1,690 @@
+{
+  "version": "1.0.0",
+  "domain": "customer-engagement",
+  "description": "Patterns for customer retention, satisfaction, and engagement issues including churn detection, retention problems, and satisfaction decline",
+  "patterns": [
+    {
+      "id": "customer-churn",
+      "name": "Customer Churn Detection",
+      "description": "Detects issues related to customer attrition, churn rate increases, and customer loss patterns",
+      "indicators": [
+        { "type": "exact", "value": "customer churn", "weight": 0.95 },
+        { "type": "exact", "value": "churn rate", "weight": 0.95 },
+        { "type": "exact", "value": "losing customers", "weight": 0.9 },
+        { "type": "exact", "value": "customer attrition", "weight": 0.9 },
+        { "type": "exact", "value": "customers leaving", "weight": 0.85 },
+        { "type": "exact", "value": "subscription cancellation", "weight": 0.85 },
+        { "type": "exact", "value": "customer loss", "weight": 0.85 },
+        { "type": "fuzzy", "value": "retention rate declining", "weight": 0.8 },
+        { "type": "fuzzy", "value": "customers canceling subscriptions", "weight": 0.8 },
+        { "type": "fuzzy", "value": "high churn problem", "weight": 0.75 },
+        {
+          "type": "regex",
+          "value": "\\b(churn|attrition|leaving|canceling)\\b",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bcustomer.*loss\\b", "weight": 0.7 },
+        { "type": "exact", "value": "mrr churn", "weight": 0.75, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "logo churn", "weight": 0.7, "keyTermCategory": "domainTerms" },
+        {
+          "type": "exact",
+          "value": "net revenue retention",
+          "weight": 0.65,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "employee churn", "weight": 0.4 },
+        { "type": "exact", "value": "staff turnover", "weight": 0.35 },
+        { "type": "exact", "value": "team attrition", "weight": 0.3 }
+      ],
+      "hypotheses": [
+        {
+          "id": "value-perception",
+          "statement": "Customers may be churning due to perceived lack of value relative to {{primarySubject}} pricing or competitor offerings",
+          "investigationSteps": [
+            "Survey churned customers about reasons for leaving using structured exit interviews",
+            "Compare feature usage patterns between retained and churned customers",
+            "Analyze pricing tier distribution of churned customers vs retained",
+            "Review competitor analysis and feature parity gaps",
+            "Calculate customer lifetime value (CLV) by segment"
+          ],
+          "expectedFindings": [
+            "Low feature adoption among churned customers (<30% feature utilization)",
+            "Price sensitivity mentioned in 40%+ of exit surveys",
+            "Competitor mentions in cancellation reasons",
+            "Churned customers concentrated in specific pricing tiers",
+            "CLV declining over recent cohorts"
+          ],
+          "relatedHypotheses": ["onboarding-friction", "product-market-fit"],
+          "estimatedTime": "2-3 days",
+          "likelihood": 0.7
+        },
+        {
+          "id": "onboarding-friction",
+          "statement": "Poor onboarding experience may be causing early-stage customer churn for {{primarySubject}}",
+          "investigationSteps": [
+            "Analyze time-to-first-value metrics for churned vs retained customers",
+            "Review onboarding completion rates by cohort and acquisition channel",
+            "Identify drop-off points in onboarding funnel using analytics",
+            "Compare onboarding duration between churned and retained users",
+            "Review support tickets during onboarding period"
+          ],
+          "expectedFindings": [
+            "High churn rate in first 30 days (>15% of total churn)",
+            "Low onboarding completion rates (<60%)",
+            "Specific onboarding steps with >30% abandonment",
+            "Longer time-to-first-value for churned customers",
+            "High support ticket volume during onboarding"
+          ],
+          "relatedHypotheses": ["value-perception", "product-complexity"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.65
+        },
+        {
+          "id": "product-market-fit",
+          "statement": "Product-market fit issues may be causing customers to churn as {{primarySubject}} doesn't meet their core needs",
+          "investigationSteps": [
+            "Segment churned customers by use case and industry",
+            "Analyze feature requests from churned customers",
+            "Review product usage patterns before churn",
+            "Conduct win/loss analysis on recent churns",
+            "Compare product capabilities with customer expectations"
+          ],
+          "expectedFindings": [
+            "Churn concentrated in specific customer segments",
+            "Common feature gaps mentioned by churned customers",
+            "Low engagement with core product features",
+            "Mismatch between marketed capabilities and actual product",
+            "Customers switching to competitors with specific features"
+          ],
+          "relatedHypotheses": ["value-perception"],
+          "estimatedTime": "3-5 days",
+          "likelihood": 0.55
+        },
+        {
+          "id": "product-complexity",
+          "statement": "Product complexity may be overwhelming customers and driving churn for {{primarySubject}}",
+          "investigationSteps": [
+            "Analyze feature usage breadth vs depth for churned customers",
+            "Review user interface complexity and navigation patterns",
+            "Examine support ticket themes related to confusion or difficulty",
+            "Compare power user vs casual user churn rates",
+            "Assess documentation and help resource utilization"
+          ],
+          "expectedFindings": [
+            "Churned customers using fewer features than retained",
+            "High bounce rates on complex feature pages",
+            "Support tickets mentioning confusion or difficulty",
+            "Higher churn among users who don't complete tutorials",
+            "Low help documentation engagement before churn"
+          ],
+          "relatedHypotheses": ["onboarding-friction"],
+          "estimatedTime": "2-3 days",
+          "likelihood": 0.5
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "exit-survey",
+          "type": "diagnostic",
+          "action": "Implement structured exit surveys for all churning customers to understand {{primarySubject}} churn drivers",
+          "tools": ["Typeform", "SurveyMonkey", "Delighted", "In-app survey", "Customer.io"],
+          "expectedOutcome": "Quantified reasons for churn with actionable categories and trends",
+          "prerequisites": [
+            "Survey design with validated questions",
+            "Integration with cancellation flow"
+          ],
+          "priority": 9
+        },
+        {
+          "id": "cohort-analysis",
+          "type": "diagnostic",
+          "action": "Perform cohort analysis to identify churn patterns by acquisition channel, plan type, and customer segment",
+          "tools": ["Mixpanel", "Amplitude", "SQL analytics", "Looker", "Tableau"],
+          "expectedOutcome": "Identification of high-risk customer segments and churn predictors",
+          "prerequisites": ["Analytics tracking implemented", "Customer data warehouse access"],
+          "priority": 9
+        },
+        {
+          "id": "churn-prediction-model",
+          "type": "diagnostic",
+          "action": "Build a churn prediction model to identify at-risk customers before they leave",
+          "tools": ["Python/R", "Machine learning libraries", "Customer health scoring"],
+          "expectedOutcome": "Early warning system for at-risk customers with 70%+ accuracy",
+          "prerequisites": [
+            "Historical churn data",
+            "Feature engineering",
+            "Data science resources"
+          ],
+          "priority": 8,
+          "documentationLinks": [
+            "https://www.datacamp.com/tutorial/customer-churn-prediction-python"
+          ]
+        },
+        {
+          "id": "improve-onboarding",
+          "type": "remedial",
+          "action": "Redesign onboarding flow to reduce friction and accelerate time-to-value",
+          "tools": ["Appcues", "Pendo", "WalkMe", "Intercom Product Tours"],
+          "expectedOutcome": "Increased onboarding completion rate by 20-40% and reduced early churn",
+          "prerequisites": ["Onboarding funnel analysis complete", "UX resources available"],
+          "priority": 8
+        },
+        {
+          "id": "customer-success-intervention",
+          "type": "remedial",
+          "action": "Implement proactive customer success outreach for at-risk customers",
+          "tools": ["Gainsight", "ChurnZero", "Totango", "Customer success playbooks"],
+          "expectedOutcome": "Reduced churn rate by 15-30% through proactive intervention",
+          "prerequisites": ["At-risk customer identification", "Customer success team capacity"],
+          "priority": 8
+        },
+        {
+          "id": "win-back-campaign",
+          "type": "remedial",
+          "action": "Launch win-back campaigns targeting recently churned customers",
+          "tools": ["Email marketing", "Personalized offers", "CRM automation"],
+          "expectedOutcome": "Recovery of 5-15% of churned customers",
+          "prerequisites": ["Churned customer contact list", "Compelling win-back offer"],
+          "priority": 6
+        }
+      ],
+      "severity": "critical",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "retention-issues",
+      "name": "Customer Retention Issues",
+      "description": "Detects problems with customer retention strategies, engagement decline, and loyalty program effectiveness",
+      "indicators": [
+        { "type": "exact", "value": "retention rate", "weight": 0.95 },
+        { "type": "exact", "value": "customer retention", "weight": 0.95 },
+        { "type": "exact", "value": "retention problem", "weight": 0.9 },
+        { "type": "exact", "value": "low retention", "weight": 0.9 },
+        { "type": "exact", "value": "retention declining", "weight": 0.9 },
+        { "type": "exact", "value": "customer loyalty", "weight": 0.8 },
+        { "type": "exact", "value": "repeat customers", "weight": 0.8 },
+        { "type": "exact", "value": "customer lifetime", "weight": 0.75 },
+        { "type": "fuzzy", "value": "keeping customers engaged", "weight": 0.75 },
+        { "type": "fuzzy", "value": "customer engagement declining", "weight": 0.8 },
+        { "type": "fuzzy", "value": "loyalty program not working", "weight": 0.7 },
+        {
+          "type": "regex",
+          "value": "\\bretention.*rate.*low\\b",
+          "weight": 0.8,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bcustomer.*engagement.*drop\\b", "weight": 0.75 },
+        { "type": "exact", "value": "nrr", "weight": 0.7, "keyTermCategory": "domainTerms" },
+        {
+          "type": "exact",
+          "value": "gross retention",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "renewal rate",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "employee retention", "weight": 0.4 },
+        { "type": "exact", "value": "data retention", "weight": 0.35 },
+        { "type": "exact", "value": "talent retention", "weight": 0.3 }
+      ],
+      "hypotheses": [
+        {
+          "id": "engagement-decline",
+          "statement": "Customer engagement may be declining over time leading to retention issues for {{primarySubject}}",
+          "investigationSteps": [
+            "Analyze product usage trends over customer lifecycle",
+            "Track login frequency and session duration by cohort",
+            "Review feature adoption curves for different customer segments",
+            "Measure engagement score trends over time",
+            "Identify engagement drop-off points in customer journey"
+          ],
+          "expectedFindings": [
+            "Declining login frequency after initial period",
+            "Reduced feature usage over time",
+            "Engagement scores dropping before renewal periods",
+            "Specific lifecycle stages with engagement cliffs",
+            "Correlation between low engagement and non-renewal"
+          ],
+          "relatedHypotheses": ["value-realization", "communication-gaps"],
+          "estimatedTime": "2-3 days",
+          "likelihood": 0.7
+        },
+        {
+          "id": "value-realization",
+          "statement": "Customers may not be realizing ongoing value from {{primarySubject}} after initial implementation",
+          "investigationSteps": [
+            "Track key value metrics customers should achieve",
+            "Compare expected vs actual outcomes for customers",
+            "Review customer success milestone completion rates",
+            "Analyze correlation between value metrics and retention",
+            "Survey customers about perceived value over time"
+          ],
+          "expectedFindings": [
+            "Customers not achieving expected ROI or outcomes",
+            "Low completion of value-driving milestones",
+            "Declining perceived value in customer surveys",
+            "Gap between promised and delivered value",
+            "Strong correlation between value metrics and retention"
+          ],
+          "relatedHypotheses": ["engagement-decline", "support-quality"],
+          "estimatedTime": "3-4 days",
+          "likelihood": 0.65
+        },
+        {
+          "id": "communication-gaps",
+          "statement": "Insufficient or ineffective customer communication may be causing retention issues for {{primarySubject}}",
+          "investigationSteps": [
+            "Audit customer communication touchpoints and frequency",
+            "Analyze email open rates and engagement metrics",
+            "Review customer feedback on communication preferences",
+            "Compare communication patterns for retained vs churned customers",
+            "Assess personalization level of customer communications"
+          ],
+          "expectedFindings": [
+            "Low email open and click-through rates",
+            "Infrequent proactive communication",
+            "Generic messaging not tailored to customer needs",
+            "Missing communication at critical lifecycle moments",
+            "Customer complaints about communication quality"
+          ],
+          "relatedHypotheses": ["engagement-decline"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.55
+        },
+        {
+          "id": "support-quality",
+          "statement": "Poor support experience may be eroding customer loyalty and retention for {{primarySubject}}",
+          "investigationSteps": [
+            "Analyze support ticket resolution times and satisfaction scores",
+            "Review support interaction history for churned customers",
+            "Track support escalation rates and patterns",
+            "Compare support experience metrics with retention rates",
+            "Assess self-service resource effectiveness"
+          ],
+          "expectedFindings": [
+            "Long resolution times for support tickets",
+            "Low CSAT scores for support interactions",
+            "High escalation rates indicating first-contact resolution issues",
+            "Churned customers had more negative support experiences",
+            "Underutilized or ineffective self-service resources"
+          ],
+          "relatedHypotheses": ["value-realization"],
+          "estimatedTime": "2-3 days",
+          "likelihood": 0.5
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "engagement-monitoring",
+          "type": "diagnostic",
+          "action": "Implement comprehensive customer engagement monitoring and health scoring for {{primarySubject}}",
+          "tools": ["Gainsight", "ChurnZero", "Mixpanel", "Custom health score dashboard"],
+          "expectedOutcome": "Real-time visibility into customer engagement levels and early warning for at-risk accounts",
+          "prerequisites": ["Product analytics implemented", "Key engagement metrics defined"],
+          "priority": 9
+        },
+        {
+          "id": "lifecycle-campaigns",
+          "type": "remedial",
+          "action": "Design and implement lifecycle marketing campaigns to maintain engagement at key stages",
+          "tools": ["Customer.io", "Intercom", "HubSpot", "Braze"],
+          "expectedOutcome": "Improved engagement at critical lifecycle moments and reduced drop-off",
+          "prerequisites": ["Customer lifecycle stages mapped", "Content for each stage"],
+          "priority": 8
+        },
+        {
+          "id": "value-tracking",
+          "type": "diagnostic",
+          "action": "Establish customer value tracking to measure and communicate ROI to customers",
+          "tools": ["Custom dashboards", "Business reviews", "ROI calculators"],
+          "expectedOutcome": "Customers understand and can articulate value received",
+          "prerequisites": ["Value metrics defined", "Data collection in place"],
+          "priority": 8
+        },
+        {
+          "id": "loyalty-program",
+          "type": "remedial",
+          "action": "Implement or optimize customer loyalty and rewards program",
+          "tools": ["Loyalty platforms", "Referral programs", "Exclusive benefits"],
+          "expectedOutcome": "Increased customer stickiness and advocacy",
+          "prerequisites": ["Loyalty program design", "Budget allocation"],
+          "priority": 7
+        },
+        {
+          "id": "qbr-program",
+          "type": "remedial",
+          "action": "Establish quarterly business review program for key accounts",
+          "tools": ["QBR templates", "Executive sponsorship", "Success planning"],
+          "expectedOutcome": "Stronger relationships and proactive issue identification",
+          "prerequisites": ["Account segmentation", "Customer success capacity"],
+          "priority": 7
+        },
+        {
+          "id": "support-improvement",
+          "type": "remedial",
+          "action": "Improve support quality through training, tooling, and process optimization",
+          "tools": ["Zendesk", "Intercom", "Knowledge base", "Support training"],
+          "expectedOutcome": "Higher CSAT scores and faster resolution times",
+          "prerequisites": ["Support metrics baseline", "Training resources"],
+          "priority": 7
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "satisfaction-decline",
+      "name": "Customer Satisfaction Decline",
+      "description": "Detects declining customer satisfaction, NPS drops, and negative sentiment trends",
+      "indicators": [
+        { "type": "exact", "value": "customer satisfaction", "weight": 0.95 },
+        { "type": "exact", "value": "satisfaction declining", "weight": 0.95 },
+        { "type": "exact", "value": "nps dropping", "weight": 0.95 },
+        { "type": "exact", "value": "nps decline", "weight": 0.95 },
+        { "type": "exact", "value": "low nps", "weight": 0.9 },
+        { "type": "exact", "value": "csat score", "weight": 0.9 },
+        { "type": "exact", "value": "unhappy customers", "weight": 0.85 },
+        { "type": "exact", "value": "customer complaints", "weight": 0.85 },
+        { "type": "exact", "value": "negative feedback", "weight": 0.8 },
+        { "type": "exact", "value": "customer frustration", "weight": 0.8 },
+        { "type": "fuzzy", "value": "customers not satisfied", "weight": 0.8 },
+        { "type": "fuzzy", "value": "satisfaction scores dropping", "weight": 0.85 },
+        { "type": "fuzzy", "value": "negative customer sentiment", "weight": 0.75 },
+        {
+          "type": "regex",
+          "value": "\\b(nps|csat).*declin\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bcustomer.*unhappy\\b", "weight": 0.75 },
+        { "type": "exact", "value": "detractors", "weight": 0.8, "keyTermCategory": "domainTerms" },
+        {
+          "type": "exact",
+          "value": "promoter score",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "customer effort score",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "employee satisfaction", "weight": 0.4 },
+        { "type": "exact", "value": "job satisfaction", "weight": 0.35 },
+        { "type": "exact", "value": "team morale", "weight": 0.3 }
+      ],
+      "hypotheses": [
+        {
+          "id": "product-quality-issues",
+          "statement": "Product quality issues including bugs, performance problems, or reliability may be driving satisfaction decline for {{primarySubject}}",
+          "investigationSteps": [
+            "Analyze bug reports and error rates over time",
+            "Review performance metrics and degradation trends",
+            "Correlate product issues with satisfaction score changes",
+            "Examine support tickets for product-related complaints",
+            "Track uptime and reliability metrics"
+          ],
+          "expectedFindings": [
+            "Increased bug reports or error rates",
+            "Performance degradation correlating with NPS drops",
+            "Product issues mentioned in detractor feedback",
+            "Reliability incidents impacting customer experience",
+            "Technical debt affecting user experience"
+          ],
+          "relatedHypotheses": ["expectation-mismatch", "support-experience"],
+          "estimatedTime": "2-3 days",
+          "likelihood": 0.7
+        },
+        {
+          "id": "expectation-mismatch",
+          "statement": "Gap between customer expectations and actual experience may be causing satisfaction decline for {{primarySubject}}",
+          "investigationSteps": [
+            "Compare marketing promises with product capabilities",
+            "Analyze sales process and expectation setting",
+            "Review onboarding materials for accuracy",
+            "Survey customers about expectation vs reality",
+            "Examine feedback themes from detractors"
+          ],
+          "expectedFindings": [
+            "Marketing claims not fully supported by product",
+            "Sales overselling capabilities",
+            "Customers expecting features not available",
+            "Disconnect between demo and actual product",
+            "Detractor feedback mentioning unmet expectations"
+          ],
+          "relatedHypotheses": ["product-quality-issues", "communication-issues"],
+          "estimatedTime": "2-4 days",
+          "likelihood": 0.6
+        },
+        {
+          "id": "support-experience",
+          "statement": "Poor support experience may be a primary driver of customer dissatisfaction for {{primarySubject}}",
+          "investigationSteps": [
+            "Analyze support satisfaction scores (CSAT) trends",
+            "Review response and resolution time metrics",
+            "Examine support interaction quality through audits",
+            "Correlate support experiences with NPS responses",
+            "Identify common support pain points"
+          ],
+          "expectedFindings": [
+            "Declining support CSAT scores",
+            "Increasing response or resolution times",
+            "Quality issues in support interactions",
+            "Strong correlation between support experience and NPS",
+            "Recurring support issues not being addressed"
+          ],
+          "relatedHypotheses": ["product-quality-issues"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.6
+        },
+        {
+          "id": "communication-issues",
+          "statement": "Poor communication or lack of transparency may be eroding customer trust and satisfaction for {{primarySubject}}",
+          "investigationSteps": [
+            "Review communication during incidents or changes",
+            "Analyze customer feedback about communication",
+            "Assess transparency in pricing and policy changes",
+            "Examine proactive vs reactive communication patterns",
+            "Survey customers about communication preferences"
+          ],
+          "expectedFindings": [
+            "Customers surprised by changes or issues",
+            "Feedback mentioning poor communication",
+            "Lack of proactive updates during incidents",
+            "Unclear or confusing messaging",
+            "Trust erosion due to perceived lack of transparency"
+          ],
+          "relatedHypotheses": ["expectation-mismatch"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.5
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "nps-program",
+          "type": "diagnostic",
+          "action": "Implement comprehensive NPS program with regular surveys and closed-loop feedback for {{primarySubject}}",
+          "tools": ["Delighted", "Wootric", "SurveyMonkey", "Qualtrics"],
+          "expectedOutcome": "Continuous visibility into customer satisfaction with actionable feedback",
+          "prerequisites": ["Survey design", "Response workflow defined"],
+          "priority": 9
+        },
+        {
+          "id": "detractor-analysis",
+          "type": "diagnostic",
+          "action": "Conduct deep-dive analysis of detractor feedback to identify root causes",
+          "tools": ["Text analytics", "Sentiment analysis", "Manual review"],
+          "expectedOutcome": "Categorized and prioritized list of satisfaction drivers",
+          "prerequisites": ["Sufficient detractor feedback collected", "Analysis resources"],
+          "priority": 9
+        },
+        {
+          "id": "closed-loop-feedback",
+          "type": "remedial",
+          "action": "Implement closed-loop feedback process to follow up with detractors and address concerns",
+          "tools": ["CRM workflows", "Customer success outreach", "Issue tracking"],
+          "expectedOutcome": "Improved detractor recovery rate and actionable insights",
+          "prerequisites": ["Feedback collection in place", "Response team capacity"],
+          "priority": 8
+        },
+        {
+          "id": "product-quality-improvement",
+          "type": "remedial",
+          "action": "Prioritize product quality improvements based on customer feedback",
+          "tools": ["Bug tracking", "Product roadmap", "Quality metrics"],
+          "expectedOutcome": "Reduced product-related complaints and improved satisfaction",
+          "prerequisites": ["Feedback categorization", "Engineering capacity"],
+          "priority": 8
+        },
+        {
+          "id": "expectation-alignment",
+          "type": "remedial",
+          "action": "Align marketing, sales, and product messaging to set accurate expectations",
+          "tools": ["Messaging audit", "Sales enablement", "Marketing review"],
+          "expectedOutcome": "Reduced expectation gaps and improved initial satisfaction",
+          "prerequisites": ["Cross-functional alignment", "Messaging review"],
+          "priority": 7
+        },
+        {
+          "id": "communication-improvement",
+          "type": "remedial",
+          "action": "Improve customer communication with proactive updates and transparency",
+          "tools": ["Status pages", "Email campaigns", "In-app messaging"],
+          "expectedOutcome": "Increased customer trust and reduced surprise-driven dissatisfaction",
+          "prerequisites": ["Communication strategy", "Content resources"],
+          "priority": 7
+        },
+        {
+          "id": "customer-advisory-board",
+          "type": "remedial",
+          "action": "Establish customer advisory board to gather ongoing feedback and build relationships",
+          "tools": ["Advisory board platform", "Regular meetings", "Feedback channels"],
+          "expectedOutcome": "Deeper customer relationships and early warning on satisfaction issues",
+          "prerequisites": ["Customer selection criteria", "Executive sponsorship"],
+          "priority": 6
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    }
+  ],
+  "testCases": [
+    {
+      "id": "test-churn-basic",
+      "input": "We're seeing increased customer churn and our retention rate is declining",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["customer-churn"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-churn-detailed",
+      "input": "Our churn rate has increased from 5% to 12% this quarter, customers are canceling subscriptions",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["customer-churn"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-churn-attrition",
+      "input": "Customer attrition is a major problem, we're losing customers to competitors",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["customer-churn"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-churn-mrr",
+      "input": "MRR churn is too high and logo churn is affecting our net revenue retention",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["customer-churn"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-retention-basic",
+      "input": "Our customer retention rate is declining and we need to improve it",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["retention-issues"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-retention-engagement",
+      "input": "Customer engagement is dropping and we're having trouble keeping customers engaged",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["retention-issues"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-retention-loyalty",
+      "input": "Customer loyalty is low and our repeat customer rate is declining",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["retention-issues"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-retention-renewal",
+      "input": "Renewal rate is dropping and gross retention is below target",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["retention-issues"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-satisfaction-basic",
+      "input": "Customer satisfaction is declining and we're getting more complaints",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["satisfaction-decline"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-satisfaction-nps",
+      "input": "Our NPS score is dropping and we have more detractors than promoters",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["satisfaction-decline"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-satisfaction-csat",
+      "input": "CSAT scores are declining and customers are unhappy with our service",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["satisfaction-decline"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-satisfaction-feedback",
+      "input": "We're receiving negative feedback and customer frustration is increasing",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["satisfaction-decline"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-churn-retention",
+      "input": "Customer churn is high because our retention rate is low and engagement is declining",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["customer-churn", "retention-issues"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-satisfaction-churn",
+      "input": "NPS is dropping and customers are churning due to dissatisfaction",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["satisfaction-decline", "customer-churn"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-all",
+      "input": "Customer satisfaction is declining, retention rate is low, and churn is increasing",
+      "expectedDomain": "customer-engagement",
+      "expectedPatternIds": ["satisfaction-decline", "retention-issues", "customer-churn"],
+      "minConfidence": 0.65
+    }
+  ]
+}

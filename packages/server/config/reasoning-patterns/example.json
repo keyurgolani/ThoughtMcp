@@ -1,0 +1,63 @@
+{
+  "version": "1.0.0",
+  "domain": "example",
+  "description": "Example pattern configuration file. Replace this with your domain-specific patterns.",
+  "patterns": [
+    {
+      "id": "example-pattern",
+      "name": "Example Pattern",
+      "description": "An example pattern to demonstrate the configuration structure",
+      "indicators": [
+        {
+          "type": "exact",
+          "value": "example phrase",
+          "weight": 0.8
+        }
+      ],
+      "hypotheses": [
+        {
+          "id": "example-hypothesis",
+          "statement": "This is an example hypothesis for {{primarySubject}}",
+          "investigationSteps": [
+            "Step 1: Investigate the issue",
+            "Step 2: Analyze the results"
+          ],
+          "expectedFindings": [
+            "Finding 1",
+            "Finding 2"
+          ],
+          "relatedHypotheses": [],
+          "estimatedTime": "15-30 minutes",
+          "likelihood": 0.5
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "example-recommendation",
+          "type": "diagnostic",
+          "action": "Perform diagnostic action for {{primarySubject}}",
+          "tools": [
+            "tool1",
+            "tool2"
+          ],
+          "expectedOutcome": "Expected outcome description",
+          "prerequisites": [],
+          "priority": 5
+        }
+      ],
+      "severity": "medium",
+      "qualityThreshold": 0.5
+    }
+  ],
+  "testCases": [
+    {
+      "id": "example-test",
+      "input": "This is an example phrase for testing",
+      "expectedDomain": "example",
+      "expectedPatternIds": [
+        "example-pattern"
+      ],
+      "minConfidence": 0.5
+    }
+  ]
+}

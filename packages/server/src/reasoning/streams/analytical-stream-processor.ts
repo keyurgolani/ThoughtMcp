@@ -1,8 +1,19 @@
+import { existsSync } from "fs";
+import { join } from "path";
 import { z } from "zod";
 import { LLMClient } from "../../ai/llm-client.js";
 import { PromptBinder } from "../../ai/prompt-binder.js";
 import { Logger } from "../../utils/logger.js";
 import { KeyTermExtractor, type KeyTerms } from "../key-term-extractor.js";
+import { createInsightGenerator, type InsightGenerator } from "../patterns/insight-generator.js";
+import { createPatternMatcher, type PatternMatcher } from "../patterns/pattern-matcher.js";
+import { createPatternRegistry, type PatternRegistry } from "../patterns/pattern-registry.js";
+import {
+  executeWithTimeout,
+  FULL_REASONING_TIMEOUT_MS,
+  PATTERN_MATCHING_TIMEOUT_MS,
+} from "../patterns/timeout-utils.js";
+import type { GeneratedInsights, PatternMatchResult } from "../patterns/types.js";
 import { StreamManager } from "../stream-manager.js";
 import type { StreamProcessor } from "../stream.types.js";
 import {
@@ -31,15 +42,46 @@ const AnalyticalOutputSchema = z.object({
 type AnalyticalOutput = z.infer<typeof AnalyticalOutputSchema>;
 
 /**
+ * Options for AnalyticalStreamProcessor
+ */
+export interface AnalyticalStreamProcessorOptions {
+  /** LLM client for AI-based reasoning */
+  llm?: LLMClient;
+  /** Pattern registry for rule-based reasoning */
+  patternRegistry?: PatternRegistry;
+  /** Enable deterministic mode for reproducible results (Requirements: 10.3) */
+  deterministicMode?: boolean;
+}
+
+/**
  * Analytical stream processor
  *
  * Validates inputs and delegates specific reasoning tasks to the LLM.
  * Falls back to rule-based analysis when LLM is unavailable.
+ * Uses externalized pattern configuration for domain-specific reasoning.
+ *
+ * Requirements: 1.1, 8.3, 8.4, 10.3
  */
 export class AnalyticalStreamProcessor implements StreamProcessor {
   private readonly llm: LLMClient;
   private readonly keyTermExtractor: KeyTermExtractor;
+  private readonly patternRegistry: PatternRegistry;
+  private readonly patternMatcher: PatternMatcher;
+  private readonly insightGenerator: InsightGenerator;
   private llmAvailable: boolean | null = null;
+  private patternsLoaded: boolean = false;
+
+  /** Deterministic mode flag for reproducible results (Requirements: 10.3) */
+  private readonly deterministicMode: boolean;
+
+  /** Counter for deterministic stream ID generation */
+  private deterministicCounter: number = 0;
+
+  /**
+   * Default config directory for reasoning patterns.
+   * Can be overridden via REASONING_PATTERNS_DIR environment variable.
+   */
+  private static readonly DEFAULT_CONFIG_DIR = "config/reasoning-patterns";
 
   // System prompt defining the persona and rules - simplified for smaller LLMs
   private readonly SYSTEM_PROMPT = `You are an Analytical Engine performing logical, systematic analysis.
@@ -52,7 +94,34 @@ METHODOLOGY:
 
 Provide step-by-step reasoning, key insights, and a confidence score (0.0-1.0).`;
 
-  constructor(llm?: LLMClient) {
+  /**
+   * Create a new AnalyticalStreamProcessor
+   *
+   * @param llmOrOptions - Optional LLM client or options object
+   * @param patternRegistry - Optional pattern registry (deprecated, use options object)
+   *
+   * Requirements: 1.1, 8.3, 8.4, 10.3
+   */
+  constructor(
+    llmOrOptions?: LLMClient | AnalyticalStreamProcessorOptions,
+    patternRegistry?: PatternRegistry
+  ) {
+    // Handle both old signature (llm, patternRegistry) and new signature (options)
+    let llm: LLMClient | undefined;
+    let registry: PatternRegistry | undefined;
+    let deterministicMode = false;
+
+    if (llmOrOptions && "deterministicMode" in llmOrOptions) {
+      // New options object signature - TypeScript narrows the type based on the property check
+      llm = llmOrOptions.llm;
+      registry = llmOrOptions.patternRegistry;
+      deterministicMode = llmOrOptions.deterministicMode ?? false;
+    } else {
+      // Old signature for backward compatibility
+      llm = llmOrOptions as LLMClient | undefined;
+      registry = patternRegistry;
+    }
+
     // Use LLM_TIMEOUT from environment, default to 60 seconds for larger models
     // This allows time for model loading on first request
     const llmTimeout = process.env.LLM_TIMEOUT ? parseInt(process.env.LLM_TIMEOUT, 10) : 60000;
@@ -60,6 +129,23 @@ Provide step-by-step reasoning, key insights, and a confidence score (0.0-1.0).`
     // Use provided LLM client or create a new one
     this.llm = llm ?? new LLMClient({ timeout: llmTimeout });
     this.keyTermExtractor = new KeyTermExtractor();
+
+    // Initialize PatternRegistry (Requirement 1.1)
+    // Use provided registry or create a new one
+    this.patternRegistry = registry ?? createPatternRegistry();
+
+    // Initialize PatternMatcher and InsightGenerator (Requirements 2.1, 3.1)
+    this.patternMatcher = createPatternMatcher(this.patternRegistry);
+    this.insightGenerator = createInsightGenerator({
+      maxHypotheses: 10,
+      maxRecommendations: 10,
+      includeFallback: true,
+      minConfidence: 0.1,
+      minHypothesesOnMatch: 2,
+    });
+
+    // Set deterministic mode (Requirement 10.3)
+    this.deterministicMode = deterministicMode;
   }
 
   getStreamType(): StreamType {
@@ -73,6 +159,9 @@ Provide step-by-step reasoning, key insights, and a confidence score (0.0-1.0).`
     if (!problem.description) {
       throw new Error("Problem description is required");
     }
+
+    // 2. Load patterns if not already loaded (Requirement 1.1, 8.3, 8.4)
+    await this.ensurePatternsLoaded();
 
     // Try LLM-based analysis first, fall back to rule-based if unavailable
     try {
@@ -93,6 +182,147 @@ Provide step-by-step reasoning, key insights, and a confidence score (0.0-1.0).`
       this.llmAvailable = false;
       return await this.processWithRules(problem, startTime);
     }
+  }
+
+  /**
+   * Ensure patterns are loaded from config directory
+   *
+   * Loads patterns on first call, subsequent calls are no-ops.
+   * Uses REASONING_PATTERNS_DIR environment variable or default path.
+   *
+   * Requirements: 1.1, 8.3, 8.4
+   */
+  private async ensurePatternsLoaded(): Promise<void> {
+    if (this.patternsLoaded) {
+      return;
+    }
+
+    // Get config directory from environment or use default
+    const configDir = this.getConfigDirectory();
+
+    try {
+      Logger.debug("AnalyticalStreamProcessor: Loading patterns from config directory", {
+        configDir,
+      });
+
+      await this.patternRegistry.loadPatterns(configDir);
+
+      const stats = this.patternRegistry.getStats();
+      Logger.info("AnalyticalStreamProcessor: Patterns loaded successfully", {
+        totalPatterns: stats.totalPatterns,
+        totalDomains: stats.totalDomains,
+        domains: Object.keys(stats.patternsPerDomain),
+      });
+
+      this.patternsLoaded = true;
+    } catch (error) {
+      // Log error but don't fail - we can still use fallback reasoning
+      Logger.warn("AnalyticalStreamProcessor: Failed to load patterns, using fallback reasoning", {
+        error: error instanceof Error ? error.message : String(error),
+        configDir,
+      });
+      this.patternsLoaded = true; // Mark as loaded to avoid repeated attempts
+    }
+  }
+
+  /**
+   * Get the config directory for reasoning patterns
+   *
+   * Checks REASONING_PATTERNS_DIR environment variable first,
+   * then falls back to default path relative to package root.
+   *
+   * @returns Absolute or relative path to config directory
+   */
+  private getConfigDirectory(): string {
+    // Check environment variable first
+    const envDir = process.env.REASONING_PATTERNS_DIR;
+    if (envDir) {
+      return envDir;
+    }
+
+    // Try to find config directory relative to common locations
+    const possiblePaths = [
+      // Relative to current working directory
+      AnalyticalStreamProcessor.DEFAULT_CONFIG_DIR,
+      // Relative to packages/server
+      join("packages", "server", AnalyticalStreamProcessor.DEFAULT_CONFIG_DIR),
+      // Absolute path from __dirname (for compiled code)
+      join(process.cwd(), AnalyticalStreamProcessor.DEFAULT_CONFIG_DIR),
+      join(process.cwd(), "packages", "server", AnalyticalStreamProcessor.DEFAULT_CONFIG_DIR),
+    ];
+
+    // Return first existing path, or default if none exist
+    for (const path of possiblePaths) {
+      if (existsSync(path)) {
+        return path;
+      }
+    }
+
+    // Return default path - PatternRegistry will bootstrap empty config if needed
+    return AnalyticalStreamProcessor.DEFAULT_CONFIG_DIR;
+  }
+
+  /**
+   * Get the pattern registry instance
+   *
+   * Useful for testing and integration with other components.
+   *
+   * @returns The PatternRegistry instance
+   */
+  getPatternRegistry(): PatternRegistry {
+    return this.patternRegistry;
+  }
+
+  /**
+   * Check if patterns have been loaded
+   *
+   * @returns True if patterns have been loaded (or attempted)
+   */
+  arePatternsLoaded(): boolean {
+    return this.patternsLoaded;
+  }
+
+  /**
+   * Check if deterministic mode is enabled
+   *
+   * @returns True if deterministic mode is enabled
+   *
+   * Requirements: 10.3
+   */
+  isDeterministicMode(): boolean {
+    return this.deterministicMode;
+  }
+
+  /**
+   * Generate a stream ID
+   *
+   * In deterministic mode, generates predictable IDs based on a counter.
+   * In normal mode, uses timestamp-based IDs.
+   *
+   * @param prefix - Prefix for the stream ID (e.g., "analytical", "analytical-failed")
+   * @returns Stream ID string
+   *
+   * Requirements: 10.3
+   */
+  private generateStreamId(prefix: string): string {
+    if (this.deterministicMode) {
+      // Use counter-based ID for deterministic results
+      return `${prefix}-deterministic-${++this.deterministicCounter}`;
+    }
+    // Use timestamp-based ID for normal operation
+    return `${prefix}-${Date.now()}`;
+  }
+
+  /**
+   * Reset the deterministic counter
+   *
+   * Useful for testing to ensure consistent IDs across test runs.
+   * Only has effect in deterministic mode.
+   *
+   * Requirements: 10.3
+   */
+  resetDeterministicCounter(): void {
+    this.deterministicCounter = 0;
   }
 
   /**
@@ -231,7 +461,7 @@ Perform a systematic analysis.
     }));
 
     return {
-      streamId: `analytical-${Date.now()}`, // Temporary ID, will be managed by wrapper/manager
+      streamId: this.generateStreamId("analytical"), // Temporary ID, will be managed by wrapper/manager
       streamType: StreamType.ANALYTICAL,
       conclusion: parsedOutput.conclusion,
       reasoning: parsedOutput.reasoning,
@@ -244,8 +474,87 @@ Perform a systematic analysis.
 
   /**
    * Process using rule-based analysis (fallback when LLM unavailable)
+   *
+   * Uses PatternMatcher to match patterns against the problem and
+   * InsightGenerator to generate domain-specific hypotheses and recommendations.
+   * Implements timeout protection for pattern matching (5s) and full reasoning (10s).
+   *
+   * Requirements: 2.1, 3.1, 9.2, 9.4, 9.5, 9.6
    */
   private async processWithRules(problem: Problem, startTime: number): Promise<StreamResult> {
+    // Execute full reasoning with timeout protection (10s sanity check)
+    const timeoutResult = await executeWithTimeout(
+      () => this.executeRuleBasedReasoning(problem, startTime),
+      FULL_REASONING_TIMEOUT_MS,
+      this.createTimeoutResult(problem, startTime),
+      "AnalyticalStreamProcessor.processWithRules"
+    );
+
+    // If timed out, return the timeout result
+    if (timeoutResult.timedOut) {
+      Logger.warn("AnalyticalStreamProcessor: Full reasoning timed out", {
+        problemId: problem.id,
+        timeoutMs: FULL_REASONING_TIMEOUT_MS,
+        executionTimeMs: timeoutResult.executionTimeMs,
+      });
+      return timeoutResult.result;
+    }
+
+    return timeoutResult.result;
+  }
+
+  /**
+   * Create a timeout result with partial/fallback data
+   *
+   * Returns a StreamResult with timeout status and minimal valid output.
+   *
+   * @param problem - The problem being analyzed
+   * @param startTime - Start time for processing time calculation
+   * @returns StreamResult with timeout indicator
+   *
+   * Requirements: 9.5, 9.6
+   */
+  private createTimeoutResult(problem: Problem, startTime: number): StreamResult {
+    return {
+      streamId: this.generateStreamId("analytical-timeout"),
+      streamType: StreamType.ANALYTICAL,
+      conclusion: "Analysis timed out - partial results may be available",
+      reasoning: [
+        `Analyzing problem: ${problem.description.substring(0, 100)}${problem.description.length > 100 ? "..." : ""}`,
+        "Analysis exceeded timeout threshold - returning partial results",
+      ],
+      insights: [
+        {
+          content:
+            "Analysis was interrupted due to timeout. Consider simplifying the problem or breaking it into smaller parts.",
+          source: StreamType.ANALYTICAL,
+          confidence: 0.3,
+          importance: 0.5,
+          referencedTerms: [],
+        },
+      ],
+      confidence: 0.2,
+      processingTime: Date.now() - startTime,
+      status: StreamStatus.TIMEOUT,
+    };
+  }
+
+  /**
+   * Execute rule-based reasoning with pattern matching
+   *
+   * This is the core reasoning logic, separated from timeout handling.
+   * Pattern matching has its own 5s timeout protection.
+   *
+   * @param problem - The problem to analyze
+   * @param startTime - Start time for processing time calculation
+   * @returns StreamResult with analysis results
+   *
+   * Requirements: 2.1, 3.1, 9.2
+   */
+  private async executeRuleBasedReasoning(
+    problem: Problem,
+    startTime: number
+  ): Promise<StreamResult> {
     const reasoning: string[] = [];
     const insights: Insight[] = [];
 
@@ -262,53 +571,79 @@ Perform a systematic analysis.
       const components = this.identifyComponents(problem, keyTerms);
       reasoning.push(`Identified ${components.length} key components: ${components.join(", ")}`);
 
-      // Step 3: Analyze relationships
-      const relationships = this.analyzeRelationships(problem, keyTerms);
-      reasoning.push(`Analyzed structural relationships: ${relationships}`);
-      insights.push({
-        content: relationships,
-        source: StreamType.ANALYTICAL,
-        confidence: 0.7,
-        importance: 0.75,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(relationships, keyTerms),
-      });
+      // Step 3: Match patterns using PatternMatcher with timeout protection (5s sanity check)
+      // Requirements: 2.1, 3.1, 9.2
+      const patternMatchResult = await executeWithTimeout(
+        () =>
+          Promise.resolve(
+            this.patternMatcher.matchPatterns(problem.description, problem.context, keyTerms)
+          ),
+        PATTERN_MATCHING_TIMEOUT_MS,
+        [] as PatternMatchResult[],
+        "AnalyticalStreamProcessor.patternMatching"
+      );
 
-      // Step 4: Evaluate evidence
-      const evidenceAnalysis = this.evaluateEvidence(problem, keyTerms);
-      reasoning.push(`Evidence evaluation: ${evidenceAnalysis}`);
-      insights.push({
-        content: evidenceAnalysis,
-        source: StreamType.ANALYTICAL,
-        confidence: 0.65,
-        importance: 0.7,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(evidenceAnalysis, keyTerms),
-      });
+      const patternMatches = patternMatchResult.result;
+      const patternMatchingTimedOut = patternMatchResult.timedOut;
 
-      // Step 5: Identify root causes
-      const rootCauses = this.identifyRootCauses(problem, keyTerms);
-      reasoning.push(`Root cause analysis: ${rootCauses}`);
-      insights.push({
-        content: rootCauses,
-        source: StreamType.ANALYTICAL,
-        confidence: 0.6,
-        importance: 0.8,
-        referencedTerms: this.keyTermExtractor.findReferencedTerms(rootCauses, keyTerms),
-      });
+      // Log pattern matching results
+      if (patternMatchingTimedOut) {
+        reasoning.push(
+          "Pattern matching timed out - using fallback reasoning with partial results"
+        );
+        Logger.warn("AnalyticalStreamProcessor: Pattern matching timed out", {
+          problemId: problem.id,
+          timeoutMs: PATTERN_MATCHING_TIMEOUT_MS,
+          executionTimeMs: patternMatchResult.executionTimeMs,
+        });
+      } else if (patternMatches.length > 0) {
+        const matchedDomains = [...new Set(patternMatches.map((m) => m.domain))];
+        reasoning.push(
+          `Pattern matching identified ${patternMatches.length} relevant patterns across domains: ${matchedDomains.join(", ")}`
+        );
+      } else {
+        reasoning.push("No specific domain patterns matched; using general analytical reasoning");
+      }
+
+      // Step 4: Generate insights using InsightGenerator (Requirements: 2.1, 3.1)
+      const generatedInsights = this.insightGenerator.generateInsights(
+        patternMatches,
+        keyTerms,
+        problem.description
+      );
+
+      // Mark if pattern matching timed out
+      if (patternMatchingTimedOut) {
+        generatedInsights.timedOut = true;
+      }
+
+      // Step 5: Convert generated insights to StreamResult format
+      this.addGeneratedInsightsToResult(generatedInsights, insights, reasoning, keyTerms);
 
       // Step 6: Consider constraints
       if (problem.constraints && problem.constraints.length > 0) {
         reasoning.push(`Constraints considered: ${problem.constraints.join(", ")}`);
       }
 
-      // Step 7: Generate conclusion
-      const conclusion = this.generateConclusion(problem, keyTerms, insights);
+      // Step 7: Generate conclusion from insights
+      const conclusion = this.generateConclusionFromInsights(
+        problem,
+        keyTerms,
+        generatedInsights,
+        insights
+      );
       reasoning.push(`Conclusion: ${conclusion}`);
 
-      // Calculate confidence
-      const confidence = this.calculateConfidence(problem, insights);
+      // Calculate confidence based on pattern matches and insights
+      let confidence = this.calculateConfidenceFromInsights(problem, generatedInsights, insights);
+
+      // Reduce confidence if pattern matching timed out
+      if (patternMatchingTimedOut) {
+        confidence = Math.max(0.2, confidence - 0.15);
+      }
 
       return {
-        streamId: `analytical-${Date.now()}`,
+        streamId: this.generateStreamId("analytical"),
         streamType: StreamType.ANALYTICAL,
         conclusion,
         reasoning,
@@ -319,7 +654,7 @@ Perform a systematic analysis.
       };
     } catch (error) {
       return {
-        streamId: `analytical-failed-${Date.now()}`,
+        streamId: this.generateStreamId("analytical-failed"),
         streamType: StreamType.ANALYTICAL,
         conclusion: "Analysis failed",
         reasoning: [String(error)],
@@ -330,6 +665,152 @@ Perform a systematic analysis.
         error: error as Error,
       };
     }
+  }
+
+  /**
+   * Add generated insights from InsightGenerator to the result
+   *
+   * Converts hypotheses and recommendations to Insight format and adds
+   * them to the insights array. Also adds relevant reasoning steps.
+   *
+   * @param generatedInsights - Insights from InsightGenerator
+   * @param insights - Array to add insights to
+   * @param reasoning - Array to add reasoning steps to
+   * @param keyTerms - Key terms for referenced terms
+   */
+  private addGeneratedInsightsToResult(
+    generatedInsights: GeneratedInsights,
+    insights: Insight[],
+    reasoning: string[],
+    keyTerms: KeyTerms
+  ): void {
+    // Add root cause analysis as an insight
+    if (generatedInsights.rootCauseAnalysis) {
+      reasoning.push(`Root cause analysis: ${generatedInsights.rootCauseAnalysis}`);
+      insights.push({
+        content: generatedInsights.rootCauseAnalysis,
+        source: StreamType.ANALYTICAL,
+        confidence: generatedInsights.confidence,
+        importance: 0.8,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(
+          generatedInsights.rootCauseAnalysis,
+          keyTerms
+        ),
+      });
+    }
+
+    // Add hypotheses as insights
+    for (const hypothesis of generatedInsights.hypotheses) {
+      const hypothesisContent = `Hypothesis: ${hypothesis.statement} (likelihood: ${Math.round(hypothesis.likelihood * 100)}%)`;
+      reasoning.push(hypothesisContent);
+
+      insights.push({
+        content: hypothesis.statement,
+        source: StreamType.ANALYTICAL,
+        confidence: hypothesis.likelihood,
+        importance: 0.75,
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(hypothesis.statement, keyTerms),
+      });
+
+      // Add investigation steps as reasoning
+      if (hypothesis.investigationSteps.length > 0) {
+        reasoning.push(
+          `Investigation steps for "${hypothesis.id}": ${hypothesis.investigationSteps.slice(0, 2).join("; ")}`
+        );
+      }
+    }
+
+    // Add top recommendations as insights
+    const topRecommendations = generatedInsights.recommendations.slice(0, 3);
+    for (const recommendation of topRecommendations) {
+      const recContent = `Recommendation (${recommendation.type}): ${recommendation.action}`;
+      reasoning.push(recContent);
+
+      insights.push({
+        content: recommendation.action,
+        source: StreamType.ANALYTICAL,
+        confidence: 0.7,
+        importance: recommendation.priority / 10, // Normalize priority to 0-1
+        referencedTerms: this.keyTermExtractor.findReferencedTerms(recommendation.action, keyTerms),
+      });
+    }
+
+    // Note if fallback was used
+    if (generatedInsights.usedFallback) {
+      reasoning.push(
+        "Note: Using general analytical reasoning as no specific domain patterns matched"
+      );
+    }
+  }
+
+  /**
+   * Generate conclusion from generated insights
+   *
+   * Uses the InsightGenerator's conclusion if available, otherwise
+   * falls back to the original conclusion generation logic.
+   *
+   * @param problem - The problem being analyzed
+   * @param keyTerms - Extracted key terms
+   * @param generatedInsights - Insights from InsightGenerator
+   * @param insights - Converted insights array
+   * @returns Conclusion string
+   */
+  private generateConclusionFromInsights(
+    problem: Problem,
+    keyTerms: KeyTerms,
+    generatedInsights: GeneratedInsights,
+    insights: Insight[]
+  ): string {
+    // Use InsightGenerator's conclusion if it's meaningful
+    if (generatedInsights.conclusion && generatedInsights.conclusion.length > 50) {
+      return generatedInsights.conclusion;
+    }
+
+    // Fall back to original conclusion generation
+    return this.generateConclusion(problem, keyTerms, insights);
+  }
+
+  /**
+   * Calculate confidence from generated insights
+   *
+   * Uses the InsightGenerator's confidence as a base and adjusts
+   * based on problem characteristics.
+   *
+   * @param problem - The problem being analyzed
+   * @param generatedInsights - Insights from InsightGenerator
+   * @param insights - Converted insights array
+   * @returns Confidence score (0-1)
+   */
+  private calculateConfidenceFromInsights(
+    problem: Problem,
+    generatedInsights: GeneratedInsights,
+    insights: Insight[]
+  ): number {
+    // Start with InsightGenerator's confidence
+    let confidence = generatedInsights.confidence;
+
+    // Boost for context availability
+    if (problem.context && problem.context.length > 50) {
+      confidence += 0.1;
+    } else if (problem.context && problem.context.length > 20) {
+      confidence += 0.05;
+    }
+
+    // Boost for multiple insights generated
+    if (insights.length >= 5) {
+      confidence += 0.05;
+    }
+
+    // Reduce for high constraint count
+    if (problem.constraints && problem.constraints.length > 3) {
+      confidence -= 0.05;
+    }
+
+    // Reduce slightly because this is rule-based, not LLM
+    confidence -= 0.05;
+
+    // Clamp to valid range
+    return Math.max(0.2, Math.min(0.85, confidence));
   }
 
   /**
@@ -357,150 +838,6 @@ Perform a systematic analysis.
     }
 
     return components.length > 0 ? components : ["main subject", "context", "constraints"];
-  }
-
-  /**
-   * Analyze relationships between components
-   */
-  private analyzeRelationships(problem: Problem, keyTerms: KeyTerms): string {
-    const primaryTerm = keyTerms.primarySubject ?? keyTerms.terms[0] ?? "the subject";
-    const domainTerm = keyTerms.domainTerms[0] ?? "the domain";
-
-    if (problem.context && problem.context.length > 20) {
-      return `${primaryTerm} is structurally connected to ${domainTerm} through the described context, suggesting a causal relationship`;
-    }
-
-    return `${primaryTerm} appears to be the central element, with ${domainTerm} serving as a supporting factor`;
-  }
-
-  /**
-   * Evaluate available evidence
-   */
-  private evaluateEvidence(problem: Problem, keyTerms: KeyTerms): string {
-    const primaryTerm = keyTerms.primarySubject ?? "the problem";
-
-    if (problem.context && problem.context.length > 50) {
-      return `Sufficient context provided for ${primaryTerm} analysis; evidence supports systematic evaluation`;
-    } else if (problem.context && problem.context.length > 0) {
-      return `Limited context available for ${primaryTerm}; analysis based on available information`;
-    }
-
-    return `Minimal evidence provided for ${primaryTerm}; conclusions should be considered preliminary`;
-  }
-
-  /**
-   * Check for specific context indicators and return hypothesis if found
-   */
-  private checkContextIndicator(
-    context: string,
-    indicators: string[],
-    hypothesis: string
-  ): string | null {
-    const lowerContext = context.toLowerCase();
-    for (const indicator of indicators) {
-      if (lowerContext.includes(indicator)) {
-        return hypothesis;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Identify potential root causes with specific hypotheses
-   */
-  private identifyRootCauses(problem: Problem, keyTerms: KeyTerms): string {
-    const primaryTerm = keyTerms.primarySubject ?? "the issue";
-    const actionVerb = keyTerms.actionVerbs[0] ?? "address";
-    const context = problem.context ?? "";
-
-    // Generate specific root cause hypotheses based on context analysis
-    const hypotheses = this.generateRootCauseHypotheses(context);
-
-    // Build specific root cause statement
-    if (hypotheses.length > 0) {
-      return this.buildRootCauseStatement(hypotheses, primaryTerm, actionVerb, problem.constraints);
-    }
-
-    // Fallback with actionable next steps
-    return this.buildFallbackRootCause(primaryTerm, actionVerb, problem.constraints, keyTerms);
-  }
-
-  /**
-   * Generate hypotheses based on context indicators
-   */
-  private generateRootCauseHypotheses(context: string): string[] {
-    const hypotheses: string[] = [];
-
-    const indicatorMap: Array<{ indicators: string[]; hypothesis: string }> = [
-      {
-        indicators: ["slow", "latency", "performance"],
-        hypothesis: "resource contention or inefficient algorithms",
-      },
-      {
-        indicators: ["user", "engagement", "retention"],
-        hypothesis: "user experience friction points or unmet user needs",
-      },
-      {
-        indicators: ["error", "fail", "crash"],
-        hypothesis: "system instability or inadequate error handling",
-      },
-      {
-        indicators: ["process", "workflow", "manual"],
-        hypothesis: "process inefficiencies or lack of automation",
-      },
-      {
-        indicators: ["data", "inconsistent", "quality"],
-        hypothesis: "data quality issues or inconsistent data sources",
-      },
-    ];
-
-    for (const { indicators, hypothesis } of indicatorMap) {
-      const result = this.checkContextIndicator(context, indicators, hypothesis);
-      if (result) {
-        hypotheses.push(result);
-      }
-    }
-
-    return hypotheses;
-  }
-
-  /**
-   * Build root cause statement from hypotheses
-   */
-  private buildRootCauseStatement(
-    hypotheses: string[],
-    primaryTerm: string,
-    actionVerb: string,
-    constraints: string[] | undefined
-  ): string {
-    const primaryHypothesis = hypotheses[0];
-    const secondaryHypothesis = hypotheses[1];
-
-    if (constraints && constraints.length > 0) {
-      return `Root cause hypothesis for ${primaryTerm}: ${primaryHypothesis}, compounded by constraint "${constraints[0]}". To ${actionVerb} this, prioritize addressing ${primaryHypothesis} first${secondaryHypothesis ? `, then investigate ${secondaryHypothesis}` : ""}`;
-    }
-
-    return `Root cause hypothesis for ${primaryTerm}: ${primaryHypothesis}${secondaryHypothesis ? `. Secondary factor: ${secondaryHypothesis}` : ""}. Recommended investigation: gather metrics to validate this hypothesis`;
-  }
-
-  /**
-   * Build fallback root cause when no specific hypotheses found
-   */
-  private buildFallbackRootCause(
-    primaryTerm: string,
-    actionVerb: string,
-    constraints: string[] | undefined,
-    keyTerms: KeyTerms
-  ): string {
-    if (constraints && constraints.length > 0) {
-      return `Root cause of ${primaryTerm} likely relates to ${constraints[0]}; to ${actionVerb} this, conduct stakeholder interviews and analyze historical data to identify specific triggers`;
-    }
-
-    if (keyTerms.domainTerms.length > 1) {
-      return `Root cause analysis suggests ${primaryTerm} stems from interaction between ${keyTerms.domainTerms.slice(0, 2).join(" and ")}. Next step: map dependencies between these components to identify failure points`;
-    }
-
-    return `Root cause of ${primaryTerm} requires structured investigation. Recommended approach: (1) gather baseline metrics, (2) identify recent changes, (3) interview stakeholders to surface hidden factors`;
   }
 
   /**
@@ -552,34 +889,5 @@ Perform a systematic analysis.
     }
 
     return parts.join(". ");
-  }
-
-  /**
-   * Calculate confidence score
-   */
-  private calculateConfidence(problem: Problem, insights: Insight[]): number {
-    let confidence = 0.6; // Base confidence for rule-based analysis
-
-    // Boost for context availability
-    if (problem.context && problem.context.length > 50) {
-      confidence += 0.15;
-    } else if (problem.context && problem.context.length > 20) {
-      confidence += 0.1;
-    }
-
-    // Boost for insights generated
-    if (insights.length >= 3) {
-      confidence += 0.1;
-    }
-
-    // Reduce for high constraint count
-    if (problem.constraints && problem.constraints.length > 3) {
-      confidence -= 0.1;
-    }
-
-    // Reduce slightly because this is rule-based, not LLM
-    confidence -= 0.05;
-
-    return Math.max(0.3, Math.min(0.85, confidence));
   }
 }

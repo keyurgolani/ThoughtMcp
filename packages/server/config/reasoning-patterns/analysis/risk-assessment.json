@@ -1,0 +1,805 @@
+{
+  "version": "1.0.0",
+  "domain": "risk-assessment",
+  "description": "Patterns for systematic risk assessment including risk identification, mitigation planning, and impact assessment",
+  "patterns": [
+    {
+      "id": "risk-identification",
+      "name": "Risk Identification Analysis",
+      "description": "Systematic identification and categorization of potential risks across technical, operational, financial, and strategic dimensions",
+      "indicators": [
+        { "type": "exact", "value": "risk identification", "weight": 0.95 },
+        { "type": "exact", "value": "identify risks", "weight": 0.95 },
+        { "type": "exact", "value": "risk assessment", "weight": 0.9 },
+        { "type": "exact", "value": "potential risks", "weight": 0.9 },
+        { "type": "exact", "value": "risk analysis", "weight": 0.9 },
+        { "type": "exact", "value": "risk register", "weight": 0.85 },
+        { "type": "exact", "value": "risk inventory", "weight": 0.85 },
+        { "type": "exact", "value": "threat assessment", "weight": 0.85 },
+        { "type": "exact", "value": "vulnerability assessment", "weight": 0.8 },
+        { "type": "exact", "value": "risk exposure", "weight": 0.8 },
+        { "type": "exact", "value": "risk factors", "weight": 0.75 },
+        { "type": "exact", "value": "what could go wrong", "weight": 0.85 },
+        { "type": "fuzzy", "value": "identify potential risks", "weight": 0.9 },
+        { "type": "fuzzy", "value": "assess the risks", "weight": 0.85 },
+        { "type": "fuzzy", "value": "find all risks", "weight": 0.8 },
+        { "type": "fuzzy", "value": "catalog risks", "weight": 0.75 },
+        {
+          "type": "regex",
+          "value": "\\b(identify|assess|analyze).*risk\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "regex",
+          "value": "\\brisk.*(identification|assessment|analysis)\\b",
+          "weight": 0.85
+        },
+        {
+          "type": "exact",
+          "value": "risk category",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "risk taxonomy",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "risk landscape",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "risk free", "weight": 0.3 },
+        { "type": "exact", "value": "no risk", "weight": 0.25 },
+        { "type": "exact", "value": "zero risk", "weight": 0.25 }
+      ],
+      "hypotheses": [
+        {
+          "id": "technical-risks",
+          "statement": "Technical risks related to {{primarySubject}} may include system failures, integration issues, or technology obsolescence",
+          "investigationSteps": [
+            "Review system architecture for single points of failure",
+            "Assess technology stack maturity and support lifecycle",
+            "Identify integration dependencies and failure modes",
+            "Evaluate scalability and performance limitations",
+            "Check for security vulnerabilities and compliance gaps"
+          ],
+          "expectedFindings": [
+            "Legacy systems with limited support",
+            "Complex integrations with high failure probability",
+            "Scalability bottlenecks under load",
+            "Security vulnerabilities requiring remediation",
+            "Technical debt increasing maintenance risk"
+          ],
+          "relatedHypotheses": ["operational-risks", "external-risks"],
+          "estimatedTime": "2-4 hours",
+          "likelihood": 0.7
+        },
+        {
+          "id": "operational-risks",
+          "statement": "Operational risks related to {{primarySubject}} may stem from process gaps, resource constraints, or human factors",
+          "investigationSteps": [
+            "Map critical processes and identify failure points",
+            "Assess resource availability and skill gaps",
+            "Review operational procedures and compliance",
+            "Evaluate vendor and supplier dependencies",
+            "Check for single points of knowledge or expertise"
+          ],
+          "expectedFindings": [
+            "Undocumented critical processes",
+            "Key person dependencies without backup",
+            "Resource constraints affecting delivery",
+            "Vendor lock-in or supplier concentration",
+            "Process gaps leading to errors"
+          ],
+          "relatedHypotheses": ["technical-risks", "financial-risks"],
+          "estimatedTime": "2-3 hours",
+          "likelihood": 0.65
+        },
+        {
+          "id": "financial-risks",
+          "statement": "Financial risks related to {{primarySubject}} may include budget overruns, cost escalation, or revenue impact",
+          "investigationSteps": [
+            "Review budget assumptions and contingencies",
+            "Assess cost drivers and escalation factors",
+            "Evaluate revenue dependencies and market risks",
+            "Check for hidden costs or unplanned expenses",
+            "Analyze cash flow and funding requirements"
+          ],
+          "expectedFindings": [
+            "Underestimated costs or missing contingencies",
+            "Revenue concentration or customer dependency",
+            "Currency or market exposure",
+            "Unplanned regulatory or compliance costs",
+            "Cash flow timing mismatches"
+          ],
+          "relatedHypotheses": ["operational-risks", "strategic-risks"],
+          "estimatedTime": "1-2 hours",
+          "likelihood": 0.6
+        },
+        {
+          "id": "strategic-risks",
+          "statement": "Strategic risks related to {{primarySubject}} may involve market changes, competitive threats, or misalignment with business goals",
+          "investigationSteps": [
+            "Assess alignment with strategic objectives",
+            "Evaluate competitive landscape and threats",
+            "Review market trends and disruption potential",
+            "Check stakeholder alignment and support",
+            "Analyze regulatory and political environment"
+          ],
+          "expectedFindings": [
+            "Misalignment with business strategy",
+            "Competitive threats not addressed",
+            "Market shifts affecting viability",
+            "Stakeholder resistance or lack of buy-in",
+            "Regulatory changes impacting approach"
+          ],
+          "relatedHypotheses": ["financial-risks", "external-risks"],
+          "estimatedTime": "2-3 hours",
+          "likelihood": 0.55
+        },
+        {
+          "id": "external-risks",
+          "statement": "External risks related to {{primarySubject}} may arise from regulatory changes, market conditions, or third-party dependencies",
+          "investigationSteps": [
+            "Monitor regulatory and compliance landscape",
+            "Assess third-party and vendor risks",
+            "Evaluate market and economic conditions",
+            "Review geopolitical and environmental factors",
+            "Check for reputational risk exposure"
+          ],
+          "expectedFindings": [
+            "Pending regulatory changes affecting operations",
+            "Third-party risks not adequately managed",
+            "Economic conditions impacting demand",
+            "Geopolitical risks in supply chain",
+            "Reputational exposure from associations"
+          ],
+          "relatedHypotheses": ["strategic-risks", "operational-risks"],
+          "estimatedTime": "1-2 hours",
+          "likelihood": 0.5
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "conduct-risk-workshop",
+          "type": "diagnostic",
+          "action": "Conduct structured risk identification workshop with cross-functional stakeholders for {{primarySubject}}",
+          "tools": [
+            "Risk workshop template",
+            "Brainstorming techniques",
+            "Risk categories checklist",
+            "SWOT analysis"
+          ],
+          "expectedOutcome": "Comprehensive list of identified risks across all categories",
+          "prerequisites": [
+            "Stakeholders identified",
+            "Workshop facilitator",
+            "Risk categories defined"
+          ],
+          "priority": 9
+        },
+        {
+          "id": "create-risk-register",
+          "type": "diagnostic",
+          "action": "Create and maintain a risk register documenting all identified risks",
+          "tools": ["Risk register template", "Risk management software", "Spreadsheet"],
+          "expectedOutcome": "Centralized risk inventory with consistent documentation",
+          "prerequisites": ["Risks identified", "Risk register template", "Owner assigned"],
+          "priority": 9
+        },
+        {
+          "id": "categorize-risks",
+          "type": "diagnostic",
+          "action": "Categorize risks by type, source, and affected area for systematic management",
+          "tools": ["Risk taxonomy", "Categorization matrix", "Tagging system"],
+          "expectedOutcome": "Organized risk inventory enabling targeted analysis",
+          "prerequisites": ["Risks documented", "Categorization scheme defined"],
+          "priority": 8
+        },
+        {
+          "id": "assign-risk-owners",
+          "type": "remedial",
+          "action": "Assign risk owners responsible for monitoring and managing each identified risk",
+          "tools": ["RACI matrix", "Risk ownership guidelines", "Accountability framework"],
+          "expectedOutcome": "Clear accountability for risk management",
+          "prerequisites": ["Risks documented", "Stakeholder availability"],
+          "priority": 8
+        },
+        {
+          "id": "establish-risk-review",
+          "type": "remedial",
+          "action": "Establish regular risk review cadence to identify new risks and update existing ones",
+          "tools": ["Review meeting template", "Risk dashboard", "Trend analysis"],
+          "expectedOutcome": "Continuous risk identification and monitoring process",
+          "prerequisites": ["Risk register established", "Review schedule defined"],
+          "priority": 7
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "mitigation-planning",
+      "name": "Risk Mitigation Planning",
+      "description": "Systematic development of risk response strategies including avoidance, transfer, mitigation, and acceptance approaches",
+      "indicators": [
+        { "type": "exact", "value": "risk mitigation", "weight": 0.95 },
+        { "type": "exact", "value": "mitigation plan", "weight": 0.95 },
+        { "type": "exact", "value": "risk response", "weight": 0.9 },
+        { "type": "exact", "value": "risk treatment", "weight": 0.9 },
+        { "type": "exact", "value": "mitigate risks", "weight": 0.9 },
+        { "type": "exact", "value": "reduce risk", "weight": 0.85 },
+        { "type": "exact", "value": "risk control", "weight": 0.85 },
+        { "type": "exact", "value": "contingency plan", "weight": 0.85 },
+        { "type": "exact", "value": "risk avoidance", "weight": 0.8 },
+        { "type": "exact", "value": "risk transfer", "weight": 0.8 },
+        { "type": "exact", "value": "risk acceptance", "weight": 0.75 },
+        { "type": "exact", "value": "countermeasures", "weight": 0.8 },
+        { "type": "fuzzy", "value": "plan to mitigate risks", "weight": 0.9 },
+        { "type": "fuzzy", "value": "develop risk response", "weight": 0.85 },
+        { "type": "fuzzy", "value": "address the risks", "weight": 0.8 },
+        { "type": "fuzzy", "value": "handle identified risks", "weight": 0.75 },
+        {
+          "type": "regex",
+          "value": "\\b(mitigat|reduc|control|address).*risk\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "regex",
+          "value": "\\brisk.*(mitigation|response|treatment|control)\\b",
+          "weight": 0.85
+        },
+        {
+          "type": "exact",
+          "value": "risk appetite",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "risk tolerance",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "residual risk",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "ignore risk", "weight": 0.3 },
+        { "type": "exact", "value": "accept all risks", "weight": 0.25 },
+        { "type": "exact", "value": "no mitigation needed", "weight": 0.25 }
+      ],
+      "hypotheses": [
+        {
+          "id": "avoidance-strategy",
+          "statement": "Risk avoidance may be the appropriate strategy for {{primarySubject}} by eliminating the risk source or changing approach",
+          "investigationSteps": [
+            "Assess if the risk can be completely eliminated",
+            "Evaluate alternative approaches that avoid the risk",
+            "Calculate cost-benefit of avoidance vs other strategies",
+            "Check for downstream impacts of avoidance",
+            "Verify avoidance doesn't create new risks"
+          ],
+          "expectedFindings": [
+            "High-severity risks that can be eliminated",
+            "Alternative approaches with lower risk profiles",
+            "Acceptable trade-offs for risk elimination",
+            "Scope changes that remove risk sources",
+            "Design modifications avoiding risky components"
+          ],
+          "relatedHypotheses": ["mitigation-strategy", "transfer-strategy"],
+          "estimatedTime": "1-2 hours",
+          "likelihood": 0.6
+        },
+        {
+          "id": "mitigation-strategy",
+          "statement": "Risk mitigation through controls and safeguards may reduce the likelihood or impact of {{primarySubject}}",
+          "investigationSteps": [
+            "Identify controls that reduce risk likelihood",
+            "Identify controls that reduce risk impact",
+            "Evaluate control effectiveness and cost",
+            "Design layered defense approach",
+            "Plan for control monitoring and maintenance"
+          ],
+          "expectedFindings": [
+            "Preventive controls reducing likelihood",
+            "Detective controls enabling early response",
+            "Corrective controls limiting impact",
+            "Cost-effective control combinations",
+            "Residual risk within acceptable levels"
+          ],
+          "relatedHypotheses": ["avoidance-strategy", "acceptance-strategy"],
+          "estimatedTime": "2-3 hours",
+          "likelihood": 0.7
+        },
+        {
+          "id": "transfer-strategy",
+          "statement": "Risk transfer through insurance, contracts, or partnerships may be appropriate for {{primarySubject}}",
+          "investigationSteps": [
+            "Identify risks suitable for transfer",
+            "Evaluate insurance options and coverage",
+            "Review contractual risk allocation options",
+            "Assess partnership or outsourcing opportunities",
+            "Calculate cost of transfer vs retention"
+          ],
+          "expectedFindings": [
+            "Insurable risks with available coverage",
+            "Contractual mechanisms for risk sharing",
+            "Third parties better positioned to manage risk",
+            "Cost-effective transfer options",
+            "Clear risk ownership after transfer"
+          ],
+          "relatedHypotheses": ["avoidance-strategy", "mitigation-strategy"],
+          "estimatedTime": "1-2 hours",
+          "likelihood": 0.55
+        },
+        {
+          "id": "acceptance-strategy",
+          "statement": "Risk acceptance with contingency planning may be appropriate for {{primarySubject}} when other strategies are not cost-effective",
+          "investigationSteps": [
+            "Verify risk is within organizational risk appetite",
+            "Document rationale for acceptance decision",
+            "Develop contingency plans for risk occurrence",
+            "Establish triggers for contingency activation",
+            "Allocate contingency reserves if needed"
+          ],
+          "expectedFindings": [
+            "Low-severity risks within tolerance",
+            "Mitigation costs exceeding potential impact",
+            "Risks with very low probability",
+            "Documented acceptance with contingency plans",
+            "Appropriate reserves allocated"
+          ],
+          "relatedHypotheses": ["mitigation-strategy"],
+          "estimatedTime": "1 hour",
+          "likelihood": 0.5
+        },
+        {
+          "id": "combined-strategy",
+          "statement": "A combination of risk response strategies may be needed for {{primarySubject}} to achieve acceptable residual risk",
+          "investigationSteps": [
+            "Evaluate each risk for optimal response strategy",
+            "Design integrated risk response approach",
+            "Ensure strategies don't conflict or create gaps",
+            "Calculate combined effect on residual risk",
+            "Plan for strategy coordination and monitoring"
+          ],
+          "expectedFindings": [
+            "Different strategies optimal for different risks",
+            "Layered approach providing defense in depth",
+            "Synergies between complementary strategies",
+            "Residual risk reduced to acceptable levels",
+            "Clear ownership for each strategy component"
+          ],
+          "relatedHypotheses": [
+            "avoidance-strategy",
+            "mitigation-strategy",
+            "transfer-strategy",
+            "acceptance-strategy"
+          ],
+          "estimatedTime": "2-4 hours",
+          "likelihood": 0.65
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "develop-response-plan",
+          "type": "diagnostic",
+          "action": "Develop comprehensive risk response plan for each identified risk related to {{primarySubject}}",
+          "tools": ["Risk response matrix", "Strategy selection criteria", "Cost-benefit analysis"],
+          "expectedOutcome": "Documented risk response strategy for each significant risk",
+          "prerequisites": [
+            "Risks identified and assessed",
+            "Risk appetite defined",
+            "Stakeholder input"
+          ],
+          "priority": 9
+        },
+        {
+          "id": "implement-controls",
+          "type": "remedial",
+          "action": "Implement risk controls and safeguards according to the mitigation plan",
+          "tools": ["Control implementation checklist", "Project plan", "Testing procedures"],
+          "expectedOutcome": "Operational controls reducing risk exposure",
+          "prerequisites": [
+            "Response plan approved",
+            "Resources allocated",
+            "Implementation timeline"
+          ],
+          "priority": 9
+        },
+        {
+          "id": "establish-contingencies",
+          "type": "remedial",
+          "action": "Establish contingency plans and reserves for accepted risks",
+          "tools": ["Contingency plan template", "Reserve calculation", "Trigger definitions"],
+          "expectedOutcome": "Ready-to-execute contingency plans with allocated reserves",
+          "prerequisites": ["Accepted risks documented", "Contingency scenarios defined"],
+          "priority": 8
+        },
+        {
+          "id": "arrange-risk-transfer",
+          "type": "remedial",
+          "action": "Arrange risk transfer mechanisms including insurance and contractual provisions",
+          "tools": ["Insurance broker", "Contract templates", "Legal review"],
+          "expectedOutcome": "Formal risk transfer arrangements in place",
+          "prerequisites": [
+            "Transfer strategy approved",
+            "Budget allocated",
+            "Legal review complete"
+          ],
+          "priority": 8
+        },
+        {
+          "id": "monitor-effectiveness",
+          "type": "remedial",
+          "action": "Monitor risk response effectiveness and adjust strategies as needed",
+          "tools": ["Risk metrics", "Control testing", "Effectiveness reviews", "KRIs"],
+          "expectedOutcome": "Validated risk response effectiveness with continuous improvement",
+          "prerequisites": ["Controls implemented", "Monitoring metrics defined"],
+          "priority": 7
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "impact-assessment",
+      "name": "Risk Impact Assessment",
+      "description": "Systematic evaluation of risk consequences including probability estimation, impact quantification, and risk prioritization",
+      "indicators": [
+        { "type": "exact", "value": "impact assessment", "weight": 0.95 },
+        { "type": "exact", "value": "risk impact", "weight": 0.95 },
+        { "type": "exact", "value": "impact analysis", "weight": 0.9 },
+        { "type": "exact", "value": "consequence analysis", "weight": 0.9 },
+        { "type": "exact", "value": "risk severity", "weight": 0.85 },
+        { "type": "exact", "value": "risk probability", "weight": 0.85 },
+        { "type": "exact", "value": "risk likelihood", "weight": 0.85 },
+        { "type": "exact", "value": "risk scoring", "weight": 0.85 },
+        { "type": "exact", "value": "risk matrix", "weight": 0.85 },
+        { "type": "exact", "value": "risk prioritization", "weight": 0.8 },
+        { "type": "exact", "value": "risk ranking", "weight": 0.8 },
+        { "type": "exact", "value": "quantify risk", "weight": 0.8 },
+        { "type": "exact", "value": "risk exposure", "weight": 0.75 },
+        { "type": "fuzzy", "value": "assess the impact", "weight": 0.9 },
+        { "type": "fuzzy", "value": "evaluate risk severity", "weight": 0.85 },
+        { "type": "fuzzy", "value": "determine risk priority", "weight": 0.8 },
+        { "type": "fuzzy", "value": "measure risk exposure", "weight": 0.75 },
+        {
+          "type": "regex",
+          "value": "\\b(assess|evaluat|analyz|quantif).*impact\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "regex",
+          "value": "\\brisk.*(impact|severity|probability|likelihood)\\b",
+          "weight": 0.85
+        },
+        {
+          "type": "exact",
+          "value": "expected value",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "risk score",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "heat map",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "no impact", "weight": 0.3 },
+        { "type": "exact", "value": "negligible risk", "weight": 0.25 },
+        { "type": "exact", "value": "insignificant", "weight": 0.2 }
+      ],
+      "hypotheses": [
+        {
+          "id": "high-probability-impact",
+          "statement": "{{primarySubject}} may have high probability of occurrence requiring immediate attention and mitigation",
+          "investigationSteps": [
+            "Review historical data for similar risk occurrences",
+            "Assess current conditions and trends",
+            "Evaluate leading indicators and warning signs",
+            "Consult subject matter experts for probability estimates",
+            "Consider multiple scenarios and their likelihoods"
+          ],
+          "expectedFindings": [
+            "Historical precedent for risk occurrence",
+            "Current conditions increasing probability",
+            "Leading indicators suggesting imminent risk",
+            "Expert consensus on high likelihood",
+            "Multiple scenarios with significant probability"
+          ],
+          "relatedHypotheses": ["severe-consequences", "cascading-impacts"],
+          "estimatedTime": "1-2 hours",
+          "likelihood": 0.65
+        },
+        {
+          "id": "severe-consequences",
+          "statement": "{{primarySubject}} may have severe consequences across financial, operational, or reputational dimensions",
+          "investigationSteps": [
+            "Quantify potential financial impact",
+            "Assess operational disruption severity",
+            "Evaluate reputational and stakeholder impact",
+            "Consider regulatory and compliance consequences",
+            "Estimate recovery time and cost"
+          ],
+          "expectedFindings": [
+            "Significant financial exposure",
+            "Major operational disruption potential",
+            "Reputational damage affecting stakeholders",
+            "Regulatory penalties or compliance issues",
+            "Extended recovery timeline"
+          ],
+          "relatedHypotheses": ["high-probability-impact", "cascading-impacts"],
+          "estimatedTime": "2-3 hours",
+          "likelihood": 0.7
+        },
+        {
+          "id": "cascading-impacts",
+          "statement": "{{primarySubject}} may trigger cascading effects amplifying the overall impact beyond initial consequences",
+          "investigationSteps": [
+            "Map dependencies and interconnections",
+            "Identify potential chain reactions",
+            "Assess secondary and tertiary impacts",
+            "Evaluate systemic risk potential",
+            "Consider worst-case scenario propagation"
+          ],
+          "expectedFindings": [
+            "Dependencies creating amplification effects",
+            "Chain reactions across systems or processes",
+            "Secondary impacts exceeding primary impact",
+            "Systemic risk affecting multiple areas",
+            "Worst-case scenarios with severe propagation"
+          ],
+          "relatedHypotheses": ["severe-consequences", "timing-sensitivity"],
+          "estimatedTime": "2-3 hours",
+          "likelihood": 0.55
+        },
+        {
+          "id": "timing-sensitivity",
+          "statement": "The impact of {{primarySubject}} may be highly sensitive to timing, with certain periods having amplified consequences",
+          "investigationSteps": [
+            "Identify critical periods or deadlines",
+            "Assess seasonal or cyclical factors",
+            "Evaluate dependencies on timing",
+            "Consider market or business cycle effects",
+            "Map time-sensitive stakeholder impacts"
+          ],
+          "expectedFindings": [
+            "Critical periods with amplified impact",
+            "Seasonal factors affecting severity",
+            "Deadline dependencies increasing consequences",
+            "Business cycle timing considerations",
+            "Time-sensitive stakeholder concerns"
+          ],
+          "relatedHypotheses": ["cascading-impacts", "stakeholder-impacts"],
+          "estimatedTime": "1-2 hours",
+          "likelihood": 0.5
+        },
+        {
+          "id": "stakeholder-impacts",
+          "statement": "{{primarySubject}} may have differentiated impacts across stakeholder groups requiring tailored assessment",
+          "investigationSteps": [
+            "Identify all affected stakeholder groups",
+            "Assess impact severity for each group",
+            "Evaluate stakeholder sensitivity and tolerance",
+            "Consider stakeholder influence and importance",
+            "Map stakeholder-specific consequences"
+          ],
+          "expectedFindings": [
+            "Differentiated impacts across stakeholders",
+            "High-sensitivity stakeholder groups",
+            "Influential stakeholders with low tolerance",
+            "Stakeholder-specific consequence patterns",
+            "Communication and management requirements"
+          ],
+          "relatedHypotheses": ["severe-consequences", "timing-sensitivity"],
+          "estimatedTime": "1-2 hours",
+          "likelihood": 0.6
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "quantify-impacts",
+          "type": "diagnostic",
+          "action": "Quantify risk impacts using consistent scales for probability and consequence for {{primarySubject}}",
+          "tools": [
+            "Risk matrix",
+            "Impact scales",
+            "Probability estimation",
+            "Monte Carlo simulation"
+          ],
+          "expectedOutcome": "Quantified risk scores enabling comparison and prioritization",
+          "prerequisites": [
+            "Risks identified",
+            "Impact scales defined",
+            "Assessment criteria agreed"
+          ],
+          "priority": 9
+        },
+        {
+          "id": "create-risk-matrix",
+          "type": "diagnostic",
+          "action": "Create risk matrix or heat map visualizing risk priorities",
+          "tools": ["Risk matrix template", "Heat map visualization", "Risk dashboard"],
+          "expectedOutcome": "Visual representation of risk landscape for decision-making",
+          "prerequisites": ["Risks quantified", "Visualization tool available"],
+          "priority": 8
+        },
+        {
+          "id": "prioritize-risks",
+          "type": "diagnostic",
+          "action": "Prioritize risks based on combined probability and impact scores",
+          "tools": ["Prioritization matrix", "Ranking algorithms", "Stakeholder input"],
+          "expectedOutcome": "Ranked risk list guiding resource allocation",
+          "prerequisites": ["Risks quantified", "Prioritization criteria defined"],
+          "priority": 9
+        },
+        {
+          "id": "scenario-analysis",
+          "type": "diagnostic",
+          "action": "Conduct scenario analysis for high-priority risks to understand range of outcomes",
+          "tools": ["Scenario planning", "Sensitivity analysis", "What-if modeling"],
+          "expectedOutcome": "Understanding of best-case, worst-case, and most-likely outcomes",
+          "prerequisites": ["High-priority risks identified", "Scenario parameters defined"],
+          "priority": 8
+        },
+        {
+          "id": "establish-thresholds",
+          "type": "remedial",
+          "action": "Establish risk thresholds and escalation criteria based on impact assessment",
+          "tools": ["Threshold definitions", "Escalation matrix", "Alert criteria"],
+          "expectedOutcome": "Clear criteria for risk escalation and response triggers",
+          "prerequisites": ["Risk appetite defined", "Impact assessment complete"],
+          "priority": 7
+        },
+        {
+          "id": "communicate-assessment",
+          "type": "remedial",
+          "action": "Communicate risk assessment results to stakeholders with appropriate detail level",
+          "tools": ["Risk report template", "Executive summary", "Stakeholder briefing"],
+          "expectedOutcome": "Stakeholder awareness and alignment on risk priorities",
+          "prerequisites": ["Assessment complete", "Communication plan defined"],
+          "priority": 7
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    }
+  ],
+  "testCases": [
+    {
+      "id": "test-risk-identification-basic",
+      "input": "We need to identify all potential risks for this project",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["risk-identification"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-risk-identification-detailed",
+      "input": "Let's conduct a comprehensive risk assessment to catalog all risk factors",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["risk-identification"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-risk-identification-register",
+      "input": "We need to create a risk register documenting all identified risks and their categories",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["risk-identification"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-risk-identification-threat",
+      "input": "What could go wrong with this initiative? We need a threat assessment",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["risk-identification"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-mitigation-basic",
+      "input": "We need to develop a risk mitigation plan for the identified risks",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["mitigation-planning"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-mitigation-response",
+      "input": "How should we respond to these risks? We need risk treatment strategies",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["mitigation-planning"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-mitigation-control",
+      "input": "We need to implement risk controls and countermeasures to reduce our exposure",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["mitigation-planning"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-mitigation-contingency",
+      "input": "Let's develop contingency plans for the risks we're accepting",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["mitigation-planning"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-impact-basic",
+      "input": "We need to assess the impact and probability of each identified risk",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["impact-assessment"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-impact-matrix",
+      "input": "Let's create a risk matrix to prioritize risks by severity and likelihood",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["impact-assessment"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-impact-quantify",
+      "input": "We need to quantify the risk exposure and score each risk for prioritization",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["impact-assessment"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-impact-consequence",
+      "input": "What are the potential consequences? We need a consequence analysis",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["impact-assessment"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-combined-identification-mitigation",
+      "input": "We need to identify risks and develop mitigation strategies for each one",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["risk-identification", "mitigation-planning"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-combined-identification-impact",
+      "input": "Let's identify all risks and assess their impact on the project",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["risk-identification", "impact-assessment"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-combined-impact-mitigation",
+      "input": "We need to prioritize risks by impact and develop response plans",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["impact-assessment", "mitigation-planning"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-all-patterns",
+      "input": "Comprehensive risk assessment needed - identify risks, assess impact, and develop mitigation plans",
+      "expectedDomain": "risk-assessment",
+      "expectedPatternIds": ["risk-identification", "impact-assessment", "mitigation-planning"],
+      "minConfidence": 0.8
+    }
+  ]
+}

@@ -77,7 +77,7 @@ export const DEFAULT_REST_API_CONFIG: RestApiServerConfig = {
   enableWebSocket: true,
   enableSSE: true,
   bodyLimit: "1mb",
-  requestTimeout: 30000,
+  requestTimeout: 120000, // 120 seconds to accommodate LLM reasoning operations
   shutdownTimeout: 10000,
   enableResponseCache: true,
   responseCacheTTL: 30000, // 30 seconds default

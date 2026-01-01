@@ -1,0 +1,8 @@
+# Technical domain patterns
+# This directory contains patterns for technical/engineering domains:
+# - database.json - Database performance and reliability issues
+# - api.json - API design, rate limiting, versioning
+# - security.json - Authentication, authorization, vulnerabilities
+# - performance.json - Latency, throughput, resource utilization
+# - infrastructure.json - Deployment, scaling, monitoring
+# - data-quality.json - Validation, consistency, integrity

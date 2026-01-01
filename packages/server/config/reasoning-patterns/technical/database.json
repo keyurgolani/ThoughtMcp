@@ -1,0 +1,520 @@
+{
+  "version": "1.0.0",
+  "domain": "database",
+  "description": "Patterns for database performance, reliability, and optimization issues including slow queries, connection pooling, and indexing",
+  "patterns": [
+    {
+      "id": "db-slow-query",
+      "name": "Slow Query Detection",
+      "description": "Detects database performance issues related to slow queries, timeouts, and query execution problems",
+      "indicators": [
+        { "type": "exact", "value": "slow query", "weight": 0.95 },
+        { "type": "exact", "value": "query timeout", "weight": 0.9 },
+        { "type": "exact", "value": "query performance", "weight": 0.85 },
+        { "type": "exact", "value": "slow database", "weight": 0.85 },
+        { "type": "exact", "value": "database latency", "weight": 0.8 },
+        { "type": "fuzzy", "value": "database performance slow", "weight": 0.75 },
+        { "type": "fuzzy", "value": "query taking long", "weight": 0.7 },
+        {
+          "type": "regex",
+          "value": "\\b(select|join|where).*slow\\b",
+          "weight": 0.65,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bquery.*timeout\\b", "weight": 0.7 },
+        {
+          "type": "exact",
+          "value": "execution time",
+          "weight": 0.6,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "response time", "weight": 0.55 }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "network latency", "weight": 0.3 },
+        { "type": "exact", "value": "api latency", "weight": 0.25 },
+        { "type": "exact", "value": "frontend slow", "weight": 0.2 }
+      ],
+      "hypotheses": [
+        {
+          "id": "missing-index",
+          "statement": "The {{primarySubject}} may be slow due to missing database indexes on frequently queried columns",
+          "investigationSteps": [
+            "Run EXPLAIN ANALYZE on the slow query to identify sequential scans",
+            "Check pg_stat_user_indexes for index usage statistics",
+            "Review query patterns in pg_stat_statements",
+            "Identify columns used in WHERE, JOIN, and ORDER BY clauses"
+          ],
+          "expectedFindings": [
+            "Sequential scans on large tables (>10k rows)",
+            "Index scans with high row estimates vs actual rows",
+            "Missing indexes on WHERE clause columns",
+            "Unused or redundant indexes consuming resources"
+          ],
+          "relatedHypotheses": ["query-complexity", "table-bloat"],
+          "estimatedTime": "15-30 minutes",
+          "likelihood": 0.75
+        },
+        {
+          "id": "query-complexity",
+          "statement": "The query complexity may be causing performance issues due to suboptimal query structure or excessive joins",
+          "investigationSteps": [
+            "Analyze query execution plan for nested loops or hash joins",
+            "Check for N+1 query patterns in application logs",
+            "Review query for unnecessary JOINs or subqueries",
+            "Examine query for SELECT * instead of specific columns"
+          ],
+          "expectedFindings": [
+            "Multiple nested loop joins on large tables",
+            "Subqueries that could be rewritten as JOINs",
+            "SELECT * fetching unnecessary columns",
+            "Correlated subqueries executing repeatedly"
+          ],
+          "relatedHypotheses": ["missing-index", "data-volume"],
+          "estimatedTime": "20-45 minutes",
+          "likelihood": 0.65
+        },
+        {
+          "id": "table-bloat",
+          "statement": "Table bloat from dead tuples may be degrading query performance for {{primarySubject}}",
+          "investigationSteps": [
+            "Check pg_stat_user_tables for dead tuple counts",
+            "Review autovacuum settings and last vacuum times",
+            "Analyze table size vs estimated live rows",
+            "Check for long-running transactions blocking vacuum"
+          ],
+          "expectedFindings": [
+            "High dead tuple count relative to live tuples",
+            "Autovacuum not running frequently enough",
+            "Table size significantly larger than expected",
+            "Long-running transactions preventing cleanup"
+          ],
+          "relatedHypotheses": ["missing-index"],
+          "estimatedTime": "10-20 minutes",
+          "likelihood": 0.45
+        },
+        {
+          "id": "data-volume",
+          "statement": "Increased data volume may have exceeded the capacity of current query patterns for {{primarySubject}}",
+          "investigationSteps": [
+            "Compare current table sizes with historical data",
+            "Review query performance trends over time",
+            "Check if pagination or limits are being used",
+            "Analyze data growth rate and retention policies"
+          ],
+          "expectedFindings": [
+            "Significant table growth without query optimization",
+            "Queries returning more rows than necessary",
+            "Missing pagination on large result sets",
+            "No data archival or retention strategy"
+          ],
+          "relatedHypotheses": ["query-complexity", "missing-index"],
+          "estimatedTime": "15-25 minutes",
+          "likelihood": 0.5
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "analyze-queries",
+          "type": "diagnostic",
+          "action": "Enable query logging and analyze slow query patterns for {{primarySubject}}",
+          "tools": ["pg_stat_statements", "auto_explain", "pgBadger", "EXPLAIN ANALYZE"],
+          "expectedOutcome": "Identification of top 10 slowest queries with execution plans",
+          "prerequisites": ["Database access", "Query logging enabled"],
+          "priority": 9
+        },
+        {
+          "id": "add-index",
+          "type": "remedial",
+          "action": "Create indexes on columns used in WHERE, JOIN, and ORDER BY clauses for {{primarySubject}}",
+          "tools": ["CREATE INDEX", "CREATE INDEX CONCURRENTLY", "pg_stat_user_indexes"],
+          "expectedOutcome": "Query execution time reduced by 50-90%",
+          "prerequisites": [
+            "Identify slow queries",
+            "Analyze query patterns",
+            "Test in non-production first"
+          ],
+          "priority": 8,
+          "documentationLinks": ["https://www.postgresql.org/docs/current/indexes.html"]
+        },
+        {
+          "id": "optimize-query",
+          "type": "remedial",
+          "action": "Rewrite complex queries to reduce joins and improve execution efficiency",
+          "tools": ["EXPLAIN ANALYZE", "Query rewriting", "CTEs", "Materialized views"],
+          "expectedOutcome": "Simplified query execution with fewer operations",
+          "prerequisites": ["Query analysis complete", "Understanding of data model"],
+          "priority": 7
+        },
+        {
+          "id": "run-vacuum",
+          "type": "remedial",
+          "action": "Run VACUUM ANALYZE to reclaim space and update statistics",
+          "tools": ["VACUUM ANALYZE", "VACUUM FULL", "pg_repack"],
+          "expectedOutcome": "Reduced table bloat and updated query planner statistics",
+          "prerequisites": ["Identify bloated tables", "Schedule during low-traffic period"],
+          "priority": 6
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "db-connection-pool",
+      "name": "Connection Pool Issues",
+      "description": "Detects database connection pooling problems including exhaustion, leaks, and configuration issues",
+      "indicators": [
+        { "type": "exact", "value": "connection pool", "weight": 0.95 },
+        { "type": "exact", "value": "connection exhausted", "weight": 0.95 },
+        { "type": "exact", "value": "too many connections", "weight": 0.9 },
+        { "type": "exact", "value": "connection timeout", "weight": 0.85 },
+        { "type": "exact", "value": "connection leak", "weight": 0.9 },
+        { "type": "fuzzy", "value": "database connection failed", "weight": 0.8 },
+        { "type": "fuzzy", "value": "cannot connect database", "weight": 0.75 },
+        { "type": "regex", "value": "\\bconnection.*pool.*exhaust\\b", "weight": 0.85 },
+        {
+          "type": "regex",
+          "value": "\\bmax.*connections?\\b",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "pgbouncer", "weight": 0.6, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "connection refused", "weight": 0.7 }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "network connection", "weight": 0.3 },
+        { "type": "exact", "value": "http connection", "weight": 0.25 },
+        { "type": "exact", "value": "websocket connection", "weight": 0.2 }
+      ],
+      "hypotheses": [
+        {
+          "id": "pool-exhaustion",
+          "statement": "The connection pool for {{primarySubject}} may be exhausted due to insufficient pool size or connection leaks",
+          "investigationSteps": [
+            "Check current connection count vs max_connections setting",
+            "Review connection pool configuration (min, max, idle timeout)",
+            "Monitor connection acquisition time and wait queue",
+            "Check for connections not being returned to pool"
+          ],
+          "expectedFindings": [
+            "Connection count at or near max_connections limit",
+            "Long wait times for connection acquisition",
+            "Connections held longer than expected",
+            "Pool size too small for concurrent load"
+          ],
+          "relatedHypotheses": ["connection-leak", "pool-misconfiguration"],
+          "estimatedTime": "10-20 minutes",
+          "likelihood": 0.7
+        },
+        {
+          "id": "connection-leak",
+          "statement": "Connection leaks in the application may be preventing connections from being returned to the pool",
+          "investigationSteps": [
+            "Review application code for proper connection handling",
+            "Check for try-finally blocks around connection usage",
+            "Monitor connection age and idle time",
+            "Look for error paths that skip connection release"
+          ],
+          "expectedFindings": [
+            "Connections not closed in finally blocks",
+            "Error handlers not releasing connections",
+            "Long-lived connections that should be short-lived",
+            "Growing connection count over time without release"
+          ],
+          "relatedHypotheses": ["pool-exhaustion"],
+          "estimatedTime": "30-60 minutes",
+          "likelihood": 0.6
+        },
+        {
+          "id": "pool-misconfiguration",
+          "statement": "Connection pool configuration may be suboptimal for the current workload of {{primarySubject}}",
+          "investigationSteps": [
+            "Review pool size relative to application instances",
+            "Check idle connection timeout settings",
+            "Analyze connection validation and health check settings",
+            "Compare pool settings with database max_connections"
+          ],
+          "expectedFindings": [
+            "Pool size not scaled with application instances",
+            "Idle timeout too long or too short",
+            "Missing connection validation causing stale connections",
+            "Total pool connections exceeding database limits"
+          ],
+          "relatedHypotheses": ["pool-exhaustion"],
+          "estimatedTime": "15-25 minutes",
+          "likelihood": 0.55
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "monitor-connections",
+          "type": "diagnostic",
+          "action": "Monitor database connection metrics and pool statistics for {{primarySubject}}",
+          "tools": ["pg_stat_activity", "Connection pool metrics", "Application monitoring"],
+          "expectedOutcome": "Visibility into connection usage patterns and bottlenecks",
+          "prerequisites": ["Database access", "Monitoring infrastructure"],
+          "priority": 9
+        },
+        {
+          "id": "increase-pool-size",
+          "type": "remedial",
+          "action": "Increase connection pool size based on concurrent request analysis",
+          "tools": ["Pool configuration", "Load testing tools"],
+          "expectedOutcome": "Reduced connection wait times and timeout errors",
+          "prerequisites": [
+            "Understand current load patterns",
+            "Verify database can handle more connections"
+          ],
+          "priority": 8
+        },
+        {
+          "id": "fix-connection-leaks",
+          "type": "remedial",
+          "action": "Implement proper connection handling with try-finally or using statements",
+          "tools": ["Code review", "Static analysis", "Connection tracking"],
+          "expectedOutcome": "Connections properly returned to pool after use",
+          "prerequisites": ["Identify leak locations", "Code access"],
+          "priority": 8
+        },
+        {
+          "id": "implement-pgbouncer",
+          "type": "remedial",
+          "action": "Deploy PgBouncer as a connection pooler between application and database",
+          "tools": ["PgBouncer", "pgpool-II"],
+          "expectedOutcome": "Efficient connection multiplexing and reduced database connection overhead",
+          "prerequisites": ["Infrastructure access", "Testing environment"],
+          "priority": 7,
+          "documentationLinks": ["https://www.pgbouncer.org/"]
+        }
+      ],
+      "severity": "critical",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "db-index-optimization",
+      "name": "Index Optimization",
+      "description": "Detects opportunities for database index optimization including missing, unused, or inefficient indexes",
+      "indicators": [
+        { "type": "exact", "value": "missing index", "weight": 0.95 },
+        { "type": "exact", "value": "index optimization", "weight": 0.9 },
+        { "type": "exact", "value": "unused index", "weight": 0.85 },
+        { "type": "exact", "value": "index scan", "weight": 0.7 },
+        { "type": "exact", "value": "sequential scan", "weight": 0.8 },
+        { "type": "fuzzy", "value": "database index performance", "weight": 0.75 },
+        { "type": "fuzzy", "value": "create index improve", "weight": 0.7 },
+        { "type": "regex", "value": "\\bindex.*missing\\b", "weight": 0.8 },
+        {
+          "type": "regex",
+          "value": "\\bseq.*scan\\b",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "covering index",
+          "weight": 0.6,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "composite index",
+          "weight": 0.6,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "partial index",
+          "weight": 0.55,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "search index", "weight": 0.3 },
+        { "type": "exact", "value": "elasticsearch", "weight": 0.35 },
+        { "type": "exact", "value": "full text search", "weight": 0.25 }
+      ],
+      "hypotheses": [
+        {
+          "id": "missing-indexes",
+          "statement": "Critical indexes may be missing on frequently queried columns in {{primarySubject}}",
+          "investigationSteps": [
+            "Run EXPLAIN ANALYZE on common queries to identify sequential scans",
+            "Check pg_stat_user_tables for tables with high sequential scan counts",
+            "Review WHERE, JOIN, and ORDER BY columns for index candidates",
+            "Analyze query patterns from pg_stat_statements"
+          ],
+          "expectedFindings": [
+            "Sequential scans on tables with >1000 rows",
+            "High seq_scan count relative to idx_scan",
+            "Frequently filtered columns without indexes",
+            "JOIN columns without supporting indexes"
+          ],
+          "relatedHypotheses": ["inefficient-indexes", "over-indexing"],
+          "estimatedTime": "20-40 minutes",
+          "likelihood": 0.7
+        },
+        {
+          "id": "inefficient-indexes",
+          "statement": "Existing indexes may be inefficient due to poor column ordering or missing covering columns",
+          "investigationSteps": [
+            "Review composite index column order vs query patterns",
+            "Check for indexes that could be covering indexes",
+            "Analyze index selectivity and cardinality",
+            "Compare index size with table size"
+          ],
+          "expectedFindings": [
+            "Composite indexes with wrong column order",
+            "Indexes missing frequently selected columns",
+            "Low selectivity indexes being used",
+            "Oversized indexes relative to table"
+          ],
+          "relatedHypotheses": ["missing-indexes"],
+          "estimatedTime": "25-45 minutes",
+          "likelihood": 0.55
+        },
+        {
+          "id": "over-indexing",
+          "statement": "Too many indexes may be degrading write performance and consuming excessive storage",
+          "investigationSteps": [
+            "List all indexes and their usage statistics",
+            "Identify indexes with zero or very low usage",
+            "Calculate total index size vs table size",
+            "Review write-heavy tables for index overhead"
+          ],
+          "expectedFindings": [
+            "Indexes with idx_scan = 0 over extended period",
+            "Duplicate or overlapping indexes",
+            "Index size exceeding table size",
+            "Write performance degradation from index maintenance"
+          ],
+          "relatedHypotheses": ["inefficient-indexes"],
+          "estimatedTime": "15-30 minutes",
+          "likelihood": 0.45
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "analyze-index-usage",
+          "type": "diagnostic",
+          "action": "Analyze current index usage and identify optimization opportunities for {{primarySubject}}",
+          "tools": ["pg_stat_user_indexes", "pg_stat_user_tables", "EXPLAIN ANALYZE"],
+          "expectedOutcome": "Complete picture of index effectiveness and gaps",
+          "prerequisites": ["Database access", "Query patterns documented"],
+          "priority": 9
+        },
+        {
+          "id": "create-missing-indexes",
+          "type": "remedial",
+          "action": "Create indexes on columns identified as missing index candidates",
+          "tools": ["CREATE INDEX CONCURRENTLY", "pg_stat_statements"],
+          "expectedOutcome": "Improved query performance for indexed columns",
+          "prerequisites": ["Index analysis complete", "Test in staging first"],
+          "priority": 8,
+          "documentationLinks": ["https://www.postgresql.org/docs/current/sql-createindex.html"]
+        },
+        {
+          "id": "remove-unused-indexes",
+          "type": "remedial",
+          "action": "Drop unused indexes to improve write performance and reduce storage",
+          "tools": ["DROP INDEX", "pg_stat_user_indexes"],
+          "expectedOutcome": "Faster write operations and reduced storage usage",
+          "prerequisites": ["Confirm index is truly unused", "Backup index definition"],
+          "priority": 6
+        },
+        {
+          "id": "optimize-composite-indexes",
+          "type": "remedial",
+          "action": "Restructure composite indexes with optimal column ordering for query patterns",
+          "tools": ["CREATE INDEX", "EXPLAIN ANALYZE", "Query analysis"],
+          "expectedOutcome": "Better index utilization for multi-column queries",
+          "prerequisites": ["Understand query patterns", "Test new index before dropping old"],
+          "priority": 7
+        },
+        {
+          "id": "implement-partial-indexes",
+          "type": "remedial",
+          "action": "Create partial indexes for queries that filter on specific conditions",
+          "tools": ["CREATE INDEX ... WHERE", "EXPLAIN ANALYZE"],
+          "expectedOutcome": "Smaller, more efficient indexes for filtered queries",
+          "prerequisites": ["Identify common filter conditions", "Understand data distribution"],
+          "priority": 6,
+          "documentationLinks": ["https://www.postgresql.org/docs/current/indexes-partial.html"]
+        }
+      ],
+      "severity": "medium",
+      "qualityThreshold": 0.55
+    }
+  ],
+  "testCases": [
+    {
+      "id": "test-slow-query-basic",
+      "input": "Our database queries are running slow and causing timeouts",
+      "expectedDomain": "database",
+      "expectedPatternIds": ["db-slow-query"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-slow-query-detailed",
+      "input": "The SELECT query with multiple JOINs is taking over 30 seconds to execute and timing out",
+      "expectedDomain": "database",
+      "expectedPatternIds": ["db-slow-query"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-slow-query-performance",
+      "input": "Database performance has degraded significantly, query execution time increased from 100ms to 5 seconds",
+      "expectedDomain": "database",
+      "expectedPatternIds": ["db-slow-query"],
+      "minConfidence": 0.65
+    },
+    {
+      "id": "test-connection-pool-exhausted",
+      "input": "Getting connection pool exhausted errors, too many connections to the database",
+      "expectedDomain": "database",
+      "expectedPatternIds": ["db-connection-pool"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-connection-pool-timeout",
+      "input": "Application is failing with connection timeout errors when trying to connect to PostgreSQL",
+      "expectedDomain": "database",
+      "expectedPatternIds": ["db-connection-pool"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-connection-leak",
+      "input": "We suspect there's a connection leak in our application, connections are not being returned to the pool",
+      "expectedDomain": "database",
+      "expectedPatternIds": ["db-connection-pool"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-missing-index",
+      "input": "EXPLAIN shows sequential scan on a large table, we think there's a missing index",
+      "expectedDomain": "database",
+      "expectedPatternIds": ["db-index-optimization"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-index-optimization",
+      "input": "Need to optimize database indexes, some queries are doing full table scans",
+      "expectedDomain": "database",
+      "expectedPatternIds": ["db-index-optimization"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-unused-indexes",
+      "input": "We have too many unused indexes consuming storage and slowing down writes",
+      "expectedDomain": "database",
+      "expectedPatternIds": ["db-index-optimization"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-slow-index",
+      "input": "Database queries are slow because of missing indexes on the WHERE clause columns",
+      "expectedDomain": "database",
+      "expectedPatternIds": ["db-slow-query", "db-index-optimization"],
+      "minConfidence": 0.7
+    }
+  ]
+}

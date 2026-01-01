@@ -1517,18 +1517,276 @@ export interface ApiResponse<T> {
 }
 
 // ============================================================================
+// Validation Error Types (Requirements: 4.3, 4.6)
+// ============================================================================
+
+/**
+ * Constraint types that can be violated during validation
+ */
+export type ValidationConstraintType =
+  | "required"
+  | "minLength"
+  | "maxLength"
+  | "minValue"
+  | "maxValue"
+  | "pattern"
+  | "type"
+  | "enum"
+  | "format"
+  | "custom";
+
+/**
+ * Error codes for different validation failure types
+ */
+export type ValidationErrorCode =
+  | "FIELD_REQUIRED"
+  | "STRING_TOO_SHORT"
+  | "STRING_TOO_LONG"
+  | "NUMBER_TOO_SMALL"
+  | "NUMBER_TOO_LARGE"
+  | "PATTERN_MISMATCH"
+  | "TYPE_MISMATCH"
+  | "INVALID_ENUM_VALUE"
+  | "INVALID_FORMAT"
+  | "ARRAY_ITEM_INVALID"
+  | "CUSTOM_VALIDATION_FAILED";
+
+/**
+ * Expected constraint details based on constraint type
+ */
+export type ValidationExpectedConstraint =
+  | { type: "required" }
+  | { type: "minLength"; minLength: number }
+  | { type: "maxLength"; maxLength: number }
+  | { type: "minValue"; minValue: number }
+  | { type: "maxValue"; maxValue: number }
+  | { type: "range"; minValue: number; maxValue: number }
+  | { type: "pattern"; pattern: string; example: string }
+  | { type: "type"; expectedType: string; actualType: string }
+  | { type: "enum"; validValues: string[]; closestMatch?: string }
+  | { type: "format"; format: string; example: string }
+  | { type: "custom"; description: string };
+
+/**
+ * Single field error for UI display
+ *
+ * Requirements: 4.3, 4.6
+ */
+export interface UIFieldError {
+  /** Form field identifier for highlighting */
+  fieldId: string;
+  /** Dot-notation path to the field */
+  path: string;
+  /** Human-readable error message */
+  message: string;
+  /** Actionable suggestion for fixing the error */
+  suggestion: string;
+  /** Error severity for display styling */
+  severity: "error" | "warning";
+}
+
+/**
+ * UI validation error response format
+ *
+ * Used for form field highlighting and inline error messages.
+ * Matches server-side UIValidationErrorResponse structure.
+ *
+ * Requirements: 4.3, 4.4, 4.5, 4.6
+ */
+export interface UIValidationErrorResponse {
+  /** Always false for validation errors */
+  valid: false;
+  /** Array of field-level errors for form display */
+  errors: UIFieldError[];
+  /** Summary message for display */
+  summary: string;
+}
+
+/**
+ * Field error details for REST API validation response
+ *
+ * Requirements: 4.1, 4.4, 4.5
+ */
+export interface RESTFieldErrorDetails {
+  /** Human-readable error message */
+  message: string;
+  /** Unique error code identifying the validation failure type */
+  code: ValidationErrorCode;
+  /** The constraint that was violated */
+  constraint: ValidationConstraintType;
+  /** Details about the expected format or constraint */
+  expected: ValidationExpectedConstraint;
+  /** Actionable suggestion for fixing the error */
+  suggestion: string;
+}
+
+/**
+ * REST API validation error response format
+ *
+ * Enhanced error structure with field-level details while maintaining
+ * backward compatibility with existing error structure.
+ *
+ * Requirements: 4.1, 4.4, 4.5, 8.1, 8.3, 8.4
+ */
+export interface RESTValidationErrorResponse {
+  /** Always false for error responses - backward compatible */
+  success: false;
+  /** Human-readable error message - backward compatible */
+  error: string;
+  /** Machine-readable error code - backward compatible */
+  code: "VALIDATION_ERROR";
+  /** Actionable suggestion for fixing errors - backward compatible */
+  suggestion: string;
+  /** Enhanced field-level error details */
+  details: {
+    /** Map of field paths to their error details */
+    fields: Record<string, RESTFieldErrorDetails>;
+    /** Total number of validation errors */
+    totalErrors: number;
+  };
+  /** Response metadata for tracing and debugging */
+  metadata: {
+    /** Unique request identifier for tracing */
+    requestId: string;
+    /** ISO 8601 timestamp of the response */
+    timestamp: string;
+    /** Validation processing time in milliseconds */
+    validationTimeMs: number;
+  };
+}
+
+/**
+ * Check if an error response is a validation error response
+ */
+export function isValidationErrorResponse(
+  response: unknown
+): response is RESTValidationErrorResponse {
+  if (typeof response !== "object" || response === null) {
+    return false;
+  }
+  const obj = response as Record<string, unknown>;
+  return (
+    obj.success === false &&
+    obj.code === "VALIDATION_ERROR" &&
+    typeof obj.error === "string" &&
+    typeof obj.details === "object" &&
+    obj.details !== null
+  );
+}
+
+/**
+ * Transform REST validation error response to UI format
+ *
+ * Converts server-side RESTValidationErrorResponse to UIValidationErrorResponse
+ * for form field highlighting and inline error display.
+ *
+ * Requirements: 4.3, 4.6
+ */
+export function transformToUIValidationError(
+  response: RESTValidationErrorResponse
+): UIValidationErrorResponse {
+  const errors: UIFieldError[] = Object.entries(response.details.fields).map(
+    ([path, fieldError]) => ({
+      fieldId: pathToFieldId(path),
+      path,
+      message: fieldError.message,
+      suggestion: fieldError.suggestion,
+      severity: "error" as const,
+    })
+  );
+
+  const totalErrors = response.details.totalErrors;
+  const summary =
+    totalErrors === 1
+      ? "Please fix 1 validation error"
+      : `Please fix ${totalErrors} validation errors`;
+
+  return {
+    valid: false,
+    errors,
+    summary,
+  };
+}
+
+/**
+ * Convert dot-notation path to form field ID
+ *
+ * Transforms paths like "metadata.tags[0]" to "metadata-tags-0"
+ * for use as HTML element IDs.
+ */
+function pathToFieldId(path: string): string {
+  return path.replace(/\./g, "-").replace(/\[/g, "-").replace(/\]/g, "");
+}
+
+// ============================================================================
 // API Error Types
 // ============================================================================
 
+/**
+ * Extended error details for validation errors
+ */
+export interface ValidationErrorDetails extends Record<string, string> {
+  [key: string]: string;
+}
+
 export class ApiError extends Error {
+  /** Validation error response when code is VALIDATION_ERROR */
+  public validationResponse: UIValidationErrorResponse | undefined;
+
   constructor(
     message: string,
     public code: string,
     public status: number,
-    public details?: Record<string, string>
+    public details?: Record<string, string>,
+    validationResponse?: UIValidationErrorResponse
   ) {
     super(message);
     this.name = "ApiError";
+    this.validationResponse = validationResponse ?? undefined;
+  }
+
+  /**
+   * Check if this error is a validation error with field-level details
+   */
+  isValidationError(): boolean {
+    return this.code === "VALIDATION_ERROR" && this.validationResponse !== undefined;
+  }
+
+  /**
+   * Get field errors for form display
+   * Returns empty array if not a validation error
+   */
+  getFieldErrors(): UIFieldError[] {
+    return this.validationResponse?.errors ?? [];
+  }
+
+  /**
+   * Get error for a specific field by path or fieldId
+   */
+  getFieldError(fieldPathOrId: string): UIFieldError | undefined {
+    return this.validationResponse?.errors.find(
+      (e) => e.path === fieldPathOrId || e.fieldId === fieldPathOrId
+    );
+  }
+
+  /**
+   * Get validation summary message
+   */
+  getValidationSummary(): string | undefined {
+    return this.validationResponse?.summary;
+  }
+
+  /**
+   * Create ApiError from REST validation error response
+   *
+   * Requirements: 4.3, 4.6
+   */
+  static fromValidationResponse(
+    response: RESTValidationErrorResponse,
+    status: number = 400
+  ): ApiError {
+    const uiResponse = transformToUIValidationError(response);
+    return new ApiError(response.error, response.code, status, undefined, uiResponse);
   }
 }
 

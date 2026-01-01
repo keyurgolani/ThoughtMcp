@@ -215,9 +215,9 @@ export class ExportImportService {
       paramIndex++;
     }
 
-    // Tags filter
+    // Tags filter (tags are stored in memory_metadata table, not memories)
     if (filter.tags && filter.tags.length > 0) {
-      conditions.push(`m.tags && $${paramIndex}`);
+      conditions.push(`md.tags && $${paramIndex}`);
       params.push(filter.tags);
       paramIndex++;
     }
@@ -229,9 +229,6 @@ export class ExportImportService {
       paramIndex++;
     }
 
-    // Exclude archived memories from export
-    conditions.push("(m.is_archived IS NULL OR m.is_archived = FALSE)");
-
     const sql = `
       SELECT
         m.id,
@@ -242,9 +239,8 @@ export class ExportImportService {
         m.strength,
         m.salience,
         m.access_count,
-        m.tags,
+        md.tags,
         md.keywords,
-        md.tags as metadata_tags,
         md.category,
         md.context,
         md.importance,
@@ -258,7 +254,6 @@ export class ExportImportService {
 
     return { sql, params };
   }
-
   /**
    * Process a memory row and load related data
    */
@@ -297,10 +292,10 @@ export class ExportImportService {
       linkType: linkRow.link_type as string,
     }));
 
-    // Build metadata
+    // Build metadata (tags come from md.tags in the query)
     const metadata: MemoryMetadata = {
       keywords: (row.keywords as string[]) ?? [],
-      tags: (row.metadata_tags as string[]) ?? [],
+      tags: (row.tags as string[]) ?? [],
       category: (row.category as string) ?? undefined,
       context: (row.context as string) ?? undefined,
       importance: (row.importance as number) ?? undefined,

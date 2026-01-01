@@ -652,7 +652,7 @@ describe("ExportImportService", () => {
       await service.exportMemories("user-123", filter);
 
       expect(mockClient.query).toHaveBeenCalledWith(
-        expect.stringContaining("m.tags &&"),
+        expect.stringContaining("md.tags &&"),
         expect.any(Array)
       );
     });
@@ -668,17 +668,6 @@ describe("ExportImportService", () => {
 
       expect(mockClient.query).toHaveBeenCalledWith(
         expect.stringContaining("m.strength >="),
-        expect.any(Array)
-      );
-    });
-
-    it("should exclude archived memories", async () => {
-      mockClient.query.mockResolvedValueOnce({ rows: [] });
-
-      await service.exportMemories("user-123");
-
-      expect(mockClient.query).toHaveBeenCalledWith(
-        expect.stringContaining("is_archived IS NULL OR m.is_archived = FALSE"),
         expect.any(Array)
       );
     });
@@ -731,7 +720,7 @@ describe("ExportImportService", () => {
       expect(sql).toContain("m.created_at >= $2");
       expect(sql).toContain("m.created_at <= $3");
       expect(sql).toContain("m.primary_sector = ANY($4)");
-      expect(sql).toContain("m.tags && $5");
+      expect(sql).toContain("md.tags && $5");
       expect(sql).toContain("m.strength >= $6");
 
       // Verify params array has correct values

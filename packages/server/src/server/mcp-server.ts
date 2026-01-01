@@ -48,7 +48,16 @@ import {
 import { ParallelReasoningOrchestrator } from "../reasoning/orchestrator.js";
 import { ProblemDecomposer } from "../reasoning/problem-decomposer.js";
 import { Logger } from "../utils/logger.js";
+import {
+  createMCPFormatter,
+  createValidationEngine,
+  MCPFormatter,
+  ValidationEngine,
+  type MCPValidationErrorResponse,
+  type ValidationResult,
+} from "../validation/index.js";
 import { ToolRegistry } from "./tool-registry.js";
+import { getToolSchema } from "./tool-schemas.js";
 import type {
   ComponentHealth,
   ConnectionStatus,
@@ -88,6 +97,10 @@ export class CognitiveMCPServer {
   // Validators
   private contentValidator: ContentValidator;
 
+  // Validation system - Requirements: 4.2
+  private validationEngine: ValidationEngine;
+  private mcpFormatter: MCPFormatter;
+
   // Tool registry
   public toolRegistry: ToolRegistry;
 
@@ -100,6 +113,14 @@ export class CognitiveMCPServer {
   constructor(config: ServerConfig = {}) {
     this.toolRegistry = new ToolRegistry();
     this.contentValidator = new ContentValidator();
+
+    // Initialize validation system - Requirements: 4.2
+    this.validationEngine = createValidationEngine({
+      enableLogging: true,
+      enableMetrics: true,
+    });
+    this.mcpFormatter = createMCPFormatter();
+
     this.isInitialized = false;
     this.requestCount = 0;
     this.config = {
@@ -109,6 +130,44 @@ export class CognitiveMCPServer {
       shutdownTimeout: 10000,
       ...config,
     };
+  }
+
+  /**
+   * Validate tool input using the ValidationEngine and return structured errors
+   *
+   * This method validates tool inputs against Zod schemas and returns either
+   * a successful validation result or a formatted MCP validation error response.
+   *
+   * @param toolName - Name of the tool being validated
+   * @param params - Input parameters to validate
+   * @returns Object with valid flag and either validated data or error response
+   *
+   * Requirements: 4.2 (MCP Interface validation)
+   */
+  validateToolInput<T>(
+    toolName: string,
+    params: unknown
+  ): { valid: true; data: T } | { valid: false; error: MCPValidationErrorResponse } {
+    const schema = getToolSchema(toolName);
+
+    // If no schema is registered, skip validation (backward compatibility)
+    if (!schema) {
+      return { valid: true, data: params as T };
+    }
+
+    // Validate using the ValidationEngine
+    const result: ValidationResult = this.validationEngine.validate(params, schema, {
+      endpoint: `mcp:${toolName}`,
+      operation: "tool_call",
+    });
+
+    if (result.valid) {
+      return { valid: true, data: params as T };
+    }
+
+    // Format the validation errors using MCPFormatter
+    const errorResponse = this.mcpFormatter.format(result);
+    return { valid: false, error: errorResponse };
   }
 
   /**
@@ -520,6 +579,15 @@ export class CognitiveMCPServer {
             };
           };
 
+          // Validate sessionId is not empty
+          if (!input.sessionId || input.sessionId.trim() === "") {
+            return {
+              success: false,
+              error: "sessionId cannot be empty",
+              suggestion: "Provide a valid session ID for context tracking",
+            };
+          }
+
           // Validate content length (Requirements: 8.1, 8.2, 8.3)
           const validationResult = this.contentValidator.validate(input.content);
           if (!validationResult.valid && validationResult.error) {
@@ -872,6 +940,24 @@ export class CognitiveMCPServer {
             };
           };
 
+          // Validate content length if provided (same as remember tool: 10-100000 chars)
+          if (input.content !== undefined) {
+            if (input.content.length < 10) {
+              return {
+                success: false,
+                error: "Content must be at least 10 characters",
+                suggestion: "Provide more detailed content for the memory update",
+              };
+            }
+            if (input.content.length > 100000) {
+              return {
+                success: false,
+                error: "Content must not exceed 100,000 characters",
+                suggestion: "Reduce the content length or split into multiple memories",
+              };
+            }
+          }
+
           const result = await this.memoryRepository.update({
             memoryId: input.memoryId,
             userId: input.userId,
@@ -1106,8 +1192,32 @@ export class CognitiveMCPServer {
 
   /**
    * Handle search_memories tool execution
+   *
+   * Requirements: 4.2 (MCP Interface validation)
    */
   private async handleSearchMemories(params: unknown): Promise<MCPResponse> {
+    // Validate input using the validation system - Requirements: 4.2
+    const validation = this.validateToolInput<{
+      userId: string;
+      text?: string;
+      sectors?: string[];
+      primarySector?: string;
+      minStrength?: number;
+      minSalience?: number;
+      dateRange?: { start?: string; end?: string };
+      metadata?: {
+        keywords?: string[];
+        tags?: string[];
+        category?: string;
+      };
+      limit?: number;
+      offset?: number;
+    }>("search", params);
+
+    if (!validation.valid) {
+      return validation.error;
+    }
+
     if (!this.memoryRepository) {
       return {
         success: false,
@@ -1117,22 +1227,7 @@ export class CognitiveMCPServer {
     }
 
     try {
-      const input = params as {
-        userId: string;
-        text?: string;
-        sectors?: string[];
-        primarySector?: string;
-        minStrength?: number;
-        minSalience?: number;
-        dateRange?: { start?: string; end?: string };
-        metadata?: {
-          keywords?: string[];
-          tags?: string[];
-          category?: string;
-        };
-        limit?: number;
-        offset?: number;
-      };
+      const input = validation.data;
 
       // Use full-text search if text query provided, otherwise use vector search
       if (input.text) {
@@ -1289,8 +1384,30 @@ export class CognitiveMCPServer {
 
   /**
    * Handle batch_remember tool execution
+   *
+   * Requirements: 4.2 (MCP Interface validation)
    */
   private async handleBatchRemember(params: unknown): Promise<MCPResponse> {
+    // Validate input using the validation system - Requirements: 4.2
+    const validation = this.validateToolInput<{
+      userId: string;
+      sessionId: string;
+      memories: Array<{
+        content: string;
+        primarySector: string;
+        metadata?: {
+          keywords?: string[];
+          tags?: string[];
+          category?: string;
+          importance?: number;
+        };
+      }>;
+    }>("batch_remember", params);
+
+    if (!validation.valid) {
+      return validation.error;
+    }
+
     if (!this.memoryRepository) {
       return {
         success: false,
@@ -1300,20 +1417,7 @@ export class CognitiveMCPServer {
     }
 
     try {
-      const input = params as {
-        userId: string;
-        sessionId: string;
-        memories: Array<{
-          content: string;
-          primarySector: string;
-          metadata?: {
-            keywords?: string[];
-            tags?: string[];
-            category?: string;
-            importance?: number;
-          };
-        }>;
-      };
+      const input = validation.data;
 
       const result = await this.memoryRepository.batchCreate({
         userId: input.userId,
@@ -1382,9 +1486,20 @@ export class CognitiveMCPServer {
   /**
    * Handle batch_recall tool execution
    *
-   * Requirements: 2.3, 2.4
+   * Requirements: 2.3, 2.4, 4.2
    */
   private async handleBatchRecall(params: unknown): Promise<MCPResponse> {
+    // Validate input using the validation system - Requirements: 4.2
+    const validation = this.validateToolInput<{
+      userId: string;
+      memoryIds: string[];
+      includeDeleted?: boolean;
+    }>("batch_recall", params);
+
+    if (!validation.valid) {
+      return validation.error;
+    }
+
     if (!this.memoryRepository) {
       return {
         success: false,
@@ -1394,7 +1509,7 @@ export class CognitiveMCPServer {
     }
 
     try {
-      const input = params as { userId: string; memoryIds: string[]; includeDeleted?: boolean };
+      const input = validation.data;
 
       const result = await this.memoryRepository.batchRetrieve({
         userId: input.userId,
@@ -1462,8 +1577,20 @@ export class CognitiveMCPServer {
 
   /**
    * Handle batch_forget tool execution
+   *
+   * Requirements: 4.2 (MCP Interface validation)
    */
   private async handleBatchForget(params: unknown): Promise<MCPResponse> {
+    // Validate input using the validation system - Requirements: 4.2
+    const validation = this.validateToolInput<{
+      memoryIds: string[];
+      soft?: boolean;
+    }>("batch_forget", params);
+
+    if (!validation.valid) {
+      return validation.error;
+    }
+
     if (!this.memoryRepository) {
       return {
         success: false,
@@ -1473,7 +1600,7 @@ export class CognitiveMCPServer {
     }
 
     try {
-      const input = params as { memoryIds: string[]; soft?: boolean };
+      const input = validation.data;
 
       const result = await this.memoryRepository.batchDelete(input.memoryIds, input.soft ?? false);
 
@@ -1536,9 +1663,16 @@ export class CognitiveMCPServer {
   /**
    * Handle memory_health tool execution
    *
-   * Requirements: 2.1-2.7 (Memory Health Dashboard API)
+   * Requirements: 2.1-2.7 (Memory Health Dashboard API), 4.2 (MCP Interface validation)
    */
   private async handleMemoryHealth(params: unknown): Promise<MCPResponse> {
+    // Validate input using the validation system - Requirements: 4.2
+    const validation = this.validateToolInput<{ userId: string }>("memory_health", params);
+
+    if (!validation.valid) {
+      return validation.error;
+    }
+
     if (!this.healthMonitor) {
       return {
         success: false,
@@ -1548,15 +1682,7 @@ export class CognitiveMCPServer {
     }
 
     try {
-      const input = params as { userId: string };
-
-      if (!input.userId || typeof input.userId !== "string") {
-        return {
-          success: false,
-          error: "userId is required and must be a string",
-          suggestion: "Provide a valid userId parameter",
-        };
-      }
+      const input = validation.data;
 
       const startTime = Date.now();
       const health: MemoryHealthResponse = await this.healthMonitor.getHealth(input.userId);
@@ -1705,9 +1831,21 @@ export class CognitiveMCPServer {
   /**
    * Handle prune_memories tool execution
    *
-   * Requirements: 3.1-3.6
+   * Requirements: 3.1-3.6, 4.2 (MCP Interface validation)
    */
   private async handlePruneMemories(params: unknown): Promise<MCPResponse> {
+    // Validate input using the validation system - Requirements: 4.2
+    const validation = this.validateToolInput<{
+      userId: string;
+      action: "list" | "preview" | "prune" | "prune_all";
+      memoryIds?: string[];
+      criteria?: Partial<PruningCriteria>;
+    }>("prune_memories", params);
+
+    if (!validation.valid) {
+      return validation.error;
+    }
+
     if (!this.pruningService) {
       return {
         success: false,
@@ -1717,20 +1855,7 @@ export class CognitiveMCPServer {
     }
 
     try {
-      const input = params as {
-        userId: string;
-        action: "list" | "preview" | "prune" | "prune_all";
-        memoryIds?: string[];
-        criteria?: Partial<PruningCriteria>;
-      };
-
-      if (!input.userId || typeof input.userId !== "string") {
-        return {
-          success: false,
-          error: "userId is required and must be a string",
-          suggestion: "Provide a valid userId parameter",
-        };
-      }
+      const input = validation.data;
 
       const startTime = Date.now();
 

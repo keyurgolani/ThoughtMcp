@@ -3,11 +3,12 @@
  *
  * Provides schema storage, retrieval, and caching for validation schemas.
  * Supports registering Zod schemas by name for reuse across endpoints.
+ * Supports schema composition through extend and include methods.
  *
- * Requirements: 3.1, 3.4, 9.4
+ * Requirements: 3.1, 3.2, 3.4, 9.4
  */
 
-import type { ZodSchema, ZodType } from "zod";
+import { type ZodObject, type ZodRawShape, type ZodSchema, type ZodType } from "zod";
 
 /**
  * Schema registry entry with metadata and caching
@@ -80,6 +81,20 @@ export class SchemaNotFoundError extends Error {
   constructor(schemaName: string) {
     super(`Schema not found: ${schemaName}`);
     this.name = "SchemaNotFoundError";
+  }
+}
+
+/**
+ * Error thrown when schema composition fails
+ */
+export class SchemaCompositionError extends Error {
+  constructor(
+    message: string,
+    public readonly schemaName: string,
+    public readonly details?: string
+  ) {
+    super(message);
+    this.name = "SchemaCompositionError";
   }
 }
 
@@ -235,6 +250,158 @@ export class SchemaRegistry {
    */
   clear(): void {
     this.schemas.clear();
+  }
+
+  /**
+   * Extend a registered schema with additional fields
+   *
+   * Creates a new schema that includes all fields from the base schema
+   * plus the additional fields provided. The base schema must be a ZodObject.
+   *
+   * @param baseName - Name of the base schema to extend
+   * @param newName - Name for the new extended schema
+   * @param extension - Additional fields to add to the schema
+   * @param metadata - Optional metadata for the new schema
+   * @throws SchemaNotFoundError if base schema is not found
+   * @throws SchemaCompositionError if base schema is not a ZodObject
+   *
+   * Requirements: 3.2
+   */
+  extendSchema<T extends ZodRawShape>(
+    baseName: string,
+    newName: string,
+    extension: T,
+    metadata: SchemaMetadata = {}
+  ): ZodObject<ZodRawShape> {
+    const baseSchema = this.getSchema(baseName);
+
+    if (!baseSchema) {
+      throw new SchemaNotFoundError(baseName);
+    }
+
+    // Check if base schema is a ZodObject (has shape property)
+    if (!this.isZodObject(baseSchema)) {
+      throw new SchemaCompositionError(
+        `Cannot extend schema '${baseName}': base schema must be a ZodObject`,
+        newName,
+        "Only object schemas can be extended with additional fields"
+      );
+    }
+
+    // Create extended schema using Zod's extend method
+    const extendedSchema = baseSchema.extend(extension);
+
+    // Register the new schema
+    this.registerSchema(newName, extendedSchema, {
+      ...metadata,
+      description: metadata.description ?? `Extended from ${baseName}`,
+    });
+
+    return extendedSchema;
+  }
+
+  /**
+   * Include (merge) multiple schemas into a new schema
+   *
+   * Creates a new schema that combines all fields from the provided schemas.
+   * All schemas must be ZodObjects. Later schemas override earlier ones
+   * for fields with the same name.
+   *
+   * @param newName - Name for the new merged schema
+   * @param schemaNames - Names of schemas to merge (in order)
+   * @param metadata - Optional metadata for the new schema
+   * @returns The merged schema
+   * @throws SchemaNotFoundError if any schema is not found
+   * @throws SchemaCompositionError if any schema is not a ZodObject or if less than 2 schemas provided
+   *
+   * Requirements: 3.2
+   */
+  includeSchemas(
+    newName: string,
+    schemaNames: string[],
+    metadata: SchemaMetadata = {}
+  ): ZodObject<ZodRawShape> {
+    if (schemaNames.length < 2) {
+      throw new SchemaCompositionError(
+        "At least two schemas are required for merging",
+        newName,
+        "Provide at least two schema names to merge"
+      );
+    }
+
+    // Retrieve and validate all schemas
+    const schemas: ZodObject<ZodRawShape>[] = [];
+    for (const name of schemaNames) {
+      const schema = this.getSchema(name);
+
+      if (!schema) {
+        throw new SchemaNotFoundError(name);
+      }
+
+      if (!this.isZodObject(schema)) {
+        throw new SchemaCompositionError(
+          `Cannot merge schema '${name}': all schemas must be ZodObjects`,
+          newName,
+          "Only object schemas can be merged"
+        );
+      }
+
+      schemas.push(schema);
+    }
+
+    // Merge schemas using Zod's merge method
+    let mergedSchema = schemas[0];
+    for (let i = 1; i < schemas.length; i++) {
+      mergedSchema = mergedSchema.merge(schemas[i]);
+    }
+
+    // Register the new schema
+    this.registerSchema(newName, mergedSchema, {
+      ...metadata,
+      description: metadata.description ?? `Merged from: ${schemaNames.join(", ")}`,
+    });
+
+    return mergedSchema;
+  }
+
+  /**
+   * Merge a registered schema with additional fields from another schema
+   *
+   * Creates a new schema that combines fields from both schemas.
+   * Both schemas must be ZodObjects. Fields from the second schema
+   * override fields from the first schema if they have the same name.
+   *
+   * @param baseName - Name of the base schema
+   * @param mergeName - Name of the schema to merge with
+   * @param newName - Name for the new merged schema
+   * @param metadata - Optional metadata for the new schema
+   * @returns The merged schema
+   * @throws SchemaNotFoundError if either schema is not found
+   * @throws SchemaCompositionError if either schema is not a ZodObject
+   *
+   * Requirements: 3.2
+   */
+  mergeSchemas(
+    baseName: string,
+    mergeName: string,
+    newName: string,
+    metadata: SchemaMetadata = {}
+  ): ZodObject<ZodRawShape> {
+    return this.includeSchemas(newName, [baseName, mergeName], metadata);
+  }
+
+  /**
+   * Check if a schema is a ZodObject
+   *
+   * @param schema - Schema to check
+   * @returns true if schema is a ZodObject
+   */
+  private isZodObject(schema: ZodSchema): schema is ZodObject<ZodRawShape> {
+    // ZodObject has a _def.typeName of 'ZodObject' and a shape property
+    const def = schema._def as { typeName?: string };
+    return (
+      def?.typeName === "ZodObject" && typeof (schema as ZodObject<ZodRawShape>).shape === "object"
+    );
   }
 
   /**

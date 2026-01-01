@@ -1,0 +1,709 @@
+{
+  "version": "1.0.0",
+  "domain": "root-cause-analysis",
+  "description": "Patterns for systematic ro analysis including 5-whys methodology, fishbone diagrams, and fault tree analysis",
+  "patterns": [
+    {
+      "id": "five-whys",
+      "name": "5-Whys Root Cause Analysis",
+      "description": "Systematic questioning technique to drill down to the root cause by asking 'why' iteratively",
+      "indicators": [
+        { "type": "exact", "value": "root cause", "weight": 0.95 },
+        { "type": "exact", "value": "5 whys", "weight": 0.95 },
+        { "type": "exact", "value": "five whys", "weight": 0.95 },
+        { "type": "exact", "value": "why did this happen", "weight": 0.9 },
+        { "type": "exact", "value": "underlying cause", "weight": 0.9 },
+        { "type": "exact", "value": "root cause analysis", "weight": 0.95 },
+        { "type": "exact", "value": "fundamental cause", "weight": 0.85 },
+        { "type": "exact", "value": "true cause", "weight": 0.8 },
+        { "type": "exact", "value": "deep dive", "weight": 0.7 },
+        { "type": "fuzzy", "value": "find the root cause", "weight": 0.9 },
+        { "type": "fuzzy", "value": "understand why this happened", "weight": 0.85 },
+        { "type": "fuzzy", "value": "get to the bottom of", "weight": 0.75 },
+        {
+          "type": "regex",
+          "value": "\\b(root|underlying|fundamental).*cause\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bwhy.*happen\\b", "weight": 0.7 },
+        {
+          "type": "exact",
+          "value": "causal chain",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "contributing factor",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "systemic issue",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "quick fix", "weight": 0.3 },
+        { "type": "exact", "value": "workaround", "weight": 0.25 },
+        { "type": "exact", "value": "temporary solution", "weight": 0.2 }
+      ],
+      "hypotheses": [
+        {
+          "id": "process-failure",
+          "statement": "A process failure or gap may be the root cause of {{primarySubject}}",
+          "investigationSteps": [
+            "Document the problem statement clearly and specifically",
+            "Ask 'Why did this happen?' and document the first-level cause",
+            "For each answer, ask 'Why?' again to drill deeper",
+            "Continue until you reach a systemic or process-level cause",
+            "Verify the causal chain by reading it forward"
+          ],
+          "expectedFindings": [
+            "Missing or inadequate process controls",
+            "Process steps being skipped or bypassed",
+            "Unclear process ownership or accountability",
+            "Process not designed for current conditions",
+            "Lack of process documentation or training"
+          ],
+          "relatedHypotheses": ["human-error", "system-design-flaw"],
+          "estimatedTime": "1-2 hours",
+          "likelihood": 0.7
+        },
+        {
+          "id": "human-error",
+          "statement": "Human error driven by systemic factors may be the root cause of {{primarySubject}}",
+          "investigationSteps": [
+            "Identify the human action that directly caused the problem",
+            "Ask why the person took that action (training, tools, pressure)",
+            "Examine the environment and conditions at the time",
+            "Look for systemic factors that enabled the error",
+            "Avoid blaming individuals - focus on system improvements"
+          ],
+          "expectedFindings": [
+            "Inadequate training or unclear procedures",
+            "Poor tool design or confusing interfaces",
+            "Time pressure or competing priorities",
+            "Lack of verification or review steps",
+            "Missing safeguards or error prevention"
+          ],
+          "relatedHypotheses": ["process-failure", "communication-breakdown"],
+          "estimatedTime": "1-2 hours",
+          "likelihood": 0.65
+        },
+        {
+          "id": "system-design-flaw",
+          "statement": "A system design flaw may be the root cause allowing {{primarySubject}} to occur",
+          "investigationSteps": [
+            "Examine the system architecture and design decisions",
+            "Identify single points of failure or missing redundancy",
+            "Review error handling and recovery mechanisms",
+            "Check for missing validation or safety checks",
+            "Analyze whether the system was designed for current scale/usage"
+          ],
+          "expectedFindings": [
+            "Missing input validation or boundary checks",
+            "Inadequate error handling or recovery",
+            "Single points of failure without redundancy",
+            "Design assumptions no longer valid",
+            "Missing monitoring or alerting"
+          ],
+          "relatedHypotheses": ["process-failure"],
+          "estimatedTime": "2-4 hours",
+          "likelihood": 0.6
+        },
+        {
+          "id": "communication-breakdown",
+          "statement": "Communication breakdown between teams or systems may be the root cause of {{primarySubject}}",
+          "investigationSteps": [
+            "Map the communication flow related to the problem",
+            "Identify where information was lost or misunderstood",
+            "Check for missing handoffs or unclear responsibilities",
+            "Review documentation and knowledge sharing practices",
+            "Examine cross-team coordination mechanisms"
+          ],
+          "expectedFindings": [
+            "Information not shared between teams",
+            "Unclear ownership or responsibility boundaries",
+            "Missing or outdated documentation",
+            "Assumptions not validated across teams",
+            "Lack of feedback loops or confirmation"
+          ],
+          "relatedHypotheses": ["human-error", "process-failure"],
+          "estimatedTime": "1-2 hours",
+          "likelihood": 0.55
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "conduct-5-whys",
+          "type": "diagnostic",
+          "action": "Conduct structured 5-Whys analysis session with relevant stakeholders for {{primarySubject}}",
+          "tools": [
+            "5-Whys template",
+            "Whiteboard",
+            "Facilitation guide",
+            "Problem statement template"
+          ],
+          "expectedOutcome": "Documented causal chain from symptom to root cause",
+          "prerequisites": [
+            "Clear problem statement",
+            "Relevant stakeholders available",
+            "Facilitator identified"
+          ],
+          "priority": 9
+        },
+        {
+          "id": "validate-root-cause",
+          "type": "diagnostic",
+          "action": "Validate identified root cause through evidence and testing",
+          "tools": ["Data analysis", "Experiments", "Historical comparison", "Expert review"],
+          "expectedOutcome": "Confirmed root cause with supporting evidence",
+          "prerequisites": ["Root cause hypothesis identified", "Access to relevant data"],
+          "priority": 8
+        },
+        {
+          "id": "develop-countermeasures",
+          "type": "remedial",
+          "action": "Develop countermeasures that address the root cause, not just symptoms",
+          "tools": ["Action planning", "PDCA cycle", "Countermeasure matrix"],
+          "expectedOutcome": "Actionable countermeasures targeting root cause",
+          "prerequisites": ["Root cause validated", "Stakeholder buy-in"],
+          "priority": 9
+        },
+        {
+          "id": "implement-prevention",
+          "type": "remedial",
+          "action": "Implement preventive measures to avoid recurrence",
+          "tools": ["Process updates", "System changes", "Training programs", "Monitoring"],
+          "expectedOutcome": "Reduced likelihood of problem recurrence",
+          "prerequisites": ["Countermeasures defined", "Resources allocated"],
+          "priority": 8
+        },
+        {
+          "id": "document-learnings",
+          "type": "remedial",
+          "action": "Document root cause analysis findings and share learnings",
+          "tools": ["RCA report template", "Knowledge base", "Team retrospective"],
+          "expectedOutcome": "Organizational learning and knowledge preservation",
+          "prerequisites": ["Analysis complete", "Countermeasures implemented"],
+          "priority": 7
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "fishbone-diagram",
+      "name": "Fishbone (Ishikawa) Diagram Analysis",
+      "description": "Cause-and-effect diagram organizing potential causes into categories (6Ms: Man, Machine, Method, Material, Measurement, Mother Nature)",
+      "indicators": [
+        { "type": "exact", "value": "fishbone diagram", "weight": 0.95 },
+        { "type": "exact", "value": "ishikawa diagram", "weight": 0.95 },
+        { "type": "exact", "value": "cause and effect diagram", "weight": 0.95 },
+        { "type": "exact", "value": "cause-effect analysis", "weight": 0.9 },
+        { "type": "exact", "value": "6m analysis", "weight": 0.9 },
+        { "type": "exact", "value": "multiple causes", "weight": 0.8 },
+        { "type": "exact", "value": "contributing factors", "weight": 0.85 },
+        { "type": "exact", "value": "categorize causes", "weight": 0.8 },
+        { "type": "fuzzy", "value": "identify all possible causes", "weight": 0.85 },
+        { "type": "fuzzy", "value": "brainstorm potential causes", "weight": 0.8 },
+        { "type": "fuzzy", "value": "organize causes by category", "weight": 0.75 },
+        {
+          "type": "regex",
+          "value": "\\b(fishbone|ishikawa|cause.*effect)\\b",
+          "weight": 0.9,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bmultiple.*cause\\b", "weight": 0.7 },
+        {
+          "type": "exact",
+          "value": "man machine method",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "people process technology",
+          "weight": 0.8,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "4m", "weight": 0.7, "keyTermCategory": "domainTerms" }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "single cause", "weight": 0.3 },
+        { "type": "exact", "value": "obvious cause", "weight": 0.25 },
+        { "type": "exact", "value": "simple problem", "weight": 0.2 }
+      ],
+      "hypotheses": [
+        {
+          "id": "people-factors",
+          "statement": "People-related factors (skills, training, staffing) may be contributing to {{primarySubject}}",
+          "investigationSteps": [
+            "Review training records and competency assessments",
+            "Check staffing levels and workload distribution",
+            "Examine communication and coordination practices",
+            "Assess motivation and engagement factors",
+            "Review supervision and management practices"
+          ],
+          "expectedFindings": [
+            "Skill gaps or inadequate training",
+            "Understaffing or overwork",
+            "Poor communication between team members",
+            "Lack of clear roles and responsibilities",
+            "Insufficient supervision or support"
+          ],
+          "relatedHypotheses": ["process-factors", "environment-factors"],
+          "estimatedTime": "1-2 hours",
+          "likelihood": 0.65
+        },
+        {
+          "id": "process-factors",
+          "statement": "Process-related factors (methods, procedures, workflows) may be contributing to {{primarySubject}}",
+          "investigationSteps": [
+            "Map current process and identify variations",
+            "Review standard operating procedures",
+            "Check for process bottlenecks or inefficiencies",
+            "Examine handoffs and transitions between steps",
+            "Assess process controls and checkpoints"
+          ],
+          "expectedFindings": [
+            "Outdated or unclear procedures",
+            "Missing process steps or controls",
+            "Inefficient workflow design",
+            "Poor handoff between process stages",
+            "Lack of standardization"
+          ],
+          "relatedHypotheses": ["people-factors", "technology-factors"],
+          "estimatedTime": "1-2 hours",
+          "likelihood": 0.7
+        },
+        {
+          "id": "technology-factors",
+          "statement": "Technology-related factors (tools, equipment, systems) may be contributing to {{primarySubject}}",
+          "investigationSteps": [
+            "Review equipment maintenance records",
+            "Check system configurations and settings",
+            "Examine tool capabilities vs requirements",
+            "Assess integration between systems",
+            "Review recent changes or updates"
+          ],
+          "expectedFindings": [
+            "Equipment malfunction or degradation",
+            "Inadequate tools for the task",
+            "System configuration issues",
+            "Poor integration between tools",
+            "Recent changes causing problems"
+          ],
+          "relatedHypotheses": ["process-factors", "material-factors"],
+          "estimatedTime": "1-2 hours",
+          "likelihood": 0.6
+        },
+        {
+          "id": "material-factors",
+          "statement": "Material or input-related factors may be contributing to {{primarySubject}}",
+          "investigationSteps": [
+            "Review input quality and specifications",
+            "Check supplier or upstream processes",
+            "Examine material handling and storage",
+            "Assess data quality if applicable",
+            "Review recent changes in materials or inputs"
+          ],
+          "expectedFindings": [
+            "Poor quality inputs or materials",
+            "Supplier issues or variability",
+            "Improper storage or handling",
+            "Data quality problems",
+            "Changes in input specifications"
+          ],
+          "relatedHypotheses": ["technology-factors", "environment-factors"],
+          "estimatedTime": "1 hour",
+          "likelihood": 0.5
+        },
+        {
+          "id": "environment-factors",
+          "statement": "Environmental factors (conditions, context, external influences) may be contributing to {{primarySubject}}",
+          "investigationSteps": [
+            "Review physical environment conditions",
+            "Check organizational culture and pressures",
+            "Examine external factors and constraints",
+            "Assess timing and scheduling factors",
+            "Review regulatory or compliance requirements"
+          ],
+          "expectedFindings": [
+            "Adverse physical conditions",
+            "Organizational pressure or culture issues",
+            "External constraints or dependencies",
+            "Timing or scheduling conflicts",
+            "Regulatory compliance gaps"
+          ],
+          "relatedHypotheses": ["people-factors", "material-factors"],
+          "estimatedTime": "1 hour",
+          "likelihood": 0.45
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "create-fishbone",
+          "type": "diagnostic",
+          "action": "Create fishbone diagram with cross-functional team to identify all potential causes for {{primarySubject}}",
+          "tools": ["Fishbone template", "Whiteboard", "Sticky notes", "Facilitation guide"],
+          "expectedOutcome": "Comprehensive visual map of potential causes organized by category",
+          "prerequisites": [
+            "Problem clearly defined",
+            "Cross-functional team assembled",
+            "Facilitator identified"
+          ],
+          "priority": 9
+        },
+        {
+          "id": "prioritize-causes",
+          "type": "diagnostic",
+          "action": "Prioritize identified causes based on likelihood and impact",
+          "tools": ["Voting", "Impact-likelihood matrix", "Pareto analysis", "Data analysis"],
+          "expectedOutcome": "Ranked list of most likely root causes to investigate",
+          "prerequisites": ["Fishbone diagram complete", "Team consensus process"],
+          "priority": 8
+        },
+        {
+          "id": "investigate-top-causes",
+          "type": "diagnostic",
+          "action": "Deep dive investigation into top prioritized causes",
+          "tools": ["Data collection", "Interviews", "Process observation", "5-Whys"],
+          "expectedOutcome": "Validated root causes with supporting evidence",
+          "prerequisites": ["Causes prioritized", "Investigation resources available"],
+          "priority": 8
+        },
+        {
+          "id": "address-multiple-causes",
+          "type": "remedial",
+          "action": "Develop action plan addressing multiple contributing causes",
+          "tools": ["Action planning", "Responsibility matrix", "Timeline"],
+          "expectedOutcome": "Comprehensive improvement plan addressing systemic issues",
+          "prerequisites": ["Root causes validated", "Stakeholder alignment"],
+          "priority": 8
+        },
+        {
+          "id": "monitor-effectiveness",
+          "type": "remedial",
+          "action": "Implement monitoring to verify countermeasure effectiveness",
+          "tools": ["Metrics", "Control charts", "Regular reviews", "Feedback loops"],
+          "expectedOutcome": "Sustained improvement with early warning of recurrence",
+          "prerequisites": ["Countermeasures implemented", "Metrics defined"],
+          "priority": 7
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "fault-tree",
+      "name": "Fault Tree Analysis",
+      "description": "Top-down deductive analysis using Boolean logic to identify combinations of events that could cause system failure",
+      "indicators": [
+        { "type": "exact", "value": "fault tree", "weight": 0.95 },
+        { "type": "exact", "value": "fault tree analysis", "weight": 0.95 },
+        { "type": "exact", "value": "fta", "weight": 0.85 },
+        { "type": "exact", "value": "failure analysis", "weight": 0.9 },
+        { "type": "exact", "value": "failure mode", "weight": 0.85 },
+        { "type": "exact", "value": "system failure", "weight": 0.85 },
+        { "type": "exact", "value": "critical failure", "weight": 0.8 },
+        { "type": "exact", "value": "failure combination", "weight": 0.8 },
+        { "type": "exact", "value": "single point of failure", "weight": 0.85 },
+        { "type": "fuzzy", "value": "what could cause this failure", "weight": 0.85 },
+        { "type": "fuzzy", "value": "analyze system failure", "weight": 0.8 },
+        { "type": "fuzzy", "value": "identify failure paths", "weight": 0.75 },
+        {
+          "type": "regex",
+          "value": "\\bfault.*tree\\b",
+          "weight": 0.9,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\b(failure|fault).*analysis\\b", "weight": 0.8 },
+        { "type": "exact", "value": "and gate", "weight": 0.7, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "or gate", "weight": 0.7, "keyTermCategory": "domainTerms" },
+        {
+          "type": "exact",
+          "value": "basic event",
+          "weight": 0.65,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "minimal cut set",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "success tree", "weight": 0.3 },
+        { "type": "exact", "value": "decision tree", "weight": 0.35 },
+        { "type": "exact", "value": "probability tree", "weight": 0.25 }
+      ],
+      "hypotheses": [
+        {
+          "id": "single-point-failure",
+          "statement": "A single point of failure may have caused {{primarySubject}} without requiring multiple failures",
+          "investigationSteps": [
+            "Define the top-level failure event clearly",
+            "Identify immediate causes using OR gates (any one can cause failure)",
+            "Trace each branch to basic events",
+            "Look for single events that directly cause the top failure",
+            "Calculate probability if data available"
+          ],
+          "expectedFindings": [
+            "Critical component without redundancy",
+            "Single process step that can fail the system",
+            "Missing backup or failover mechanism",
+            "High-probability basic event",
+            "Insufficient error handling"
+          ],
+          "relatedHypotheses": ["combined-failures", "common-cause-failure"],
+          "estimatedTime": "2-4 hours",
+          "likelihood": 0.6
+        },
+        {
+          "id": "combined-failures",
+          "statement": "A combination of multiple failures may have been required to cause {{primarySubject}}",
+          "investigationSteps": [
+            "Identify failure combinations using AND gates (all must occur)",
+            "Map the minimal cut sets (smallest combinations causing failure)",
+            "Analyze the sequence and timing of events",
+            "Check for cascading failures",
+            "Review defense-in-depth mechanisms"
+          ],
+          "expectedFindings": [
+            "Multiple safeguards failed simultaneously",
+            "Cascading failure sequence",
+            "Defense layers all breached",
+            "Unlikely combination of events occurred",
+            "Timing-dependent failure mode"
+          ],
+          "relatedHypotheses": ["single-point-failure", "common-cause-failure"],
+          "estimatedTime": "3-5 hours",
+          "likelihood": 0.55
+        },
+        {
+          "id": "common-cause-failure",
+          "statement": "A common cause may have triggered multiple failures leading to {{primarySubject}}",
+          "investigationSteps": [
+            "Look for shared dependencies between failure branches",
+            "Identify common resources, suppliers, or components",
+            "Check for environmental factors affecting multiple systems",
+            "Review shared infrastructure or services",
+            "Analyze for design or manufacturing commonalities"
+          ],
+          "expectedFindings": [
+            "Shared dependency causing correlated failures",
+            "Common supplier or component issue",
+            "Environmental event affecting multiple systems",
+            "Shared infrastructure failure",
+            "Design flaw replicated across systems"
+          ],
+          "relatedHypotheses": ["single-point-failure", "combined-failures"],
+          "estimatedTime": "2-3 hours",
+          "likelihood": 0.5
+        },
+        {
+          "id": "latent-failure",
+          "statement": "A latent failure condition may have existed before the triggering event for {{primarySubject}}",
+          "investigationSteps": [
+            "Review system state before the failure",
+            "Check for degraded conditions or warnings",
+            "Examine maintenance and inspection records",
+            "Look for dormant faults in backup systems",
+            "Analyze time between condition and failure"
+          ],
+          "expectedFindings": [
+            "Pre-existing degraded condition",
+            "Ignored warnings or alerts",
+            "Missed maintenance or inspection",
+            "Dormant fault in redundant system",
+            "Accumulated wear or degradation"
+          ],
+          "relatedHypotheses": ["common-cause-failure"],
+          "estimatedTime": "2-3 hours",
+          "likelihood": 0.45
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "construct-fault-tree",
+          "type": "diagnostic",
+          "action": "Construct fault tree diagram starting from the top-level failure event for {{primarySubject}}",
+          "tools": ["Fault tree software", "Drawing tools", "Boolean logic", "FTA templates"],
+          "expectedOutcome": "Complete fault tree showing all failure paths and combinations",
+          "prerequisites": ["Top event defined", "System knowledge available", "FTA expertise"],
+          "priority": 9
+        },
+        {
+          "id": "identify-cut-sets",
+          "type": "diagnostic",
+          "action": "Identify minimal cut sets to find the smallest failure combinations",
+          "tools": ["Cut set analysis", "Boolean reduction", "FTA software"],
+          "expectedOutcome": "List of minimal cut sets ranked by probability or criticality",
+          "prerequisites": ["Fault tree complete", "Basic event probabilities if available"],
+          "priority": 8
+        },
+        {
+          "id": "quantify-probabilities",
+          "type": "diagnostic",
+          "action": "Quantify failure probabilities for basic events and calculate top event probability",
+          "tools": [
+            "Reliability data",
+            "Historical failure rates",
+            "Expert judgment",
+            "Monte Carlo simulation"
+          ],
+          "expectedOutcome": "Quantified risk assessment with probability estimates",
+          "prerequisites": ["Fault tree complete", "Failure rate data available"],
+          "priority": 7
+        },
+        {
+          "id": "eliminate-single-points",
+          "type": "remedial",
+          "action": "Eliminate or mitigate single points of failure identified in the fault tree",
+          "tools": ["Redundancy design", "Failover mechanisms", "Error handling", "Monitoring"],
+          "expectedOutcome": "Reduced probability of single-event failures",
+          "prerequisites": ["Single points identified", "Design authority"],
+          "priority": 9
+        },
+        {
+          "id": "address-common-causes",
+          "type": "remedial",
+          "action": "Address common cause failures through diversity and independence",
+          "tools": [
+            "Diverse redundancy",
+            "Physical separation",
+            "Independent suppliers",
+            "Design diversity"
+          ],
+          "expectedOutcome": "Reduced correlation between failure events",
+          "prerequisites": ["Common causes identified", "System redesign capability"],
+          "priority": 8
+        },
+        {
+          "id": "improve-detection",
+          "type": "remedial",
+          "action": "Improve detection and response for latent failures",
+          "tools": ["Monitoring systems", "Inspection procedures", "Testing protocols", "Alerting"],
+          "expectedOutcome": "Earlier detection of degraded conditions before failure",
+          "prerequisites": ["Latent failure modes identified", "Monitoring capability"],
+          "priority": 7
+        }
+      ],
+      "severity": "critical",
+      "qualityThreshold": 0.65
+    }
+  ],
+  "testCases": [
+    {
+      "id": "test-5-whys-basic",
+      "input": "We need to find the root cause of this production incident",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["five-whys"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-5-whys-detailed",
+      "input": "Let's do a 5 whys analysis to understand why this system failure happened",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["five-whys"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-root-cause-general",
+      "input": "We need to understand the underlying cause of these recurring issues",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["five-whys"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-5-whys-systemic",
+      "input": "This keeps happening, we need to find the fundamental cause and fix the systemic issue",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["five-whys"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-fishbone-basic",
+      "input": "Let's create a fishbone diagram to identify all possible causes",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["fishbone-diagram"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-fishbone-ishikawa",
+      "input": "We should do an Ishikawa diagram analysis to categorize the contributing factors",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["fishbone-diagram"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-fishbone-cause-effect",
+      "input": "Need to do a cause and effect diagram to brainstorm all potential causes",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["fishbone-diagram"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-fishbone-6m",
+      "input": "Let's analyze this using the 6M framework - man, machine, method, material, measurement, mother nature",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["fishbone-diagram"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-fault-tree-basic",
+      "input": "We need to do a fault tree analysis to understand this system failure",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["fault-tree"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-fault-tree-fta",
+      "input": "Let's perform FTA to identify the failure modes and combinations",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["fault-tree"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-fault-tree-failure",
+      "input": "We need failure analysis to find single points of failure in the system",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["fault-tree"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-fault-tree-critical",
+      "input": "Critical failure occurred, need to analyze the failure combination that caused it",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["fault-tree"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-rca-fishbone",
+      "input": "We need root cause analysis using a fishbone diagram to identify all contributing factors",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["five-whys", "fishbone-diagram"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-combined-rca-fault",
+      "input": "Root cause analysis needed for this system failure, let's do fault tree analysis",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["five-whys", "fault-tree"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-all-patterns",
+      "input": "Comprehensive root cause analysis needed - 5 whys, fishbone diagram, and fault tree analysis",
+      "expectedDomain": "root-cause-analysis",
+      "expectedPatternIds": ["five-whys", "fishbone-diagram", "fault-tree"],
+      "minConfidence": 0.8
+    }
+  ]
+}

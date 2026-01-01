@@ -1,0 +1,7 @@
+# Operations domain patterns
+# This directory contains patterns for operations/process domains:
+# - project-management.json - Planning, estimation, risk
+# - team-dynamics.json - Communication, collaboration, conflict
+# - process-improvement.json - Efficiency, bottlenecks, automation
+# - resource-allocation.json - Budgeting, staffing, capacity
+# - decision-making.json - Trade-offs, criteria, stakeholders

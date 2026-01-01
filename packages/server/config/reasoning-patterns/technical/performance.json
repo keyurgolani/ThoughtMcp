@@ -1,0 +1,635 @@
+{
+  "version": "1.0.0",
+  "domain": "performance",
+  "description": "Patterns for system performance issues including latency, throughput bottlenecks, and resource utilization problems",
+  "patterns": [
+    {
+      "id": "perf-latency-issues",
+      "name": "Latency Issues Detection",
+      "description": "Detects system latency problems including high response times, slow requests, and delay-related issues",
+      "indicators": [
+        { "type": "exact", "value": "high latency", "weight": 0.95 },
+        { "type": "exact", "value": "slow response", "weight": 0.9 },
+        { "type": "exact", "value": "response time", "weight": 0.85 },
+        { "type": "exact", "value": "request latency", "weight": 0.9 },
+        { "type": "exact", "value": "p99 latency", "weight": 0.95 },
+        { "type": "exact", "value": "p95 latency", "weight": 0.9 },
+        { "type": "exact", "value": "tail latency", "weight": 0.85 },
+        { "type": "fuzzy", "value": "latency increased spike", "weight": 0.8 },
+        { "type": "fuzzy", "value": "response time slow degraded", "weight": 0.75 },
+        { "type": "fuzzy", "value": "requests taking long", "weight": 0.7 },
+        {
+          "type": "regex",
+          "value": "\\b(p50|p90|p95|p99).*latency\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\blatency.*(spike|increase|high)\\b", "weight": 0.8 },
+        { "type": "regex", "value": "\\b(slow|delayed?).*request\\b", "weight": 0.75 },
+        {
+          "type": "exact",
+          "value": "milliseconds",
+          "weight": 0.5,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "timeout", "weight": 0.7 },
+        { "type": "exact", "value": "SLA breach", "weight": 0.85 }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "network latency only", "weight": 0.3 },
+        { "type": "exact", "value": "database latency", "weight": 0.25 },
+        { "type": "exact", "value": "third party latency", "weight": 0.2 }
+      ],
+      "hypotheses": [
+        {
+          "id": "synchronous-blocking",
+          "statement": "The {{primarySubject}} may have high latency due to synchronous blocking operations in the request path",
+          "investigationSteps": [
+            "Profile the request path to identify blocking operations",
+            "Check for synchronous I/O operations (file, network, database)",
+            "Review code for blocking calls that could be made async",
+            "Analyze thread pool utilization and blocking time"
+          ],
+          "expectedFindings": [
+            "Synchronous database queries in request handlers",
+            "Blocking file I/O operations",
+            "Sequential external API calls that could be parallelized",
+            "Thread pool exhaustion from blocking operations"
+          ],
+          "relatedHypotheses": ["external-dependency-latency", "inefficient-algorithms"],
+          "estimatedTime": "30-60 minutes",
+          "likelihood": 0.7
+        },
+        {
+          "id": "external-dependency-latency",
+          "statement": "External service dependencies may be contributing to increased latency for {{primarySubject}}",
+          "investigationSteps": [
+            "Measure latency for each external service call",
+            "Check external service health dashboards and status pages",
+            "Review timeout configurations for external calls",
+            "Analyze distributed tracing spans for slow dependencies"
+          ],
+          "expectedFindings": [
+            "One or more external services with elevated response times",
+            "Missing or inadequate timeout configurations",
+            "Cascading latency from downstream services",
+            "Network issues between services"
+          ],
+          "relatedHypotheses": ["synchronous-blocking", "missing-caching"],
+          "estimatedTime": "20-40 minutes",
+          "likelihood": 0.65
+        },
+        {
+          "id": "missing-caching",
+          "statement": "Missing or ineffective caching may be causing repeated expensive operations for {{primarySubject}}",
+          "investigationSteps": [
+            "Identify frequently accessed data that could be cached",
+            "Review cache hit/miss ratios for existing caches",
+            "Check cache TTL configurations and eviction policies",
+            "Analyze cache size and memory utilization"
+          ],
+          "expectedFindings": [
+            "Low cache hit ratios (<80%)",
+            "Frequently accessed data not being cached",
+            "Cache evictions due to size constraints",
+            "Stale cache configurations"
+          ],
+          "relatedHypotheses": ["external-dependency-latency"],
+          "estimatedTime": "15-30 minutes",
+          "likelihood": 0.6
+        },
+        {
+          "id": "inefficient-algorithms",
+          "statement": "Inefficient algorithms or data structures may be causing computational latency in {{primarySubject}}",
+          "investigationSteps": [
+            "Profile CPU-intensive code paths",
+            "Review algorithm complexity (Big O) for hot paths",
+            "Check for unnecessary iterations or nested loops",
+            "Analyze memory allocation patterns"
+          ],
+          "expectedFindings": [
+            "O(n²) or worse algorithms in hot paths",
+            "Unnecessary data transformations",
+            "Repeated computations that could be memoized",
+            "Excessive object allocations causing GC pressure"
+          ],
+          "relatedHypotheses": ["synchronous-blocking"],
+          "estimatedTime": "45-90 minutes",
+          "likelihood": 0.5
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "implement-distributed-tracing",
+          "type": "diagnostic",
+          "action": "Implement distributed tracing to identify latency sources across {{primarySubject}} request path",
+          "tools": ["Jaeger", "Zipkin", "AWS X-Ray", "OpenTelemetry", "Datadog APM"],
+          "expectedOutcome": "Clear visibility into where time is spent in each request",
+          "prerequisites": ["Tracing infrastructure", "Instrumentation libraries"],
+          "priority": 9
+        },
+        {
+          "id": "add-latency-metrics",
+          "type": "diagnostic",
+          "action": "Add percentile latency metrics (p50, p95, p99) for all critical endpoints",
+          "tools": ["Prometheus", "StatsD", "CloudWatch", "Grafana"],
+          "expectedOutcome": "Quantified latency distribution and trend visibility",
+          "prerequisites": ["Metrics infrastructure", "Dashboard setup"],
+          "priority": 9
+        },
+        {
+          "id": "implement-async-operations",
+          "type": "remedial",
+          "action": "Convert synchronous blocking operations to asynchronous patterns",
+          "tools": ["async/await", "Promises", "Event loops", "Non-blocking I/O"],
+          "expectedOutcome": "Reduced blocking time and improved request throughput",
+          "prerequisites": ["Identify blocking operations", "Async-compatible dependencies"],
+          "priority": 8
+        },
+        {
+          "id": "add-caching-layer",
+          "type": "remedial",
+          "action": "Implement caching for frequently accessed data and expensive computations",
+          "tools": ["Redis", "Memcached", "In-memory cache", "CDN"],
+          "expectedOutcome": "Reduced latency for cached data access by 50-90%",
+          "prerequisites": ["Identify cacheable data", "Cache invalidation strategy"],
+          "priority": 8,
+          "documentationLinks": ["https://redis.io/docs/manual/client-side-caching/"]
+        },
+        {
+          "id": "optimize-external-calls",
+          "type": "remedial",
+          "action": "Optimize external service calls with connection pooling, timeouts, and circuit breakers",
+          "tools": ["Connection pools", "Circuit breakers", "Retry policies", "Bulkheads"],
+          "expectedOutcome": "More resilient and predictable external call latency",
+          "prerequisites": ["Identify slow external calls", "Resilience library"],
+          "priority": 7,
+          "documentationLinks": ["https://resilience4j.readme.io/docs/circuitbreaker"]
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "perf-throughput-bottleneck",
+      "name": "Throughput Bottleneck Detection",
+      "description": "Detects system throughput limitations including request rate limits, processing capacity issues, and scalability problems",
+      "indicators": [
+        { "type": "exact", "value": "throughput", "weight": 0.9 },
+        { "type": "exact", "value": "requests per second", "weight": 0.95 },
+        { "type": "exact", "value": "bottleneck", "weight": 0.85 },
+        { "type": "exact", "value": "capacity limit", "weight": 0.9 },
+        { "type": "exact", "value": "rate limit", "weight": 0.8 },
+        { "type": "exact", "value": "queue backlog", "weight": 0.85 },
+        { "type": "exact", "value": "processing capacity", "weight": 0.85 },
+        { "type": "fuzzy", "value": "throughput low decreased", "weight": 0.8 },
+        { "type": "fuzzy", "value": "cannot handle load traffic", "weight": 0.75 },
+        { "type": "fuzzy", "value": "requests queuing backing up", "weight": 0.8 },
+        {
+          "type": "regex",
+          "value": "\\b(rps|tps|qps).*low\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bthroughput.*(drop|decrease|limit)\\b", "weight": 0.8 },
+        { "type": "regex", "value": "\\b(scale|scaling).*issue\\b", "weight": 0.75 },
+        { "type": "exact", "value": "saturation", "weight": 0.8, "keyTermCategory": "domainTerms" },
+        { "type": "exact", "value": "backpressure", "weight": 0.85 },
+        { "type": "exact", "value": "load shedding", "weight": 0.8 }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "network bandwidth", "weight": 0.3 },
+        { "type": "exact", "value": "disk throughput", "weight": 0.25 },
+        { "type": "exact", "value": "database throughput", "weight": 0.2 }
+      ],
+      "hypotheses": [
+        {
+          "id": "resource-contention",
+          "statement": "Resource contention may be limiting throughput for {{primarySubject}} due to shared resource bottlenecks",
+          "investigationSteps": [
+            "Identify shared resources (locks, connections, threads)",
+            "Monitor lock contention and wait times",
+            "Check connection pool utilization across services",
+            "Analyze thread pool saturation levels"
+          ],
+          "expectedFindings": [
+            "High lock contention on shared resources",
+            "Connection pool exhaustion under load",
+            "Thread pool saturation causing request queuing",
+            "Mutex or semaphore bottlenecks"
+          ],
+          "relatedHypotheses": ["insufficient-parallelism", "single-point-bottleneck"],
+          "estimatedTime": "30-60 minutes",
+          "likelihood": 0.7
+        },
+        {
+          "id": "insufficient-parallelism",
+          "statement": "Insufficient parallelism may be preventing {{primarySubject}} from utilizing available resources effectively",
+          "investigationSteps": [
+            "Review worker/thread pool configurations",
+            "Check CPU utilization vs configured parallelism",
+            "Analyze request processing concurrency",
+            "Review async task queue configurations"
+          ],
+          "expectedFindings": [
+            "Worker pool size too small for available CPUs",
+            "Low CPU utilization despite high load",
+            "Sequential processing where parallel is possible",
+            "Underutilized compute resources"
+          ],
+          "relatedHypotheses": ["resource-contention", "inefficient-batching"],
+          "estimatedTime": "20-40 minutes",
+          "likelihood": 0.65
+        },
+        {
+          "id": "single-point-bottleneck",
+          "statement": "A single component may be acting as a bottleneck limiting overall system throughput for {{primarySubject}}",
+          "investigationSteps": [
+            "Map the request flow and identify all components",
+            "Measure throughput at each component boundary",
+            "Identify the component with lowest throughput",
+            "Check for single-instance or non-scalable components"
+          ],
+          "expectedFindings": [
+            "One component with significantly lower throughput",
+            "Single database instance handling all traffic",
+            "Non-horizontally-scalable service in critical path",
+            "Centralized queue or message broker at capacity"
+          ],
+          "relatedHypotheses": ["resource-contention"],
+          "estimatedTime": "25-45 minutes",
+          "likelihood": 0.6
+        },
+        {
+          "id": "inefficient-batching",
+          "statement": "Inefficient batching or lack of batching may be reducing throughput efficiency for {{primarySubject}}",
+          "investigationSteps": [
+            "Identify operations that could benefit from batching",
+            "Review current batch sizes and configurations",
+            "Analyze per-request overhead vs batch overhead",
+            "Check for N+1 patterns in data access"
+          ],
+          "expectedFindings": [
+            "Individual requests where batching would help",
+            "Suboptimal batch sizes (too small or too large)",
+            "High per-request overhead for small operations",
+            "N+1 query patterns causing excessive round trips"
+          ],
+          "relatedHypotheses": ["insufficient-parallelism"],
+          "estimatedTime": "20-35 minutes",
+          "likelihood": 0.55
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "measure-component-throughput",
+          "type": "diagnostic",
+          "action": "Measure throughput at each component to identify the bottleneck in {{primarySubject}}",
+          "tools": ["Load testing tools", "APM", "Custom metrics", "Profilers"],
+          "expectedOutcome": "Identification of the limiting component in the system",
+          "prerequisites": ["Component inventory", "Metrics infrastructure"],
+          "priority": 9
+        },
+        {
+          "id": "load-test-capacity",
+          "type": "diagnostic",
+          "action": "Perform load testing to determine maximum throughput and breaking points",
+          "tools": ["k6", "Locust", "JMeter", "Gatling", "wrk"],
+          "expectedOutcome": "Quantified maximum throughput and resource utilization at capacity",
+          "prerequisites": ["Test environment", "Realistic test scenarios"],
+          "priority": 9,
+          "documentationLinks": ["https://k6.io/docs/"]
+        },
+        {
+          "id": "increase-parallelism",
+          "type": "remedial",
+          "action": "Increase worker pool sizes and parallelism to match available resources",
+          "tools": ["Thread pool configuration", "Worker scaling", "Async processing"],
+          "expectedOutcome": "Better resource utilization and increased throughput",
+          "prerequisites": ["Identify current parallelism limits", "Resource availability"],
+          "priority": 8
+        },
+        {
+          "id": "implement-horizontal-scaling",
+          "type": "remedial",
+          "action": "Implement horizontal scaling for bottleneck components",
+          "tools": ["Kubernetes HPA", "Auto Scaling Groups", "Load balancers"],
+          "expectedOutcome": "Linear throughput increase with additional instances",
+          "prerequisites": ["Stateless design", "Load balancer configuration"],
+          "priority": 8,
+          "documentationLinks": [
+            "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+          ]
+        },
+        {
+          "id": "implement-batching",
+          "type": "remedial",
+          "action": "Implement request batching for high-frequency operations",
+          "tools": ["Batch APIs", "Bulk operations", "Request coalescing"],
+          "expectedOutcome": "Reduced per-request overhead and improved throughput",
+          "prerequisites": ["Identify batchable operations", "Client support for batching"],
+          "priority": 7
+        },
+        {
+          "id": "reduce-contention",
+          "type": "remedial",
+          "action": "Reduce resource contention through lock-free algorithms or partitioning",
+          "tools": ["Lock-free data structures", "Sharding", "Partitioning", "Read replicas"],
+          "expectedOutcome": "Reduced wait times and improved concurrent throughput",
+          "prerequisites": ["Identify contention points", "Architecture changes"],
+          "priority": 7
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "perf-resource-utilization",
+      "name": "Resource Utilization Issues",
+      "description": "Detects resource utilization problems including CPU, memory, disk, and network resource inefficiencies",
+      "indicators": [
+        { "type": "exact", "value": "high CPU", "weight": 0.95 },
+        { "type": "exact", "value": "CPU usage", "weight": 0.85 },
+        { "type": "exact", "value": "memory leak", "weight": 0.95 },
+        { "type": "exact", "value": "out of memory", "weight": 0.95 },
+        { "type": "exact", "value": "OOM", "weight": 0.9 },
+        { "type": "exact", "value": "memory pressure", "weight": 0.85 },
+        { "type": "exact", "value": "disk space", "weight": 0.8 },
+        { "type": "exact", "value": "resource exhaustion", "weight": 0.9 },
+        { "type": "fuzzy", "value": "CPU high spike 100%", "weight": 0.85 },
+        { "type": "fuzzy", "value": "memory growing increasing", "weight": 0.8 },
+        { "type": "fuzzy", "value": "resources running out", "weight": 0.75 },
+        { "type": "regex", "value": "\\b(cpu|memory|disk).*exhaust\\b", "weight": 0.85 },
+        {
+          "type": "regex",
+          "value": "\\b(high|excessive).*utilization\\b",
+          "weight": 0.8,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bresource.*limit\\b", "weight": 0.75 },
+        {
+          "type": "exact",
+          "value": "garbage collection",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "GC pause", "weight": 0.8 },
+        { "type": "exact", "value": "swap", "weight": 0.75 },
+        { "type": "exact", "value": "throttling", "weight": 0.8 }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "expected high usage", "weight": 0.3 },
+        { "type": "exact", "value": "batch job", "weight": 0.2 },
+        { "type": "exact", "value": "scheduled task", "weight": 0.2 }
+      ],
+      "hypotheses": [
+        {
+          "id": "memory-leak",
+          "statement": "A memory leak may be causing gradual resource exhaustion in {{primarySubject}}",
+          "investigationSteps": [
+            "Monitor memory usage over time for growth patterns",
+            "Take heap dumps at different time intervals",
+            "Compare heap dumps to identify growing object counts",
+            "Review code for common leak patterns (event listeners, caches)"
+          ],
+          "expectedFindings": [
+            "Steadily increasing memory usage over time",
+            "Objects not being garbage collected",
+            "Unbounded caches or collections",
+            "Event listeners not being removed"
+          ],
+          "relatedHypotheses": ["inefficient-memory-usage", "gc-pressure"],
+          "estimatedTime": "45-90 minutes",
+          "likelihood": 0.7
+        },
+        {
+          "id": "inefficient-memory-usage",
+          "statement": "Inefficient memory usage patterns may be causing excessive memory consumption in {{primarySubject}}",
+          "investigationSteps": [
+            "Profile memory allocation patterns",
+            "Identify large object allocations",
+            "Review data structure choices for memory efficiency",
+            "Check for duplicate data in memory"
+          ],
+          "expectedFindings": [
+            "Large objects allocated unnecessarily",
+            "Inefficient data structures (e.g., arrays vs sets)",
+            "Duplicate data stored in multiple places",
+            "Oversized buffers or caches"
+          ],
+          "relatedHypotheses": ["memory-leak", "gc-pressure"],
+          "estimatedTime": "30-60 minutes",
+          "likelihood": 0.6
+        },
+        {
+          "id": "gc-pressure",
+          "statement": "Excessive garbage collection may be impacting performance due to high allocation rates in {{primarySubject}}",
+          "investigationSteps": [
+            "Monitor GC frequency and pause times",
+            "Analyze allocation rates and object lifetimes",
+            "Review GC configuration and heap sizing",
+            "Identify hot allocation paths"
+          ],
+          "expectedFindings": [
+            "Frequent GC cycles with long pause times",
+            "High allocation rate of short-lived objects",
+            "Heap size too small for workload",
+            "Promotion of objects to old generation"
+          ],
+          "relatedHypotheses": ["inefficient-memory-usage"],
+          "estimatedTime": "25-45 minutes",
+          "likelihood": 0.55
+        },
+        {
+          "id": "cpu-intensive-operations",
+          "statement": "CPU-intensive operations may be consuming excessive compute resources in {{primarySubject}}",
+          "investigationSteps": [
+            "Profile CPU usage to identify hot methods",
+            "Review algorithmic complexity of CPU-heavy code",
+            "Check for unnecessary computations or loops",
+            "Analyze thread CPU time distribution"
+          ],
+          "expectedFindings": [
+            "Specific methods consuming majority of CPU time",
+            "Inefficient algorithms in hot paths",
+            "Unnecessary repeated computations",
+            "Busy-waiting or spin locks"
+          ],
+          "relatedHypotheses": ["gc-pressure"],
+          "estimatedTime": "30-60 minutes",
+          "likelihood": 0.65
+        },
+        {
+          "id": "resource-limits-misconfigured",
+          "statement": "Resource limits may be misconfigured causing throttling or OOM kills for {{primarySubject}}",
+          "investigationSteps": [
+            "Review container/VM resource limit configurations",
+            "Check for CPU throttling events",
+            "Monitor OOM killer activity",
+            "Compare allocated vs actual resource usage"
+          ],
+          "expectedFindings": [
+            "Resource limits set too low for workload",
+            "CPU throttling during peak usage",
+            "OOM kills due to memory limits",
+            "Mismatch between requests and limits"
+          ],
+          "relatedHypotheses": ["cpu-intensive-operations", "memory-leak"],
+          "estimatedTime": "15-30 minutes",
+          "likelihood": 0.5
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "implement-resource-monitoring",
+          "type": "diagnostic",
+          "action": "Implement comprehensive resource monitoring for CPU, memory, disk, and network",
+          "tools": ["Prometheus", "Grafana", "CloudWatch", "Datadog", "node_exporter"],
+          "expectedOutcome": "Real-time visibility into resource utilization and trends",
+          "prerequisites": ["Monitoring infrastructure", "Dashboard setup"],
+          "priority": 9
+        },
+        {
+          "id": "profile-memory-usage",
+          "type": "diagnostic",
+          "action": "Profile memory usage and take heap dumps to identify memory issues",
+          "tools": ["Heap profilers", "Memory analyzers", "Chrome DevTools", "VisualVM"],
+          "expectedOutcome": "Identification of memory leaks and inefficient allocations",
+          "prerequisites": ["Profiling tools", "Access to running application"],
+          "priority": 9
+        },
+        {
+          "id": "profile-cpu-usage",
+          "type": "diagnostic",
+          "action": "Profile CPU usage to identify hot methods and optimization opportunities",
+          "tools": ["CPU profilers", "Flame graphs", "perf", "async-profiler"],
+          "expectedOutcome": "Identification of CPU-intensive code paths",
+          "prerequisites": ["Profiling tools", "Representative workload"],
+          "priority": 8,
+          "documentationLinks": ["https://www.brendangregg.com/flamegraphs.html"]
+        },
+        {
+          "id": "fix-memory-leaks",
+          "type": "remedial",
+          "action": "Fix identified memory leaks by properly releasing resources",
+          "tools": ["Code review", "Weak references", "Resource cleanup patterns"],
+          "expectedOutcome": "Stable memory usage over time",
+          "prerequisites": ["Leak identification", "Code access"],
+          "priority": 9
+        },
+        {
+          "id": "optimize-gc-settings",
+          "type": "remedial",
+          "action": "Optimize garbage collection settings for the workload characteristics",
+          "tools": ["GC tuning flags", "Heap sizing", "GC algorithm selection"],
+          "expectedOutcome": "Reduced GC pause times and improved throughput",
+          "prerequisites": ["GC analysis complete", "Test environment"],
+          "priority": 7,
+          "documentationLinks": ["https://docs.oracle.com/en/java/javase/17/gctuning/"]
+        },
+        {
+          "id": "right-size-resources",
+          "type": "remedial",
+          "action": "Right-size resource allocations based on actual usage patterns",
+          "tools": ["Resource monitoring", "Capacity planning", "Auto-scaling"],
+          "expectedOutcome": "Optimal resource allocation without waste or constraints",
+          "prerequisites": ["Usage data analysis", "Infrastructure access"],
+          "priority": 7
+        },
+        {
+          "id": "implement-resource-limits",
+          "type": "remedial",
+          "action": "Configure appropriate resource limits and requests for containers",
+          "tools": ["Kubernetes resource specs", "Docker limits", "cgroups"],
+          "expectedOutcome": "Predictable resource allocation and protection from noisy neighbors",
+          "prerequisites": ["Resource profiling", "Container orchestration"],
+          "priority": 6,
+          "documentationLinks": [
+            "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/"
+          ]
+        }
+      ],
+      "severity": "critical",
+      "qualityThreshold": 0.6
+    }
+  ],
+  "testCases": [
+    {
+      "id": "test-latency-basic",
+      "input": "Our API has high latency and slow response times",
+      "expectedDomain": "performance",
+      "expectedPatternIds": ["perf-latency-issues"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-latency-percentile",
+      "input": "The p99 latency has spiked to over 5 seconds, causing SLA breaches",
+      "expectedDomain": "performance",
+      "expectedPatternIds": ["perf-latency-issues"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-latency-timeout",
+      "input": "Requests are timing out due to increased response time in the service",
+      "expectedDomain": "performance",
+      "expectedPatternIds": ["perf-latency-issues"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-throughput-basic",
+      "input": "We're hitting a throughput bottleneck and can't handle more requests per second",
+      "expectedDomain": "performance",
+      "expectedPatternIds": ["perf-throughput-bottleneck"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-throughput-capacity",
+      "input": "The system has reached its capacity limit and requests are queuing up",
+      "expectedDomain": "performance",
+      "expectedPatternIds": ["perf-throughput-bottleneck"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-throughput-scaling",
+      "input": "We have scaling issues and cannot handle the increased traffic load",
+      "expectedDomain": "performance",
+      "expectedPatternIds": ["perf-throughput-bottleneck"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-resource-cpu",
+      "input": "High CPU usage is causing performance degradation in our service",
+      "expectedDomain": "performance",
+      "expectedPatternIds": ["perf-resource-utilization"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-resource-memory",
+      "input": "We suspect a memory leak, memory usage keeps growing until OOM",
+      "expectedDomain": "performance",
+      "expectedPatternIds": ["perf-resource-utilization"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-resource-gc",
+      "input": "Garbage collection pauses are causing latency spikes in our application",
+      "expectedDomain": "performance",
+      "expectedPatternIds": ["perf-resource-utilization"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-combined-latency-resource",
+      "input": "High CPU usage is causing slow response times and increased latency",
+      "expectedDomain": "performance",
+      "expectedPatternIds": ["perf-latency-issues", "perf-resource-utilization"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-throughput-resource",
+      "input": "Resource exhaustion is limiting our throughput capacity",
+      "expectedDomain": "performance",
+      "expectedPatternIds": ["perf-throughput-bottleneck", "perf-resource-utilization"],
+      "minConfidence": 0.7
+    }
+  ]
+}

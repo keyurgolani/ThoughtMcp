@@ -1,0 +1,832 @@
+{
+  "version": "1.0.0",
+  "domain": "team-dynamics",
+  "description": "Patterns for team dynamics issues including communication breakdowns, collaboration problems, and conflict resolution",
+  "patterns": [
+    {
+      "id": "communication-breakdown",
+      "name": "Communication Breakdown Detection",
+      "description": "Detects team communication issues including information silos, miscommunication, and ineffective communication channels",
+      "indicators": [
+        { "type": "exact", "value": "communication breakdown", "weight": 0.95 },
+        { "type": "exact", "value": "communication issues", "weight": 0.95 },
+        { "type": "exact", "value": "poor communication", "weight": 0.9 },
+        { "type": "exact", "value": "miscommunication", "weight": 0.9 },
+        { "type": "exact", "value": "information silos", "weight": 0.9 },
+        { "type": "exact", "value": "lack of communication", "weight": 0.9 },
+        { "type": "exact", "value": "communication gap", "weight": 0.85 },
+        { "type": "exact", "value": "not on the same page", "weight": 0.85 },
+        { "type": "exact", "value": "unclear expectations", "weight": 0.8 },
+        { "type": "exact", "value": "mixed messages", "weight": 0.8 },
+        { "type": "fuzzy", "value": "team not communicating", "weight": 0.85 },
+        { "type": "fuzzy", "value": "information not shared", "weight": 0.8 },
+        { "type": "fuzzy", "value": "people don't know what's happening", "weight": 0.75 },
+        {
+          "type": "regex",
+          "value": "\\b(communication|info).*breakdown\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bteam.*not.*communicat\\b", "weight": 0.75 },
+        {
+          "type": "exact",
+          "value": "stakeholder alignment",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "cross-functional communication",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "transparency",
+          "weight": 0.65,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "network communication", "weight": 0.35 },
+        { "type": "exact", "value": "api communication", "weight": 0.35 },
+        { "type": "exact", "value": "service communication", "weight": 0.3 }
+      ],
+      "hypotheses": [
+        {
+          "id": "channel-fragmentation",
+          "statement": "Fragmented communication channels may be causing information loss and miscommunication for {{primarySubject}}",
+          "investigationSteps": [
+            "Audit all communication channels used by the team (Slack, email, meetings, etc.)",
+            "Identify where critical information is being shared and potentially lost",
+            "Review channel usage patterns and information duplication",
+            "Assess whether team members know where to find information",
+            "Check for unofficial or shadow communication channels"
+          ],
+          "expectedFindings": [
+            "Multiple overlapping channels for similar purposes",
+            "Critical information scattered across different platforms",
+            "Team members missing important updates due to channel overload",
+            "No clear guidelines on which channel to use for what",
+            "Information silos between different communication tools"
+          ],
+          "relatedHypotheses": ["meeting-inefficiency", "documentation-gaps"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.7
+        },
+        {
+          "id": "meeting-inefficiency",
+          "statement": "Ineffective meetings may be contributing to communication breakdowns for {{primarySubject}}",
+          "investigationSteps": [
+            "Review meeting frequency, duration, and attendance patterns",
+            "Assess meeting agendas and outcomes documentation",
+            "Survey team members about meeting effectiveness",
+            "Analyze time spent in meetings vs productive work",
+            "Check for missing stakeholders in key meetings"
+          ],
+          "expectedFindings": [
+            "Meetings without clear agendas or outcomes",
+            "Key decisions made without proper stakeholder involvement",
+            "Meeting overload reducing productive time",
+            "Action items not tracked or followed up",
+            "Important information shared only in meetings not documented"
+          ],
+          "relatedHypotheses": ["channel-fragmentation", "leadership-communication"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.65
+        },
+        {
+          "id": "documentation-gaps",
+          "statement": "Lack of documentation may be causing knowledge loss and communication issues for {{primarySubject}}",
+          "investigationSteps": [
+            "Audit existing documentation and its currency",
+            "Identify critical knowledge that exists only in people's heads",
+            "Review documentation practices and standards",
+            "Assess accessibility and discoverability of documentation",
+            "Check for outdated or conflicting documentation"
+          ],
+          "expectedFindings": [
+            "Critical processes not documented",
+            "Documentation outdated or incomplete",
+            "Knowledge concentrated in few individuals",
+            "No standard documentation practices",
+            "Documentation hard to find or access"
+          ],
+          "relatedHypotheses": ["channel-fragmentation"],
+          "estimatedTime": "2-3 days",
+          "likelihood": 0.6
+        },
+        {
+          "id": "leadership-communication",
+          "statement": "Leadership communication gaps may be causing misalignment and confusion for {{primarySubject}}",
+          "investigationSteps": [
+            "Review how leadership communicates priorities and decisions",
+            "Assess clarity and consistency of leadership messaging",
+            "Check for cascading communication effectiveness",
+            "Survey team members about understanding of direction",
+            "Analyze feedback loops from team to leadership"
+          ],
+          "expectedFindings": [
+            "Inconsistent messaging from different leaders",
+            "Priorities not clearly communicated to teams",
+            "Decisions made without explanation of rationale",
+            "Lack of regular leadership updates",
+            "Team members unclear on strategic direction"
+          ],
+          "relatedHypotheses": ["meeting-inefficiency"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.55
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "communication-audit",
+          "type": "diagnostic",
+          "action": "Conduct comprehensive communication audit to identify gaps and inefficiencies for {{primarySubject}}",
+          "tools": [
+            "Communication surveys",
+            "Channel analysis",
+            "Information flow mapping",
+            "Stakeholder interviews"
+          ],
+          "expectedOutcome": "Clear picture of communication patterns, gaps, and improvement opportunities",
+          "prerequisites": ["Team participation", "Access to communication tools"],
+          "priority": 9
+        },
+        {
+          "id": "channel-consolidation",
+          "type": "remedial",
+          "action": "Consolidate and clarify communication channels with clear guidelines",
+          "tools": [
+            "Slack",
+            "Microsoft Teams",
+            "Communication guidelines document",
+            "Channel naming conventions"
+          ],
+          "expectedOutcome": "Reduced channel fragmentation and clearer information flow",
+          "prerequisites": ["Communication audit complete", "Team buy-in"],
+          "priority": 8
+        },
+        {
+          "id": "meeting-optimization",
+          "type": "remedial",
+          "action": "Optimize meeting practices with agendas, outcomes, and documentation requirements",
+          "tools": [
+            "Meeting templates",
+            "Agenda frameworks",
+            "Action item tracking",
+            "Meeting-free time blocks"
+          ],
+          "expectedOutcome": "More effective meetings with better information sharing",
+          "prerequisites": ["Meeting audit complete", "Leadership support"],
+          "priority": 8
+        },
+        {
+          "id": "documentation-standards",
+          "type": "remedial",
+          "action": "Establish documentation standards and knowledge management practices",
+          "tools": ["Confluence", "Notion", "Documentation templates", "Knowledge base"],
+          "expectedOutcome": "Improved knowledge capture and accessibility",
+          "prerequisites": ["Documentation audit complete", "Tool selection"],
+          "priority": 7
+        },
+        {
+          "id": "regular-updates",
+          "type": "remedial",
+          "action": "Implement regular team updates and communication cadence",
+          "tools": ["Weekly updates", "All-hands meetings", "Newsletter", "Status dashboards"],
+          "expectedOutcome": "Consistent information flow and reduced surprises",
+          "prerequisites": ["Communication plan", "Leadership commitment"],
+          "priority": 8
+        },
+        {
+          "id": "feedback-loops",
+          "type": "remedial",
+          "action": "Establish feedback loops to identify and address communication issues early",
+          "tools": [
+            "Retrospectives",
+            "Pulse surveys",
+            "Open door policies",
+            "Anonymous feedback channels"
+          ],
+          "expectedOutcome": "Early detection and resolution of communication problems",
+          "prerequisites": ["Psychological safety", "Response process defined"],
+          "priority": 7
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "collaboration-issues",
+      "name": "Collaboration Issues Detection",
+      "description": "Detects team collaboration problems including siloed work, lack of teamwork, and coordination failures",
+      "indicators": [
+        { "type": "exact", "value": "collaboration issues", "weight": 0.95 },
+        { "type": "exact", "value": "collaboration problems", "weight": 0.95 },
+        { "type": "exact", "value": "poor collaboration", "weight": 0.9 },
+        { "type": "exact", "value": "lack of teamwork", "weight": 0.9 },
+        { "type": "exact", "value": "working in silos", "weight": 0.9 },
+        { "type": "exact", "value": "siloed teams", "weight": 0.9 },
+        { "type": "exact", "value": "coordination failure", "weight": 0.85 },
+        { "type": "exact", "value": "not working together", "weight": 0.85 },
+        { "type": "exact", "value": "team friction", "weight": 0.8 },
+        { "type": "exact", "value": "cross-team issues", "weight": 0.8 },
+        { "type": "fuzzy", "value": "teams not collaborating", "weight": 0.85 },
+        { "type": "fuzzy", "value": "people working alone", "weight": 0.75 },
+        { "type": "fuzzy", "value": "no team spirit", "weight": 0.7 },
+        {
+          "type": "regex",
+          "value": "\\b(collaboration|teamwork).*issue\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bteam.*silo\\b", "weight": 0.8 },
+        {
+          "type": "exact",
+          "value": "cross-functional",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "team alignment",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "shared goals",
+          "weight": 0.65,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "software collaboration", "weight": 0.3 },
+        { "type": "exact", "value": "collaboration tool", "weight": 0.3 },
+        { "type": "exact", "value": "document collaboration", "weight": 0.25 }
+      ],
+      "hypotheses": [
+        {
+          "id": "organizational-silos",
+          "statement": "Organizational silos may be preventing effective collaboration for {{primarySubject}}",
+          "investigationSteps": [
+            "Map team boundaries and interaction patterns",
+            "Identify dependencies between teams that are not well-managed",
+            "Review organizational structure for collaboration barriers",
+            "Assess incentive structures that may discourage collaboration",
+            "Check for competing priorities between teams"
+          ],
+          "expectedFindings": [
+            "Teams operating independently with minimal interaction",
+            "Dependencies causing delays due to poor coordination",
+            "Organizational structure creating artificial barriers",
+            "Incentives focused on team goals vs shared outcomes",
+            "Competing priorities causing friction between teams"
+          ],
+          "relatedHypotheses": ["unclear-ownership", "tool-fragmentation"],
+          "estimatedTime": "2-3 days",
+          "likelihood": 0.7
+        },
+        {
+          "id": "unclear-ownership",
+          "statement": "Unclear ownership and responsibilities may be causing collaboration gaps for {{primarySubject}}",
+          "investigationSteps": [
+            "Review RACI matrices and ownership documentation",
+            "Identify areas with overlapping or missing ownership",
+            "Assess how handoffs between teams are managed",
+            "Check for accountability gaps in cross-team work",
+            "Survey team members about role clarity"
+          ],
+          "expectedFindings": [
+            "Unclear or undocumented ownership for key areas",
+            "Multiple teams claiming or avoiding ownership",
+            "Handoffs falling through the cracks",
+            "No clear escalation paths for cross-team issues",
+            "Team members unsure of their responsibilities"
+          ],
+          "relatedHypotheses": ["organizational-silos", "process-gaps"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.65
+        },
+        {
+          "id": "tool-fragmentation",
+          "statement": "Fragmented or incompatible tools may be hindering collaboration for {{primarySubject}}",
+          "investigationSteps": [
+            "Audit collaboration tools used across teams",
+            "Identify tool incompatibilities and integration gaps",
+            "Review tool adoption and usage patterns",
+            "Assess training and support for collaboration tools",
+            "Check for shadow IT and unofficial tools"
+          ],
+          "expectedFindings": [
+            "Different teams using incompatible tools",
+            "Lack of integration between collaboration platforms",
+            "Low adoption of official collaboration tools",
+            "Insufficient training on collaboration features",
+            "Workarounds due to tool limitations"
+          ],
+          "relatedHypotheses": ["organizational-silos"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.55
+        },
+        {
+          "id": "process-gaps",
+          "statement": "Missing or ineffective collaboration processes may be causing coordination failures for {{primarySubject}}",
+          "investigationSteps": [
+            "Review existing collaboration processes and workflows",
+            "Identify where collaboration breaks down in practice",
+            "Assess process documentation and adherence",
+            "Check for missing processes for common collaboration needs",
+            "Survey team members about process effectiveness"
+          ],
+          "expectedFindings": [
+            "No defined processes for cross-team collaboration",
+            "Existing processes not followed consistently",
+            "Process gaps causing repeated coordination failures",
+            "Lack of visibility into cross-team work",
+            "Ad-hoc collaboration without structure"
+          ],
+          "relatedHypotheses": ["unclear-ownership"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.6
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "collaboration-assessment",
+          "type": "diagnostic",
+          "action": "Conduct collaboration assessment to identify barriers and improvement opportunities for {{primarySubject}}",
+          "tools": [
+            "Collaboration surveys",
+            "Network analysis",
+            "Stakeholder interviews",
+            "Process mapping"
+          ],
+          "expectedOutcome": "Clear understanding of collaboration patterns and barriers",
+          "prerequisites": ["Team participation", "Management support"],
+          "priority": 9
+        },
+        {
+          "id": "cross-functional-teams",
+          "type": "remedial",
+          "action": "Establish cross-functional teams or working groups for key initiatives",
+          "tools": [
+            "Team charters",
+            "Shared goals",
+            "Joint planning sessions",
+            "Integrated backlogs"
+          ],
+          "expectedOutcome": "Improved collaboration on cross-cutting work",
+          "prerequisites": ["Leadership alignment", "Resource allocation"],
+          "priority": 8
+        },
+        {
+          "id": "ownership-clarity",
+          "type": "remedial",
+          "action": "Clarify ownership and responsibilities with RACI matrices and documentation",
+          "tools": ["RACI matrix", "Role documentation", "Ownership registry", "Escalation paths"],
+          "expectedOutcome": "Clear accountability and reduced coordination gaps",
+          "prerequisites": ["Stakeholder input", "Leadership decisions"],
+          "priority": 8
+        },
+        {
+          "id": "collaboration-tools",
+          "type": "remedial",
+          "action": "Standardize and integrate collaboration tools across teams",
+          "tools": ["Jira", "Confluence", "Slack", "Microsoft Teams", "Miro", "Figma"],
+          "expectedOutcome": "Seamless collaboration with integrated tooling",
+          "prerequisites": ["Tool assessment complete", "Budget for tools"],
+          "priority": 7
+        },
+        {
+          "id": "shared-objectives",
+          "type": "remedial",
+          "action": "Implement shared objectives and key results (OKRs) across teams",
+          "tools": ["OKR frameworks", "Shared dashboards", "Joint planning", "Cross-team metrics"],
+          "expectedOutcome": "Aligned incentives and improved cross-team collaboration",
+          "prerequisites": ["Leadership buy-in", "OKR training"],
+          "priority": 8
+        },
+        {
+          "id": "collaboration-rituals",
+          "type": "remedial",
+          "action": "Establish collaboration rituals like joint standups, demos, and retrospectives",
+          "tools": [
+            "Joint standups",
+            "Cross-team demos",
+            "Shared retrospectives",
+            "Collaboration days"
+          ],
+          "expectedOutcome": "Regular touchpoints and improved team relationships",
+          "prerequisites": ["Calendar coordination", "Team commitment"],
+          "priority": 7
+        },
+        {
+          "id": "team-building",
+          "type": "remedial",
+          "action": "Invest in team building activities to strengthen relationships",
+          "tools": [
+            "Team events",
+            "Social activities",
+            "Offsites",
+            "Pair programming",
+            "Job shadowing"
+          ],
+          "expectedOutcome": "Stronger interpersonal relationships and trust",
+          "prerequisites": ["Budget allocation", "Time commitment"],
+          "priority": 6
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "conflict-resolution",
+      "name": "Conflict Resolution Detection",
+      "description": "Detects team conflicts including interpersonal disputes, disagreements, and tension that need resolution",
+      "indicators": [
+        { "type": "exact", "value": "team conflict", "weight": 0.95 },
+        { "type": "exact", "value": "conflict resolution", "weight": 0.95 },
+        { "type": "exact", "value": "interpersonal conflict", "weight": 0.95 },
+        { "type": "exact", "value": "team disagreement", "weight": 0.9 },
+        { "type": "exact", "value": "personality clash", "weight": 0.9 },
+        { "type": "exact", "value": "team tension", "weight": 0.9 },
+        { "type": "exact", "value": "workplace conflict", "weight": 0.9 },
+        { "type": "exact", "value": "team dispute", "weight": 0.85 },
+        { "type": "exact", "value": "hostile environment", "weight": 0.85 },
+        { "type": "exact", "value": "toxic team", "weight": 0.85 },
+        { "type": "fuzzy", "value": "team members fighting", "weight": 0.85 },
+        { "type": "fuzzy", "value": "people not getting along", "weight": 0.8 },
+        { "type": "fuzzy", "value": "constant arguments", "weight": 0.8 },
+        {
+          "type": "regex",
+          "value": "\\b(conflict|tension|dispute).*team\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bteam.*conflict\\b", "weight": 0.85 },
+        {
+          "type": "exact",
+          "value": "mediation",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "psychological safety",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "team morale",
+          "weight": 0.65,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "merge conflict", "weight": 0.4 },
+        { "type": "exact", "value": "version conflict", "weight": 0.4 },
+        { "type": "exact", "value": "dependency conflict", "weight": 0.35 },
+        { "type": "exact", "value": "scheduling conflict", "weight": 0.3 }
+      ],
+      "hypotheses": [
+        {
+          "id": "role-ambiguity",
+          "statement": "Role ambiguity or overlapping responsibilities may be causing conflicts for {{primarySubject}}",
+          "investigationSteps": [
+            "Review role definitions and job descriptions",
+            "Identify areas of overlapping responsibility",
+            "Assess how decisions are made in contested areas",
+            "Check for resource competition between roles",
+            "Survey team members about role clarity"
+          ],
+          "expectedFindings": [
+            "Unclear boundaries between roles",
+            "Multiple people claiming ownership of same areas",
+            "Conflicts arising from decision-making authority",
+            "Competition for resources or recognition",
+            "Frustration due to stepping on each other's toes"
+          ],
+          "relatedHypotheses": ["communication-style", "values-misalignment"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.7
+        },
+        {
+          "id": "communication-style",
+          "statement": "Different communication styles or preferences may be causing interpersonal friction for {{primarySubject}}",
+          "investigationSteps": [
+            "Assess communication styles of team members involved",
+            "Review communication patterns that trigger conflicts",
+            "Check for cultural or generational communication differences",
+            "Identify specific communication behaviors causing friction",
+            "Survey team about communication preferences"
+          ],
+          "expectedFindings": [
+            "Clashing communication styles (direct vs indirect)",
+            "Misinterpretation of tone or intent",
+            "Cultural differences in communication norms",
+            "Feedback delivery causing defensive reactions",
+            "Written vs verbal communication preferences conflicting"
+          ],
+          "relatedHypotheses": ["role-ambiguity", "leadership-gaps"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.65
+        },
+        {
+          "id": "values-misalignment",
+          "statement": "Misaligned values or priorities may be driving fundamental disagreements for {{primarySubject}}",
+          "investigationSteps": [
+            "Identify core values and priorities of conflicting parties",
+            "Assess alignment with team and organizational values",
+            "Review decisions where value conflicts emerged",
+            "Check for competing success metrics",
+            "Explore underlying motivations and concerns"
+          ],
+          "expectedFindings": [
+            "Different priorities (speed vs quality, innovation vs stability)",
+            "Conflicting definitions of success",
+            "Values not explicitly discussed or aligned",
+            "Decisions triggering value-based disagreements",
+            "Lack of shared vision or purpose"
+          ],
+          "relatedHypotheses": ["role-ambiguity", "resource-competition"],
+          "estimatedTime": "2-3 days",
+          "likelihood": 0.55
+        },
+        {
+          "id": "resource-competition",
+          "statement": "Competition for limited resources may be creating conflict between team members for {{primarySubject}}",
+          "investigationSteps": [
+            "Identify scarce resources teams are competing for",
+            "Review resource allocation processes and fairness",
+            "Assess how resource conflicts are currently resolved",
+            "Check for zero-sum dynamics in resource distribution",
+            "Analyze impact of resource constraints on relationships"
+          ],
+          "expectedFindings": [
+            "Teams competing for budget, headcount, or tools",
+            "Perception of unfair resource allocation",
+            "Lack of transparent resource allocation process",
+            "Win-lose dynamics damaging relationships",
+            "Resource scarcity amplifying other conflicts"
+          ],
+          "relatedHypotheses": ["values-misalignment"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.5
+        },
+        {
+          "id": "leadership-gaps",
+          "statement": "Leadership gaps in conflict management may be allowing conflicts to escalate for {{primarySubject}}",
+          "investigationSteps": [
+            "Review how leadership has handled past conflicts",
+            "Assess leadership training in conflict resolution",
+            "Check for avoidance patterns in addressing conflicts",
+            "Evaluate escalation paths and their effectiveness",
+            "Survey team about leadership support in conflicts"
+          ],
+          "expectedFindings": [
+            "Leaders avoiding or ignoring conflicts",
+            "Lack of conflict resolution skills in leadership",
+            "No clear escalation or resolution process",
+            "Inconsistent handling of similar conflicts",
+            "Team members feeling unsupported in conflicts"
+          ],
+          "relatedHypotheses": ["communication-style"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.6
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "conflict-assessment",
+          "type": "diagnostic",
+          "action": "Conduct confidential conflict assessment to understand root causes and dynamics for {{primarySubject}}",
+          "tools": [
+            "Confidential interviews",
+            "Conflict mapping",
+            "Stakeholder analysis",
+            "HR consultation"
+          ],
+          "expectedOutcome": "Clear understanding of conflict sources and dynamics",
+          "prerequisites": ["Trust and confidentiality", "HR involvement if needed"],
+          "priority": 9
+        },
+        {
+          "id": "mediation",
+          "type": "remedial",
+          "action": "Facilitate mediation sessions between conflicting parties",
+          "tools": [
+            "Professional mediator",
+            "Structured dialogue",
+            "Ground rules",
+            "Action agreements"
+          ],
+          "expectedOutcome": "Resolution or de-escalation of active conflicts",
+          "prerequisites": ["Willingness to participate", "Neutral facilitator"],
+          "priority": 9
+        },
+        {
+          "id": "role-clarification",
+          "type": "remedial",
+          "action": "Clarify roles, responsibilities, and decision rights to reduce ambiguity",
+          "tools": [
+            "RACI matrix",
+            "Role documentation",
+            "Decision frameworks",
+            "Boundary agreements"
+          ],
+          "expectedOutcome": "Clear boundaries and reduced role-based conflicts",
+          "prerequisites": ["Leadership involvement", "Stakeholder input"],
+          "priority": 8
+        },
+        {
+          "id": "communication-training",
+          "type": "remedial",
+          "action": "Provide communication and conflict resolution training for the team",
+          "tools": [
+            "Communication workshops",
+            "Conflict resolution training",
+            "DISC/Myers-Briggs",
+            "Feedback training"
+          ],
+          "expectedOutcome": "Improved communication skills and conflict handling",
+          "prerequisites": ["Training budget", "Team participation"],
+          "priority": 8
+        },
+        {
+          "id": "team-norms",
+          "type": "remedial",
+          "action": "Establish team norms and working agreements for healthy conflict",
+          "tools": ["Team charter", "Working agreements", "Conflict protocols", "Feedback norms"],
+          "expectedOutcome": "Shared expectations for handling disagreements constructively",
+          "prerequisites": ["Team workshop", "Commitment to norms"],
+          "priority": 8
+        },
+        {
+          "id": "psychological-safety",
+          "type": "remedial",
+          "action": "Build psychological safety to enable healthy conflict and honest dialogue",
+          "tools": [
+            "Psychological safety assessment",
+            "Leadership modeling",
+            "Blameless retrospectives",
+            "Vulnerability exercises"
+          ],
+          "expectedOutcome": "Environment where disagreements can be expressed safely",
+          "prerequisites": ["Leadership commitment", "Ongoing effort"],
+          "priority": 8
+        },
+        {
+          "id": "escalation-process",
+          "type": "remedial",
+          "action": "Establish clear escalation process for unresolved conflicts",
+          "tools": [
+            "Escalation matrix",
+            "HR involvement criteria",
+            "Resolution timelines",
+            "Documentation requirements"
+          ],
+          "expectedOutcome": "Clear path for resolving conflicts that can't be resolved locally",
+          "prerequisites": ["HR partnership", "Leadership alignment"],
+          "priority": 7
+        },
+        {
+          "id": "leadership-coaching",
+          "type": "remedial",
+          "action": "Provide conflict management coaching for team leaders",
+          "tools": [
+            "Executive coaching",
+            "Conflict resolution training",
+            "Role-playing scenarios",
+            "Peer learning"
+          ],
+          "expectedOutcome": "Leaders equipped to handle and prevent conflicts",
+          "prerequisites": ["Coaching resources", "Leadership commitment"],
+          "priority": 7
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    }
+  ],
+  "testCases": [
+    {
+      "id": "test-communication-breakdown-basic",
+      "input": "We have a communication breakdown on the team and information is not being shared properly",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["communication-breakdown"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-communication-silos",
+      "input": "Information silos are causing miscommunication and people are not on the same page",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["communication-breakdown"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-communication-gaps",
+      "input": "There's a communication gap between teams and unclear expectations are causing problems",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["communication-breakdown"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-communication-cross-functional",
+      "input": "Cross-functional communication is poor and stakeholder alignment is lacking",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["communication-breakdown"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-collaboration-basic",
+      "input": "We have collaboration issues and teams are working in silos",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["collaboration-issues"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-collaboration-teamwork",
+      "input": "There's a lack of teamwork and poor collaboration between departments",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["collaboration-issues"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-collaboration-coordination",
+      "input": "Coordination failure is causing cross-team issues and siloed teams are not working together",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["collaboration-issues"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-collaboration-alignment",
+      "input": "Team alignment is poor and we need better cross-functional collaboration with shared goals",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["collaboration-issues"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-conflict-basic",
+      "input": "We have team conflict that needs conflict resolution",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["conflict-resolution"],
+      "minConfidence": 0.9
+    },
+    {
+      "id": "test-conflict-interpersonal",
+      "input": "There's interpersonal conflict and personality clashes causing team tension",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["conflict-resolution"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-conflict-disagreement",
+      "input": "Team disagreement is escalating and people are not getting along",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["conflict-resolution"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-conflict-toxic",
+      "input": "We have a toxic team environment with constant disputes and need mediation",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["conflict-resolution"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-conflict-morale",
+      "input": "Team morale is low due to workplace conflict and we need to improve psychological safety",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["conflict-resolution"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-communication-collaboration",
+      "input": "Communication breakdown is causing collaboration issues and teams are working in silos",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["communication-breakdown", "collaboration-issues"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-combined-collaboration-conflict",
+      "input": "Poor collaboration and team conflict are creating a hostile environment",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": ["collaboration-issues", "conflict-resolution"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-combined-all-patterns",
+      "input": "We have communication breakdown, collaboration issues, and team conflict all affecting our team dynamics",
+      "expectedDomain": "team-dynamics",
+      "expectedPatternIds": [
+        "communication-breakdown",
+        "collaboration-issues",
+        "conflict-resolution"
+      ],
+      "minConfidence": 0.7
+    }
+  ]
+}

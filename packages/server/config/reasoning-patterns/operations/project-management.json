@@ -1,0 +1,735 @@
+{
+  "version": "1.0.0",
+  "domain": "project-management",
+  "description": "Patterns for project management issues including schedule slippage, resource constraints, and scope creep",
+  "patterns": [
+    {
+      "id": "schedule-slippage",
+      "name": "Schedule Slippage Detection",
+      "description": "Detects project schedule delays, timeline issues, and deadline risks",
+      "indicators": [
+        { "type": "exact", "value": "schedule slippage", "weight": 0.95 },
+        { "type": "exact", "value": "behind schedule", "weight": 0.95 },
+        { "type": "exact", "value": "project delay", "weight": 0.95 },
+        { "type": "exact", "value": "missed deadline", "weight": 0.9 },
+        { "type": "exact", "value": "timeline risk", "weight": 0.9 },
+        { "type": "exact", "value": "delivery delay", "weight": 0.9 },
+        { "type": "exact", "value": "late delivery", "weight": 0.85 },
+        { "type": "exact", "value": "schedule risk", "weight": 0.85 },
+        { "type": "exact", "value": "project overrun", "weight": 0.85 },
+        { "type": "fuzzy", "value": "project running late", "weight": 0.8 },
+        { "type": "fuzzy", "value": "falling behind timeline", "weight": 0.8 },
+        { "type": "fuzzy", "value": "deadline at risk", "weight": 0.75 },
+        {
+          "type": "regex",
+          "value": "\\b(delay|slippage|overrun).*schedule\\b",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bproject.*behind\\b", "weight": 0.7 },
+        {
+          "type": "exact",
+          "value": "critical path",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "milestone delay",
+          "weight": 0.8,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "sprint velocity",
+          "weight": 0.65,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "network delay", "weight": 0.3 },
+        { "type": "exact", "value": "api latency", "weight": 0.25 },
+        { "type": "exact", "value": "database slow", "weight": 0.2 }
+      ],
+      "hypotheses": [
+        {
+          "id": "estimation-accuracy",
+          "statement": "Inaccurate initial estimates may be causing schedule slippage for {{primarySubject}}",
+          "investigationSteps": [
+            "Compare original estimates with actual time spent on completed tasks",
+            "Review estimation methodology and historical accuracy",
+            "Identify tasks with largest estimation variance",
+            "Analyze whether complexity was underestimated",
+            "Check if dependencies were properly accounted for in estimates"
+          ],
+          "expectedFindings": [
+            "Consistent underestimation of task complexity (>30% variance)",
+            "Missing or underestimated dependencies",
+            "Optimistic estimates without buffer time",
+            "Lack of historical data used in estimation",
+            "Technical unknowns not factored into estimates"
+          ],
+          "relatedHypotheses": ["dependency-bottleneck", "resource-availability"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.75
+        },
+        {
+          "id": "dependency-bottleneck",
+          "statement": "Blocked dependencies or external bottlenecks may be causing delays in {{primarySubject}}",
+          "investigationSteps": [
+            "Map critical path and identify blocking dependencies",
+            "Review external team or vendor delivery timelines",
+            "Analyze wait times between dependent tasks",
+            "Check for circular dependencies or deadlocks",
+            "Identify single points of failure in the dependency chain"
+          ],
+          "expectedFindings": [
+            "Tasks blocked waiting for external deliverables",
+            "Critical path items delayed by dependencies",
+            "Long handoff times between teams",
+            "Vendor or third-party delays impacting timeline",
+            "Insufficient parallelization of independent work"
+          ],
+          "relatedHypotheses": ["estimation-accuracy", "resource-availability"],
+          "estimatedTime": "1 day",
+          "likelihood": 0.7
+        },
+        {
+          "id": "resource-availability",
+          "statement": "Resource availability issues may be contributing to schedule delays for {{primarySubject}}",
+          "investigationSteps": [
+            "Review team capacity and allocation across projects",
+            "Check for key personnel absences or turnover",
+            "Analyze context switching overhead from multiple projects",
+            "Identify skill gaps causing work to queue",
+            "Review meeting load and interruption patterns"
+          ],
+          "expectedFindings": [
+            "Team members allocated to multiple competing projects",
+            "Key resources unavailable when needed",
+            "High context switching reducing productivity",
+            "Skill bottlenecks causing work to queue",
+            "Excessive meetings reducing productive time"
+          ],
+          "relatedHypotheses": ["dependency-bottleneck", "scope-changes"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.65
+        },
+        {
+          "id": "scope-changes",
+          "statement": "Unplanned scope changes may be causing schedule slippage for {{primarySubject}}",
+          "investigationSteps": [
+            "Track scope changes since project inception",
+            "Quantify effort added by scope changes",
+            "Review change request approval process",
+            "Analyze impact of scope changes on timeline",
+            "Check if schedule was adjusted for scope changes"
+          ],
+          "expectedFindings": [
+            "Significant scope additions without timeline adjustment",
+            "Informal scope changes bypassing change control",
+            "Cumulative scope creep exceeding buffer",
+            "Requirements volatility causing rework",
+            "Missing impact assessment for changes"
+          ],
+          "relatedHypotheses": ["estimation-accuracy"],
+          "estimatedTime": "1 day",
+          "likelihood": 0.6
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "schedule-analysis",
+          "type": "diagnostic",
+          "action": "Conduct detailed schedule analysis to identify root causes of slippage for {{primarySubject}}",
+          "tools": [
+            "Gantt charts",
+            "Critical path analysis",
+            "Earned value management",
+            "Jira/Azure DevOps"
+          ],
+          "expectedOutcome": "Clear understanding of delay causes and impacted milestones",
+          "prerequisites": ["Access to project schedule", "Task completion data"],
+          "priority": 9
+        },
+        {
+          "id": "estimation-review",
+          "type": "diagnostic",
+          "action": "Review and improve estimation practices using historical data",
+          "tools": [
+            "Planning poker",
+            "Three-point estimation",
+            "Historical velocity data",
+            "Reference class forecasting"
+          ],
+          "expectedOutcome": "More accurate estimates with appropriate buffers",
+          "prerequisites": ["Historical project data", "Team participation"],
+          "priority": 8
+        },
+        {
+          "id": "dependency-mapping",
+          "type": "diagnostic",
+          "action": "Create comprehensive dependency map and identify critical path",
+          "tools": [
+            "Dependency diagrams",
+            "Network diagrams",
+            "Critical path method",
+            "Project management software"
+          ],
+          "expectedOutcome": "Visibility into blocking dependencies and optimization opportunities",
+          "prerequisites": ["Task breakdown complete", "Stakeholder input"],
+          "priority": 8
+        },
+        {
+          "id": "schedule-recovery",
+          "type": "remedial",
+          "action": "Develop schedule recovery plan with options for getting back on track",
+          "tools": ["Fast-tracking", "Crashing", "Scope negotiation", "Resource reallocation"],
+          "expectedOutcome": "Actionable plan to recover schedule with trade-off analysis",
+          "prerequisites": ["Root cause analysis complete", "Stakeholder buy-in"],
+          "priority": 9
+        },
+        {
+          "id": "buffer-management",
+          "type": "remedial",
+          "action": "Implement buffer management and early warning indicators",
+          "tools": [
+            "Buffer tracking",
+            "Milestone health indicators",
+            "Burndown charts",
+            "Risk registers"
+          ],
+          "expectedOutcome": "Early detection of schedule risks before they become critical",
+          "prerequisites": ["Schedule baseline established", "Monitoring process defined"],
+          "priority": 7
+        },
+        {
+          "id": "stakeholder-communication",
+          "type": "remedial",
+          "action": "Establish transparent communication with stakeholders about schedule status",
+          "tools": ["Status reports", "Dashboard", "Stakeholder meetings", "Risk communication"],
+          "expectedOutcome": "Aligned expectations and collaborative problem-solving",
+          "prerequisites": ["Schedule analysis complete", "Communication plan"],
+          "priority": 8
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "resource-constraint",
+      "name": "Resource Constraint Detection",
+      "description": "Detects project resource constraints including staffing issues, budget limitations, and capacity problems",
+      "indicators": [
+        { "type": "exact", "value": "resource constraint", "weight": 0.95 },
+        { "type": "exact", "value": "resource shortage", "weight": 0.95 },
+        { "type": "exact", "value": "understaffed", "weight": 0.9 },
+        { "type": "exact", "value": "capacity issue", "weight": 0.9 },
+        { "type": "exact", "value": "budget constraint", "weight": 0.9 },
+        { "type": "exact", "value": "resource bottleneck", "weight": 0.9 },
+        { "type": "exact", "value": "team overloaded", "weight": 0.85 },
+        { "type": "exact", "value": "skill gap", "weight": 0.85 },
+        { "type": "exact", "value": "bandwidth issue", "weight": 0.8 },
+        { "type": "fuzzy", "value": "not enough resources", "weight": 0.85 },
+        { "type": "fuzzy", "value": "team stretched thin", "weight": 0.8 },
+        { "type": "fuzzy", "value": "need more people", "weight": 0.75 },
+        {
+          "type": "regex",
+          "value": "\\b(resource|capacity|staffing).*constraint\\b",
+          "weight": 0.8,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\bteam.*overload\\b", "weight": 0.75 },
+        { "type": "exact", "value": "headcount", "weight": 0.7, "keyTermCategory": "domainTerms" },
+        {
+          "type": "exact",
+          "value": "utilization rate",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        },
+        {
+          "type": "exact",
+          "value": "resource allocation",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "memory resource", "weight": 0.35 },
+        { "type": "exact", "value": "cpu resource", "weight": 0.35 },
+        { "type": "exact", "value": "system resource", "weight": 0.3 }
+      ],
+      "hypotheses": [
+        {
+          "id": "staffing-shortage",
+          "statement": "Insufficient staffing levels may be constraining project progress for {{primarySubject}}",
+          "investigationSteps": [
+            "Compare current team size with project requirements",
+            "Analyze workload distribution across team members",
+            "Review hiring pipeline and time-to-fill metrics",
+            "Identify roles with highest demand vs availability gap",
+            "Check contractor or outsourcing options"
+          ],
+          "expectedFindings": [
+            "Team size below planned headcount",
+            "Individual workloads exceeding sustainable levels",
+            "Open positions unfilled for extended periods",
+            "Critical roles with single point of failure",
+            "High overtime indicating capacity issues"
+          ],
+          "relatedHypotheses": ["skill-mismatch", "allocation-inefficiency"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.7
+        },
+        {
+          "id": "skill-mismatch",
+          "statement": "Skill gaps or mismatches may be creating resource constraints for {{primarySubject}}",
+          "investigationSteps": [
+            "Map required skills against team capabilities",
+            "Identify tasks queued due to skill unavailability",
+            "Review training and upskilling opportunities",
+            "Analyze knowledge transfer effectiveness",
+            "Check for over-reliance on specific individuals"
+          ],
+          "expectedFindings": [
+            "Specific skills in short supply relative to demand",
+            "Work queued waiting for specialized resources",
+            "Knowledge silos creating bottlenecks",
+            "Training gaps in emerging technologies",
+            "Key person dependencies creating risk"
+          ],
+          "relatedHypotheses": ["staffing-shortage", "allocation-inefficiency"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.65
+        },
+        {
+          "id": "allocation-inefficiency",
+          "statement": "Inefficient resource allocation may be creating artificial constraints for {{primarySubject}}",
+          "investigationSteps": [
+            "Review resource allocation across projects",
+            "Analyze context switching and multitasking overhead",
+            "Check for resources allocated but underutilized",
+            "Identify priority conflicts between projects",
+            "Review resource request and approval process"
+          ],
+          "expectedFindings": [
+            "Resources split across too many projects",
+            "High context switching reducing productivity",
+            "Misalignment between allocation and actual needs",
+            "Priority conflicts causing resource contention",
+            "Slow resource reallocation process"
+          ],
+          "relatedHypotheses": ["staffing-shortage", "budget-limitation"],
+          "estimatedTime": "1 day",
+          "likelihood": 0.6
+        },
+        {
+          "id": "budget-limitation",
+          "statement": "Budget constraints may be limiting ability to acquire necessary resources for {{primarySubject}}",
+          "investigationSteps": [
+            "Review project budget vs actual spending",
+            "Identify unfunded resource requirements",
+            "Analyze cost of delay vs cost of additional resources",
+            "Check for budget reallocation opportunities",
+            "Review vendor and contractor options"
+          ],
+          "expectedFindings": [
+            "Budget insufficient for required staffing",
+            "Cost constraints preventing tool or training investment",
+            "Unfunded requirements impacting delivery",
+            "Budget locked despite changing needs",
+            "ROI case for additional investment not made"
+          ],
+          "relatedHypotheses": ["staffing-shortage"],
+          "estimatedTime": "1 day",
+          "likelihood": 0.55
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "capacity-analysis",
+          "type": "diagnostic",
+          "action": "Conduct comprehensive capacity analysis to quantify resource gaps for {{primarySubject}}",
+          "tools": [
+            "Resource management tools",
+            "Capacity planning spreadsheets",
+            "Utilization reports",
+            "Jira/Azure DevOps"
+          ],
+          "expectedOutcome": "Clear picture of resource supply vs demand with quantified gaps",
+          "prerequisites": ["Project requirements defined", "Current allocation data"],
+          "priority": 9
+        },
+        {
+          "id": "skill-assessment",
+          "type": "diagnostic",
+          "action": "Perform skill gap assessment and create capability matrix",
+          "tools": ["Skills matrix", "Competency assessments", "Training needs analysis"],
+          "expectedOutcome": "Identified skill gaps with prioritized development plan",
+          "prerequisites": ["Required skills defined", "Team participation"],
+          "priority": 8
+        },
+        {
+          "id": "resource-optimization",
+          "type": "remedial",
+          "action": "Optimize resource allocation to maximize effective capacity",
+          "tools": ["Resource leveling", "Priority frameworks", "Allocation optimization"],
+          "expectedOutcome": "Improved resource utilization and reduced context switching",
+          "prerequisites": ["Capacity analysis complete", "Priority alignment"],
+          "priority": 8
+        },
+        {
+          "id": "hiring-acceleration",
+          "type": "remedial",
+          "action": "Accelerate hiring process for critical roles",
+          "tools": ["Recruiting pipeline", "Interview optimization", "Employer branding"],
+          "expectedOutcome": "Faster time-to-fill for critical positions",
+          "prerequisites": ["Roles defined", "Budget approved", "HR partnership"],
+          "priority": 8
+        },
+        {
+          "id": "contractor-engagement",
+          "type": "remedial",
+          "action": "Engage contractors or consultants to address immediate capacity gaps",
+          "tools": ["Staffing agencies", "Consulting firms", "Freelance platforms"],
+          "expectedOutcome": "Rapid capacity increase for critical needs",
+          "prerequisites": ["Budget available", "Scope defined", "Onboarding plan"],
+          "priority": 7
+        },
+        {
+          "id": "training-investment",
+          "type": "remedial",
+          "action": "Invest in training and upskilling to address skill gaps",
+          "tools": ["Training programs", "Mentorship", "Certifications", "Knowledge sharing"],
+          "expectedOutcome": "Expanded team capabilities and reduced skill bottlenecks",
+          "prerequisites": ["Skill gaps identified", "Training budget", "Time allocation"],
+          "priority": 7
+        },
+        {
+          "id": "scope-prioritization",
+          "type": "remedial",
+          "action": "Prioritize scope to match available resources",
+          "tools": ["MoSCoW prioritization", "Value vs effort matrix", "Stakeholder negotiation"],
+          "expectedOutcome": "Aligned scope with realistic resource capacity",
+          "prerequisites": ["Stakeholder buy-in", "Clear priorities"],
+          "priority": 8
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    },
+    {
+      "id": "scope-creep",
+      "name": "Scope Creep Detection",
+      "description": "Detects uncontrolled scope expansion, requirements volatility, and change management issues",
+      "indicators": [
+        { "type": "exact", "value": "scope creep", "weight": 0.95 },
+        { "type": "exact", "value": "scope expansion", "weight": 0.95 },
+        { "type": "exact", "value": "requirements change", "weight": 0.9 },
+        { "type": "exact", "value": "feature creep", "weight": 0.9 },
+        { "type": "exact", "value": "scope change", "weight": 0.9 },
+        { "type": "exact", "value": "gold plating", "weight": 0.85 },
+        { "type": "exact", "value": "requirements volatility", "weight": 0.85 },
+        { "type": "exact", "value": "unplanned work", "weight": 0.8 },
+        { "type": "exact", "value": "scope bloat", "weight": 0.85 },
+        { "type": "fuzzy", "value": "scope keeps growing", "weight": 0.85 },
+        { "type": "fuzzy", "value": "adding more features", "weight": 0.75 },
+        { "type": "fuzzy", "value": "requirements keep changing", "weight": 0.8 },
+        {
+          "type": "regex",
+          "value": "\\bscope.*(creep|expand|grow)\\b",
+          "weight": 0.85,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "regex", "value": "\\b(feature|requirement).*change\\b", "weight": 0.7 },
+        {
+          "type": "exact",
+          "value": "change request",
+          "weight": 0.75,
+          "keyTermCategory": "domainTerms"
+        },
+        { "type": "exact", "value": "baseline", "weight": 0.6, "keyTermCategory": "domainTerms" },
+        {
+          "type": "exact",
+          "value": "change control",
+          "weight": 0.7,
+          "keyTermCategory": "domainTerms"
+        }
+      ],
+      "negativeIndicators": [
+        { "type": "exact", "value": "variable scope", "weight": 0.3 },
+        { "type": "exact", "value": "scope of work", "weight": 0.25 },
+        { "type": "exact", "value": "project scope document", "weight": 0.2 }
+      ],
+      "hypotheses": [
+        {
+          "id": "weak-change-control",
+          "statement": "Weak or absent change control process may be allowing uncontrolled scope expansion for {{primarySubject}}",
+          "investigationSteps": [
+            "Review change request process and approval workflow",
+            "Analyze how scope changes are currently being introduced",
+            "Check for informal scope additions bypassing process",
+            "Review stakeholder access to add requirements",
+            "Assess impact assessment practices for changes"
+          ],
+          "expectedFindings": [
+            "No formal change control process in place",
+            "Changes approved without impact assessment",
+            "Stakeholders adding scope directly to backlog",
+            "Missing documentation of scope changes",
+            "No baseline to measure scope changes against"
+          ],
+          "relatedHypotheses": ["unclear-requirements", "stakeholder-pressure"],
+          "estimatedTime": "1 day",
+          "likelihood": 0.75
+        },
+        {
+          "id": "unclear-requirements",
+          "statement": "Unclear or incomplete initial requirements may be driving scope changes for {{primarySubject}}",
+          "investigationSteps": [
+            "Review original requirements documentation quality",
+            "Analyze scope changes for patterns (clarifications vs additions)",
+            "Check stakeholder alignment on requirements",
+            "Review requirements gathering process",
+            "Assess requirements sign-off and validation"
+          ],
+          "expectedFindings": [
+            "Vague or ambiguous original requirements",
+            "Missing requirements discovered during development",
+            "Stakeholder disagreement on requirements interpretation",
+            "Insufficient requirements validation upfront",
+            "Requirements gaps filled with assumptions"
+          ],
+          "relatedHypotheses": ["weak-change-control", "stakeholder-pressure"],
+          "estimatedTime": "1-2 days",
+          "likelihood": 0.7
+        },
+        {
+          "id": "stakeholder-pressure",
+          "statement": "Stakeholder pressure or poor expectation management may be driving scope additions for {{primarySubject}}",
+          "investigationSteps": [
+            "Review stakeholder requests and their approval path",
+            "Analyze relationship between stakeholder seniority and scope changes",
+            "Check for competing stakeholder priorities",
+            "Review communication of scope constraints",
+            "Assess stakeholder understanding of trade-offs"
+          ],
+          "expectedFindings": [
+            "Senior stakeholders adding scope without process",
+            "Competing priorities from different stakeholders",
+            "Stakeholders unaware of scope constraints",
+            "Difficulty saying no to stakeholder requests",
+            "Missing trade-off discussions for additions"
+          ],
+          "relatedHypotheses": ["weak-change-control", "unclear-requirements"],
+          "estimatedTime": "1 day",
+          "likelihood": 0.65
+        },
+        {
+          "id": "gold-plating",
+          "statement": "Team gold-plating or over-engineering may be expanding scope beyond requirements for {{primarySubject}}",
+          "investigationSteps": [
+            "Review delivered features vs original requirements",
+            "Check for unrequested enhancements or features",
+            "Analyze time spent on polish vs core functionality",
+            "Review technical decisions for over-engineering",
+            "Assess team understanding of MVP and priorities"
+          ],
+          "expectedFindings": [
+            "Features delivered beyond what was requested",
+            "Excessive time on non-essential polish",
+            "Technical solutions more complex than needed",
+            "Team adding nice-to-haves without approval",
+            "Perfectionism delaying delivery"
+          ],
+          "relatedHypotheses": ["unclear-requirements"],
+          "estimatedTime": "1 day",
+          "likelihood": 0.5
+        }
+      ],
+      "recommendations": [
+        {
+          "id": "scope-audit",
+          "type": "diagnostic",
+          "action": "Conduct scope audit to quantify scope changes since baseline for {{primarySubject}}",
+          "tools": [
+            "Requirements traceability matrix",
+            "Change log analysis",
+            "Baseline comparison"
+          ],
+          "expectedOutcome": "Clear picture of scope growth with categorized changes",
+          "prerequisites": ["Original scope baseline", "Change history"],
+          "priority": 9
+        },
+        {
+          "id": "change-control-process",
+          "type": "remedial",
+          "action": "Implement or strengthen formal change control process",
+          "tools": [
+            "Change request forms",
+            "Impact assessment templates",
+            "Approval workflows",
+            "Change control board"
+          ],
+          "expectedOutcome": "Controlled scope changes with proper impact assessment",
+          "prerequisites": ["Stakeholder buy-in", "Process definition"],
+          "priority": 9
+        },
+        {
+          "id": "requirements-baseline",
+          "type": "remedial",
+          "action": "Establish clear requirements baseline with stakeholder sign-off",
+          "tools": ["Requirements documentation", "Sign-off process", "Scope statement"],
+          "expectedOutcome": "Agreed baseline to measure scope changes against",
+          "prerequisites": ["Requirements clarification", "Stakeholder alignment"],
+          "priority": 8
+        },
+        {
+          "id": "impact-assessment",
+          "type": "remedial",
+          "action": "Require impact assessment for all scope changes before approval",
+          "tools": ["Impact assessment templates", "Effort estimation", "Risk analysis"],
+          "expectedOutcome": "Informed decisions on scope changes with understood trade-offs",
+          "prerequisites": ["Change control process", "Estimation capability"],
+          "priority": 8
+        },
+        {
+          "id": "stakeholder-education",
+          "type": "remedial",
+          "action": "Educate stakeholders on scope management and trade-offs",
+          "tools": ["Project triangle", "Trade-off discussions", "Regular status updates"],
+          "expectedOutcome": "Stakeholders understand impact of scope changes",
+          "prerequisites": ["Communication plan", "Executive support"],
+          "priority": 7
+        },
+        {
+          "id": "scope-negotiation",
+          "type": "remedial",
+          "action": "Negotiate scope reduction to bring project back to sustainable level",
+          "tools": ["MoSCoW prioritization", "Value analysis", "Stakeholder negotiation"],
+          "expectedOutcome": "Right-sized scope aligned with constraints",
+          "prerequisites": ["Scope audit complete", "Stakeholder engagement"],
+          "priority": 8
+        },
+        {
+          "id": "mvp-focus",
+          "type": "remedial",
+          "action": "Refocus team on MVP delivery and defer non-essential features",
+          "tools": ["MVP definition", "Feature prioritization", "Backlog grooming"],
+          "expectedOutcome": "Clear focus on essential deliverables",
+          "prerequisites": ["MVP defined", "Team alignment"],
+          "priority": 8
+        }
+      ],
+      "severity": "high",
+      "qualityThreshold": 0.6
+    }
+  ],
+  "testCases": [
+    {
+      "id": "test-schedule-slippage-basic",
+      "input": "Our project is behind schedule and we're at risk of missing the deadline",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["schedule-slippage"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-schedule-slippage-detailed",
+      "input": "We're experiencing significant schedule slippage, the project is running 3 weeks late and milestones are being missed",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["schedule-slippage"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-schedule-delay",
+      "input": "Project delay is causing timeline risk, we need to understand why delivery is late",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["schedule-slippage"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-schedule-critical-path",
+      "input": "Critical path items are delayed and sprint velocity has dropped significantly",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["schedule-slippage"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-resource-constraint-basic",
+      "input": "We have a resource constraint and the team is understaffed for this project",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["resource-constraint"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-resource-constraint-capacity",
+      "input": "Team is overloaded with capacity issues, we don't have enough resources to deliver on time",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["resource-constraint"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-resource-skill-gap",
+      "input": "We have a skill gap on the team and resource bottleneck for specialized work",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["resource-constraint"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-resource-budget",
+      "input": "Budget constraint is limiting our headcount and resource allocation options",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["resource-constraint"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-scope-creep-basic",
+      "input": "We're experiencing scope creep and the project scope keeps expanding",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["scope-creep"],
+      "minConfidence": 0.85
+    },
+    {
+      "id": "test-scope-creep-features",
+      "input": "Feature creep is a problem, stakeholders keep adding more features and requirements keep changing",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["scope-creep"],
+      "minConfidence": 0.8
+    },
+    {
+      "id": "test-scope-creep-requirements",
+      "input": "Requirements volatility is causing scope bloat, we need better change control",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["scope-creep"],
+      "minConfidence": 0.75
+    },
+    {
+      "id": "test-scope-creep-gold-plating",
+      "input": "Team is gold plating features and adding unplanned work beyond the baseline",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["scope-creep"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-schedule-resource",
+      "input": "Project is behind schedule due to resource constraints and understaffing",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["schedule-slippage", "resource-constraint"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-combined-schedule-scope",
+      "input": "Schedule slippage caused by scope creep, requirements keep changing and deadlines are at risk",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["schedule-slippage", "scope-creep"],
+      "minConfidence": 0.7
+    },
+    {
+      "id": "test-all-patterns",
+      "input": "Project is behind schedule with resource constraints and scope creep making things worse",
+      "expectedDomain": "project-management",
+      "expectedPatternIds": ["schedule-slippage", "resource-constraint", "scope-creep"],
+      "minConfidence": 0.65
+    }
+  ]
+}
